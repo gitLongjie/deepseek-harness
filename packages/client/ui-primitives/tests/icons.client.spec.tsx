@@ -67,15 +67,33 @@ describe('FishLogo', () => {
   })
 })
 
+describe('MewoLogo', () => {
+  it('renders the raster mark as an aria-hidden image at the native ratio', () => {
+    const { container } = render(<primitives.MewoLogo />)
+    const img = container.querySelector('img')!
+    expect(img.getAttribute('width')).toBe('22')
+    expect(img.getAttribute('height')).toBe('24')
+    expect(img.getAttribute('aria-hidden')).toBe('true')
+    expect(img.getAttribute('src')).toMatch(/^data:image\/png;base64,/)
+  })
+
+  it('size and className land on the root image', () => {
+    const { container } = render(<primitives.MewoLogo size={34} className="mark" />)
+    const img = container.querySelector('img')!
+    expect(img.getAttribute('height')).toBe('34')
+    expect(img.getAttribute('width')).toBe('31')
+    expect(img.classList.contains('mark')).toBe(true)
+  })
+})
+
 describe('BrandWordmark', () => {
-  it('can render the name artwork with or without its leading mark', () => {
+  it('composes the mark and the live product name with or without the mark', () => {
     const view = render(<primitives.BrandWordmark />)
-    const svg = view.container.querySelector('svg')!
-    expect(svg.getAttribute('width')).toBe('182')
-    expect(svg.getAttribute('viewBox')).toBe('0 0 182 24')
+    expect(view.container.querySelector('img')).not.toBeNull()
+    expect(view.container.textContent).toBe('深度Works')
 
     view.rerender(<primitives.BrandWordmark includeMark={false} />)
-    expect(svg.getAttribute('width')).toBe('156')
-    expect(svg.getAttribute('viewBox')).toBe('26 0 156 24')
+    expect(view.container.querySelector('img')).toBeNull()
+    expect(view.container.textContent).toBe('深度Works')
   })
 })

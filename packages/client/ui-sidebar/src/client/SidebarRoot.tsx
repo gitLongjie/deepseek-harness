@@ -141,7 +141,7 @@ export function SidebarRoot({
               </span>
               <span className={css.brandName}>
                 {renderSlot('sidebar.brand.name', {}, {
-                  fallback: <span className={css.fallbackBrandName}>喵喔科技</span>,
+                  fallback: <span className={css.fallbackBrandName}>深度Works</span>,
                 })}
               </span>
             </span>

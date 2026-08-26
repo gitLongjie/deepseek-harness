@@ -12,7 +12,7 @@ Status: implemented
 
 应用菜单保留带稳定顶层 id 的原生模板——`edit`（标准编辑 role）、`view`（重新加载、开发者工具、缩放、全屏）、`window`（最小化、缩放、关闭，外加"显示主窗口"，恢复、显示并聚焦所有应用窗口）、`help`（GitHub 仓库、GitHub Discussions 反馈、关于），外加 darwin 的 `appMenu` role，以及承载"登录时启动"、开发者工具和"退出"的 App 菜单。每个条目都显式固定中文 `label`；role 保留加速键与平台行为，显示文案不再跟随系统语言。帮助菜单只链接本仓库实际拥有的页面。
 
-标题栏只绘制 MEWO 标记——不带任何标题文字：产品名归侧边栏，会话标题归任务栏——并在标记与窗口控制按钮之间渲染 编辑/视图/窗口/帮助 按钮。点击时经窗口控制所用的同一个通用 preload 桥发送 `dsh:menu:popup`，载荷为 `{ id, x, y }`——顶层菜单 id 加上按钮在窗口坐标系中的位置。`registerMenuPopupIpc()` 校验 wire 载荷（id 对照封闭集合 `{ edit, view, window, help }`；坐标可选但必须成对有效，否则整个请求被丢弃），随后用 `Menu.getApplicationMenu()?.getMenuItemById(id)?.submenu?.popup({ window })` 把对应的原生子菜单锚定在该坐标处，目标窗口取自发送方，与既有的一切桌面 fire-and-forget 通道一致。无论弹出层是否打开，菜单快捷键始终全局注册。
+标题栏只绘制品牌标记——不带任何标题文字：产品名归侧边栏，会话标题归任务栏——并在标记与窗口控制按钮之间渲染 编辑/视图/窗口/帮助 按钮。点击时经窗口控制所用的同一个通用 preload 桥发送 `dsh:menu:popup`，载荷为 `{ id, x, y }`——顶层菜单 id 加上按钮在窗口坐标系中的位置。`registerMenuPopupIpc()` 校验 wire 载荷（id 对照封闭集合 `{ edit, view, window, help }`；坐标可选但必须成对有效，否则整个请求被丢弃），随后用 `Menu.getApplicationMenu()?.getMenuItemById(id)?.submenu?.popup({ window })` 把对应的原生子菜单锚定在该坐标处，目标窗口取自发送方，与既有的一切桌面 fire-and-forget 通道一致。无论弹出层是否打开，菜单快捷键始终全局注册。
 
 ## Alternatives considered
 

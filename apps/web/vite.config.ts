@@ -8,7 +8,7 @@ const src = (rel: string): string => fileURLToPath(new URL(rel, import.meta.url)
 const STANDALONE_ERROR = 'apps/web is not a standalone application: bare Vite cannot inject window.__DSH_BOOT__. '
   + 'From a repository checkout, run `pnpm dsh web`; an installed package uses `dsh web`. '
   + 'For client-plugin HMR, run `pnpm dsh web` together with `pnpm run dev:web`.'
-const DEFAULT_CLIENT_TITLE = 'DSH Local Build'
+const DEFAULT_CLIENT_TITLE = '深度Works Local Build'
 
 /** Escape build-time text before placing it in the HTML title element. */
 function escapeHtmlText(value: string): string {
@@ -21,7 +21,7 @@ function clientDocumentTitle(): Plugin {
   return {
     name: 'dsh-client-document-title',
     transformIndexHtml(html) {
-      return html.replace('<title>DSH Local Build</title>', `<title>${title}</title>`)
+      return html.replace('<title>深度Works Local Build</title>', `<title>${title}</title>`)
     },
   }
 }
@@ -108,6 +108,10 @@ function npmPackageOf(id: string): string | undefined {
 }
 
 export default defineConfig({
+  // The desktop shell serves the dist over an app scheme (or file://), where
+  // absolute /assets paths cannot resolve; a DSH_DESKTOP_BUILD build uses a
+  // relative asset base so every URL resolves beside the index document.
+  base: process.env.DSH_DESKTOP_BUILD === '1' ? './' : '/',
   plugins: [rejectStandaloneServe(), clientDocumentTitle(), react()],
   build: {
     sourcemap: true,

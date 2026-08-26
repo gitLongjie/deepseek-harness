@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url'
 import { app, BrowserWindow, Menu, nativeImage, Tray } from 'electron'
 
 /** Tray icon, beside this app's build assets in both layouts. */
-const TRAY_ICON = fileURLToPath(new URL('../../../build/tray.png', import.meta.url))
+const TRAY_ICON = fileURLToPath(new URL('../../../build/tray.ico', import.meta.url))
 
 /** Install the tray and the hide-to-tray close behavior. */
 export function installTray(win: BrowserWindow): void {

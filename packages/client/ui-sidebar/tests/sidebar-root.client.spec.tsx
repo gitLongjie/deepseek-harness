@@ -104,7 +104,7 @@ describe('SidebarRoot shell', () => {
     />)
 
     // The fallback is the bare product name: no build suffix or revision badge.
-    expect(screen.getByText('喵喔科技')).toBeTruthy()
+    expect(screen.getByText('深度Works')).toBeTruthy()
     expect(screen.queryByText('0123456')).toBeNull()
     expect(container.querySelector('svg')).not.toBeNull()
   })

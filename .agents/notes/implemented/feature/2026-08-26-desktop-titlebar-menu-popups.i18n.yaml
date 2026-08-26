@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-26-desktop-titlebar-menu-popups.md
-2026-08-26-desktop-titlebar-menu-popups.md: 67fbb6aab8e2454558cdde8f949a5af3c11e8ff0
-2026-08-26-desktop-titlebar-menu-popups.zh.md: 69cbf0e59a2abdfd5927f8ffa82ccfbe0c433a4f
+2026-08-26-desktop-titlebar-menu-popups.md: 406e7ead7137ef440d07b99f7731083453936f50
+2026-08-26-desktop-titlebar-menu-popups.zh.md: 596cb9880746177eaa6915a874701792eab8d6fb

@@ -24,7 +24,7 @@ if (ipc === undefined) {
 // The title bar defers its body mount internally (this IIFE runs as a head
 // script); the transport below must stay synchronous — AppWebEntry reads it
 // during boot.
-installTitleBar(document, ipc, './favicon.svg')
+installTitleBar(document, ipc, './favicon.ico')
 
 const client = new ElectronApiClient(ipc)
 

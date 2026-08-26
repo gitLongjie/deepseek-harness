@@ -18,18 +18,19 @@ it('ships install metadata with the built web application', async () => {
     scope: '/',
     display: 'fullscreen',
     icons: [{
-      src: '/favicon.svg',
+      src: '/favicon.ico',
       sizes: 'any',
-      type: 'image/svg+xml',
+      type: 'image/x-icon',
       purpose: 'any',
     }],
   })
 })
 
-it('ships a favicon that switches to a light mark under dark color scheme', async () => {
-  const favicon = await readFile(join(DIST_ROOT, 'favicon.svg'), 'utf8')
-  // The light fill must live inside the dark-scheme media query, so the icon
-  // stays black in light mode and only turns white under a dark scheme.
-  expect(favicon).toMatch(/@media \(prefers-color-scheme: dark\)\s*{\s*path\s*{[^}]*fill:\s*#fff/i)
-  expect(favicon).toContain('fill="#000"')
+it('ships the brand favicon as a real ICO next to the entry document', async () => {
+  const favicon = await readFile(join(DIST_ROOT, 'favicon.ico'))
+  // ICONDIR: reserved word + type 1 (icon) + exactly one embedded image.
+  expect(favicon.length).toBeGreaterThan(0)
+  expect(favicon.readUInt16LE(0)).toBe(0)
+  expect(favicon.readUInt16LE(2)).toBe(1)
+  expect(favicon.readUInt16LE(4)).toBe(1)
 })

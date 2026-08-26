@@ -1,7 +1,7 @@
 /**
  * Desktop-only custom title bar, installed by the render entry before the web
  * app boots. The window runs frameless; this module draws the branded bar
- * (the MEWO mark alone — the sidebar owns the product name, the taskbar the
+ * (the brand mark alone — the sidebar owns the product name, the taskbar the
  * session title), the 编辑/视图/窗口/帮助 menu buttons, the drag region, and
  * the window controls; shifts the app below it through a body top padding —
  * the GUI sizes itself with percentage heights, so the padding shrinks every
