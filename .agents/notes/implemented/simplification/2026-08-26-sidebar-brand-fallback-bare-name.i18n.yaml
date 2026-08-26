@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/simplification/2026-08-26-sidebar-brand-fallback-bare-name.md
+2026-08-26-sidebar-brand-fallback-bare-name.md: 508f346c69566d7da2bc15803b8400f5cc6103aa
+2026-08-26-sidebar-brand-fallback-bare-name.zh.md: c06255cd0a56591a69b475b1e1d4e04b0dc282f2

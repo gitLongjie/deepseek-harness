@@ -210,20 +210,6 @@
   color: var(--dsw-alias-label-primary);
 }
 
-.buildRevision {
-  display: inline-flex;
-  align-items: center;
-  height: 16px;
-  padding: 0 4px;
-  border-radius: 3px;
-  color: var(--dsw-alias-label-primary-inverted);
-  background: var(--dsw-alias-label-primary);
-  font-family: var(--ds-font-family-code);
-  font-size: 8px;
-  font-weight: 500;
-  line-height: 16px;
-}
-
 /* New Session: 38px bar, 12px radius (figma 133:7634 geometry, squared-off
    corners); collapsed it renders as the rail's plain icon control. */
 .newSession {
@@ -296,19 +282,28 @@
   padding-left: 0;
 }
 
-/* Footer seats: additive actions stack above Settings. Each occupant owns its
-   button geometry and hover chrome. */
+/* Footer seats: wide renders the additive actions and Settings on one row
+   (actions stretch to fill, Settings pinned at the right edge at content
+   width); the collapsed rail stacks them. Each occupant owns its button
+   geometry and hover chrome. */
 .footArea {
   flex: none;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: stretch;
 }
 
 .settingsArea,
 .footerActions {
-  flex: none;
   min-width: 0;
-  width: 100%;
+}
+
+.footerActions {
+  flex: 1;
+}
+
+.settingsArea {
+  flex: none;
 }
 
 .footerActions {
@@ -316,6 +311,7 @@
 }
 
 .collapsed .footArea {
+  flex-direction: column;
   align-items: center;
 }
 

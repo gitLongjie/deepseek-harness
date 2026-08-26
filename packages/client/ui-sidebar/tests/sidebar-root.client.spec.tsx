@@ -103,8 +103,9 @@ describe('SidebarRoot shell', () => {
         options?.fallback ?? null) as SidebarRootComponentProps['renderSlot']}
     />)
 
-    expect(screen.getByText('DSH Local Build')).toBeTruthy()
-    expect(screen.getByText('0123456')).toBeTruthy()
+    // The fallback is the bare product name: no build suffix or revision badge.
+    expect(screen.getByText('喵喔科技')).toBeTruthy()
+    expect(screen.queryByText('0123456')).toBeNull()
     expect(container.querySelector('svg')).not.toBeNull()
   })
 
