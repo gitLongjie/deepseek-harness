@@ -1,0 +1,45 @@
+{
+  "name": "@deepseek-ai/dsh-desktop",
+  "description": "Electron desktop shell for the DeepSeek Harness web GUI: boots the dsh host in-process and carries the React frontend over an IPC bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/main/index.js",
+  "license": "MIT",
+  "scripts": {
+    "build": "pnpm build:main && pnpm build:render-transport",
+    "build:main": "tsc -b tsconfig.json",
+    "build:render-transport": "node scripts/build-render-transport.mjs",
+    "build:web": "pnpm --filter @deepseek-ai/dsh-web-frontend run build",
+    "dev": "tsx scripts/dev.ts",
+    "pack": "node scripts/deploy-app.mjs --dir",
+    "dist": "node scripts/deploy-app.mjs",
+    "release": "node scripts/deploy-app.mjs --publish always",
+    "test": "vitest run apps/desktop/tests --root ../..",
+    "typecheck": "tsc -b tsconfig.json --pretty false"
+  },
+  "dependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@deepseek-ai/dsh-app-boot": "workspace:^",
+    "@deepseek-ai/dsh-base": "workspace:^",
+    "@deepseek-ai/dsh-client-connection": "workspace:^",
+    "@deepseek-ai/dsh-client-modules": "workspace:^",
+    "@deepseek-ai/dsh-cmdline": "workspace:^",
+    "@deepseek-ai/dsh-home-paths": "workspace:^",
+    "@deepseek-ai/dsh-host-apiproxy": "workspace:^",
+    "@deepseek-ai/dsh-host-webserver": "workspace:^",
+    "@deepseek-ai/dsh-launch-environment": "workspace:^",
+    "@deepseek-ai/dsh-web-app": "workspace:^",
+    "electron-updater": "^6.8.9"
+  },
+  "devDependencies": {
+    "@deepseek-ai/dsh-web-frontend": "workspace:^",
+    "@types/node": "^22.0.0",
+    "electron": "^44.0.0",
+    "electron-builder": "^26.15.3",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
+  }
+}

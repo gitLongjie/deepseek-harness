@@ -1,0 +1,68 @@
+# electron-builder configuration for the DeepSeek Harness desktop shell.
+# Signing and notarization are pre-wired but left off: with no CSC_LINK /
+# APPLE_* secrets in the environment, electron-builder skips Windows signing and
+# macOS notarization (identity: null). Populate the CI secrets (see README) to
+# enable real signing without touching this file.
+appId: ai.deepseek.dsh
+productName: DeepSeek Harness
+electronLanguages:
+  - en-US
+  - zh-CN
+asar: true
+asarUnpack:
+  - '**/*.node'
+# node-pty ships a prebuild matching this Electron's Node ABI; skipping the
+# node-gyp rebuild avoids requiring a full native toolchain on every platform.
+npmRebuild: false
+directories:
+  # Relative to the electron-builder working directory (apps/desktop); kept
+  # apart from the app's own dist/ (main-process build output).
+  output: dist-electron
+  buildResources: build
+files:
+  - dist/**/*.js
+  - dist/**/*.map
+  - web/**
+  - config/**
+  - build/**
+  - cordis.patch.yml
+  - package.json
+  # Workspace packages are followed through their pnpm symlinks; their runtime
+  # needs lib only, so drop sources, tests, and sourcemaps to keep the bundle slim.
+  - '!**/src/**'
+  - '!**/tests/**'
+  - '!**/*.map'
+  - '!**/*.tsbuildinfo'
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  artifactName: ${productName}-${version}-win-${arch}.${ext}
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+mac:
+  target:
+    - dmg
+    - zip
+  category: public.app-category.developer-tools
+  hardenedRuntime: true
+  entitlements: build/entitlements.mac.plist
+  identity: null
+  notarize: false
+dmg:
+  artifactName: ${productName}-${version}-mac-${arch}.${ext}
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Development
+  synopsis: DeepSeek Harness Desktop
+publish:
+  provider: github
+  owner: gitLongjie
+  repo: deepseek-harness
+  releaseType: release

@@ -1,0 +1,22 @@
+# The desktop profile's overlay over the web profile composition. The Electron
+# shell renders the frontend over file:// + IPC, so it neither prints a URL,
+# opens the system browser, nor needs a fixed HTTP port. The webserver row is
+# retained (not disabled) because the connection row's node half binds the API
+# gateway to it; port 0 asks the OS for an ephemeral port that the renderer
+# never connects to. Every other web-profile row — the host domain services and
+# the dsh.client roster — stays untouched, except the reload watcher below.
+- id: webserver
+  config:
+    host: '127.0.0.1'
+    port: 0
+- id: web-runtime
+  config:
+    openBrowser: false
+    printUrl: false
+    surfaceContext: true
+    trustedHosts: []
+# The Electron shell serves the frontend over the dshapp:// file protocol,
+# which has no SSE route; the client reload watcher's EventSource endpoint
+# lives only on the dev webserver, so the browser row stays disabled here.
+- id: client-hmr
+  disabled: true
