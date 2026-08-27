@@ -20,24 +20,24 @@ type IpcSender = {
   on?(channel: string, listener: (payload: unknown) => void): () => void
 }
 
-/** Badge chrome: a compact pill that flips to an accent state when ready. */
+/** Badge chrome: a subtle, compact pill that flips to an accent state when ready. */
 const STYLE_TEXT = `
 #dsh-update-badge {
   display: inline-flex;
   align-items: center;
   flex-shrink: 0;
-  margin-left: 8px;
-  padding: 2px 8px;
-  border: 1px solid var(--dsw-alias-border-subtle, rgba(0, 0, 0, 0.12));
+  margin-left: 6px;
+  padding: 1px 6px;
+  border: 1px solid var(--dsw-alias-border-subtle, rgba(0, 0, 0, 0.1));
   border-radius: 999px;
-  background: var(--dsw-alias-bg-surface, #fff);
-  color: var(--dsw-alias-label-primary, #0f1115);
+  background: transparent;
+  color: var(--dsw-alias-content-subtle, #8a8a8f);
   font: inherit;
-  font-size: 11px;
-  line-height: 16px;
+  font-size: 10px;
+  line-height: 14px;
   cursor: pointer;
   white-space: nowrap;
-  max-width: 140px;
+  max-width: 96px;
   overflow: hidden;
   text-overflow: ellipsis;
 }

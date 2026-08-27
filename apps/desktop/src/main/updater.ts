@@ -49,6 +49,10 @@ export function initUpdater(t: (key: DesktopTextKey) => string, win: BrowserWind
 
   autoUpdater.on('update-available', (info) => {
     manualCheck = false
+    // electron-updater already compares semver, but guard against an equal
+    // version surfacing here (e.g. a re-published tag); only a genuinely newer
+    // version should light up the in-app badge.
+    if (info.version === app.getVersion()) return
     latestVersion = info.version
     if (!win.isDestroyed()) {
       win.webContents.send('dsh:update:status', { status: 'available', version: info.version })
