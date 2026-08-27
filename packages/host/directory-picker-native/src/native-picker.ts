@@ -1,5 +1,6 @@
 /** Cross-platform native single-directory chooser behind the native backend's capability. */
 
+import { createRequire } from 'node:module'
 import { runNativeCommand, type NativeCommandRunner } from '@deepseek-ai/dsh-native-command'
 import { pickWin32Directory } from './win32-dialog.ts'
 
@@ -12,6 +13,29 @@ export interface DirectoryPickerInternals {
   run?: DirectoryPickerRunner
   /** Replaces the in-process Win32 dialog (`pickWin32Directory`) for deterministic tests. */
   pickWin32Dialog?: (signal: AbortSignal) => Promise<string | null>
+  /** Overrides the Electron detection (`process.versions.electron`) for tests. */
+  isElectron?: boolean
+  /** Replaces the Electron dialog driver for deterministic tests. */
+  pickElectronDialog?: (signal: AbortSignal) => Promise<string | null>
+}
+
+/** Lazily resolve the Electron main-process dialog; the plain Node CLI never loads it. */
+async function pickElectronDirectory(signal: AbortSignal): Promise<string | null> {
+  const electron = createRequire(import.meta.url)('electron') as {
+    dialog: {
+      showOpenDialog(options: { title?: string; properties: Array<'openDirectory' | 'createDirectory'> }):
+      Promise<{ canceled: boolean; filePaths: string[] }>
+    }
+  }
+  // The dialog is modal on the operator's display; the signal cannot close it
+  // (Electron exposes no abort for showOpenDialog), so it is deliberately unused.
+  void signal
+  const result = await electron.dialog.showOpenDialog({
+    title: 'Select Workspace Directory',
+    properties: ['openDirectory', 'createDirectory'],
+  })
+  if (result.canceled || result.filePaths.length === 0) return null
+  return result.filePaths[0] ?? null
 }
 
 function outputPath(stdout: string): string | null {
@@ -49,6 +73,12 @@ export async function pickNativeDirectory(
   signal: AbortSignal,
   internals: DirectoryPickerInternals = {},
 ): Promise<string | null> {
+  // Electron ships its own native folder dialog; the koffi Win32 worker and the
+  // osascript child both fail there (process.execPath is the Chromium binary).
+  if (internals.isElectron ?? process.versions.electron !== undefined) {
+    const pickDialog = internals.pickElectronDialog ?? pickElectronDirectory
+    return pickDialog(signal)
+  }
   const platform = internals.platform ?? process.platform
   const run = internals.run ?? runNativeCommand
 

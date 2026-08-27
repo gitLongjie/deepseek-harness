@@ -640,6 +640,28 @@
         "@deepseek-ai/.+"
       ]
     },
+    "apps/desktop": {
+      "entry": [
+        "tests/**/*.spec.ts",
+        "src/main/index.ts",
+        "src/preload/index.ts",
+        "src/render/entry.ts",
+        "scripts/**/*.ts",
+        "scripts/**/*.mjs"
+      ],
+      "project": [
+        "src/**/*.ts",
+        "tests/**/*.ts",
+        "scripts/**/*.ts",
+        "scripts/**/*.mjs"
+      ],
+      "ignoreDependencies": [
+        "@deepseek-ai/.+",
+        "electron",
+        "electron-builder",
+        "electron-updater"
+      ]
+    },
     "packages/subagent/subagent-dsh-sdk": {
       "entry": [
         "tests/**/*.spec.ts",

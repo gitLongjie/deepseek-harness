@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-26-desktop-transport-shared-channel-and-startup-noise.md
+2026-08-26-desktop-transport-shared-channel-and-startup-noise.md: 7966a627ff96ed1992a5b878240ac9c913e3a8ea
+2026-08-26-desktop-transport-shared-channel-and-startup-noise.zh.md: a487b8fe680808258e1d69c0b4a2354876debdeb

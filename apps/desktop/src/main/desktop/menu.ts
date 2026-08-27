@@ -81,7 +81,7 @@ export function installApplicationMenu(): void {
           click: () => { void shell.openExternal('https://github.com/deepseek-ai/deepseek-harness/discussions') },
         },
         { type: 'separator' },
-        { label: '关于 DeepSeek Harness', click: () => { void showAbout() } },
+        { label: '关于 深度Works', click: () => { void showAbout() } },
       ],
     },
     {
@@ -149,7 +149,7 @@ async function showAbout(): Promise<void> {
   await dialog.showMessageBox({
     type: 'info',
     title: '关于',
-    message: 'DeepSeek Harness 桌面版',
+    message: '深度Works 桌面版',
     detail: `版本 ${app.getVersion()}`,
   })
 }

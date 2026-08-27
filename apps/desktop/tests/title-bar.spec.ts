@@ -11,7 +11,7 @@ beforeEach(() => {
 describe('desktop title bar', () => {
   it('injects the app-shift stylesheet, the logo-only brand, menus, and three controls', () => {
     const ipc = { send: vi.fn() }
-    installTitleBar(document, ipc, './favicon.svg')
+    installTitleBar(document, ipc, './favicon.ico')
 
     const style = document.getElementById('dsh-desktop-titlebar-style')
     expect(style?.textContent).toContain(`padding-top: ${TITLE_BAR_HEIGHT_PX}px`)
@@ -19,7 +19,7 @@ describe('desktop title bar', () => {
 
     const bar = document.getElementById('dsh-desktop-titlebar')!
     // Logo only: the brand span carries no text node next to the mark.
-    expect(bar.querySelector('.dsh-titlebar-brand img')?.getAttribute('src')).toBe('./favicon.svg')
+    expect(bar.querySelector('.dsh-titlebar-brand img')?.getAttribute('src')).toBe('./favicon.ico')
     expect(bar.querySelector('.dsh-titlebar-brand')?.textContent).toBe('')
     expect(bar.querySelector('[role="dialog"]')).toBeNull()
 
@@ -33,7 +33,7 @@ describe('desktop title bar', () => {
 
   it('routes each control click over its own IPC channel', () => {
     const ipc = { send: vi.fn() }
-    installTitleBar(document, ipc, './favicon.svg')
+    installTitleBar(document, ipc, './favicon.ico')
     const buttons = [...document.querySelectorAll<HTMLButtonElement>('#dsh-desktop-titlebar .dsh-titlebar-controls button')]
     buttons[0].click()
     buttons[1].click()
@@ -45,7 +45,7 @@ describe('desktop title bar', () => {
 
   it('asks the main process to pop up each menu next to its button', () => {
     const ipc = { send: vi.fn() }
-    installTitleBar(document, ipc, './favicon.svg')
+    installTitleBar(document, ipc, './favicon.ico')
     const buttons = [...document.querySelectorAll<HTMLButtonElement>('.dsh-titlebar-menu-btn')]
     buttons[0].click()
     buttons[3].click()
@@ -62,7 +62,7 @@ describe('desktop title bar', () => {
     Object.defineProperty(document, 'body', { value: null, configurable: true })
     try {
       const ipc = { send: vi.fn() }
-      installTitleBar(document, ipc, './favicon.svg')
+      installTitleBar(document, ipc, './favicon.ico')
       expect(document.getElementById('dsh-desktop-titlebar')).toBeNull()
     } finally {
       Object.defineProperty(document, 'body', { value: body, configurable: true })

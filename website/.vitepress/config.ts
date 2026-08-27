@@ -210,8 +210,10 @@ const siteIdentity = {
 }
 
 /**
- * The DeepSeek wordmark, inlined so its `currentColor` fills follow the active
- * theme. An `<img>` would freeze the mark at the colors the file declares.
+ * The MEWO wordmark, inlined with paired light- and dark-ink rasters; the
+ * stylesheet below toggles the visible ink with the active theme. An
+ * `<img>` could not switch inks, and a single fixed ink would lose the
+ * mark on one of the two navbar themes.
  */
 const wordmark = readFileSync(resolve(import.meta.dirname, '../public/wordmark.svg'), 'utf8')
   .trim()
@@ -230,7 +232,10 @@ const wordmark = readFileSync(resolve(import.meta.dirname, '../public/wordmark.s
  */
 const siteStyle = `
 .dsh-lockup { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
-.dsh-wordmark { display: block; height: 22px; width: auto; color: var(--vp-c-text-1); }
+.dsh-wordmark { display: block; height: 22px; width: auto; }
+.dsh-wordmark .ink-dark { display: none; }
+.dark .dsh-wordmark .ink-dark { display: block; }
+.dark .dsh-wordmark .ink-light { display: none; }
 .dsh-tag {
   display: inline-flex;
   align-items: center;
@@ -282,7 +287,7 @@ const scrollbarScript = `
 `
 
 /**
- * Navigation-bar title: the DeepSeek wordmark and the release-stage tag.
+ * Navigation-bar title: the MEWO wordmark and the release-stage tag.
  * VitePress renders `siteTitle` as HTML.
  *
  * @param previewTag - Localized release-stage label.

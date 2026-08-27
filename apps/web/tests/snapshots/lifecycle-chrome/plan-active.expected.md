@@ -20,7 +20,7 @@
 - button "Settings":
   - img
   - text: Settings
-- text: Into the Unknown Preview
+- text: Into the Realm of Wonder Preview
 - button "Choose workspace":
   - img
   - text: workspace

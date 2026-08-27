@@ -33,6 +33,17 @@ const signal = () => new AbortController().signal
 const noDialog = async (): Promise<string | null> => { throw new Error('dialog unavailable') }
 
 describe('native directory picker', () => {
+  it('uses the Electron dialog inside Electron, ahead of any platform command', async () => {
+    const pickElectronDialog = vi.fn(async () => '/workspace/project')
+    await expect(pickNativeDirectory(signal(), { isElectron: true, pickElectronDialog })).resolves.toBe('/workspace/project')
+    expect(pickElectronDialog).toHaveBeenCalledWith(expect.any(AbortSignal))
+  })
+
+  it('maps Electron dialog cancellation to null', async () => {
+    const pickElectronDialog = vi.fn(async () => null)
+    await expect(pickNativeDirectory(signal(), { isElectron: true, pickElectronDialog })).resolves.toBeNull()
+  })
+
   it('uses the macOS folder chooser and maps user cancellation to null', async () => {
     const run = vi.fn<DirectoryPickerRunner>(async () => ({ stdout: '/Users/test/project/\n', stderr: '' }))
     await expect(pickNativeDirectory(signal(), { platform: 'darwin', run })).resolves.toBe('/Users/test/project/')

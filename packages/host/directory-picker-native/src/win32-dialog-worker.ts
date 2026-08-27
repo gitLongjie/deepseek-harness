@@ -40,6 +40,11 @@ process.on('disconnect', () => process.exit(0))
 // No top-level await: the built worker ships as CJS, which cannot carry TLA.
 void (async () => {
   try {
+    if (process.versions.electron !== undefined) {
+      /* v8 ignore next 2 -- Electron-only arm: the unit lane always runs plain Node, and the
+         desktop crash this guard owns reproduces only under Electron. */
+      throw new Error('win32-dialog-worker must run under plain Node; under Electron the picker drives the Electron dialog instead')
+    }
     const bindings = await loadWin32DialogBindings()
     const path = runFolderDialog(bindings, title, (threadId) => {
       post({ kind: 'showing', threadId } satisfies Win32DialogWorkerMessage)

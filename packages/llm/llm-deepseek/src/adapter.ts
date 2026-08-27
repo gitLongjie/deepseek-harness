@@ -124,6 +124,8 @@ export interface DeepSeekAdapterOptions {
   resolveAttachments?: () => AttachmentStore | undefined
   /** Resolve the process-wide upload reuse store. */
   resolveFiles?: () => DeepSeekFileStore
+  /** Provider display name the registry reports; defaults to `DeepSeek`. */
+  providerName?: string
 }
 
 /** Default maximum idle interval while an adapter stream read is outstanding. */
@@ -360,7 +362,7 @@ export class DeepSeekAdapter extends LlmAdapter {
   }
 
   override providerInfo(provider: string): LlmProviderInfo {
-    return { id: provider, name: 'DeepSeek' }
+    return { id: provider, name: this.config.providerName ?? 'DeepSeek' }
   }
 
   override providerRetryPolicy(_provider: string): ResolvedRetryPolicy {

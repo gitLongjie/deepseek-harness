@@ -106,6 +106,7 @@ function installFakeKoffi(world: ComWorld): void {
             }
             case 'CoTaskMemFree': return (ptr: unknown) => { world.freed.push(ptr) }
             case 'GetCurrentThreadId': return () => 31337
+            case 'lstrlenW': return (ptr: unknown): number => ((ptr as FakePtr).text as string).length
             case 'SetThreadDpiAwarenessContext': {
               if (!world.hasThreadDpi) throw new Error(`${dll}: SetThreadDpiAwarenessContext not found`)
               return (context: unknown) => {

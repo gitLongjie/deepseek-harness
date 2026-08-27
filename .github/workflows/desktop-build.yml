@@ -1,0 +1,62 @@
+name: Desktop build
+
+# Verifies the desktop shell packages on all three platforms for every PR that
+# touches it. Produces unpacked directories only; releases go through
+# desktop-publish.yml.
+on:
+  pull_request:
+    paths:
+      - 'apps/desktop/**'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/desktop-build.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: desktop-build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  DSH_TELEMETRY_DISABLED: '1'
+
+jobs:
+  build:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install (immutable)
+        run: pnpm install --frozen-lockfile
+
+      - name: Build host libs
+        run: pnpm build:lib
+
+      # deploy-app.mjs rebuilds the web dist (relative base), compiles the main
+      # process and render transport, flattens prod deps, and runs
+      # electron-builder --dir. No signing without CSC_* / APPLE_* secrets.
+      - name: Package desktop (unsigned, unpacked)
+        run: pnpm --filter @deepseek-ai/dsh-desktop run pack
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: desktop-${{ matrix.os }}
+          path: apps/desktop/dist-electron
+          if-no-files-found: error
+          retention-days: 7

@@ -314,6 +314,44 @@ describe('web e2e: Models settings page configures a dormant provider', () => {
     expect(tripwire.pageErrors).toEqual([])
   }, 60_000)
 
+  it('re-declares the same route id after deleting it in the same session', async () => {
+    onTestFailed(() => saveFailureShot(page, 'web-e2e-models-redeclare'))
+    // The create-delete-recreate cycle: the add card must carry the
+    // post-deletion revision from the refreshed snapshot, not the one it saw
+    // before the deletion, or the re-declare dies on settings-conflict.
+    await page.getByRole('button', { name: '设置', exact: true }).click()
+    const dialog = page.getByRole('dialog', { name: '设置' })
+    await dialog.waitFor({ timeout: 10_000 })
+    // A reopened settings shell lands on the general section; the rows live
+    // under the models section.
+    await dialog.getByRole('button', { name: '模型', exact: true }).click()
+
+    // The earlier rename scenario left the display name at Acme 网关; the
+    // destructive actions name it as `displayName (provider)`.
+    await dialog.getByRole('button', { name: '删除 Acme 网关 (acme-gateway)', exact: true }).click()
+    const deleteDialog = page.getByRole('dialog', { name: '删除 Acme 网关 (acme-gateway)？' })
+    await deleteDialog.waitFor({ timeout: 10_000 })
+    await deleteDialog.getByRole('button', { name: '删除 Acme 网关 (acme-gateway)', exact: true }).click()
+    await expect.poll(
+      async () => readFile(join(scaffold.harnessHome, 'settings.yaml'), 'utf8'),
+      { timeout: 10_000 },
+    ).not.toContain('acme-gateway:')
+
+    const declare = dialog.getByRole('button', { name: '添加自定义提供方' })
+    await expect.poll(async () => declare.isEnabled(), { timeout: 10_000 }).toBe(true)
+    await declare.click()
+    await dialog.getByLabel('Provider ID').fill('acme-gateway')
+    await dialog.getByLabel('显示名称').fill('Acme Gateway')
+    await dialog.getByLabel('API 地址').fill('https://gateway.acme.example/v1')
+    await dialog.getByRole('button', { name: '添加模型' }).click()
+    await dialog.getByLabel('模型 ID 1').fill('acme-large')
+    await dialog.getByRole('button', { name: '创建提供方', exact: true }).click()
+
+    await dialog.getByText('Acme Gateway', { exact: true }).first().waitFor({ timeout: 10_000 })
+    expect(await readFile(join(scaffold.harnessHome, 'settings.yaml'), 'utf8')).toContain('acme-gateway:')
+    expect(tripwire.pageErrors).toEqual([])
+  }, 60_000)
+
   it.skipIf(MODE === 'record')('keeps the fixture inventory closed', async () => {
     await assertFixtureInventory(SNAPSHOT_DIR, [
       'configured.expected.md', 'declared-edit.expected.md', 'declared.expected.md',

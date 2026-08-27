@@ -15,7 +15,9 @@ const TRAY_ICON = fileURLToPath(new URL('../../../build/tray.ico', import.meta.u
 export function installTray(win: BrowserWindow): void {
   const icon = nativeImage.createFromPath(TRAY_ICON)
   const tray = new Tray(icon.isEmpty() ? nativeImage.createEmpty() : icon)
-  tray.setToolTip('DeepSeek Harness')
+  // Same pinned text as the native window title (window-title.ts): one brand
+  // name everywhere the shell hovers.
+  tray.setToolTip('深度Works')
   tray.setContextMenu(Menu.buildFromTemplate([
     {
       label: 'Show main window',

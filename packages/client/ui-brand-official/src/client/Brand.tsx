@@ -1,4 +1,4 @@
-import { BrandWordmark, FishLogo } from '@deepseek-ai/dsh-client-ui-primitives'
+import { BrandWordmark, MewoLogo } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { HeroBrandMarkOwnerProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { SidebarBrandMarkOwnerProps } from '@deepseek-ai/dsh-client-ui-sidebar/client'
 
@@ -7,10 +7,10 @@ type OfficialBrandMarkProps = HeroBrandMarkOwnerProps & SidebarBrandMarkOwnerPro
 /**
  * Render the official mark with the presentation requested by its host surface.
  * @param props - Host-supplied mark presentation.
- * @returns the official whale mark.
+ * @returns the official MEWO mark.
  */
 export function OfficialBrandMark({ size, className }: OfficialBrandMarkProps) {
-  return <FishLogo size={size} className={className} />
+  return <MewoLogo size={size} className={className} />
 }
 
 /**

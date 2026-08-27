@@ -1,10 +1,10 @@
-# electron-builder configuration for the DeepSeek Harness desktop shell.
+# electron-builder configuration for the Deepagens Works desktop shell.
 # Signing and notarization are pre-wired but left off: with no CSC_LINK /
 # APPLE_* secrets in the environment, electron-builder skips Windows signing and
 # macOS notarization (identity: null). Populate the CI secrets (see README) to
 # enable real signing without touching this file.
-appId: ai.deepseek.dsh
-productName: DeepSeek Harness
+appId: claw.deepagens.dsh
+productName: Deepagens Works
 electronLanguages:
   - en-US
   - zh-CN
@@ -60,7 +60,7 @@ linux:
     - AppImage
     - deb
   category: Development
-  synopsis: DeepSeek Harness Desktop
+  synopsis: Deepagens Works Desktop
 publish:
   provider: github
   owner: gitLongjie

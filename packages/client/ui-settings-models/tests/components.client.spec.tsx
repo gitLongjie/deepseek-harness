@@ -1041,9 +1041,33 @@ describe('ModelsSection', () => {
     }
   })
 
-  it('tells the user to reopen when another writer moved the namespace first', async () => {
-    // The stale-draft overwrite: two tabs open the same card, the other saves,
-    // and this one must be refused rather than replay its opening snapshot.
+  it('rebases onto a fresh revision once when another writer moved the namespace first', async () => {
+    // The pushed-refresh race: another writer bumps the revision under an open
+    // card. The ops name only fields the card observed, so the edit replays
+    // against the fresh revision instead of refusing.
+    const mutate = vi.fn((payload: { expectedRevision?: number }) => Promise.resolve(
+      payload.expectedRevision === 3
+        ? ok(wireNamespaces()[0])
+        : fail('changed since it was read', 'settings-conflict'),
+    ))
+    const scripted = scriptedFace({ mutate })
+    await mountFace(scripted)
+    fireEvent.click(screen.getByRole('button', { name: deepSeekCopy(en.editProvider) }))
+    // The writer's bump lands between the card opening and its apply.
+    const fresh = wireNamespaces()
+    fresh[0] = { ...fresh[0]!, revision: 3 }
+    scripted.face.settings.describe.mockResolvedValue(
+      ok({ writable: true, hasDocument: false, namespaces: fresh }))
+    fireEvent.click(screen.getByText(en.customized))
+    fireEvent.change(screen.getByLabelText<HTMLInputElement>(en.baseUrl), { target: { value: 'https://mine' } })
+    fireEvent.click(screen.getByText(en.apply))
+    await waitFor(() => { expect(mutate).toHaveBeenCalledTimes(2) })
+    expect(mutate.mock.calls[1]?.[0].expectedRevision).toBe(3)
+  })
+
+  it('tells the user to reopen when the namespace keeps moving under the card', async () => {
+    // The stale-draft overwrite a rebase cannot save: the writer keeps bumping
+    // the revision, so the card must refuse rather than replay blindly.
     const { set } = await mountDeepSeekCard({
       mutate: vi.fn(() => Promise.resolve(fail('changed since it was read', 'settings-conflict'))),
     })

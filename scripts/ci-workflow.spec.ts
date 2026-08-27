@@ -481,6 +481,37 @@ describe('npm release workflows', () => {
   })
 })
 
+describe('Desktop workflows', () => {
+  it('keeps desktop publication on the desktop-v* tag with write contents', () => {
+    const workflow = loadWorkflow('.github/workflows/desktop-publish.yml')
+    if (!isRecord(workflow.on) || !isRecord(workflow.jobs) || !isRecord(workflow.permissions)) {
+      throw new TypeError('Desktop publish must define on, jobs, and permissions')
+    }
+    // Writing a GitHub Release (electron-builder --publish) is the one workflow
+    // that needs write contents.
+    expect(workflow.permissions).toMatchObject({ contents: 'write' })
+    expect(Object.keys(workflow.on).sort()).toEqual(['push', 'workflow_dispatch'])
+    expect(workflow.on.push).toMatchObject({ tags: ['desktop-v*'] })
+    const build = workflow.jobs.build
+    if (!isRecord(build)) throw new TypeError('Desktop publish must define a build job')
+    // Signing/notarization secrets live on this environment (empty until provided).
+    expect(build.environment).toBe('desktop-release')
+  })
+
+  it('runs the desktop build matrix on read-only contents', () => {
+    const workflow = loadWorkflow('.github/workflows/desktop-build.yml')
+    if (!isRecord(workflow.permissions) || !isRecord(workflow.jobs)) {
+      throw new TypeError('Desktop build must define permissions and jobs')
+    }
+    expect(workflow.permissions).toMatchObject({ contents: 'read' })
+    const build = workflow.jobs.build
+    if (!isRecord(build) || !isRecord(build.strategy) || !isRecord(build.strategy.matrix)) {
+      throw new TypeError('Desktop build must define a build matrix')
+    }
+    expect(build.strategy.matrix.os).toEqual(['windows-latest', 'macos-latest', 'ubuntu-latest'])
+  })
+})
+
 describe('Documentation site publication', () => {
   it('keeps Pages deployment dispatch-only from a dsh-v* tag', () => {
     const workflow = loadWorkflow('.github/workflows/docs-pages.yml')

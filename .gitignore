@@ -39,3 +39,10 @@ apps/web/dist/
 worktrees/
 .agents/worktrees/
 .typert-*/
+
+# Desktop shell build artifacts
+apps/desktop/dist/
+apps/desktop/.release/
+apps/desktop/web/
+.desktop-release/
+apps/desktop/dist-electron/

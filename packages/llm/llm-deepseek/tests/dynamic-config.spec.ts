@@ -233,8 +233,11 @@ describe('request-level dynamic configuration', () => {
       maxDelayMs: 100,
       jitterRatio: 0.2,
     })
-    expect(ctx.llm.listProviders()).toEqual([{ id: 'deepseek-official', name: 'DeepSeek' }])
-    expect(observed).toEqual([['deepseek-official']])
+    expect(ctx.llm.listProviders()).toEqual(expect.arrayContaining([
+      { id: 'deepseek-official', name: 'DeepSeek' },
+      { id: 'deepagens', name: 'Deepagens' },
+    ]))
+    expect(observed).toEqual([expect.arrayContaining(['deepseek-official', 'deepagens'])])
   })
 
   it('keeps the last good options when a settings snapshot fails beyond-schema validation', async () => {

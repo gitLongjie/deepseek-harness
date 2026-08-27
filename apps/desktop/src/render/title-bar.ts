@@ -1,12 +1,13 @@
 /**
  * Desktop-only custom title bar, installed by the render entry before the web
  * app boots. The window runs frameless; this module draws the branded bar
- * (the brand mark alone — the sidebar owns the product name, the taskbar the
- * session title), the 编辑/视图/窗口/帮助 menu buttons, the drag region, and
- * the window controls; shifts the app below it through a body top padding —
- * the GUI sizes itself with percentage heights, so the padding shrinks every
- * layer cleanly; routes menu clicks to the main-process application menu over
- * IPC and drives the window controls over the existing generic bridge.
+ * (the brand mark alone — the sidebar owns the product name and the native
+ * window title stays pinned to it), the 编辑/视图/窗口/帮助 menu buttons, the
+ * drag region, and the window controls; shifts the app below it through a body
+ * top padding — the GUI sizes itself with percentage heights, so the padding
+ * shrinks every layer cleanly; routes menu clicks to the main-process
+ * application menu over IPC and drives the window controls over the existing
+ * generic bridge.
  * @module @deepseek-ai/dsh-desktop/render/title-bar
  */
 

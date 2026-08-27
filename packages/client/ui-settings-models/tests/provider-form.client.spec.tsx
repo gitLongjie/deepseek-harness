@@ -735,6 +735,36 @@ describe('hand-declared providers', () => {
     expect(set).toHaveBeenCalledWith({ ref: 'ACME_GATEWAY_API_KEY', value: 'gw-key' })
   })
 
+  it('carries the revision of the snapshot the card currently sees, not the one it mounted at', async () => {
+    // Regression: the card used to freeze the revision at mount, so a create
+    // after the user's own create/delete cycle (the snapshot refreshed under
+    // the card) submitted the stale expectation and failed with
+    // settings-conflict. The expectation must be the live snapshot state the
+    // `taken` check judges against.
+    const scripted = scriptedFace()
+    const onClose = vi.fn()
+    const view = render(
+      <CustomProviderCard
+        taken={[]} protocols={PROTOCOLS} revision={0} api={scripted.face as never}
+        t={t} readOnly={false} onClose={onClose}
+      />,
+    )
+    view.rerender(
+      <CustomProviderCard
+        taken={[]} protocols={PROTOCOLS} revision={1} api={scripted.face as never}
+        t={t} readOnly={false} onClose={onClose}
+      />,
+    )
+    fireEvent.change(screen.getByLabelText(en.customRoute), { target: { value: 'freellmapi' } })
+    fireEvent.change(screen.getByLabelText(en.baseUrl), { target: { value: 'http://127.0.0.1:31415/v1' } })
+    fireEvent.click(screen.getByRole('button', { name: en.addModel }))
+    fireEvent.change(screen.getByLabelText(`${en.modelId} 1`), { target: { value: 'auto' } })
+    fireEvent.click(screen.getByText(en.create))
+
+    await waitFor(() => { expect(onClose).toHaveBeenCalledWith(true) })
+    expect(firstMutate(scripted.mutate)).toMatchObject({ expectedRevision: 1 })
+  })
+
   it('scopes each card to fields a provider can actually own', async () => {
     // Reasoning effort is a per-MODEL capability and the
     // models under one provider disagree about it, so a provider-scoped

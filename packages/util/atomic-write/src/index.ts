@@ -11,7 +11,7 @@
  */
 
 import { randomBytes } from 'node:crypto'
-import { lstat, mkdir, rename, rm, writeFile } from 'node:fs/promises'
+import { lstat, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 
 /**
@@ -78,6 +78,36 @@ async function isLockContention(error: unknown, lockPath: string): Promise<boole
 }
 
 /**
+ * Whether `pid` still names a live process. Signal 0 is the existence probe:
+ * `ESRCH` means the process is gone; every other outcome — alive, or a
+ * permission refusal that implies existence — keeps the lock treated as held.
+ */
+function isPidAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (error) {
+    return (error as NodeJS.ErrnoException | null)?.code !== 'ESRCH'
+  }
+}
+
+/**
+ * Read the holder pid recorded in the lock. `undefined` when the file is
+ * unreadable or its content is not a pid — a shape this protocol cannot judge,
+ * which keeps the lock treated as held.
+ */
+async function lockPidOf(lockPath: string): Promise<number | undefined> {
+  let raw: string
+  try {
+    raw = await readFile(lockPath, 'utf8')
+  } catch {
+    return undefined
+  }
+  const pid = Number.parseInt(raw.trim(), 10)
+  return Number.isInteger(pid) && pid > 0 ? pid : undefined
+}
+
+/**
  * Retry cadence for a contended lock. These stay robustness invariants of the
  * cross-process write protocol rather than deployment tunables: they govern how
  * often a contender asks, which no caller has a reason to vary.
@@ -111,15 +141,17 @@ export interface FileLockOptions {
 
 /**
  * Hold the cross-process writer lock for `filename` around one operation. The
- * lock is a `wx`-created sibling (`<filename>.lock`); paired with the
- * rename-based commit of {@link writeFileAtomic}, readers stay lock-free and
- * only writers contend. `EEXIST` is contention directly; an `EPERM` is
- * contention only when a fresh `lstat` confirms the lock path exists, covering
- * Windows exclusive-create behavior without hiding an unrelated permission
- * failure. Contention backs off exponentially and fails with a timed-out error
- * after the deadline. The contender never removes an existing lock because
- * file age cannot prove that its owner stopped; orphan recovery is an operator
- * action. The parent directory must exist.
+ * lock is a `wx`-created sibling (`<filename>.lock`) recording the holder's
+ * pid; paired with the rename-based commit of {@link writeFileAtomic}, readers
+ * stay lock-free and only writers contend. `EEXIST` is contention directly; an
+ * `EPERM` is contention only when a fresh `lstat` confirms the lock path
+ * exists, covering Windows exclusive-create behavior without hiding an
+ * unrelated permission failure. Contention backs off exponentially and fails
+ * with a timed-out error after the deadline. A contender removes the lock only
+ * when its recorded pid names no live process — a holder that died before its
+ * release step — and every other contention (a live owner, a reused pid, or
+ * content it cannot judge) waits out the deadline and fails without deleting a
+ * lock it cannot prove orphaned. The parent directory must exist.
  * @param filename - the file whose writers this lock serializes.
  * @param operation - the read-render-commit cycle to run while holding the lock.
  * @param options - acquisition options; omitted waits {@link DEFAULT_LOCK_WAIT_MS}.
@@ -139,6 +171,16 @@ export async function withFileLock<T>(
       break
     } catch (error) {
       if (!await isLockContention(error, lockPath)) throw error
+    }
+    // A lock whose recorded owner is provably gone is an orphan: the holder
+    // died before its release step could run. Breaking it here is the
+    // automatic recovery a dead owner can never perform for itself; every
+    // judgeable-otherwise case keeps the wait-and-fail path, which is the
+    // fail-safe direction.
+    const holder = await lockPidOf(lockPath)
+    if (holder !== undefined && !isPidAlive(holder)) {
+      await rm(lockPath, { force: true })
+      continue
     }
     if (Date.now() >= deadline) {
       throw new Error(`atomic-write: timed out waiting for the writer lock at ${lockPath}`)

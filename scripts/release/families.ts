@@ -319,7 +319,9 @@ export abstract class ReleaseFamily {
 /** Release packages and apps: one shared version across the whole family. */
 class DshFamily extends ReleaseFamily {
   readonly id = 'dsh'
-  readonly patterns = ['packages/!(experimental)/*/package.json', 'apps/*/package.json'] as const
+  // apps/desktop is a private Electron shell with its own version family
+  // (desktop-v*); it is not an npm release member.
+  readonly patterns = ['packages/!(experimental)/*/package.json', 'apps/!(desktop)/package.json'] as const
   readonly tagPrefix = 'dsh-v'
 
   /** Require current artifacts from a complete official client build. */

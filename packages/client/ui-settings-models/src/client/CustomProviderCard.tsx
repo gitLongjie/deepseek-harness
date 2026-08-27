@@ -53,9 +53,10 @@ export interface CustomProviderCardProps {
   /** Wire protocols the adapter can serve, in the order it reports them. */
   protocols: readonly string[]
   /**
-   * Revision of the `llm-pi-ai` user section this card opened at, sent with
-   * the create so a route another tab declared meanwhile is a refusal rather
-   * than a silent overwrite of its whole profile.
+   * Revision of the `llm-pi-ai` user section as this card last saw it from
+   * the shared snapshot, sent with the create so a route another writer
+   * declared unseen is a refusal rather than a silent overwrite of its whole
+   * profile.
    */
   revision: number
   /** Wire faces for the write and for interrogating the endpoint. */
@@ -75,9 +76,6 @@ export interface CustomProviderCardProps {
  */
 export function CustomProviderCard(props: CustomProviderCardProps): ReactNode {
   const { taken, protocols, api, t } = props
-  // Captured at mount, like the editor's: the write must be judged against the
-  // section this card was drafted over, not whatever it grew into meanwhile.
-  const [openedAt] = useState(() => props.revision)
   const [route, setRoute] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [baseURL, setBaseURL] = useState('')
@@ -147,10 +145,11 @@ export function CustomProviderCard(props: CustomProviderCardProps): ReactNode {
       const response = await api.settings.mutate({
         ns: NS,
         ops: [{ op: 'set', path: ['providers', route], value: profile }],
-        // `taken` is a snapshot too, so the id check alone cannot see a route
-        // declared after this card opened; the revision makes that race a
-        // `settings-conflict` instead of a write over the other profile.
-        expectedRevision: openedAt,
+        // The expectation is the live snapshot revision — the same state the
+        // `taken` check above judged — so a writer this card never saw is a
+        // `settings-conflict`, while a change the card already sees (its own
+        // earlier create/delete cycle) is not a false conflict.
+        expectedRevision: props.revision,
       })
       if (!response.result.ok) return response.result.error.message
       // The provider now exists. A retry after the key write below fails must

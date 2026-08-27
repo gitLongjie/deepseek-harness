@@ -21,6 +21,7 @@ import { registerBundleIpc } from './ipc/bundle.ts'
 import { renderDesktopIndex } from './ipc/index-html.ts'
 import { installSingleInstanceLock } from './desktop/single-instance.ts'
 import { installTray } from './desktop/tray.ts'
+import { DESKTOP_WINDOW_TITLE, pinWindowTitle } from './desktop/window-title.ts'
 import { installApplicationMenu, registerMenuPopupIpc } from './desktop/menu.ts'
 import { initUpdater } from './updater.ts'
 
@@ -149,6 +150,10 @@ function createWindow(): BrowserWindow {
     show: false,
     // Taskbar/alt-tab art on Windows and Linux (macOS uses the app bundle icon).
     icon: fileURLToPath(new URL('../../build/icon.png', import.meta.url)),
+    // The native title stays 深度Works for life: Windows surfaces it as the
+    // taskbar hover tooltip and alt-tab label; page-title-updated must not
+    // leak session projections there (pinWindowTitle blocks adoption).
+    title: DESKTOP_WINDOW_TITLE,
     // Frameless: the renderer draws the branded title bar (render/title-bar.ts)
     // and drives these controls over the window-control IPC channels below.
     frame: false,
@@ -160,6 +165,7 @@ function createWindow(): BrowserWindow {
       sandbox: true,
     },
   })
+  pinWindowTitle(win)
   win.once('ready-to-show', () => { win.show() })
   return win
 }

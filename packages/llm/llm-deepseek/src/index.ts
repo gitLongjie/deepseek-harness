@@ -40,6 +40,7 @@ import {
   DeepSeekAdapter,
 } from './adapter.ts'
 import type { DeepSeekCatalogModel, DeepSeekConnectionOptions } from './adapter.ts'
+import { discoverModels } from './discovery.ts'
 
 export {
   DEFAULT_CONTEXT_WINDOW,
@@ -79,6 +80,9 @@ const NS = settingsNamespace('llm-deepseek')
 const DEFAULT_API_KEY_ENV = 'DEEPSEEK_API_KEY'
 /** The single provider route this plugin owns. */
 const PROVIDER = 'deepseek-official'
+/** The Deepagens Claw gateway route; its catalog and endpoint are seeded by the login flow. */
+const DEEPAGENS_NS = settingsNamespace('llm-deepagens')
+const DEEPAGENS_PROVIDER = 'deepagens'
 
 const DEFAULT_MODELS: DeepSeekCatalogModel[] = [
   { id: 'deepseek-v4-flash', name: 'DeepSeek-V4-Flash', contextWindow: DEFAULT_CONTEXT_WINDOW },
@@ -439,12 +443,71 @@ export function apply(ctx: Context, config: Config): void {
     resolveUserId,
     resolveAttachments: () => ctx.get('attachments'),
   })
+  // ── Deepagens Claw gateway: a second OpenAI-compatible provider route whose
+  // endpoint and catalog the login flow seeds from the account server. It
+  // shares the adapter class (chat completions over the gateway's /v1) and the
+  // `DEEPSEEK_API_KEY` credential, but owns a separate settings namespace.
+  let deepagensCurrent: () => Config = () => ({ models: [] })
+  let deepagensRaw: Config | undefined
+  let deepagensGood: ResolvedDeepSeekOptions | undefined
+  const deepagensOptions = (): ResolvedDeepSeekOptions => {
+    const raw = deepagensCurrent()
+    if (raw === deepagensRaw && deepagensGood !== undefined) return deepagensGood
+    try {
+      const next = resolveAdapterOptions(raw, launchEnvironmentOf(ctx))
+      deepagensRaw = raw
+      deepagensGood = next
+      return next
+    } catch (error) {
+      if (deepagensGood === undefined) throw error
+      ctx.logger.error('llm-deepseek: keeping the last good deepagens configuration after an invalid settings section')
+      ctx.logger.error(error)
+      return deepagensGood
+    }
+  }
+  deepagensOptions()
+
+  const deepagensAdapter = new DeepSeekAdapter({
+    options: deepagensOptions,
+    resolveApiKey,
+    resolveUserId,
+    resolveAttachments: () => ctx.get('attachments'),
+    providerName: 'Deepagens',
+  })
+  ctx.llm.registerConfigurableProviders([
+    { provider: DEEPAGENS_PROVIDER, displayName: 'Deepagens', settingsNs: DEEPAGENS_NS, settingsPath: [] },
+  ])
+  const deepagensRegistration = ctx.llm.registerAdapter([DEEPAGENS_PROVIDER], deepagensAdapter)
+  ctx.llm.registerModelDiscovery(DEEPAGENS_NS, request =>
+    discoverModels(request, async () => {
+      try { return await resolveApiKey(deepagensOptions()) } catch { return undefined }
+    }),
+  )
+  let registeredDeepagensPolicy = deepagensOptions().retryPolicy
+  const ensureDeepagensFacts = (): void => {
+    const policy = deepagensOptions().retryPolicy
+    if (deepEqualJson(policy, registeredDeepagensPolicy)) return
+    deepagensRegistration.replace([DEEPAGENS_PROVIDER])
+    registeredDeepagensPolicy = policy
+  }
+  installSettingsSection(ctx, DEEPAGENS_NS, Config, { models: [] }, {
+    setSource: (source) => {
+      deepagensCurrent = source
+    },
+    onChange: ensureDeepagensFacts,
+  })
+  // The DeepSeek route registers after Deepagens so the gateway group leads the
+  // provider directories; both share the same adapter class and the DEEPSEEK_*
+  // credentials, differing only in their settings namespace.
   ctx.llm.registerConfigurableProviders([
     { provider: PROVIDER, displayName: 'DeepSeek', settingsNs: NS, settingsPath: [] },
   ])
-  // Route effects bind to this apply fiber via the stable `ctx` reference,
-  // even when a swap runs inside the scoped settings callback below.
   const registration = ctx.llm.registerAdapter([PROVIDER], adapter)
+  ctx.llm.registerModelDiscovery(NS, request =>
+    discoverModels(request, async () => {
+      try { return await resolveApiKey(options()) } catch { return undefined }
+    }),
+  )
   let registeredPolicy = options().retryPolicy
   const ensureRegistrationFacts = (): void => {
     const policy = options().retryPolicy

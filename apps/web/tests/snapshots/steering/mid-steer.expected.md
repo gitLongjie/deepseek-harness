@@ -25,7 +25,7 @@
   - img
   - img
   - text: Ask question waiting
-- status: Deep diving...
+- status: 处理中…
 - text: "Interjection: include the word BANANA in your final reply."
 - button "Copy":
   - img

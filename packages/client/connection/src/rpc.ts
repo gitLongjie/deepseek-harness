@@ -52,10 +52,31 @@ export interface HostConnectionRpc {
   ): () => Promise<void>
 }
 
+/** Transport-independent request handler a shared-channel dispatch selects. */
+export interface ConnectionFetchHandler {
+  /**
+   * Handle one standard Fetch request.
+   * @param request - request produced by the active transport carrier.
+   * @returns complete or streaming Fetch response.
+   */
+  fetch(request: Request): Promise<Response>
+}
+
 /** Host `ctx.connection` shape consumed by transport-independent adapters. */
 export interface HostConnectionHandle {
   /** Generic RPC channel registry. */
   readonly rpc: HostConnectionRpc
+
+  /**
+   * Compose one shared-channel Fetch handler from its interceptor and fallback,
+   * so an in-process carrier (the desktop IPC transport) reaches
+   * interceptor-claimed endpoints — the Typert gateway — exactly as the HTTP
+   * route does.
+   * @param channel - shared channel mounted by Connection.
+   * @param fallback - handler for endpoints the interceptor does not claim.
+   * @returns Fetch handler that selects exactly one target for each request.
+   */
+  createSharedFetchHandler(channel: '/api', fallback: ConnectionFetchHandler): ConnectionFetchHandler
 }
 
 /** Client caller for logical RPC channels carried by the current transport. */

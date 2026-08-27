@@ -127,7 +127,7 @@ export function pathOps(
 
 /** The editor layout the owning namespace selects. */
 function layoutOf(ns: string): EditorLayout {
-  if (ns === 'llm-deepseek') return 'deepseek'
+  if (ns === 'llm-deepseek' || ns === 'llm-deepagens') return 'deepseek'
   if (ns === 'llm-pi-ai') return 'pi-ai'
   return 'unknown'
 }
@@ -279,7 +279,21 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
         ? [{ op: 'set', path: [...settingsPath], value: {} }]
         : pathOps(settingsPath, committedOriginal, next)
     if (ops.length > 0) {
-      const response = await api.settings.mutate({ ns, ops, expectedRevision })
+      let response = await api.settings.mutate({ ns, ops, expectedRevision })
+      if (!response.result.ok && response.result.error.code === 'settings-conflict') {
+        // A write this card never saw (a pushed settings refresh, another
+        // editor) bumped the revision under an open card. The ops name only
+        // fields this card observed, so replaying them against the fresh
+        // revision rebases the edit instead of overwriting a stranger's write;
+        // a conflict that survives the rebase is reported as before.
+        const described = await api.settings.describe({})
+        const revision = described.result.ok
+          ? described.result.value.namespaces.find(view => view.ns === ns)?.revision
+          : undefined
+        if (revision !== undefined) {
+          response = await api.settings.mutate({ ns, ops, expectedRevision: revision })
+        }
+      }
       if (!response.result.ok) {
         return response.result.error.code === 'settings-conflict'
           ? t('conflict')

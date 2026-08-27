@@ -1,0 +1,64 @@
+name: Desktop publish
+
+# Builds the desktop shell on all three platforms and publishes the installers
+# and update metadata to GitHub Releases via electron-builder --publish always
+# (provider: github, owner gitLongjie / repo deepseek-harness). Triggered by a
+# desktop-v* tag or manually. Signing/notarization secrets are provisioned on
+# the desktop-release environment but left empty for now (CSC_IDENTITY_AUTO_DISCOVERY
+# false), so builds are unsigned until certificates are configured.
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'desktop-v*'
+
+concurrency:
+  group: desktop-release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  DSH_TELEMETRY_DISABLED: '1'
+
+jobs:
+  build:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    environment: desktop-release
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install (immutable)
+        run: pnpm install --frozen-lockfile
+
+      - name: Build host libs
+        run: pnpm build:lib
+
+      # deploy-app.mjs --publish always builds and uploads to the GitHub
+      # Release for the current version (tag desktop-v<version>).
+      - name: Package and publish to GitHub Releases
+        run: pnpm --filter @deepseek-ai/dsh-desktop run release
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: desktop-${{ matrix.os }}-artifacts
+          path: apps/desktop/dist-electron/**/*
+          if-no-files-found: error
+          retention-days: 7

@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process'
 import { lstat, mkdir, mkdtemp, readFile, readdir, rm, stat, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -145,5 +146,48 @@ describe('withFileLock', () => {
     release()
     await holder
     expect(await patient).toBe('patient')
+  })
+
+  it('breaks an orphaned lock whose recorded pid names a dead process', async () => {
+    const dir = await scratch()
+    const target = join(dir, 'document')
+    // A real exited child is the deterministic dead-pid source: reusing this
+    // runner's own pid would read as alive, and a made-up number can collide
+    // with a live pid on some platforms.
+    const exited = spawnSync(process.execPath, ['-e', ''], { timeout: 10_000 })
+    expect(exited.status).toBe(0)
+    const lockPath = `${target}.lock`
+    await writeFile(lockPath, `${exited.pid}\n`, { mode: 0o600 })
+
+    let called = false
+    await withFileLock(target, async () => { called = true })
+    expect(called).toBe(true)
+    // The broken orphan is replaced by the contender's own lock, released on
+    // completion — no stale sibling survives the cycle either way.
+    await expect(lstat(lockPath)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('keeps waiting while the recorded pid is this live runner', async () => {
+    const dir = await scratch()
+    const target = join(dir, 'document')
+    const lockPath = `${target}.lock`
+    await writeFile(lockPath, `${process.pid}\n`, { mode: 0o600 })
+
+    await expect(withFileLock(target, async () => {}, { waitMs: 60 }))
+      .rejects.toThrow(/timed out waiting for the writer lock/)
+    // A live owner's lock survives the contender: the timeout never deletes a
+    // lock it cannot prove orphaned.
+    expect((await lstat(lockPath)).isFile()).toBe(true)
+  })
+
+  it('keeps waiting on a lock whose content is not a pid', async () => {
+    const dir = await scratch()
+    const target = join(dir, 'document')
+    const lockPath = `${target}.lock`
+    await writeFile(lockPath, 'holder\n')
+
+    await expect(withFileLock(target, async () => {}, { waitMs: 60 }))
+      .rejects.toThrow(/timed out waiting for the writer lock/)
+    expect((await lstat(lockPath)).isFile()).toBe(true)
   })
 })

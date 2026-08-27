@@ -58,8 +58,15 @@ export function PermissionRow({ load, select, usePermission, t }: PermissionRowP
   if (state.status === 'unavailable') return null
   const selected = state.options.find(option => option.id === state.currentValue)
   const busy = state.status === 'loading' || state.status === 'saving' || confirmingFullAccess
-  const label = selected?.label
-    ?? (busy ? t('loading') : t('unavailable'))
+  const presetLabel = (id: string, fallback: string): string => {
+    if (id === 'read-only') return t('preset.readOnly')
+    if (id === 'workspace-write') return t('preset.workspaceWrite')
+    if (id === FULL_ACCESS_PRESET) return t('preset.fullAccess')
+    return fallback
+  }
+  const label = selected === undefined
+    ? (busy ? t('loading') : t('unavailable'))
+    : presetLabel(selected.id, selected.label)
   const description: string = state.error ?? t('description')
 
   return (
@@ -72,7 +79,7 @@ export function PermissionRow({ load, select, usePermission, t }: PermissionRowP
         <Menu
           open={open}
           onClose={() => { setOpen(false) }}
-          items={state.options.map(option => ({ id: option.id, label: option.label }))}
+          items={state.options.map(option => ({ id: option.id, label: presetLabel(option.id, option.label) }))}
           selectedId={state.currentValue}
           onSelect={(id) => {
             setOpen(false)

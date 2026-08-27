@@ -45,7 +45,9 @@ export function initUpdater(): void {
       defaultId: 0,
       cancelId: 1,
     }).then(({ response }) => {
-      if (response === 0) autoUpdater.quitAndInstall()
+      // isSilent keeps the assisted NSIS installer (allowToChangeInstallationDirectory)
+      // from showing its dialogs during auto-update; the first install still gets them.
+      if (response === 0) autoUpdater.quitAndInstall(true, true)
     })
   })
 

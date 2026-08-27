@@ -17,7 +17,7 @@
   - img
   - text: Context injection @deepseek-ai/dsh-system-prompt
 - paragraph: partial
-- status: Deep diving...
+- status: 处理中…
 - button "2 queued messages" [disabled] [expanded]
 - list:
   - listitem:
