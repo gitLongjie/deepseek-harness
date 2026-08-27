@@ -20,44 +20,69 @@ type IpcSender = {
   on?(channel: string, listener: (payload: unknown) => void): () => void
 }
 
-/** Badge chrome: a subtle, compact pill that flips to an accent state when ready. */
+/** Badge chrome: a high-visibility accent pill with a pulsing dot; it flips to
+    a green "restart to update" state once the download is ready. */
 const STYLE_TEXT = `
 #dsh-update-badge {
   display: inline-flex;
   align-items: center;
+  gap: 5px;
   flex-shrink: 0;
   margin-left: 6px;
-  padding: 1px 6px;
-  border: 1px solid var(--dsw-alias-border-subtle, rgba(0, 0, 0, 0.1));
+  padding: 2px 9px;
+  border: none;
   border-radius: 999px;
-  background: transparent;
-  color: var(--dsw-alias-content-subtle, #8a8a8f);
+  background: var(--dsw-alias-accent, #6187d8);
+  color: #fff;
   font: inherit;
-  font-size: 10px;
-  line-height: 14px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
   cursor: pointer;
   white-space: nowrap;
   max-width: 96px;
   overflow: hidden;
   text-overflow: ellipsis;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+#dsh-update-badge::before {
+  content: '';
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: dsh-update-pulse 2s ease-out infinite;
 }
 #dsh-update-badge:hover {
-  background: var(--dsw-alias-interactive-bg-hover, rgba(0, 0, 0, 0.06));
+  filter: brightness(1.12);
 }
 #dsh-update-badge.dsh-update-ready {
-  border-color: var(--dsw-alias-accent, #6187d8);
-  color: var(--dsw-alias-accent, #6187d8);
+  background: #2f9e44;
+}
+#dsh-update-badge.dsh-update-ready::before {
+  animation: none;
+}
+@keyframes dsh-update-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.5); }
+  70% { box-shadow: 0 0 0 5px rgba(255, 255, 255, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #dsh-update-badge::before {
+    animation: none;
+  }
 }
 `
 
 /** Badge copy; the version interpolates into the available label. */
 const UPDATE_BADGE_LOCALES = {
   zh: {
-    available: (version: string): string => `新版本 ${version}`,
+    available: '更新',
     downloaded: '重启更新',
   },
   en: {
-    available: (version: string): string => `New version ${version}`,
+    available: 'Update',
     downloaded: 'Restart to update',
   },
 } as const
@@ -92,12 +117,15 @@ export function installUpdateBadge(doc: Document, ipc: IpcSender): void {
   function renderBadge(): void {
     if (badge === undefined || version === undefined) return
     const strings = UPDATE_BADGE_LOCALES[locale]
-    badge.textContent = ready ? strings.downloaded : strings.available(version)
+    badge.textContent = ready ? strings.downloaded : strings.available
+    badge.title = version
     badge.classList.toggle('dsh-update-ready', ready)
   }
 
   function ensureBadge(): void {
-    if (badge !== undefined) return
+    // Only mount the pill once the main process has announced an update; the
+    // observer fires on ordinary sidebar mounts too, without any status.
+    if (badge !== undefined || version === undefined) return
     const anchor = doc.querySelector<HTMLElement>('[data-slot="sidebar.footer.action"]')
     if (anchor === null) return
     const button = doc.createElement('button')

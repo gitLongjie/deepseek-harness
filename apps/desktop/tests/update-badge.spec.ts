@@ -53,8 +53,17 @@ describe('desktop update badge', () => {
     await flush()
     const badge = document.getElementById('dsh-update-badge')
     expect(badge).not.toBeNull()
-    expect(badge?.textContent).toBe('新版本 1.2.3')
+    expect(badge?.textContent).toBe('更新')
+    expect(badge?.getAttribute('title')).toBe('1.2.3')
     expect(badge?.classList.contains('dsh-update-ready')).toBe(false)
+  })
+
+  it('does not mount the badge before any update status arrives', async () => {
+    const { ipc } = makeIpc()
+    installUpdateBadge(document, ipc)
+    mountAnchor()
+    await flush()
+    expect(document.getElementById('dsh-update-badge')).toBeNull()
   })
 
   it('sends a prompt action when clicked while available', async () => {
@@ -90,6 +99,6 @@ describe('desktop update badge', () => {
     await flush()
     listeners.get('dsh:locale:change')!('en')
     await flush()
-    expect(document.getElementById('dsh-update-badge')?.textContent).toBe('New version 1.0.0')
+    expect(document.getElementById('dsh-update-badge')?.textContent).toBe('Update')
   })
 })
