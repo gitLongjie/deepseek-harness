@@ -24,39 +24,90 @@ export const WINDOW_CHANNELS = {
 /** The IPC channel asking the main process to pop up one application submenu. */
 export const MENU_POPUP_CHANNEL = 'dsh:menu:popup'
 
+/** The IPC channel the main process pushes a locale change over. */
+export const LOCALE_CHANGE_CHANNEL = 'dsh:locale:change'
+
+/** Renderer title-bar copy: menu buttons and window-control accessible labels. */
+const TITLE_BAR_LOCALES = {
+  zh: {
+    'menu.edit': '编辑',
+    'menu.view': '视图',
+    'menu.window': '窗口',
+    'menu.help': '帮助',
+    'control.minimize': '最小化',
+    'control.maximize': '最大化',
+    'control.close': '关闭',
+  },
+  en: {
+    'menu.edit': 'Edit',
+    'menu.view': 'View',
+    'menu.window': 'Window',
+    'menu.help': 'Help',
+    'control.minimize': 'Minimize',
+    'control.maximize': 'Maximize',
+    'control.close': 'Close',
+  },
+} as const
+
+/** Locale ids the title bar understands. */
+type TitleBarLocale = keyof typeof TITLE_BAR_LOCALES
+
+/** One localized string key used by the title bar. */
+type TitleBarKey = keyof typeof TITLE_BAR_LOCALES.zh
+
 /**
  * The visible menus, in order; ids match the top-level template items built by
  * main/desktop/menu.ts, which validates them against the same closed set.
  */
-const MENUS: ReadonlyArray<{ id: string; label: string }> = [
-  { id: 'edit', label: '编辑' },
-  { id: 'view', label: '视图' },
-  { id: 'window', label: '窗口' },
-  { id: 'help', label: '帮助' },
+const MENUS: ReadonlyArray<{ id: string; labelKey: 'menu.edit' | 'menu.view' | 'menu.window' | 'menu.help' }> = [
+  { id: 'edit', labelKey: 'menu.edit' },
+  { id: 'view', labelKey: 'menu.view' },
+  { id: 'window', labelKey: 'menu.window' },
+  { id: 'help', labelKey: 'menu.help' },
 ]
 
 /** The generic preload bridge the controls ride (already exposed page-world). */
-type IpcSender = { send(channel: string, payload?: unknown): void }
+type IpcSender = {
+  send(channel: string, payload?: unknown): void
+  on?(channel: string, listener: (payload: unknown) => void): () => void
+}
 
-/** Control button metadata: accessible label and its 10x10 glyph path. */
-const CONTROLS: ReadonlyArray<{ channel: string; label: string; glyph: string; danger?: boolean }> = [
+/** Control button metadata: accessible-label key and its 10x10 glyph path. */
+const CONTROLS: ReadonlyArray<{
+  channel: string
+  labelKey: 'control.minimize' | 'control.maximize' | 'control.close'
+  glyph: string
+  danger?: boolean
+}> = [
   {
     channel: WINDOW_CHANNELS.minimize,
-    label: '最小化',
+    labelKey: 'control.minimize',
     glyph: 'M0 5h10',
   },
   {
     channel: WINDOW_CHANNELS.toggleMaximize,
-    label: '最大化',
+    labelKey: 'control.maximize',
     glyph: 'M0.5 0.5h9v9h-9z',
   },
   {
     channel: WINDOW_CHANNELS.close,
-    label: '关闭',
+    labelKey: 'control.close',
     glyph: 'M0 0l10 10M10 0L0 10',
     danger: true,
   },
 ]
+
+/** Re-render the localized text of the menu buttons and window controls. */
+function applyTitleBarLocale(locale: TitleBarLocale, doc: Document): void {
+  doc.querySelectorAll<HTMLButtonElement>('#dsh-desktop-titlebar .dsh-titlebar-menu-btn').forEach((button) => {
+    const key = button.dataset.labelKey as TitleBarKey
+    button.textContent = TITLE_BAR_LOCALES[locale][key]
+  })
+  doc.querySelectorAll<HTMLButtonElement>('#dsh-desktop-titlebar .dsh-titlebar-controls button').forEach((button) => {
+    const key = button.dataset.labelKey as TitleBarKey
+    button.setAttribute('aria-label', TITLE_BAR_LOCALES[locale][key])
+  })
+}
 
 /** The injected stylesheet: app shift, bar chrome, drag regions, hover states. */
 const STYLE_TEXT = `
@@ -189,7 +240,8 @@ export function installTitleBar(doc: Document, ipc: IpcSender, markSrc: string):
     const button = doc.createElement('button')
     button.type = 'button'
     button.className = 'dsh-titlebar-menu-btn'
-    button.textContent = menu.label
+    button.dataset.labelKey = menu.labelKey
+    button.textContent = TITLE_BAR_LOCALES.zh[menu.labelKey]
     button.setAttribute('aria-haspopup', 'menu')
     button.addEventListener('click', () => {
       // Window coordinates: the popup anchors just below the clicked button.
@@ -208,7 +260,8 @@ export function installTitleBar(doc: Document, ipc: IpcSender, markSrc: string):
   for (const control of CONTROLS) {
     const button = doc.createElement('button')
     button.type = 'button'
-    button.setAttribute('aria-label', control.label)
+    button.dataset.labelKey = control.labelKey
+    button.setAttribute('aria-label', TITLE_BAR_LOCALES.zh[control.labelKey])
     if (control.danger === true) button.className = 'dsh-titlebar-close'
     button.innerHTML = `<svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="${control.glyph}" stroke="currentColor" stroke-width="1"/></svg>`
     button.addEventListener('click', () => {
@@ -229,4 +282,10 @@ export function installTitleBar(doc: Document, ipc: IpcSender, markSrc: string):
   } else {
     docView.body.prepend(bar)
   }
+
+  // Follow the main process's locale pushes so the bar text matches the
+  // application menu. The main process seeds the current locale after load.
+  ipc.on?.(LOCALE_CHANGE_CHANNEL, (payload: unknown) => {
+    applyTitleBarLocale(payload === 'en' ? 'en' : 'zh', doc)
+  })
 }

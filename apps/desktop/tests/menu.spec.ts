@@ -5,6 +5,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MENU_POPUP_CHANNEL, installApplicationMenu, registerMenuPopupIpc } from '../src/main/desktop/menu.ts'
+import { copy } from '../src/main/desktop/locales.ts'
 
 /** The role union shipped by electron.d.ts; an unknown role fails at runtime. */
 const VALID_ROLES = new Set([
@@ -89,7 +90,7 @@ beforeEach(() => {
   state.getAllWindows.mockReturnValue([])
   state.openExternal.mockClear()
   state.menu = undefined
-  installApplicationMenu()
+  installApplicationMenu(key => copy('zh')[key])
 })
 
 describe('application menu template', () => {
@@ -127,9 +128,9 @@ describe('application menu template', () => {
       item.click?.({}, undefined)
     }
     const urls = state.openExternal.mock.calls.map(call => call[0] as string)
-    expect(urls).toContain('https://github.com/deepseek-ai/deepseek-harness')
-    expect(urls).toContain('https://github.com/deepseek-ai/deepseek-harness/discussions')
-    expect(urls.every(url => url.startsWith('https://github.com/deepseek-ai/deepseek-harness'))).toBe(true)
+    expect(urls).toContain('https://github.com/gitLongjie/deepseek-harness')
+    expect(urls).toContain('https://github.com/gitLongjie/deepseek-harness/issues')
+    expect(urls.every(url => url.startsWith('https://github.com/gitLongjie/deepseek-harness'))).toBe(true)
   })
 })
 

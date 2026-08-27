@@ -9,6 +9,7 @@
 
 import { app, BrowserWindow, dialog, ipcMain, Menu, shell, type MenuItemConstructorOptions } from 'electron'
 import { isAutostartEnabled, setAutostart } from './autostart.ts'
+import type { DesktopTextKey } from './locales.ts'
 
 /** Renderer→main channel asking for one application-menu submenu popup. */
 export const MENU_POPUP_CHANNEL = 'dsh:menu:popup'
@@ -17,8 +18,13 @@ export const MENU_POPUP_CHANNEL = 'dsh:menu:popup'
 const MENU_IDS = ['edit', 'view', 'window', 'help'] as const
 type MenuId = (typeof MENU_IDS)[number]
 
-/** Install the application menu. */
-export function installApplicationMenu(): void {
+/**
+ * Install the application menu. Labels render through the supplied translate
+ * function so the shell follows the stored language preference; rebuilding
+ * with a new translate keeps accelerators and behavior unchanged.
+ * @param t - locale-bound copy resolver (desktop/locales.ts).
+ */
+export function installApplicationMenu(t: (key: DesktopTextKey) => string): void {
   const darwinAppMenu: MenuItemConstructorOptions[] = process.platform === 'darwin'
     ? [{ role: 'appMenu' }]
     : []
@@ -26,77 +32,77 @@ export function installApplicationMenu(): void {
     ...darwinAppMenu,
     {
       id: 'edit',
-      label: '编辑',
+      label: t('menu.edit'),
       submenu: [
         // Explicit labels pin the menu language; roles keep their accelerators.
-        { role: 'undo', label: '撤消' },
-        { role: 'redo', label: '重做' },
+        { role: 'undo', label: t('menu.undo') },
+        { role: 'redo', label: t('menu.redo') },
         { type: 'separator' },
-        { role: 'cut', label: '剪切' },
-        { role: 'copy', label: '复制' },
-        { role: 'paste', label: '粘贴' },
-        { role: 'pasteAndMatchStyle', label: '粘贴并匹配样式' },
-        { role: 'delete', label: '删除' },
-        { role: 'selectAll', label: '全选' },
+        { role: 'cut', label: t('menu.cut') },
+        { role: 'copy', label: t('menu.copy') },
+        { role: 'paste', label: t('menu.paste') },
+        { role: 'pasteAndMatchStyle', label: t('menu.pasteAndMatchStyle') },
+        { role: 'delete', label: t('menu.delete') },
+        { role: 'selectAll', label: t('menu.selectAll') },
       ],
     },
     {
       id: 'view',
-      label: '视图',
+      label: t('menu.view'),
       submenu: [
-        { role: 'reload', label: '重新加载' },
-        { role: 'forceReload', label: '强制重新加载' },
-        { role: 'toggleDevTools', label: '开发者工具' },
+        { role: 'reload', label: t('menu.reload') },
+        { role: 'forceReload', label: t('menu.forceReload') },
+        { role: 'toggleDevTools', label: t('menu.toggleDevTools') },
         { type: 'separator' },
-        { role: 'resetZoom', label: '重置缩放' },
-        { role: 'zoomIn', label: '放大' },
-        { role: 'zoomOut', label: '缩小' },
+        { role: 'resetZoom', label: t('menu.resetZoom') },
+        { role: 'zoomIn', label: t('menu.zoomIn') },
+        { role: 'zoomOut', label: t('menu.zoomOut') },
         { type: 'separator' },
-        { role: 'togglefullscreen', label: '全屏' },
+        { role: 'togglefullscreen', label: t('menu.fullscreen') },
       ],
     },
     {
       id: 'window',
-      label: '窗口',
+      label: t('menu.window'),
       submenu: [
-        { role: 'minimize', label: '最小化' },
-        { role: 'zoom', label: '缩放' },
-        { role: 'close', label: '关闭窗口' },
+        { role: 'minimize', label: t('menu.minimize') },
+        { role: 'zoom', label: t('menu.zoom') },
+        { role: 'close', label: t('menu.closeWindow') },
         { type: 'separator' },
         // Closing hides to the tray (desktop/tray.ts), so a restore entry is
         // the keyboard-reachable way back that the tray click cannot serve.
-        { id: 'show-main-window', label: '显示主窗口', click: () => { showMainWindows() } },
+        { id: 'show-main-window', label: t('menu.showMainWindow'), click: () => { showMainWindows() } },
       ],
     },
     {
       id: 'help',
-      label: '帮助',
+      label: t('menu.help'),
       submenu: [
         {
-          label: 'GitHub 仓库',
-          click: () => { void shell.openExternal('https://github.com/deepseek-ai/deepseek-harness') },
+          label: t('menu.github'),
+          click: () => { void shell.openExternal('https://github.com/gitLongjie/deepseek-harness') },
         },
         {
-          label: '反馈与讨论',
-          click: () => { void shell.openExternal('https://github.com/deepseek-ai/deepseek-harness/discussions') },
+          label: t('menu.feedback'),
+          click: () => { void shell.openExternal('https://github.com/gitLongjie/deepseek-harness/issues') },
         },
         { type: 'separator' },
-        { label: '关于 深度Works', click: () => { void showAbout() } },
+        { label: t('menu.about'), click: () => { void showAbout(t) } },
       ],
     },
     {
-      label: 'App',
+      label: t('menu.app'),
       submenu: [
         {
-          label: '登录时启动',
+          label: t('menu.autostart'),
           type: 'checkbox',
           checked: isAutostartEnabled(),
           click: (item) => { setAutostart(item.checked) },
         },
         { type: 'separator' },
-        { role: 'toggleDevTools', label: '开发者工具' },
+        { role: 'toggleDevTools', label: t('menu.toggleDevTools') },
         { type: 'separator' },
-        { role: 'quit', label: '退出' },
+        { role: 'quit', label: t('menu.quit') },
       ],
     },
   ]
@@ -145,11 +151,11 @@ function showMainWindows(): void {
 }
 
 /** Show the about dialog. */
-async function showAbout(): Promise<void> {
+async function showAbout(t: (key: DesktopTextKey) => string): Promise<void> {
   await dialog.showMessageBox({
     type: 'info',
-    title: '关于',
-    message: '深度Works 桌面版',
-    detail: `版本 ${app.getVersion()}`,
+    title: t('about.title'),
+    message: t('about.message'),
+    detail: `${t('about.version')} ${app.getVersion()}`,
   })
 }

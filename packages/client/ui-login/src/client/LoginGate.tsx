@@ -77,9 +77,6 @@ export function LoginGate({ controller, t }: LoginGateProps): ReactNode {
         >
           {state.busy ? t('submitting') : t('submit')}
         </Button>
-        <a className={css.register} href={`${controller.baseUrl()}/register`} target="_blank" rel="noreferrer">
-          {t('register')}
-        </a>
       </form>
     </div>
   )

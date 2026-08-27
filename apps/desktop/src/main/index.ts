@@ -20,7 +20,8 @@ import { registerTransportIpc } from './ipc/transport.ts'
 import { registerBundleIpc } from './ipc/bundle.ts'
 import { renderDesktopIndex } from './ipc/index-html.ts'
 import { installSingleInstanceLock } from './desktop/single-instance.ts'
-import { installTray } from './desktop/tray.ts'
+import { installTray, type TrayHandle } from './desktop/tray.ts'
+import { copy, normalizeLocale, type DesktopLocaleId, type DesktopTextKey } from './desktop/locales.ts'
 import { DESKTOP_WINDOW_TITLE, pinWindowTitle } from './desktop/window-title.ts'
 import { installApplicationMenu, registerMenuPopupIpc } from './desktop/menu.ts'
 import { initUpdater } from './updater.ts'
@@ -51,6 +52,44 @@ if (!gotLock) {
 
 /** The settled host context and its shutdown controller, filled after boot. */
 const host: { ctx?: Context; shutdown?: ProcessShutdown } = {}
+
+/** The tray handle once installed; rebuilt on locale change. */
+let trayHandle: TrayHandle | undefined
+
+/** The active desktop-shell locale (defaults to Chinese). */
+let currentLocale: DesktopLocaleId = 'zh'
+
+/** The locale-bound translate function for the shell surfaces. */
+function shellT(locale: DesktopLocaleId): (key: DesktopTextKey) => string {
+  const strings = copy(locale)
+  return key => strings[key]
+}
+
+/** Read the stored locale preference (default zh); settings may be absent. */
+function readLocalePreference(): DesktopLocaleId {
+  try {
+    const settings = host.ctx?.get('settings') as { get(ns: string): unknown } | undefined
+    const locale = settings?.get('locale') as { preference?: unknown } | undefined
+    return normalizeLocale(locale?.preference)
+  } catch {
+    return 'zh'
+  }
+}
+
+/**
+ * Rebuild the native shell surfaces for the current locale: the application
+ * menu, the tray context menu, and (via IPC) the renderer title bar.
+ * @param win - the main window whose title bar should follow the language.
+ */
+function rebuildShell(win?: BrowserWindow): void {
+  currentLocale = readLocalePreference()
+  const t = shellT(currentLocale)
+  installApplicationMenu(t)
+  trayHandle?.rebuild(t)
+  if (win !== undefined && !win.isDestroyed()) {
+    win.webContents.send('dsh:locale:change', currentLocale)
+  }
+}
 
 /**
  * Append a startup line to the desktop log under userData; GUI apps do not
@@ -98,7 +137,8 @@ async function main(): Promise<void> {
     // Protocol handlers and the menu must register after the app is ready.
     await app.whenReady()
     registerWebProtocol(log)
-    installApplicationMenu()
+    currentLocale = readLocalePreference()
+    installApplicationMenu(shellT(currentLocale))
     registerMenuPopupIpc()
     registerWindowControlsIpc()
 
@@ -114,6 +154,8 @@ async function main(): Promise<void> {
     // fence, so loopback-only surfaces (settings, credentials) stay available.
     await win.loadURL(`${WEB_SCHEME}://localhost/index.html`)
     log('desktop: window loaded')
+    // Seed the title bar with the current shell locale.
+    win.webContents.send('dsh:locale:change', currentLocale)
 
     let disposed = false
     app.on('before-quit', (event) => {
@@ -123,8 +165,17 @@ async function main(): Promise<void> {
       void host.shutdown?.shutdown(0)
     })
 
-    installTray(win)
+    trayHandle = installTray(win, shellT(currentLocale))
     initUpdater()
+
+    // Language preference changes rebuild the native shell and tell the title
+    // bar to follow (the web settings General → 语言 row writes this namespace).
+    // settings/updated is declared by @deepseek-ai/dsh-settings' ambient Events
+    // merge; narrow the host ctx to the one channel here.
+    const shellCtx = host.ctx as { on(event: string, listener: (ns: unknown) => void): unknown } | undefined
+    shellCtx?.on('settings/updated', (ns: unknown) => {
+      if (ns === 'locale') rebuildShell(win)
+    })
   } catch (error) {
     log(`desktop: startup failed:\n${flattenError(error)}`)
     app.exit(1)

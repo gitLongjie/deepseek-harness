@@ -24,5 +24,5 @@ None; this package neither assembles nor sends a provider request.
 ## Known Limitations and Deferred Work
 
 - **No session refresh** — the stored profile is display-only; a server-side rename or avatar change appears after the next sign-in.
-- **No registration UI** — the card links out to the account server's `/register` page instead of embedding a flow.
+- **No registration entry** — accounts are issued by the account server; the sign-in card deliberately offers no sign-up link.
 - **Bearer-session calls are out of scope** — the account server's session cookie is not replayed against other endpoints by this package.

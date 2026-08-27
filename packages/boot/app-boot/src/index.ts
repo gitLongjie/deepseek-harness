@@ -774,8 +774,10 @@ export async function boot(
     ctx.baseUrl = bareModuleBaseUrl ?? (pathToFileURL(dirname(absoluteConfigPath)).href + '/')
     // client-modules reads this to anchor its package resolution at the host:
     // the vendored Include rewrites the config subtree's baseUrl to the config
-    // directory, whose node_modules cannot resolve into app.asar.
-    if (bareModuleBaseUrl !== undefined) ctx.provide('dshBareModuleBaseUrl', bareModuleBaseUrl)
+    // directory, whose node_modules cannot resolve into app.asar. Always
+    // provide (undefined in the open runtime) so the property exists and the
+    // consumer's nullish fallback to ctx.baseUrl applies.
+    ctx.provide('dshBareModuleBaseUrl', bareModuleBaseUrl)
     ctx.provide('dshHomePath', dshHomePath)
     await ctx.plugin(Loader)
     await prepare?.(ctx)

@@ -87,12 +87,6 @@ export const en = {
   customNeedsModels: 'A custom provider needs at least one model.',
   create: 'Create provider',
   creating: 'Creating\u2026',
-  onboardingTitle: 'Add an API key to get started',
-  onboardingDescription: 'Configure the official DeepSeek provider to start building.',
-  onboardingLater: 'Configure later',
-  onboardingSave: 'Save and continue',
-  onboardingSaving: 'Saving…',
-  keyRequired: 'Enter an API key to continue.',
 }
 
 /** The settings.models namespace key union. */
@@ -185,10 +179,4 @@ export const zh: { [Key in keyof typeof en]: string } = {
   customNeedsModels: '自定义提供方至少需要一个模型。',
   create: '创建提供方',
   creating: '创建中\u2026',
-  onboardingTitle: '添加一个 API Key 开始使用',
-  onboardingDescription: '配置 DeepSeek 官方模型，即可开始使用。',
-  onboardingLater: '稍后配置',
-  onboardingSave: '保存并继续',
-  onboardingSaving: '保存中…',
-  keyRequired: '请输入 API 密钥后继续。',
 }

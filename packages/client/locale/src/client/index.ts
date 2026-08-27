@@ -87,15 +87,17 @@ declare module '@deepseek-ai/cordis' {
 }
 
 /**
- * English is both the locale the UI opens in when the browser names no shipped
- * language (and for non-browser runs), and the dictionary consulted after the
- * active locale misses a key. One constant serves both because the shipped
- * `zh`/`en` dictionaries carry identical key sets, so neither direction can
- * leave a key unresolved; the residual case points at English rather than
- * zh because a browser naming neither shipped language is the reader least
- * likely to read Chinese.
+ * Chinese is the product's default locale: the UI opens in Chinese when the
+ * browser names no shipped language (and for non-browser runs).
  */
-export const FALLBACK_LOCALE: LocaleId = 'en'
+export const FALLBACK_LOCALE: LocaleId = 'zh'
+
+/**
+ * The dictionary consulted after the active locale misses a key. The shipped
+ * zh/en pairs carry identical key sets, so English always covers every
+ * namespace; this stays independent of the initial-locale fallback.
+ */
+const DICT_FALLBACK_LOCALE: LocaleId = 'en'
 
 /** Shared namespace for shell-level texts. */
 export const COMMON_NS = 'common'
@@ -320,7 +322,7 @@ export class LocaleRuntime {
 
   private lookup(ns: string, key: string): string | undefined {
     const locales = this.dicts.get(ns)
-    return locales?.get(this.snapshot.active)?.[key] ?? locales?.get(FALLBACK_LOCALE)?.[key]
+    return locales?.get(this.snapshot.active)?.[key] ?? locales?.get(DICT_FALLBACK_LOCALE)?.[key]
   }
 
   /**
