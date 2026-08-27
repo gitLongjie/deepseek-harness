@@ -60,9 +60,16 @@ linux:
     - AppImage
     - deb
   category: Development
+  # Without an explicit name, AppImage/deb infer executableName from the
+  # package.json name (which contains @ and /) and the build fails.
+  executableName: deepagens-works
   synopsis: Deepagens Works Desktop
 publish:
   provider: github
   owner: gitLongjie
   repo: deepseek-harness
   releaseType: release
+  # Electron-builder's GitHub release tag defaults to v${version}; make it the
+  # actual git tag (desktop-v*) so the release's tag already exists and GitHub
+  # does not reject creation with 422 "Published releases must have a valid tag".
+  tagNamePrefix: desktop-v

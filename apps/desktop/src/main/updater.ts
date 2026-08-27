@@ -17,7 +17,12 @@ const { autoUpdater } = electronUpdater
  * download and restart are user-confirmed. */
 export function initUpdater(): void {
   if (!app.isPackaged) return
-  autoUpdater.channel = app.getVersion().includes('-') ? 'beta' : 'latest'
+  // All releases (stable and -beta) publish to the single latest feed
+  // (latest.yml / latest-mac.yml / latest-linux.yml). Stable clients ignore
+  // prerelease versions via electron-updater's allowPrerelease default; beta
+  // clients see both prereleases and higher stables, so a beta user can move
+  // to stable naturally when one is published.
+  autoUpdater.channel = 'latest'
   autoUpdater.autoDownload = false
   autoUpdater.autoInstallOnAppQuit = true
 
