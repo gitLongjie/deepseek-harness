@@ -30,6 +30,13 @@ function run(cmd, cmdArgs, opts = {}) {
 run('pnpm', ['--filter', '@deepseek-ai/dsh-web-frontend', 'exec', 'vite', 'build', '--outDir', resolve(root, 'web')], {
   env: { ...process.env, DSH_DESKTOP_BUILD: '1' },
 })
+// 1b. The packaged web-runtime's static service resolves
+// @deepseek-ai/dsh-web-frontend/dist/index.html (apps/web/dist), which a clean
+// CI checkout does not have. Build the default output too so it ships inside
+// app.asar; this only affects the packaging run, never the served build.
+run('pnpm', ['--filter', '@deepseek-ai/dsh-web-frontend', 'exec', 'vite', 'build'], {
+  env: { ...process.env, DSH_DESKTOP_BUILD: '1' },
+})
 // 2. Build the main process and the render transport.
 run('pnpm', ['build:main'], { cwd: root })
 run('node', ['scripts/build-render-transport.mjs'], { cwd: root })
