@@ -8,6 +8,7 @@
 import type { ClientTransportHooks } from '@deepseek-ai/dsh-client-connection'
 import { createIpcFetch, ElectronApiClient, type IpcBridge } from './transport.ts'
 import { installTitleBar } from './title-bar.ts'
+import { installUpdateBadge } from './update-badge.ts'
 
 declare global {
   interface Window {
@@ -25,6 +26,7 @@ if (ipc === undefined) {
 // script); the transport below must stay synchronous — AppWebEntry reads it
 // during boot.
 installTitleBar(document, ipc, './favicon.ico')
+installUpdateBadge(document, ipc)
 
 const client = new ElectronApiClient(ipc)
 

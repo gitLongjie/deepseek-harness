@@ -24,7 +24,7 @@ import { installTray, type TrayHandle } from './desktop/tray.ts'
 import { copy, normalizeLocale, type DesktopLocaleId, type DesktopTextKey } from './desktop/locales.ts'
 import { DESKTOP_WINDOW_TITLE, pinWindowTitle } from './desktop/window-title.ts'
 import { installApplicationMenu, registerMenuPopupIpc } from './desktop/menu.ts'
-import { initUpdater } from './updater.ts'
+import { initUpdater, registerUpdateIpc, setUpdaterLocale } from './updater.ts'
 
 /** The app scheme serving the frontend dist (a standard, secure, fetch-capable scheme). */
 const WEB_SCHEME = 'dshapp'
@@ -86,6 +86,7 @@ function rebuildShell(win?: BrowserWindow): void {
   const t = shellT(currentLocale)
   installApplicationMenu(t)
   trayHandle?.rebuild(t)
+  setUpdaterLocale(t)
   if (win !== undefined && !win.isDestroyed()) {
     win.webContents.send('dsh:locale:change', currentLocale)
   }
@@ -140,6 +141,7 @@ async function main(): Promise<void> {
     currentLocale = readLocalePreference()
     installApplicationMenu(shellT(currentLocale))
     registerMenuPopupIpc()
+    registerUpdateIpc()
     registerWindowControlsIpc()
 
     const win = createWindow()
@@ -166,7 +168,7 @@ async function main(): Promise<void> {
     })
 
     trayHandle = installTray(win, shellT(currentLocale))
-    initUpdater()
+    initUpdater(shellT(currentLocale), win)
 
     // Language preference changes rebuild the native shell and tell the title
     // bar to follow (the web settings General → 语言 row writes this namespace).

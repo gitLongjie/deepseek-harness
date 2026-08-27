@@ -71,6 +71,10 @@ vi.mock('../src/main/desktop/autostart.ts', () => ({
   setAutostart: vi.fn(),
 }))
 
+vi.mock('../src/main/updater.ts', () => ({
+  requestUpdateCheck: vi.fn(),
+}))
+
 /** Depth-first search of one template subtree for an item with the given id. */
 function findItem(items: MenuItemOptions[], id: string): MenuItemOptions | undefined {
   for (const item of items) {

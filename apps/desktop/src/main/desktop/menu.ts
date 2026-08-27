@@ -10,6 +10,7 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, shell, type MenuItemConstructorOptions } from 'electron'
 import { isAutostartEnabled, setAutostart } from './autostart.ts'
 import type { DesktopTextKey } from './locales.ts'
+import { requestUpdateCheck } from '../updater.ts'
 
 /** Renderer→main channel asking for one application-menu submenu popup. */
 export const MENU_POPUP_CHANNEL = 'dsh:menu:popup'
@@ -86,6 +87,8 @@ export function installApplicationMenu(t: (key: DesktopTextKey) => string): void
           label: t('menu.feedback'),
           click: () => { void shell.openExternal('https://github.com/gitLongjie/deepseek-harness/issues') },
         },
+        { type: 'separator' },
+        { label: t('menu.checkUpdates'), click: () => { requestUpdateCheck() } },
         { type: 'separator' },
         { label: t('menu.about'), click: () => { void showAbout(t) } },
       ],
