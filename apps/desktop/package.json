@@ -6,6 +6,11 @@
   "type": "module",
   "main": "dist/main/index.js",
   "license": "MIT",
+  "homepage": "https://github.com/gitLongjie/deepseek-harness",
+  "author": {
+    "name": "brige",
+    "email": "jiegeaiai@163.com"
+  },
   "scripts": {
     "build": "pnpm build:main && pnpm build:render-transport",
     "build:main": "tsc -b tsconfig.json",
