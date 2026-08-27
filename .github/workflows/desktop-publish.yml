@@ -48,6 +48,15 @@ jobs:
       - name: Build host libs
         run: pnpm build:lib
 
+      # A stale release's assets make electron-builder's overwrite race with
+      # GitHub's already_exists when platforms publish concurrently. Delete the
+      # release for this tag first so every platform uploads fresh assets to a
+      # newly created release (the git tag stays, so the create succeeds).
+      - name: Reset release for a clean publish
+        run: gh release delete "${{ github.ref_name }}" --yes 2>/dev/null || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       # deploy-app.mjs --publish always builds and uploads to the GitHub
       # Release for the current version (tag desktop-v<version>).
       - name: Package and publish to GitHub Releases
