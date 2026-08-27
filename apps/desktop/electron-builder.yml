@@ -27,10 +27,11 @@ files:
   - build/**
   - cordis.patch.yml
   - package.json
-  # Workspace packages are followed through their pnpm symlinks; their runtime
-  # needs lib only, so drop sources, tests, and sourcemaps to keep the bundle slim.
-  - '!**/src/**'
-  - '!**/tests/**'
+  # Drop the app's own sources/tests/sourcemaps to keep the bundle slim. Keep
+  # the globs app-relative (!src/**) so dependency sources that their package
+  # main points at (e.g. debug -> src/index.js) are NOT excluded from node_modules.
+  - '!src/**'
+  - '!tests/**'
   - '!**/*.map'
   - '!**/*.tsbuildinfo'
 win:
