@@ -63,6 +63,11 @@ linux:
   # Without an explicit name, AppImage/deb infer executableName from the
   # package.json name (which contains @ and /) and the build fails.
   executableName: deepagens-works
+  # The scoped package name (@deepseek-ai/dsh-desktop) would put the .deb under
+  # a missing dist-electron/@deepseek-ai/ directory (fpm: parent directory does
+  # not exist). Pin a flat artifact name so both Linux targets write directly
+  # under dist-electron/.
+  artifactName: deepagens-works-${version}-linux-${arch}.${ext}
   synopsis: Deepagens Works Desktop
 publish:
   provider: github
