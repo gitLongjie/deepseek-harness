@@ -53,6 +53,7 @@ jobs:
       # release for this tag first so every platform uploads fresh assets to a
       # newly created release (the git tag stays, so the create succeeds).
       - name: Reset release for a clean publish
+        shell: bash
         run: gh release delete "${{ github.ref_name }}" --yes 2>/dev/null || true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
