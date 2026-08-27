@@ -766,7 +766,16 @@ export async function boot(
   // so its failure is host setup, not the plugin tree.
   let stage = 'host preparation failed'
   try {
-    ctx.baseUrl = pathToFileURL(dirname(absoluteConfigPath)).href + '/'
+    // In a packaged run the host owns the complete plugin set: anchor the
+    // loader tree (and client-modules, which creates a require from ctx.baseUrl)
+    // at the installed host (app.asar) so bare client packages resolve from the
+    // packed node_modules. The profile dir's symlinked node_modules cannot be
+    // followed into asar by Node's require.resolve.
+    ctx.baseUrl = bareModuleBaseUrl ?? (pathToFileURL(dirname(absoluteConfigPath)).href + '/')
+    // client-modules reads this to anchor its package resolution at the host:
+    // the vendored Include rewrites the config subtree's baseUrl to the config
+    // directory, whose node_modules cannot resolve into app.asar.
+    if (bareModuleBaseUrl !== undefined) ctx.provide('dshBareModuleBaseUrl', bareModuleBaseUrl)
     ctx.provide('dshHomePath', dshHomePath)
     await ctx.plugin(Loader)
     await prepare?.(ctx)

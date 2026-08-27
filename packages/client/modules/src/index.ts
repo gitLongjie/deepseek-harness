@@ -43,6 +43,13 @@ declare module '@deepseek-ai/cordis' {
   interface Context {
     /** The web plugin table (provided by the client-modules node half). */
     clientModules: ClientModuleRegistry
+    /**
+     * Installed-host base URL for bare plugin packages, provided by app boot in
+     * a closed packaged runtime. Overrides the config-tree anchor for package
+     * resolution, because the vendored Include rewrites subtree baseUrl to the
+     * writable config directory.
+     */
+    dshBareModuleBaseUrl?: string
   }
 }
 
@@ -307,7 +314,11 @@ export class ClientModuleRegistry extends Service {
     if (ctx.baseUrl === undefined) {
       throw new Error('client-modules: ctx.baseUrl is unset — the node half needs the config-tree anchor to resolve plugin packages')
     }
-    const require = createRequire(ctx.baseUrl)
+    // In a closed packaged runtime the host owns the plugin set: prefer the
+    // host-provided base, because the vendored Include rewrites the subtree's
+    // ctx.baseUrl to the (writable) config directory whose node_modules cannot
+    // resolve into app.asar.
+    const require = createRequire(ctx.dshBareModuleBaseUrl ?? ctx.baseUrl)
     this.resolvePkgJson = spec => require.resolve(`${spec}/package.json`)
 
     // Subscribe before seeding so a fiber arriving mid-activation lands in the
