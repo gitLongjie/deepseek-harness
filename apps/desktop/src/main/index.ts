@@ -9,7 +9,7 @@
 
 import { appendFileSync, mkdirSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { dirname, join, resolve } from 'node:path'
 import { app, BrowserWindow, ipcMain, protocol } from 'electron'
 import type { Context } from '@deepseek-ai/cordis'
@@ -79,7 +79,9 @@ async function main(): Promise<void> {
     const result = await runDesktopBoot({
       environment,
       args: ['--no-open', '--port', '0'],
-      ...(app.isPackaged ? { bareModuleBaseUrl: fileURLToPath(app.getAppPath()) + '/' } : {}),
+      // app.getAppPath() is a filesystem path; the loader's bare import resolves
+      // against a file:// parent URL, so convert it before appending the slash.
+      ...(app.isPackaged ? { bareModuleBaseUrl: pathToFileURL(app.getAppPath()).href + '/' } : {}),
       forceExit: (code) => { app.exit(code) },
       complete: (code) => { app.exit(code) },
     })
