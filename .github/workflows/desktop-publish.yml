@@ -40,9 +40,23 @@ jobs:
       - name: Reset and create the release
         shell: bash
         run: |
+          REPO="${{ github.repository }}"
           TAG="v$(node -p "require('./apps/desktop/package.json').version")"
-          gh release delete "$TAG" --yes 2>/dev/null || true
-          gh release create "$TAG" --title "$TAG" --notes "Release $TAG" --verify-tag
+          echo "TAG=$TAG"
+          # Reset so every platform uploads fresh assets; a missing release is
+          # fine. Retry the create briefly to absorb GitHub's delete -> create
+          # eventual consistency.
+          curl -s -X DELETE -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/$REPO/releases/tags/$TAG" -o /dev/null || true
+          for i in $(seq 1 8); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+              -H "Authorization: Bearer $GH_TOKEN" -H "Content-Type: application/json" \
+              -d "{\"tag_name\":\"$TAG\",\"name\":\"$TAG\",\"body\":\"Release $TAG\"}" \
+              "https://api.github.com/repos/$REPO/releases")
+            echo "create attempt $i: HTTP $code"
+            [ "$code" = "201" ] && { echo "release created"; break; }
+            sleep 5
+          done
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
