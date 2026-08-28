@@ -62,6 +62,15 @@ export function initUpdater(t: (key: DesktopTextKey) => string, win: BrowserWind
     }
   })
 
+  autoUpdater.on('download-progress', (progress) => {
+    if (!win.isDestroyed()) {
+      win.webContents.send('dsh:update:status', {
+        status: 'progressing',
+        percent: Math.round(progress.percent),
+      })
+    }
+  })
+
   autoUpdater.on('update-downloaded', (info) => {
     latestVersion = info.version
     if (!win.isDestroyed()) {

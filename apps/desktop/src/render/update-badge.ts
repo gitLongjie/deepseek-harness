@@ -20,58 +20,39 @@ type IpcSender = {
   on?(channel: string, listener: (payload: unknown) => void): () => void
 }
 
-/** Badge chrome: a high-visibility accent pill with a pulsing dot; it flips to
-    a green "restart to update" state once the download is ready. */
+/** Badge chrome: a rounded-rectangle accent tag; it shows download progress
+    while the update streams and flips to a green "restart to update" tag once
+    the download is ready. */
 const STYLE_TEXT = `
 #dsh-update-badge {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
   flex-shrink: 0;
   margin-left: 6px;
-  padding: 2px 9px;
+  padding: 3px 8px;
   border: none;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--dsw-alias-accent, #6187d8);
   color: #fff;
   font: inherit;
   font-size: 11px;
   font-weight: 600;
-  line-height: 16px;
+  line-height: 14px;
   cursor: pointer;
   white-space: nowrap;
-  max-width: 96px;
   overflow: hidden;
   text-overflow: ellipsis;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
 }
-#dsh-update-badge::before {
-  content: '';
-  flex: none;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-  animation: dsh-update-pulse 2s ease-out infinite;
-}
 #dsh-update-badge:hover {
   filter: brightness(1.12);
 }
+#dsh-update-badge.dsh-update-downloading {
+  cursor: default;
+  background: var(--dsw-alias-accent-muted, #7c95c9);
+}
 #dsh-update-badge.dsh-update-ready {
   background: #2f9e44;
-}
-#dsh-update-badge.dsh-update-ready::before {
-  animation: none;
-}
-@keyframes dsh-update-pulse {
-  0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.5); }
-  70% { box-shadow: 0 0 0 5px rgba(255, 255, 255, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
-}
-@media (prefers-reduced-motion: reduce) {
-  #dsh-update-badge::before {
-    animation: none;
-  }
 }
 `
 
@@ -80,10 +61,12 @@ const UPDATE_BADGE_LOCALES = {
   zh: {
     available: '更新',
     downloaded: '重启更新',
+    downloading: (percent: number): string => `下载中 ${percent}%`,
   },
   en: {
     available: 'Update',
     downloaded: 'Restart to update',
+    downloading: (percent: number): string => `Downloading ${percent}%`,
   },
 } as const
 
@@ -93,6 +76,7 @@ type UpdateBadgeLocale = keyof typeof UPDATE_BADGE_LOCALES
 interface UpdateStatusPayload {
   status?: string
   version?: string
+  percent?: number
 }
 
 /**
@@ -112,13 +96,18 @@ export function installUpdateBadge(doc: Document, ipc: IpcSender): void {
   let badge: HTMLButtonElement | undefined
   let locale: UpdateBadgeLocale = 'zh'
   let ready = false
+  let downloading = false
+  let percent = 0
   let version: string | undefined
 
   function renderBadge(): void {
     if (badge === undefined || version === undefined) return
     const strings = UPDATE_BADGE_LOCALES[locale]
-    badge.textContent = ready ? strings.downloaded : strings.available
+    badge.textContent = downloading
+      ? strings.downloading(percent)
+      : ready ? strings.downloaded : strings.available
     badge.title = version
+    badge.classList.toggle('dsh-update-downloading', downloading)
     badge.classList.toggle('dsh-update-ready', ready)
   }
 
@@ -133,6 +122,7 @@ export function installUpdateBadge(doc: Document, ipc: IpcSender): void {
     button.id = 'dsh-update-badge'
     button.setAttribute('aria-label', 'update')
     button.addEventListener('click', () => {
+      if (downloading) return
       ipc.send(UPDATE_ACTION_CHANNEL, { action: ready ? 'install' : 'prompt' })
     })
     anchor.appendChild(button)
@@ -145,11 +135,19 @@ export function installUpdateBadge(doc: Document, ipc: IpcSender): void {
     if (p.status === 'available' && typeof p.version === 'string') {
       version = p.version
       ready = false
+      downloading = false
+      ensureBadge()
+      renderBadge()
+    } else if (p.status === 'progressing' && typeof p.percent === 'number') {
+      if (version === undefined) return
+      downloading = true
+      percent = p.percent
       ensureBadge()
       renderBadge()
     } else if (p.status === 'downloaded' && typeof p.version === 'string') {
       version = p.version
       ready = true
+      downloading = false
       ensureBadge()
       renderBadge()
     }

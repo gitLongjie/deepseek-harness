@@ -66,6 +66,21 @@ describe('desktop update badge', () => {
     expect(document.getElementById('dsh-update-badge')).toBeNull()
   })
 
+  it('shows download progress without sending an action on click', async () => {
+    const { ipc, listeners } = makeIpc()
+    installUpdateBadge(document, ipc)
+    mountAnchor()
+    listeners.get(UPDATE_STATUS_CHANNEL)!({ status: 'available', version: '1.2.3' })
+    await flush()
+    listeners.get(UPDATE_STATUS_CHANNEL)!({ status: 'progressing', percent: 42 })
+    await flush()
+    const badge = document.getElementById('dsh-update-badge')
+    expect(badge?.textContent).toBe('下载中 42%')
+    expect(badge?.classList.contains('dsh-update-downloading')).toBe(true)
+    badge!.click()
+    expect(ipc.send).not.toHaveBeenCalled()
+  })
+
   it('sends a prompt action when clicked while available', async () => {
     const { ipc, listeners } = makeIpc()
     installUpdateBadge(document, ipc)
