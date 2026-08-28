@@ -27,17 +27,20 @@ const STYLE_TEXT = `
 #dsh-update-badge {
   display: inline-flex;
   align-items: center;
+  align-self: center;
   flex-shrink: 0;
-  margin-left: 6px;
-  padding: 3px 8px;
+  margin-left: 10px;
+  padding: 0 5px;
   border: none;
-  border-radius: 6px;
+  border-radius: 4px;
   background: var(--dsw-alias-accent, #6187d8);
   color: #fff;
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  line-height: 14px;
+  line-height: 16px;
+  position: relative;
+  top: 2px;
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;

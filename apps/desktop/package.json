@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-desktop",
   "description": "Electron desktop shell for the DeepSeek Harness web GUI: boots the dsh host in-process and carries the React frontend over an IPC bridge",
-  "version": "0.1.0-beta.6",
+  "version": "0.1.0-beta.7",
   "private": true,
   "type": "module",
   "main": "dist/main/index.js",
