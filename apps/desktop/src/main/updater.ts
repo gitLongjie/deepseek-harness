@@ -43,7 +43,10 @@ function fill(template: string, version: string): string {
 export function initUpdater(t: (key: DesktopTextKey) => string, win: BrowserWindow): void {
   currentT = t
   if (!app.isPackaged) return
-  autoUpdater.channel = 'latest'
+  // Keep the default channel: electron-updater derives the current channel from
+  // the installed version's prerelease label (e.g. "beta"). Pinning 'latest'
+  // makes prerelease tags in the feed fail to match, so every update check
+  // errors out with "No published versions on GitHub".
   autoUpdater.autoDownload = false
   autoUpdater.autoInstallOnAppQuit = true
 
