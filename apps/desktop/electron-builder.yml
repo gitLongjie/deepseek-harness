@@ -81,7 +81,6 @@ publish:
   owner: gitLongjie
   repo: deepseek-harness
   releaseType: release
-  # Electron-builder's GitHub release tag defaults to v${version}; make it the
-  # actual git tag (desktop-v*) so the release's tag already exists and GitHub
-  # does not reject creation with 422 "Published releases must have a valid tag".
-  tagNamePrefix: desktop-v
+  # GitHub release tag defaults to v${version}. electron-updater's GitHub
+  # provider parses tags as semver, so a non-semver prefix (e.g. desktop-v)
+  # breaks in-app update detection; keep the default v prefix.
