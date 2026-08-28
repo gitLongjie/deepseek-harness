@@ -23,11 +23,32 @@ env:
   DSH_TELEMETRY_DISABLED: '1'
 
 jobs:
+  create-release:
+    name: Create GitHub release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: desktop-release
+    steps:
+      - uses: actions/checkout@v6
+
+      # Reset and (re)create the release in a single job before any platform
+      # builds. Doing this here instead of per-job avoids the concurrent-delete
+      # race where parallel platform jobs removed each other's just-created
+      # release and then 404'd while uploading assets.
+      - name: Reset and create the release
+        shell: bash
+        run: |
+          gh release delete "${{ github.ref_name }}" --yes 2>/dev/null || true
+          gh release create "${{ github.ref_name }}" --title "${{ github.ref_name }}" --notes "Release ${{ github.ref_name }}" --verify-tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   build:
     name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     environment: desktop-release
+    needs: create-release
     strategy:
       fail-fast: false
       matrix:
@@ -47,16 +68,6 @@ jobs:
 
       - name: Build host libs
         run: pnpm build:lib
-
-      # A stale release's assets make electron-builder's overwrite race with
-      # GitHub's already_exists when platforms publish concurrently. Delete the
-      # release for this tag first so every platform uploads fresh assets to a
-      # newly created release (the git tag stays, so the create succeeds).
-      - name: Reset release for a clean publish
-        shell: bash
-        run: gh release delete "${{ github.ref_name }}" --yes 2>/dev/null || true
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # deploy-app.mjs --publish always builds and uploads to the GitHub
       # Release for the current version (tag v<version>).
