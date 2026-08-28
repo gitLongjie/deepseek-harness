@@ -34,7 +34,7 @@ describe('pinned desktop window title', () => {
     const { win, emit } = fakeWindow()
     pinWindowTitle(win)
     const preventDefault = vi.fn()
-    emit('page-title-updated', { title: '会话名 — 深度Works Local Build', preventDefault })
+    emit('page-title-updated', { title: '会话名 — 深度Works', preventDefault })
     expect(preventDefault).toHaveBeenCalledTimes(1)
   })
 })
