@@ -31,10 +31,11 @@ const useSessionPendingInteraction: TriggerContentProps['useSessionPendingIntera
 const kit = { useSessions: unusedHook, useSessionPendingInteraction, useWorkspaces: unusedHook }
 
 describe('chrome content', () => {
-  it('TriggerContent renders the icon with the label in the wide column', () => {
+  it('TriggerContent renders the icon with the label as its accessible name', () => {
     const { container } = render(<TriggerContent {...kit} wide t={t} />)
     expect(container.querySelector('svg')).toBeTruthy()
-    expect(screen.getByText('Settings')).toBeTruthy()
+    expect(container.querySelector('span[title="Settings"]')).toBeTruthy()
+    expect(screen.queryByText('Settings')).toBeNull()
   })
 
   it('TriggerContent drops the label in the rail state', () => {

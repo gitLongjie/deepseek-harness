@@ -5,8 +5,8 @@
  * reads each entry's `label` option for aria text.
  */
 import { IconSettingsOutline14, IconSettingsOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import css from './chrome.module.css'
+import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 
 /** Trigger content props: the sidebar column state + the standard locale seat. */
 export type TriggerContentProps = PropsRuntime<'settings.trigger'> & PropsLocale<'settings'>
@@ -20,11 +20,13 @@ export type HeaderContentProps = PropsRuntime<'settings.header'> & PropsLocale<'
  * @returns the trigger content fragment.
  */
 export function TriggerContent({ wide, t }: TriggerContentProps) {
+  // The footer renders Settings beside the account row on one line, so the
+  // trigger stays icon-only; the wrapper title supplies the button's
+  // accessible name through name-from-content.
   return (
-    <>
+    <span className={css.triggerIcon} title={t('trigger')}>
       {wide ? <IconSettingsOutline16 size={16} /> : <IconSettingsOutline14 size={18} />}
-      {wide && <span className={css.triggerLabel}>{t('trigger')}</span>}
-    </>
+    </span>
   )
 }
 
