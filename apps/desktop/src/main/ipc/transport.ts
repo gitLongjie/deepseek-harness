@@ -120,32 +120,62 @@ export function registerTransportIpc(getHost: () => TransportHostServices): () =
   })
 
   const streamAborts = new Map<string, AbortController>()
-  const openStream = (event: Electron.IpcMainInvokeEvent, opts: TransportStreamStart): string => {
+  const pendingStreams = new Map<string, {
+    sender: Electron.WebContents
+    endpoint: string
+    payload: unknown
+    controller: AbortController
+  }>()
+
+  /**
+   * Start pumping one claimed stream: the renderer claims with the streamId
+   * it received, so every pushed frame is guaranteed to be routed by a
+   * listener that already knows the id.
+   */
+  const startPump = (streamId: string): void => {
+    const pending = pendingStreams.get(streamId)
+    if (pending === undefined) return
+    pendingStreams.delete(streamId)
+    const { sender, endpoint, controller } = pending
+    const { gateway } = getHost()
+    if (gateway === undefined || sender.isDestroyed()) {
+      streamAborts.delete(streamId)
+      return
+    }
+    void (async () => {
+      try {
+        const items = await gateway.wireStream.open(endpoint, pending.payload, controller.signal)
+        for await (const item of items) {
+          if (sender.isDestroyed()) break
+          // One object argument: the preload bridge forwards a single payload
+          // per frame, so the streamId must ride inside it.
+          sender.send('dsh:stream:frame', { streamId, item })
+        }
+      } catch (error) {
+        console.error(`desktop: stream ${endpoint} error: ${error instanceof Error ? error.message : String(error)}`)
+      }
+      if (!sender.isDestroyed()) {
+        sender.send('dsh:stream:end', { streamId })
+      }
+      streamAborts.delete(streamId)
+    })()
+  }
+
+  ipcMain.handle('dsh:stream:open', (event, opts: TransportStreamStart): string => {
     const { gateway } = getHost()
     if (gateway === undefined) throw new Error('desktop: host not ready for Remote streams')
     const streamId = randomUUID()
     const controller = new AbortController()
     streamAborts.set(streamId, controller)
-    void (async () => {
-      try {
-        const items = await gateway.wireStream.open(opts.endpoint, opts.payload, controller.signal)
-        for await (const item of items) {
-          if (event.sender.isDestroyed()) break
-          // One object argument: the preload bridge forwards a single payload
-          // per frame, so the streamId must ride inside it.
-          event.sender.send('dsh:stream:frame', { streamId, item })
-        }
-      } catch (error) {
-        console.error(`desktop: stream ${opts.endpoint} error: ${error instanceof Error ? error.message : String(error)}`)
-      }
-      if (!event.sender.isDestroyed()) {
-        event.sender.send('dsh:stream:end', { streamId })
-      }
-      streamAborts.delete(streamId)
-    })()
+    pendingStreams.set(streamId, {
+      sender: event.sender,
+      endpoint: opts.endpoint,
+      payload: opts.payload,
+      controller,
+    })
     return streamId
-  }
-  ipcMain.handle('dsh:stream:open', (event, opts: TransportStreamStart): string => openStream(event, opts))
+  })
+  ipcMain.on('dsh:stream:claim', (_event, streamId: string): void => startPump(streamId))
   ipcMain.on('dsh:stream:stop', (_event, streamId: string): void => {
     streamAborts.get(streamId)?.abort()
     streamAborts.delete(streamId)
@@ -159,6 +189,7 @@ export function registerTransportIpc(getHost: () => TransportHostServices): () =
     ipcMain.removeHandler('dsh:transport:fetch')
     ipcMain.removeHandler('dsh:stream:open')
     ipcMain.removeAllListeners('dsh:transport:abort')
+    ipcMain.removeAllListeners('dsh:stream:claim')
     ipcMain.removeAllListeners('dsh:stream:stop')
   }
 }

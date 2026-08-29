@@ -1,11 +1,6 @@
-/* oxlint-disable typescript/no-unsafe-assignment, typescript/no-unsafe-call,
-   typescript/no-unsafe-return, typescript/no-unsafe-argument --
-   The host-context stub is cast with `as unknown as Context`; its loose shape
-   is intentional test data, and tsc (not oxlint's type-aware pass) is the
-   authority on the desktop package's types. */
 /** Unit tests for the offline index.html composition. */
 import { describe, expect, it } from 'vitest'
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
@@ -20,7 +15,14 @@ function makeCtx(rows: IndexInjection[], bundlePath?: string): Context {
         return { collectIndexInjections: () => rows }
       }
       if (service === 'clientModules') {
-        return { clientPath: () => bundlePath }
+        return {
+          clientPath: () => bundlePath,
+          // The registry serves bundle bytes keyed by the exact resource URL;
+          // the fake answers any single-plugin URL with the fake bundle file.
+          bundleResponse: () => bundlePath === undefined
+            ? undefined
+            : { body: readFileSync(bundlePath), contentType: 'text/javascript; charset=utf-8' },
+        }
       }
       return undefined
     },
@@ -58,7 +60,7 @@ describe('renderDesktopIndex', () => {
   it('escapes </script sequences inside inlined bundle bytes', () => {
     const dir = makeWebDist()
     const bundleFile = join(dir, 'client.js')
-    writeFileSync(bundleFile, 'const s = "</script>"; window.__ModuleLoader__.load({ id: "pkg", factory() {} })')
+    writeFileSync(bundleFile, 'const s = "</script>"')
     const iifeFile = join(dir, 'render-transport.js')
     writeFileSync(iifeFile, 'window.__DSH_TRANSPORT__ = {}')
     const rows: IndexInjection[] = [

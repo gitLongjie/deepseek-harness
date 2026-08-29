@@ -24,21 +24,13 @@ function escapeInlineScript(text: string): string {
   return text.replace(/<\/script/gi, '<\\/script')
 }
 
-/** Resolve one `/plugins/<id>/client.js?rev=<rev>` URL to its bundle bytes. */
+/** Resolve one `/plugins` script-src URL — single or combo — to its bundle bytes. */
 function readPluginBundle(modules: ClientModuleRegistry, src: string): string {
-  const query = src.indexOf('?')
-  const pathname = decodeURIComponent(query === -1 ? src : src.slice(0, query))
-  const prefix = '/plugins/'
-  const suffix = '/client.js'
-  if (!pathname.startsWith(prefix) || !pathname.endsWith(suffix)) {
-    throw new Error(`desktop: unexpected script-src ${JSON.stringify(src)}`)
+  const response = modules.bundleResponse(src)
+  if (response === undefined) {
+    throw new Error(`desktop: no served client bundle for ${JSON.stringify(src)}`)
   }
-  const id = pathname.slice(prefix.length, -suffix.length)
-  const bundlePath = modules.clientPath(id)
-  if (bundlePath === undefined) {
-    throw new Error(`desktop: no client bundle for ${JSON.stringify(id)}`)
-  }
-  return readFileSync(bundlePath, 'utf8')
+  return response.body.toString('utf8')
 }
 
 /**

@@ -42,5 +42,8 @@ const transport: ClientTransportHooks = {
     // `<script src=/plugins/...>` form exercises.
     ;(0, eval)(source)
   },
+  // The renderer speaks for this process's own host: the loopback stand-in
+  // for "the operator's own machine" is vacuous here.
+  ownsHost: true,
 }
 window.__DSH_TRANSPORT__ = transport

@@ -609,6 +609,16 @@ export class ClientModuleRegistry extends Service {
   }
 
   /**
+   * Served bytes for one advertised bundle resource URL (single or combo).
+   * @param resourceUrl - pathname plus search, exactly as the injection table advertises it.
+   * @returns the body and media type, or undefined for an unadvertised URL.
+   */
+  bundleResponse(resourceUrl: string): { body: Buffer; contentType: string } | undefined {
+    const response = this.responses.get(resourceUrl) ?? this.previousBatchResponses.get(resourceUrl)
+    return response === undefined ? undefined : { ...response }
+  }
+
+  /**
    * Filesystem baseline captured before an entry's current bytes were read.
    * HMR compares it with the live files when installing a watch, so a write
    * between startup composition and watch installation cannot disappear into

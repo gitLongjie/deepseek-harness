@@ -272,16 +272,15 @@ function registerWebProtocol(writeLog: (line: string) => void): void {
         }
         return new Response(injected, { headers: { 'content-type': 'text/html; charset=utf-8' } })
       }
-      // /plugins/<id>/client.js — dynamic client bundles owned by the module
-      // registry, not static web assets. The renderer may reach them by URL
-      // when the transport loadBundle path is not in effect.
-      if (pathname.startsWith('/plugins/') && pathname.endsWith('/client.js')) {
-        const id = decodeURIComponent(pathname.slice('/plugins/'.length, -'/client.js'.length))
-        const modules = host.ctx?.get('clientModules') as { clientPath(id: string): string | undefined } | undefined
-        const bundlePath = modules?.clientPath(id)
-        if (bundlePath === undefined) return new Response('not found', { status: 404 })
-        const bundle = await readFile(bundlePath)
-        return new Response(bundle, { headers: { 'content-type': 'text/javascript; charset=utf-8' } })
+      // /plugins/* — dynamic client bundles owned by the module registry, not
+      // static web assets. The renderer may reach them by URL when the
+      // transport loadBundle path is not in effect; combo URLs key the
+      // registry's precomputed response table verbatim.
+      if (pathname.startsWith('/plugins/')) {
+        const modules = host.ctx?.get('clientModules') as { bundleResponse(resourceUrl: string): { body: Buffer; contentType: string } | undefined } | undefined
+        const response = modules?.bundleResponse(`${pathname}${url.search}`)
+        if (response === undefined) return new Response('not found', { status: 404 })
+        return new Response(new Uint8Array(response.body), { headers: { 'content-type': response.contentType } })
       }
       const data = await readFile(filePath)
       return new Response(data, { headers: { 'content-type': contentTypeFor(pathname) } })
