@@ -5,7 +5,7 @@
  * @module @deepseek-ai/dsh-desktop/render/transport
  */
 
-import { randomUuid } from '@deepseek-ai/dsh-util-crypto'
+import { randomUUID } from '@deepseek-ai/dsh-util-crypto'
 import type { RpcStreamOpen } from '@deepseek-ai/dsh-client-connection'
 
 /** The preload bridge surface, exposed as `window.__DSH_IPC__`. */
@@ -35,7 +35,7 @@ function headersToRecord(headers?: HeadersInit): Record<string, string> | undefi
 
 /** One unary fetch through the IPC bridge. */
 async function ipcFetch(ipc: IpcBridge, input: URL, init: RequestInit): Promise<Response> {
-  const requestId = randomUuid()
+  const requestId = randomUUID()
   const signal = init.signal
   if (signal !== undefined && !signal.aborted) {
     signal.addEventListener('abort', () => { ipc.send('dsh:transport:abort', requestId) }, { once: true })
