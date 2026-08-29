@@ -11,7 +11,7 @@
 import { ipcMain } from 'electron'
 import { randomUUID } from 'node:crypto'
 import type { HostConnectionHandle } from '@deepseek-ai/dsh-client-connection'
-import type { TypertGatewayService } from '@deepseek-ai/dsh-api-gateway'
+import type { TypertGateway } from '@deepseek-ai/dsh-api-gateway/types'
 
 /**
  * The loopback authority synthetic requests carry: the shared-channel trust
@@ -23,7 +23,7 @@ const LOOPBACK_AUTHORITY = 'http://127.0.0.1'
 /** Host services the IPC carrier dispatches through. */
 export interface TransportHostServices {
   /** The Typert Gateway, `undefined` before the host settles. */
-  gateway: TypertGatewayService | undefined
+  gateway: TypertGateway | undefined
   /** The Connection shared-channel registry, when the composition mounted it. */
   connection: HostConnectionHandle | undefined
 }

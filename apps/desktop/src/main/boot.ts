@@ -140,7 +140,7 @@ export async function runDesktopBoot(options: DesktopBootOptions): Promise<Deskt
   // creating $DSH_HOME/profiles/node_modules symlinks inside app.asar is not
   // reliable.
   if (options.bareModuleBaseUrl === undefined) {
-    healProfilesModuleFallback(INSTALL_ANCHOR)
+    healProfilesModuleFallback({ installAnchor: INSTALL_ANCHOR })
     ensureRootPluginLinks()
   }
   const profile = loadProfile(NAME, 'web', INSTALL_ANCHOR)
