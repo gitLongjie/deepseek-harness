@@ -106,6 +106,14 @@ declare module '@deepseek-ai/cordis' {
  */
 export const FALLBACK_LOCALE: BuiltInLocaleId = 'en'
 
+/**
+ * The product's opening locale: the UI starts in Chinese when the browser
+ * names no shipped language (and for non-browser runs). Distinct from
+ * {@link FALLBACK_LOCALE}, which stays the dictionary terminal of every
+ * fallback chain.
+ */
+export const DEFAULT_LOCALE: BuiltInLocaleId = 'zh'
+
 /** Shared namespace for shell-level texts. */
 export const COMMON_NS = 'common'
 
@@ -494,11 +502,11 @@ export class LocaleRuntime {
 }
 
 /**
- * The browser's own language wins over {@link FALLBACK_LOCALE}; an explicit
+ * The browser's own language wins over {@link DEFAULT_LOCALE}; an explicit
  * Host preference may replace this provisional value after plugin activation.
  */
 function resolveInitialLocale(locales: readonly LocaleDefinition[]): LocaleId {
-  return detectBrowserLocale(locales) ?? FALLBACK_LOCALE
+  return detectBrowserLocale(locales) ?? DEFAULT_LOCALE
 }
 
 /**

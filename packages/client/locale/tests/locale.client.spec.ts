@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { stubSettingsScope, type StubSettingsScope } from '@deepseek-ai/dsh-client-test-runtime'
 import type { LocaleSettings, LocaleSnapshot } from '@deepseek-ai/dsh-client-locale/client'
-import { FALLBACK_LOCALE, LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
+import { DEFAULT_LOCALE, FALLBACK_LOCALE, LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 const make = (host?: StubSettingsScope<LocaleSettings>): {
   ctx: Context
   svc: LocaleRuntime
@@ -158,7 +158,7 @@ describe('LocaleRuntime', () => {
   })
 
   it('persists an explicit pick of the provisional locale, so a shared DSH home agrees', () => {
-    // A browser naming no shipped language opens at FALLBACK_LOCALE (zh) with
+    // A browser naming no shipped language opens at DEFAULT_LOCALE (zh) with
     // nothing stored. Choosing that same language in the menu must become
     // durable, or an English browser sharing the home still opens English.
     stubLanguages('fr-FR')
@@ -367,11 +367,12 @@ describe('LocaleRuntime', () => {
   })
 
   it('serves Chinese as the opening locale with English as the dictionary fallback', () => {
-    // FALLBACK_LOCALE sets the locale the UI opens in with no usable browser
-    // signal; the en dictionary backs a key the active locale misses. The two
-    // are distinct: Chinese opens by default, but a zh reader still reaches
-    // en-only keys through the dictionary fallback.
-    expect(FALLBACK_LOCALE).toBe('zh')
+    // DEFAULT_LOCALE sets the locale the UI opens in with no usable browser
+    // signal; FALLBACK_LOCALE stays the en dictionary terminal every fallback
+    // chain reaches. The two are distinct: Chinese opens by default, but a zh
+    // reader still reaches en-only keys through the dictionary fallback.
+    expect(DEFAULT_LOCALE).toBe('zh')
+    expect(FALLBACK_LOCALE).toBe('en')
     vi.stubGlobal('window', undefined)
     const { svc } = make()
     // A key present only in en resolves for a zh reader through the fallback.

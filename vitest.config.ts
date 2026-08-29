@@ -111,6 +111,8 @@ const pwshCoverageExclusions = spawnSync(resolvePwshPath(), ['-NoLogo', '-NoProf
 
 const testIncludes = [
   'packages/*/*/tests/**/*.spec.{ts,tsx}',
+  // Desktop-only seam pending the ApiProxy→Typert port (see tsconfig.host.json).
+  '!packages/host/apiproxy/tests/**',
   'apps/*/tests/**/*.spec.ts',
   'scripts/**/*.spec.ts',
 ]
