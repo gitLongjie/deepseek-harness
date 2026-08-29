@@ -190,9 +190,12 @@ export class WorkspaceRegistry extends Service {
 
   /**
    * Delete one workspace registration while retaining its directory and every
-   * session log. The durable order is updated before the table deletion; a
-   * failed table write restores the prior order and keeps the entity
-   * published. Unknown ids are an idempotent no-op for domain callers.
+   * session log. The workspace's member sessions join the registry-global
+   * archive set in the same committed write, so deleting a workspace never
+   * scatters its sessions into the ungrouped bucket. The durable order is
+   * updated before the table deletion; a failed table write restores the
+   * prior order and keeps the entity published. Unknown ids are an idempotent
+   * no-op for domain callers.
    * @param id - Workspace registration to remove.
    * @returns `true` when a record was deleted, `false` when it was unknown.
    */
@@ -359,10 +362,18 @@ export class WorkspaceRegistry extends Service {
     const entity = this.entities.get(id)
     if (entity === undefined) return false
     const state = this.requireState()
+    // The record's accounting slots die with the table row, so members must
+    // join the archive set in the same committed write; sessions that already
+    // failed membership (missing headers, dead cwds) were ungrouped strays
+    // before the delete and stay outside the archived set's known-session
+    // invariant.
+    const memberIds = entity.sessionIds
+      .filter(sessionId => !state.archivedSessionIds.includes(sessionId))
+    const archivedSessionIds = [...state.archivedSessionIds, ...memberIds]
     const nextState = {
       initialized: true,
       workspaceIds: state.workspaceIds.filter(workspaceId => workspaceId !== id),
-      archivedSessionIds: state.archivedSessionIds,
+      archivedSessionIds,
     }
     await this.setState({
       ...nextState,

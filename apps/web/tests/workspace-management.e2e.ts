@@ -31,6 +31,10 @@ const SEED = fileURLToPath(new URL('./snapshots/seeded-history/seed.jsonl', impo
 const MODE = webSnapshotMode()
 const BROWSER_EXPECTED = join(SNAPSHOT_DIR, 'directory-browser.expected.md')
 const SEED_ID = 'workspace-management-web-e2e'
+// The delete test archives SEED_ID (deleting a workspace archives its member
+// sessions), so the later view-affordance tests seed this fresh stray to keep
+// a visible session row in the Ungrouped bucket.
+const STRAY_ID = 'workspace-management-web-e2e-stray'
 // Both waits exceed ui-primitives' 200ms POINTER_GRACE_MS. Keep them above
 // that value if the shared setting changes.
 const POINTER_TRANSIT_MS = 300
@@ -219,8 +223,8 @@ describe('web e2e: workspace management (create / rename / flat view / hover aff
     expect(await readFile(join(scaffold.workspaceCwd, 'workspace', 'a.txt'), 'utf8')).toBe('alpha\n')
     await stat(logLocation.path)
 
-    // Open the seeded (first/accounted) Session so deletion must preserve the
-    // current selection while it moves into Ungrouped.
+    // Open the seeded (first/accounted) Session so deletion must archive it
+    // and sweep the archived selection into the New Session view.
     const groupRow = page.locator('[role="treeitem"]').filter({ hasText: workspace.title }).first()
     await groupRow.waitFor({ timeout: 10_000 })
     // The header row is wrapped by its HoverCard anchor span, so the section
@@ -245,7 +249,7 @@ describe('web e2e: workspace management (create / rename / flat view / hover aff
     const copy = await dialog.textContent()
     expect(copy).toContain('workspace list')
     expect(copy).toContain('folder and session logs will be kept')
-    expect(copy).toContain('sessions will appear under Ungrouped')
+    expect(copy).toContain('sessions will be archived and no longer listed')
     await dialog.getByRole('button', { name: 'Delete workspace' }).click()
     await expect.poll(() => dialog.count(), { timeout: 10_000 }).toBe(0)
 
@@ -254,12 +258,14 @@ describe('web e2e: workspace management (create / rename / flat view / hover aff
       () => page.getByRole('button', { name: `Workspace actions for ${workspace.title}` }).count(),
       { timeout: 10_000 },
     ).toBe(0)
+    // The archived member session leaves every grouping surface, so the
+    // Ungrouped bucket disappears with the deleted registration.
     await expect.poll(() => page.getByText('Ungrouped', { exact: true }).count(), { timeout: 10_000 })
-      .toBeGreaterThanOrEqual(1)
+      .toBe(0)
     await expect.poll(
       () => page.locator('[role="treeitem"][aria-selected="true"]').count(),
       { timeout: 10_000 },
-    ).toBe(1)
+    ).toBe(0)
     expect(await readFile(join(scaffold.workspaceCwd, 'workspace', 'a.txt'), 'utf8')).toBe('alpha\n')
     await stat(logLocation.path)
     expect((await scaffold.ctx.sessionPersistence.inspect(SessionId(SEED_ID))).events.length).toBeGreaterThan(0)
@@ -282,8 +288,6 @@ describe('web e2e: workspace management (create / rename / flat view / hover aff
       { timeout: 10_000 },
     ).not.toEqual([])
     expect(reregistered?.sessionIds).not.toContain(SEED_ID)
-    await expect.poll(() => page.getByText('Ungrouped', { exact: true }).count(), { timeout: 10_000 })
-      .toBeGreaterThanOrEqual(1)
     expect(await readFile(join(scaffold.workspaceCwd, 'workspace', 'a.txt'), 'utf8')).toBe('alpha\n')
     await stat(logLocation.path)
 
@@ -300,12 +304,13 @@ describe('web e2e: workspace management (create / rename / flat view / hover aff
     await page.reload({ waitUntil: 'load' })
     await page.waitForSelector('[class*="frame"]', { timeout: 30_000 })
     acknowledgeReloadConnectionLoss(tripwire, warningStart)
+    // The second delete archived the re-registered workspace's blank session
+    // too, so the reload rebuilds an empty registry with nothing grouped.
     await expect.poll(() => page.getByText('Ungrouped', { exact: true }).count(), { timeout: 15_000 })
-      .toBeGreaterThanOrEqual(1)
-    await expect.poll(
-      () => page.locator('[role="treeitem"][aria-selected="true"]').count(),
-      { timeout: 15_000 },
-    ).toBe(1)
+      .toBe(0)
+    // The startup policy may auto-select the most recent Workspace's blank
+    // New Session row; what must hold is that no archived session resurfaces.
+    expect(await page.getByText('Use the read tool twice', { exact: true }).count()).toBe(0)
     expect(scaffold.ctx.workspaceRegistry.get(workspace.id)).toBeUndefined()
     expect(await readFile(join(scaffold.workspaceCwd, 'workspace', 'a.txt'), 'utf8')).toBe('alpha\n')
     await stat(logLocation.path)
@@ -370,6 +375,13 @@ describe('web e2e: workspace management (create / rename / flat view / hover aff
 
   it('switches to the flat "In one list" view and persists the preference', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-ws-flat'))
+    // The delete test archived the original seed with its workspace; restore a
+    // visible stray session and rebuild the baseline for these view tests.
+    await seedSession(scaffold, await readFile(SEED, 'utf8'), STRAY_ID)
+    const reloadStart = tripwire.warnings.length
+    await page.reload({ waitUntil: 'load' })
+    await page.waitForSelector('[class*="frame"]', { timeout: 30_000 })
+    acknowledgeReloadConnectionLoss(tripwire, reloadStart)
     // Grouped default: workspace group rows render (the seeded session sits
     // under Ungrouped; the created workspaces are empty groups).
     await expect.poll(() => page.getByText('Workspaces', { exact: true }).count(), { timeout: 10_000 }).toBe(1)
@@ -581,8 +593,9 @@ describe('web e2e: workspace management (create / rename / flat view / hover aff
     await expect.poll(() => page.getByText(rowTitle, { exact: true }).count(), { timeout: 10_000 }).toBe(0)
     await expect.poll(() => page.getByText('Ungrouped', { exact: true }).count(), { timeout: 10_000 }).toBe(0)
     // Durable on the host: the registry-global set carries the id while the
-    // session log itself stays in persistence untouched.
-    expect([...scaffold.ctx.workspaceRegistry.archivedSessionIds]).toEqual([SessionId(SEED_ID)])
+    // session log itself stays in persistence untouched. Earlier deletes
+    // archived their member sessions into the same set, so assert membership.
+    expect([...scaffold.ctx.workspaceRegistry.archivedSessionIds]).toContain(SessionId(STRAY_ID))
     expect((await scaffold.ctx.sessionPersistence.list()).map(header => header.id)).toContain(SessionId(SEED_ID))
     // Reload: the hidden state is rebuilt from the workspace.list baseline.
     const warningStart = tripwire.warnings.length

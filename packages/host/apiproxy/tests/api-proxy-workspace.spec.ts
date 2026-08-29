@@ -506,11 +506,16 @@ describe('Host Workspace increments', () => {
     const stream: AsyncIterator<RpcRequest<HostFrame>> =
       api.events.host(request({}), abort.signal)[Symbol.asyncIterator]()
     const removed = nextHostFrame(stream)
+    const archived = nextHostFrame(stream)
     expectOk(await api.workspace.delete(request({ workspaceId: workspace.workspaceId })))
     expect(await removed).toMatchObject({
+      payload: { type: 'host/archived-sessions-changed', archivedSessionIds: [sessionId] },
+    })
+    expect(await archived).toMatchObject({
       payload: { type: 'host/workspace-removed', workspaceId: workspace.workspaceId },
     })
     expect(expectOk(await api.workspace.list(request({}))).items).toEqual([])
+    expect(expectOk(await api.workspace.list(request({}))).archivedSessionIds).toEqual([sessionId])
     expect(expectOk(await api.sessions.list(request({}))).items.map(item => item.sessionId)).toContain(sessionId)
     expect(ctx.agents.get(sessionId)).toBeDefined()
     expect(existsSync(workspace.path)).toBe(true)

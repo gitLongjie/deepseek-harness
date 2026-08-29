@@ -77,6 +77,16 @@ export interface HostConnectionHandle {
    * @returns Fetch handler that selects exactly one target for each request.
    */
   createSharedFetchHandler(channel: '/api', fallback: ConnectionFetchHandler): ConnectionFetchHandler
+
+  /**
+   * Compose one channel-dispatch Fetch handler covering every generic channel
+   * registered through `handle`, so an in-process carrier (the desktop IPC
+   * transport) reaches them without the HTTP route table. Paths no registered
+   * channel claims fall through to `fallback`.
+   * @param fallback - handler for paths no registered channel claims.
+   * @returns Fetch handler that selects exactly one target for each request.
+   */
+  createChannelsFetchHandler(fallback: ConnectionFetchHandler): ConnectionFetchHandler
 }
 
 /** Client caller for logical RPC channels carried by the current transport. */

@@ -388,7 +388,14 @@ export function InputBar({
       // Escape layering: an open overlay closes; claimed without an overlay
       // does NOT release (backspacing the token is the only exit gesture).
       keyboard.dismissPopup()
-      if (keyboard.arbitrate('escape', composing) === 'consumed') e.preventDefault()
+      const arb = keyboard.arbitrate('escape', composing)
+      // If the escape is consumed by an overlay, just prevent default.
+      if (arb === 'consumed') {
+        e.preventDefault()
+        return
+      }
+      // A landed Escape on a running, unlocked session stops the in‑flight turn.
+      if (running && !locked && stop) stop()
       return
     }
     if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z' || e.key === 'y')) {
