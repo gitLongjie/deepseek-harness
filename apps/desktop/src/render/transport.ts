@@ -1,14 +1,12 @@
 /**
- * Renderer-side Electron IPC transport. The page-world IIFE builds this
- * client over the preload bridge: unary calls post through IPC to the host's
- * ApiProxy (the isomorphic point the InProcessApiClient shares), and the
- * mux/host event streams consume frames the main process pushes — no HTTP, no
- * SSE.
+ * Render-side IPC transport halves for the `__DSH_TRANSPORT__` hooks: a
+ * fetch-shaped unary caller over IPC and a Gateway Remote stream opener whose
+ * validated items arrive as pushed IPC frames — no HTTP, no WebSocket.
  * @module @deepseek-ai/dsh-desktop/render/transport
  */
 
-import { AbstractApiClient } from '@deepseek-ai/dsh-host-apiproxy/client'
-import type { ApiProxy, HostFrame, MuxFrame, RpcRequest } from '@deepseek-ai/dsh-host-apiproxy'
+import { randomUuid } from '@deepseek-ai/dsh-util-crypto'
+import type { RpcStreamOpen } from '@deepseek-ai/dsh-client-connection'
 
 /** The preload bridge surface, exposed as `window.__DSH_IPC__`. */
 export interface IpcBridge {
@@ -36,19 +34,18 @@ function headersToRecord(headers?: HeadersInit): Record<string, string> | undefi
 }
 
 /** One unary fetch through the IPC bridge. */
-async function ipcFetch(ipc: IpcBridge, input: URL, init?: RequestInit): Promise<Response> {
-  const requestId = crypto.randomUUID()
-  const body = init?.body
-  const signal = init?.signal
+async function ipcFetch(ipc: IpcBridge, input: URL, init: RequestInit): Promise<Response> {
+  const requestId = randomUuid()
+  const signal = init.signal
   if (signal !== undefined && !signal.aborted) {
     signal.addEventListener('abort', () => { ipc.send('dsh:transport:abort', requestId) }, { once: true })
   }
   const res = await ipc.invoke('dsh:transport:fetch', {
     requestId,
-    path: input.pathname,
-    method: init?.method ?? 'GET',
-    headers: headersToRecord(init?.headers),
-    body: typeof body === 'string' ? body : undefined,
+    path: `${input.pathname}${input.search}`,
+    method: init.method ?? 'GET',
+    headers: headersToRecord(init.headers),
+    body: typeof init.body === 'string' ? init.body : undefined,
   }) as { status: number; body: number[]; contentType?: string }
   return new Response(new Uint8Array(res.body), {
     status: res.status,
@@ -61,72 +58,60 @@ export function createIpcFetch(ipc: IpcBridge): (input: URL, init: RequestInit) 
   return (input, init) => ipcFetch(ipc, input, init)
 }
 
-/** The renderer ApiClient: unary over IPC fetch, streams over pushed IPC frames. */
-export class ElectronApiClient extends AbstractApiClient {
-  constructor(private readonly ipc: IpcBridge) {
-    super()
-  }
-
-  protected override doFetch(input: URL, init?: RequestInit): Promise<Response> {
-    return ipcFetch(this.ipc, input, init)
-  }
-
-  protected override openMux(
-    _payload: Parameters<ApiProxy['events']['mux']>[0]['payload'],
-    signal: AbortSignal,
-    onOpen?: () => void,
-  ): AsyncIterable<RpcRequest<MuxFrame>> {
-    return this.readIpcStream<MuxFrame>('mux', signal, onOpen)
-  }
-
-  protected override openHost(
-    _payload: Parameters<ApiProxy['events']['host']>[0]['payload'],
-    signal: AbortSignal,
-    onOpen?: () => void,
-  ): AsyncIterable<RpcRequest<HostFrame>> {
-    return this.readIpcStream<HostFrame>('host', signal, onOpen)
-  }
-
-  private async *readIpcStream<F extends MuxFrame | HostFrame>(
-    kind: 'mux' | 'host',
-    signal: AbortSignal,
-    onOpen?: () => void,
-  ): AsyncGenerator<RpcRequest<F>> {
-    const { streamId } = await this.ipc.invoke('dsh:events:start', { kind }) as { streamId: string }
-    onOpen?.()
-    const inbox: Array<RpcRequest<F> | { kind: 'end' }> = []
-    let wake: (() => void) | undefined
-    const enqueue = (item: RpcRequest<F> | { kind: 'end' }): void => {
-      inbox.push(item)
-      wake?.()
-      wake = undefined
-    }
-    const offFrame = this.ipc.on('dsh:events:frame', (payload) => {
-      const data = payload as { streamId: string; frame: RpcRequest<F> }
-      if (data.streamId !== streamId) return
-      enqueue(data.frame)
-    })
-    const offEnd = this.ipc.on('dsh:events:end', (payload) => {
-      const data = payload as { streamId: string }
-      if (data.streamId !== streamId) return
-      enqueue({ kind: 'end' })
-    })
-    const handleAbort = (): void => { enqueue({ kind: 'end' }) }
-    signal.addEventListener('abort', handleAbort, { once: true })
-    try {
-      while (true) {
-        while (inbox.length > 0) {
-          const item = inbox.shift() as RpcRequest<F> | { kind: 'end' }
-          if (item.kind === 'end') return
-          yield item
-        }
-        await new Promise<void>((resolve) => { wake = resolve })
+/**
+ * The Gateway stream opener: one IPC stream per logical Remote stream, with
+ * abort bridged to the host-side signal that cancels it.
+ */
+export function createIpcStreamOpen(ipc: IpcBridge): RpcStreamOpen {
+  return (endpoint, payload, signal) => {
+    const opened = (async (): Promise<AsyncIterable<unknown>> => {
+      const { streamId } = await ipc.invoke('dsh:stream:open', { endpoint, payload }) as { streamId: string }
+      const inbox: Array<{ item: unknown } | { kind: 'end' }> = []
+      let wake: (() => void) | undefined
+      const enqueue = (item: { item: unknown } | { kind: 'end' }): void => {
+        inbox.push(item)
+        wake?.()
+        wake = undefined
       }
-    } finally {
-      signal.removeEventListener('abort', handleAbort)
-      offFrame()
-      offEnd()
-      void this.ipc.invoke('dsh:events:stop', { streamId })
+      const offFrame = ipc.on('dsh:stream:frame', (data) => {
+        const frame = data as { streamId: string; item: unknown }
+        if (frame.streamId !== streamId) return
+        enqueue({ item: frame.item })
+      })
+      const offEnd = ipc.on('dsh:stream:end', (data) => {
+        const frame = data as { streamId: string }
+        if (frame.streamId !== streamId) return
+        enqueue({ kind: 'end' })
+      })
+      const handleAbort = (): void => {
+        enqueue({ kind: 'end' })
+        ipc.send('dsh:stream:stop', streamId)
+      }
+      signal.addEventListener('abort', handleAbort, { once: true })
+      return (async function* (): AsyncGenerator<unknown> {
+        try {
+          while (true) {
+            while (inbox.length > 0) {
+              const next = inbox.shift() as { item: unknown } | { kind: 'end' }
+              if (next.kind === 'end') return
+              yield next.item
+            }
+            await new Promise<void>((resolve) => { wake = resolve })
+          }
+        } finally {
+          signal.removeEventListener('abort', handleAbort)
+          offFrame()
+          offEnd()
+          ipc.send('dsh:stream:stop', streamId)
+        }
+      })()
+    })()
+    // The hooks contract wants a synchronous AsyncIterable; surface async open
+    // failures through iteration instead.
+    return {
+      [Symbol.asyncIterator]: () => ({
+        next: () => opened.then(iterator => iterator.next()),
+      }),
     }
   }
 }

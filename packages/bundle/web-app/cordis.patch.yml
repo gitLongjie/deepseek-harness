@@ -95,11 +95,6 @@
     - id: workspace-controller
       name: '@deepseek-ai/dsh-api-workspace-controller'
 
-    # The API gateway: the transport-agnostic dispatch face the desktop IPC
-    # carrier dispatches unary requests through.
-    - id: api-gateway
-      name: '@deepseek-ai/dsh-host-apiproxy'
-
     - id: cordis-host-runner
       name: '@deepseek-ai/dsh-cordis-host-runner'
 
@@ -185,8 +180,6 @@
 
     # Full-page sign-in gate + sidebar account row; inert unless the build
     # carries DSH_CLIENT_LOGIN_URL (the account server's login endpoint).
-    - id: ui-login
-      name: '@deepseek-ai/dsh-client-ui-login'
 
     - id: ui-renderer
       name: '@deepseek-ai/dsh-client-ui-renderer'

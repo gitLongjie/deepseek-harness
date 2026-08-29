@@ -130,7 +130,7 @@ async function main(): Promise<void> {
     log('desktop: host booted')
 
     registerTransportIpc(() => ({
-      api: host.ctx?.get('apiProxy'),
+      gateway: host.ctx?.get('typertGateway'),
       connection: host.ctx?.get('connection'),
     }))
     registerBundleIpc(() => host.ctx?.get('clientModules'))

@@ -1,16 +1,14 @@
 /**
  * Bundle the render-side transport bootstrap into a page-world IIFE, and the
  * preload bridge into a CommonJS script (Electron's sandboxed preloads cannot
- * load ESM). The AbstractApiClient base is inlined from the apiproxy source so
- * this build does not depend on a prior lib build of the host packages.
+ * load ESM). The client-connection imports on this seam are type-only, so the
+ * bundle has no workspace package edges.
  */
 import { build } from 'esbuild'
 import { fileURLToPath } from 'node:url'
 import { resolve } from 'node:path'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
-const repoRoot = resolve(root, '../..')
-const apiproxyClient = resolve(repoRoot, 'packages/host/apiproxy/src/fetch/client.ts')
 
 await build({
   entryPoints: [resolve(root, 'src/render/entry.ts')],
@@ -20,9 +18,6 @@ await build({
   target: ['es2022'],
   outfile: resolve(root, 'dist/render-transport.js'),
   sourcemap: true,
-  alias: {
-    '@deepseek-ai/dsh-host-apiproxy/client': apiproxyClient,
-  },
   logLevel: 'info',
 })
 

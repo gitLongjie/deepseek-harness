@@ -6,11 +6,10 @@ vi.mock('electron', () => ({
 }))
 
 import type { HostConnectionHandle } from '@deepseek-ai/dsh-client-connection'
-import type { ApiProxy } from '@deepseek-ai/dsh-host-apiproxy'
 import { dispatchTransportFetch } from '../src/main/ipc/transport.ts'
 
-/** The never-settled host: no ApiProxy yet. */
-const UNSETTLED = { api: undefined, connection: undefined }
+/** The never-settled host: no Connection yet. */
+const UNSETTLED = { gateway: undefined, connection: undefined }
 
 describe('dispatchTransportFetch', () => {
   it('answers 503 before the host settles', async () => {
@@ -34,7 +33,7 @@ describe('dispatchTransportFetch', () => {
       }),
     } as unknown as HostConnectionHandle
     const response = await dispatchTransportFetch(
-      { api: {} as ApiProxy, connection },
+      { gateway: {} as never, connection },
       {
         requestId: 'r',
         path: '/api/dynamicCordisRunner/inventory',
@@ -65,7 +64,7 @@ describe('dispatchTransportFetch', () => {
       }),
     } as unknown as HostConnectionHandle
     const response = await dispatchTransportFetch(
-      { api: {} as ApiProxy, connection },
+      { gateway: {} as never, connection },
       {
         requestId: 'r',
         path: '/weixin/connection.status',
@@ -79,9 +78,15 @@ describe('dispatchTransportFetch', () => {
     expect(seen?.url).toBe('http://127.0.0.1/weixin/connection.status')
   })
 
-  it('falls back to the ApiProxy unary dispatcher without the Connection service', async () => {
+  it('answers 404 for endpoints no shared-channel owner claims', async () => {
+    const connection = {
+      createSharedFetchHandler: (_channel: '/api', fallback: { fetch(request: Request): Promise<Response> }) => fallback,
+      createChannelsFetchHandler: () => ({
+        fetch: async () => new Response('not found', { status: 404 }),
+      }),
+    } as unknown as HostConnectionHandle
     const response = await dispatchTransportFetch(
-      { api: {} as ApiProxy, connection: undefined },
+      { gateway: {} as never, connection: connection as HostConnectionHandle },
       {
         requestId: 'r',
         path: '/api/no.such.method',

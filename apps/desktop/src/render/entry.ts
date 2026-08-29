@@ -6,7 +6,7 @@
  */
 
 import type { ClientTransportHooks } from '@deepseek-ai/dsh-client-connection'
-import { createIpcFetch, ElectronApiClient, type IpcBridge } from './transport.ts'
+import { createIpcFetch, createIpcStreamOpen, type IpcBridge } from './transport.ts'
 import { installTitleBar } from './title-bar.ts'
 import { installUpdateBadge } from './update-badge.ts'
 
@@ -28,11 +28,9 @@ if (ipc === undefined) {
 installTitleBar(document, ipc, './favicon.ico')
 installUpdateBadge(document, ipc)
 
-const client = new ElectronApiClient(ipc)
-
 const transport: ClientTransportHooks = {
-  createApiClient: () => client,
   fetch: (input: URL, init: RequestInit) => createIpcFetch(ipc)(input, init),
+  openStream: createIpcStreamOpen(ipc),
   loadBundle: async (url: string) => {
     const bytes = await ipc.invoke('dsh:transport:loadBundle', { url }) as number[] | undefined
     if (bytes === undefined) {
@@ -45,5 +43,4 @@ const transport: ClientTransportHooks = {
     ;(0, eval)(source)
   },
 }
-// oxlint-disable-next-line typescript/no-unsafe-assignment -- Window augmentation invisible to oxlint's type-aware pass.
 window.__DSH_TRANSPORT__ = transport

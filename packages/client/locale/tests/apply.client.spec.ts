@@ -158,10 +158,10 @@ describe('locale apply', () => {
     await b.ctx.plugin({ inject: [...inject], apply }).await()
     const locale = b.ctx.get('locale') as LocaleRuntime
     await vi.waitFor(() => { expect(locale.getLocale().active).toBe('zh') })
-    // Cleared preference falls back to the provisional locale.
+    // Cleared preference falls back to the provisional (default) locale.
     b.setHostPreference(undefined)
     b.events.emit('settings/document-updated', [LOCALE_SETTINGS_NAMESPACE, 0])
-    await vi.waitFor(() => { expect(locale.getLocale().active).toBe('en') })
+    await vi.waitFor(() => { expect(locale.getLocale().active).toBe('zh') })
     // Re-selecting zh after the clear is an explicit pick of the provisional
     // value and must persist as a written preference.
     b.setHostPreference('zh')

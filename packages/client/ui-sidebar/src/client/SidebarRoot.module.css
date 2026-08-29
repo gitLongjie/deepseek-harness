@@ -33,7 +33,7 @@
    class whenever the pointer is not inside (SidebarRoot.tsx owns the linger),
    and rebinding ui-theme's indirection pair to `transparent` takes the thumb
    out of every scroll region nested under it — the workspace browser's
-   session list today. `transparent` rather than `display: none` on the bar:
+   session list. `transparent` rather than `display: none` on the bar:
    the reservation (`scrollbar-gutter: stable` on the list) stays in force, so
    revealing the thumb never reflows a row. Rebinding contract and the two
    rendering paths it reaches: ui-theme's README. */
@@ -159,6 +159,23 @@
   white-space: nowrap;
 }
 
+.localBuildBrand {
+  flex: none;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 1px;
+  height: 24px;
+  white-space: nowrap;
+}
+
+.localBuildTitle {
+  font-size: 12px;
+  line-height: 13px;
+  letter-spacing: 0;
+}
+
 .iconButton {
   flex: none;
   display: inline-flex;
@@ -208,6 +225,22 @@
    secondary icon-button ink. */
 .collapsed .iconButton {
   color: var(--dsw-alias-label-primary);
+}
+
+.buildVersion {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  height: 10px;
+  padding: 0 3px;
+  border-radius: 2px;
+  color: var(--dsw-alias-label-primary-inverted);
+  background: var(--dsw-alias-label-primary);
+  font-family: var(--ds-font-family-code);
+  font-size: 6px;
+  font-weight: 500;
+  line-height: 10px;
+  white-space: nowrap;
 }
 
 /* New Session: 38px bar, 12px radius (figma 133:7634 geometry, squared-off
@@ -282,28 +315,19 @@
   padding-left: 0;
 }
 
-/* Footer seats: wide renders the additive actions and Settings on one row
-   (actions stretch to fill, Settings pinned at the right edge at content
-   width); the collapsed rail stacks them. Each occupant owns its button
-   geometry and hover chrome. */
+/* Footer seats: additive actions stack above Settings. Each occupant owns its
+   button geometry and hover chrome. */
 .footArea {
   flex: none;
   display: flex;
-  flex-direction: row;
-  align-items: stretch;
+  flex-direction: column;
 }
 
 .settingsArea,
 .footerActions {
-  min-width: 0;
-}
-
-.footerActions {
-  flex: 1;
-}
-
-.settingsArea {
   flex: none;
+  min-width: 0;
+  width: 100%;
 }
 
 .footerActions {
@@ -311,7 +335,6 @@
 }
 
 .collapsed .footArea {
-  flex-direction: column;
   align-items: center;
 }
 

@@ -114,10 +114,6 @@
     "scripts/*.client.spec.ts",
     "scripts/client-bundle-css.spec.ts",
     "packages/typert/generator/tests/fixtures/**",
-    // Desktop-only seam pending the ApiProxy→Typert port; excluded from the repo programs.
-    "packages/host/apiproxy/**",
-    "packages/client/runtime/**",
-    "packages/client/ui-login/**",
     "scripts/client-bundle-purity.spec.ts"
   ],
   "references": [

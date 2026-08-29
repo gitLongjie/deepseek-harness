@@ -26,7 +26,7 @@
       "path": "../../packages/util/launch-environment"
     },
     {
-      "path": "../../packages/host/apiproxy"
+      "path": "../../packages/api/gateway"
     },
     {
       "path": "../../packages/host/webserver"
