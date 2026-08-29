@@ -484,18 +484,16 @@ describe('WorkspaceBrowser', () => {
     expect(startSession).toHaveBeenCalledWith(wid('alpha'))
   })
 
-  it('auto-expands the Ungrouped bucket for a loose current session; its header has no menu and its ＋ is inert', () => {
+  it('renders no Ungrouped bucket for a loose current session', () => {
     const startSession = vi.fn()
     mount({
       useSessions: hook(sessionState([summary('loose', 1)], { current: sid('loose') })),
       useWorkspaces: hook(workspaceState([workspace('alpha', [])])),
       startSession,
     })
-    // The loose session's group is UNGROUPED_KEY: expanded by the effect.
-    expect(screen.getByText('loose')).toBeTruthy()
-    expect(screen.queryByRole('button', { name: '工作区“未分组”的操作' })).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: '在“未分组”中新建会话' }))
-    expect(startSession).not.toHaveBeenCalled()
+    // A session outside every Workspace has no row: the Ungrouped group is gone.
+    expect(screen.queryByText('loose')).toBeNull()
+    expect(screen.queryByText('未分组')).toBeNull()
   })
 
   it('keeps an already-expanded group when the selection moves within it', () => {
@@ -1020,55 +1018,6 @@ describe('WorkspaceBrowser', () => {
     fireEvent.dragStart(one, { dataTransfer })
     fireDrag(one, 'drop', 130)
     expect(insertSessionBefore).toHaveBeenCalledTimes(1)
-  })
-
-  it('persists Ungrouped drag order in both modes without writing a Host Workspace account', async () => {
-    const insertSessionBefore = vi.fn(async () => {})
-    const sessions = sessionState([summary('one', 3), summary('two', 2), summary('three', 1)])
-    const b = mount({
-      useSessions: hook(sessions),
-      useWorkspaces: hook(workspaceState([])),
-      insertSessionBefore,
-    })
-    fireEvent.click(screen.getByText('未分组'))
-
-    const dragAfter = (sourceTitle: string, targetTitle: string): void => {
-      const source = screen.getByText(sourceTitle).closest('[role="treeitem"]') as HTMLElement
-      const target = screen.getByText(targetTitle).closest('[role="treeitem"]') as HTMLElement
-      target.getBoundingClientRect = () => ({
-        top: 150, bottom: 184, left: 0, right: 200, width: 200, height: 34, x: 0, y: 150, toJSON: () => ({}),
-      })
-      fireEvent.dragStart(source, { dataTransfer: dragData() })
-      fireDrag(target, 'drop', 180)
-    }
-
-    dragAfter('one', 'three')
-    expect(b.store.getSnapshot().sessionOrderByAccount[UNGROUPED_KEY]).toEqual(['two', 'three', 'one'])
-    dragAfter('two', 'one')
-    expect(b.store.getSnapshot().sessionOrderByAccount[UNGROUPED_KEY]).toEqual(['three', 'one', 'two'])
-    expect(insertSessionBefore).not.toHaveBeenCalled()
-
-    fireEvent.click(screen.getByRole('button', { name: '视图选项' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: '最近更新' }))
-    await waitFor(() => {
-      expect(b.store.getSnapshot().sessionOrderByAccount[UNGROUPED_KEY]).toEqual(['one', 'two', 'three'])
-    })
-    dragAfter('one', 'three')
-    expect(b.store.getSnapshot().sessionOrderByAccount[UNGROUPED_KEY]).toEqual(['two', 'three', 'one'])
-    expect(insertSessionBefore).not.toHaveBeenCalled()
-
-    b.view.unmount()
-    const restored = mount({
-      useSessions: hook(sessions),
-      useWorkspaces: hook(workspaceState([])),
-      insertSessionBefore,
-    })
-    expect(restored.store.getSnapshot().sessionOrderByAccount[UNGROUPED_KEY]).toEqual(['two', 'three', 'one'])
-    expect(screen.getAllByRole('treeitem').slice(1).map(row => row.textContent)).toEqual([
-      expect.stringContaining('two'),
-      expect.stringContaining('three'),
-      expect.stringContaining('one'),
-    ])
   })
 
   it('still sends the reorder when the dragged row left the group mid-drag', () => {

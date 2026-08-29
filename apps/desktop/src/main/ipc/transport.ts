@@ -161,7 +161,7 @@ export function registerTransportIpc(getHost: () => TransportHostServices): () =
     })()
   }
 
-  ipcMain.handle('dsh:stream:open', (event, opts: TransportStreamStart): string => {
+  ipcMain.handle('dsh:stream:open', (event, opts: TransportStreamStart): { streamId: string } => {
     const { gateway } = getHost()
     if (gateway === undefined) throw new Error('desktop: host not ready for Remote streams')
     const streamId = randomUUID()
@@ -173,7 +173,7 @@ export function registerTransportIpc(getHost: () => TransportHostServices): () =
       payload: opts.payload,
       controller,
     })
-    return streamId
+    return { streamId }
   })
   ipcMain.on('dsh:stream:claim', (_event, streamId: string): void => startPump(streamId))
   ipcMain.on('dsh:stream:stop', (_event, streamId: string): void => {

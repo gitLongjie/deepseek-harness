@@ -70,16 +70,16 @@ describe('deriveGroups', () => {
     },
   )
 
-  it('puts only real unaccounted Sessions in the trailing Ungrouped group', () => {
+  it('keeps unaccounted Sessions out of the tree: no Ungrouped group', () => {
     const sessions = list(summary('owned', 1, '/projects/first'), summary('loose', 9, '/other'))
     const groups = deriveGroups(
-      sessions, [workspace('first', ['owned'])], noArchive, noAttention, view([UNGROUPED_KEY]),
+      sessions, [workspace('first', ['owned'])], noArchive, noAttention, view(['first']),
     )
-    expect(groups.map(group => group.key)).toEqual(['first', UNGROUPED_KEY])
-    expect(groups[1]!.sessions.map(session => session.id)).toEqual([sid('loose')])
+    expect(groups.map(group => group.key)).toEqual(['first'])
+    expect(groups[0]!.sessions.map(session => session.id)).toEqual([sid('owned')])
   })
 
-  it('applies stored Ungrouped order and appends new loose Sessions by recency', () => {
+  it('renders no group when there are no Workspaces: loose Sessions stay out', () => {
     const sessions = list(summary('one', 3), summary('two', 2), summary('new', 4))
     const groups = deriveGroups(
       sessions,
@@ -88,10 +88,9 @@ describe('deriveGroups', () => {
       noAttention,
       view([UNGROUPED_KEY], ['two', 'stale', 'two']),
     )
-    expect(groups[0]!.sessions.map(session => session.id)).toEqual([
-      sid('two'), sid('new'), sid('one'),
-    ])
+    expect(groups).toHaveLength(0)
   })
+
 
   it('shows only the current blank session in its Workspace count and tree', () => {
     const currentBlank = { ...summary('current-blank', 5), blank: true }
@@ -174,36 +173,6 @@ describe('deriveGroups', () => {
     ).items[0]).toMatchObject({ id: parent.id, runningSubagentCount: 2 })
   })
 
-  it('ignores fork lineage and sorts every ungrouped session as a top-level row', () => {
-    const parent = summary('parent', 1)
-    const oldChild = { ...summary('old-child', 10), parentId: parent.id }
-    const newChild = { ...summary('new-child', 20), parentId: parent.id }
-    const tieB = { ...summary('tie-b', 20), parentId: parent.id }
-    const tieA = { ...summary('tie-a', 20), parentId: parent.id }
-    const self = { ...summary('self', 2), parentId: sid('self') }
-    const orphan = { ...summary('orphan', 3), parentId: sid('missing') }
-    const cycleA = { ...summary('cycle-a', 4), parentId: sid('cycle-b') }
-    const cycleB = { ...summary('cycle-b', 5), parentId: sid('cycle-a') }
-    const groups = deriveGroups(
-      list(parent, oldChild, newChild, tieB, tieA, self, orphan, cycleA, cycleB),
-      [],
-      noArchive,
-      noAttention,
-      { expandedGroups: [UNGROUPED_KEY] },
-    )
-
-    expect(groups).toHaveLength(1)
-    expect(groups[0]!.sessions.map(node => node.id)).toEqual([
-      newChild.id, tieA.id, tieB.id, oldChild.id,
-      cycleB.id, cycleA.id, orphan.id, self.id, parent.id,
-    ])
-
-    // Equal timestamps use ids as a deterministic tiebreak in either input order.
-    expect(deriveGroups(
-      list(summary('tie-a', 1), summary('tie-b', 1)), [], noArchive, noAttention, view([UNGROUPED_KEY]),
-    )[0]!
-      .sessions.map(node => node.id)).toEqual([sid('tie-a'), sid('tie-b')])
-  })
 
   it('tolerates Workspace membership arriving before its Session summary', () => {
     const partial: SessionListState = {
@@ -244,7 +213,9 @@ describe('deriveGroups', () => {
     const looseGroups = deriveGroups(
       { ...list(owned, loose), current: loose.id }, [ws], noArchive, noAttention, view(),
     )
-    expect(looseGroups.find(group => group.key === UNGROUPED_KEY)!.containsCurrent).toBe(true)
+    // A loose current Session has no bucket to mark: the Ungrouped group is gone.
+    expect(looseGroups.find(group => group.key === UNGROUPED_KEY)).toBeUndefined()
+    expect(looseGroups.every(group => !group.containsCurrent)).toBe(true)
   })
 })
 

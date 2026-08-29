@@ -5,8 +5,9 @@ vi.mock('electron', () => ({
   ipcMain: { handle: vi.fn(), on: vi.fn(), removeHandler: vi.fn(), removeAllListeners: vi.fn() },
 }))
 
+import { ipcMain } from 'electron'
 import type { HostConnectionHandle } from '@deepseek-ai/dsh-client-connection'
-import { dispatchTransportFetch } from '../src/main/ipc/transport.ts'
+import { dispatchTransportFetch, registerTransportIpc } from '../src/main/ipc/transport.ts'
 
 /** The never-settled host: no Connection yet. */
 const UNSETTLED = { gateway: undefined, connection: undefined }
@@ -97,5 +98,45 @@ describe('dispatchTransportFetch', () => {
       new AbortController().signal,
     )
     expect(response.status).toBe(404)
+  })
+})
+
+describe('registerTransportIpc stream handshake', () => {
+  it('answers the open request with { streamId } and pumps only after the claim', async () => {
+    const opened: Array<{ endpoint: string; payload: unknown; signal: AbortSignal }> = []
+    const gateway = {
+      wireStream: {
+        open: (endpoint: string, payload: unknown, signal: AbortSignal): Promise<AsyncIterable<unknown>> => {
+          opened.push({ endpoint, payload, signal })
+          return Promise.resolve((async function* () { yield { type: 'ready' } })())
+        },
+      },
+    } as never
+    let send: ((channel: string, payload: unknown) => void) | undefined
+    const remove = registerTransportIpc(() => ({ gateway, connection: undefined }))
+    try {
+      const handle = (ipcMain.handle as unknown as {
+        mock: { calls: Array<[string, (event: unknown, req: unknown) => unknown]> }
+      }).mock.calls
+      const on = (ipcMain.on as unknown as {
+        mock: { calls: Array<[string, (event: unknown, payload: unknown) => void]> }
+      }).mock.calls
+      const openHandler = handle.find(([channel]) => channel === 'dsh:stream:open')?.[1]
+      const claimHandler = on.find(([channel]) => channel === 'dsh:stream:claim')?.[1]
+      expect(openHandler).toBeTypeOf('function')
+      expect(claimHandler).toBeTypeOf('function')
+      const sender = { isDestroyed: () => false, send: (channel: string, payload: unknown): void => { send?.(channel, payload) } }
+      send = vi.fn()
+      const response = openHandler!({ sender }, { endpoint: '$events', payload: { args: {} } }) as { streamId?: string }
+      // The claim contract: an object field, not a bare string.
+      expect(typeof response).toBe('object')
+      expect(typeof response.streamId).toBe('string')
+      expect(opened).toHaveLength(0)
+      claimHandler!({}, response.streamId)
+      await vi.waitFor(() => { expect(opened).toHaveLength(1) })
+      expect(opened[0]!.endpoint).toBe('$events')
+    } finally {
+      await remove()
+    }
   })
 })

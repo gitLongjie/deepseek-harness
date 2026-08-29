@@ -155,65 +155,31 @@ function buildGroup(
   return { key, workspaceId, cwd, createdAt, label, sessions }
 }
 
-/** Apply a stored Ungrouped order and append newly loose Sessions by recency. */
-function orderedUngrouped(members: readonly SessionSummary[], stored: readonly string[]): SessionSummary[] {
-  const byId = new Map(members.map(session => [session.id as string, session]))
-  const included = new Set<string>()
-  const ordered: SessionSummary[] = []
-  for (const key of stored) {
-    const session = byId.get(key)
-    if (session === undefined || included.has(key)) continue
-    ordered.push(session)
-    included.add(key)
-  }
-  for (const session of [...members].sort(byRecency)) {
-    if (included.has(session.id)) continue
-    ordered.push(session)
-  }
-  return ordered
-}
-
 /**
  * Group Sessions by Host Workspace: one group per entity in stable Host
- * order, with members resolved from sessionIds in their stored order. Sessions
- * outside every Workspace trail in the browser-local Ungrouped order, which
- * falls back to recency before that order is initialized.
+ * order, with members resolved from sessionIds in their stored order.
+ * Sessions outside every Workspace have no group and stay out of the tree —
+ * the fork removes the browser-local Ungrouped bucket: every Session is
+ * created against an explicit Workspace (the sidebar's New Session resolves
+ * current or recent), so a memberless group would only surface orphans.
  */
 function groupByWorkspace(
   list: SessionListState,
   workspaces: readonly WorkspaceView[],
   archived: ReadonlySet<SessionId>,
-  ungroupedOrder: readonly string[] | undefined,
 ): Group[] {
   const groups: Group[] = []
-  const accounted = new Set<SessionId>()
   for (const workspace of workspaces) {
     const members: SessionSummary[] = []
     for (const id of workspace.sessionIds) {
       const summary = list.byId[id]
       if (summary === undefined) continue // account may lead the list pull; the row appears when the summary lands
-      accounted.add(id)
       if (!sessionVisible(summary, list.current, archived)) continue
       members.push(summary)
     }
     groups.push(buildGroup(
       workspace.workspaceId, workspace.workspaceId, workspace.path,
       Date.parse(workspace.createdAt), workspace.title, members, 'account',
-    ))
-  }
-  const stray = list.ids
-    .map(id => list.byId[id])
-    .filter((s): s is SessionSummary =>
-      s !== undefined && !accounted.has(s.id) && sessionVisible(s, list.current, archived))
-  if (stray.length > 0) {
-    groups.push(buildGroup(
-      UNGROUPED_KEY,
-      undefined,
-      undefined,
-      undefined,
-      '',
-      ungroupedOrder === undefined ? stray : orderedUngrouped(stray, ungroupedOrder),
-      ungroupedOrder === undefined ? 'recency' : 'account',
     ))
   }
   return groups
@@ -279,7 +245,7 @@ export function deriveGroups(
     : (workspaces.find(w => w.sessionIds.includes(list.current as SessionId))?.workspaceId as string | undefined)
         ?? UNGROUPED_KEY
   const groups: GroupNode[] = []
-  for (const g of groupByWorkspace(list, workspaces, archived, view.ungroupedOrder)) {
+  for (const g of groupByWorkspace(list, workspaces, archived)) {
     const expanded = expandedGroups.has(g.key)
     groups.push({
       key: g.key,

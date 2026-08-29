@@ -73,7 +73,6 @@ export function createIpcStreamOpen(ipc: IpcBridge): RpcStreamOpen {
     let wake: (() => void) | undefined
     let ended = false
     const enqueue = (frame: StreamFrame): void => {
-      if (seen < 6) console.error(`desktop render: enqueue ${endpoint} mine=${String(streamId === undefined ? 'pending' : frame.streamId === streamId)} frameId=${frame.streamId.slice(0, 6)}`)
       if (streamId !== undefined && frame.streamId !== streamId) return
       if (frame.kind === 'end') ended = true
       inbox.push(frame)
@@ -88,15 +87,13 @@ export function createIpcStreamOpen(ipc: IpcBridge): RpcStreamOpen {
     const offEnd = ipc.on('dsh:stream:end', (data) => {
       enqueue({ streamId: (data as { streamId: string }).streamId, kind: 'end' })
     })
+    // The host starts pushing only after the claim: assigning streamId before
+    // claiming guarantees every frame carries an id this closure recognizes.
     const opened = ipc
       .invoke('dsh:stream:open', { endpoint, payload })
       .then(({ streamId: id }) => {
         streamId = id
-        // Drop frames from any earlier stream that raced this open.
-        for (let i = inbox.length - 1; i >= 0; i -= 1) {
-          if (inbox[i].streamId !== id) inbox.splice(i, 1)
-        }
-        if (ended) ipc.send('dsh:stream:stop', id)
+        ipc.send('dsh:stream:claim', id)
       })
       .catch((error: unknown) => {
         offFrame()
@@ -106,11 +103,14 @@ export function createIpcStreamOpen(ipc: IpcBridge): RpcStreamOpen {
 
     async function *iterate(): AsyncGenerator<unknown> {
       await opened
+      signal.addEventListener('abort', () => {
+        wake?.()
+      }, { once: true })
       try {
         while (true) {
           const frame = inbox.shift()
           if (frame === undefined) {
-            if (ended) return
+            if (ended || signal.aborted) return
             await new Promise<void>((resolve) => { wake = resolve })
             continue
           }
@@ -120,14 +120,13 @@ export function createIpcStreamOpen(ipc: IpcBridge): RpcStreamOpen {
       } finally {
         offFrame()
         offEnd()
-        if (!ended && !signal.aborted) ipc.send('dsh:stream:stop', streamId)
+        if (streamId !== undefined && !ended) ipc.send('dsh:stream:stop', streamId)
       }
     }
 
     // The hooks contract wants a synchronous AsyncIterable; surface async
     // open failures through iteration instead.
     let iterator: AsyncGenerator<unknown> | undefined
-    const seen = 0
     return {
       [Symbol.asyncIterator]: () => ({
         next: async () => {
