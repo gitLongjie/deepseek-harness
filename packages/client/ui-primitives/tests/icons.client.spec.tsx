@@ -16,8 +16,8 @@ const icons = Object.fromEntries(
 const iconNames = Object.keys(icons)
 
 describe('ic_ds_ icon set', () => {
-  it('exports the full icon set (46 deepsuite + 20 figma extracts + four product glyphs outside those sets)', () => {
-    expect(iconNames.length).toBe(70)
+  it('exports the full icon set (46 deepsuite + 21 figma extracts + four product glyphs outside those sets)', () => {
+    expect(iconNames.length).toBe(71)
   })
 
   it.each(iconNames)('%s renders an svg with currentColor fills and no hardcoded palette', (name) => {
@@ -67,33 +67,15 @@ describe('FishLogo', () => {
   })
 })
 
-describe('MewoLogo', () => {
-  it('renders the raster mark as an aria-hidden image at the native ratio', () => {
-    const { container } = render(<primitives.MewoLogo />)
-    const img = container.querySelector('img')!
-    expect(img.getAttribute('width')).toBe('22')
-    expect(img.getAttribute('height')).toBe('24')
-    expect(img.getAttribute('aria-hidden')).toBe('true')
-    expect(img.getAttribute('src')).toMatch(/^data:image\/png;base64,/)
-  })
-
-  it('size and className land on the root image', () => {
-    const { container } = render(<primitives.MewoLogo size={34} className="mark" />)
-    const img = container.querySelector('img')!
-    expect(img.getAttribute('height')).toBe('34')
-    expect(img.getAttribute('width')).toBe('31')
-    expect(img.classList.contains('mark')).toBe(true)
-  })
-})
-
 describe('BrandWordmark', () => {
-  it('composes the mark and the live product name with or without the mark', () => {
+  it('can render the name artwork with or without its leading mark', () => {
     const view = render(<primitives.BrandWordmark />)
-    expect(view.container.querySelector('img')).not.toBeNull()
-    expect(view.container.textContent).toBe('深度Works')
+    const svg = view.container.querySelector('svg')!
+    expect(svg.getAttribute('width')).toBe('182')
+    expect(svg.getAttribute('viewBox')).toBe('0 0 182 24')
 
     view.rerender(<primitives.BrandWordmark includeMark={false} />)
-    expect(view.container.querySelector('img')).toBeNull()
-    expect(view.container.textContent).toBe('深度Works')
+    expect(svg.getAttribute('width')).toBe('156')
+    expect(svg.getAttribute('viewBox')).toBe('26 0 156 24')
   })
 })

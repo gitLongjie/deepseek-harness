@@ -1,7 +1,7 @@
 /** Settings shell registration: slot declaration injection, the ledger projections, and HMR recovery. */
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it, vi } from 'vitest'
-import { SlotRegistry } from '@deepseek-ai/dsh-client-runtime/client'
+import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { apply as settingsApply, inject as settingsInject } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { apply, inject } from '../src/client/index.ts'
 import type { SettingsRootInjected } from '../src/client/shell-contract.ts'
@@ -18,11 +18,14 @@ async function bench() {
     getSnapshot: () => ({ active: 'zh', locales: [], revision: 0 }),
     subscribe: () => () => {},
   } as never)
-  ctx.provide('connection', {
-    api: { settings: { describe: async () => ({ result: { ok: false } }) } },
-    isLoopback: false,
-  } as never)
-  ctx.provide('remote', { $on: () => () => {} } as never)
+  ctx.provide('connection', { api: {}, isLoopback: false } as never)
+  // The shell mounts ui-settings, which injects `remote.settings`; without the
+  // namespace provided its fiber parks and no slot is ever declared.
+  const settings = {
+    describe: async () => ({ ok: false, error: { code: 'internal', message: 'no settings', details: {} } }),
+  }
+  ctx.provide('remote', { $on: () => () => {}, settings } as never)
+  ctx.provide('remote.settings', settings as never)
   await ctx.plugin({ inject: [...settingsInject], apply: settingsApply }).await()
   return { ctx, slots: ctx.get('slots') as SlotRegistry }
 }
@@ -39,18 +42,21 @@ function injectedOf(slots: SlotRegistry): SettingsRootInjected {
   return (entry.inject as () => SettingsRootInjected)()
 }
 
-/** The shell's child declarations (chrome, actions, and sections). */
+/** The shell's child declarations (chrome, actions, sections, and onboarding overlays). */
 const CHILD_SPECS = {
   'settings.trigger': { kind: 'single', scope: 'root' },
   'settings.header': { kind: 'single', scope: 'root' },
   'settings.action': { kind: 'list', scope: 'root' },
   'settings.close': { kind: 'single', scope: 'root' },
   'settings.section': { kind: 'list', scope: 'root' },
+  'settings.onboarding': { kind: 'list', scope: 'root' },
 } as const
 
 describe('ui-settings apply', () => {
   it('declares only the slot registry (a pure composition face, no locale)', () => {
-    expect(inject).toEqual(['slots', 'locale', 'connection', 'settingsScope'])
+    expect(inject).toEqual([
+      'slots', 'locale', 'connection', 'remote', 'remote.settings', 'settingsScope',
+    ])
   })
 
   it('registers the shell and declares every child slot, before or after the declaration', async () => {
@@ -98,6 +104,29 @@ describe('ui-settings apply', () => {
     await Promise.resolve()
     expect(listener).toHaveBeenCalled()
     expect(sections.getSnapshot()).not.toBe(rows)
+    off()
+  })
+
+  it('projects onboarding entries into stable coordinator order', async () => {
+    const b = await bench()
+    declare(b.slots)
+    await b.ctx.plugin({ inject: [...inject], apply }).await()
+    const { onboardingSteps } = injectedOf(b.slots).hooks
+    b.slots.register({ name: 'settings.onboarding', id: 'credential', order: 0 } as never, () => null)
+    b.slots.register({ name: 'settings.onboarding', id: 'welcome', order: -100 } as never, () => null)
+    b.slots.register({ name: 'settings.onboarding', id: 'default-order' } as never, () => null)
+    const steps = onboardingSteps.getSnapshot()
+    expect(steps).toEqual([
+      { id: 'welcome', order: -100 },
+      { id: 'credential', order: 0 },
+      { id: 'default-order', order: 0 },
+    ])
+    expect(onboardingSteps.getSnapshot()).toBe(steps)
+    const listener = vi.fn()
+    const off = onboardingSteps.subscribe(listener)
+    b.slots.register({ name: 'settings.onboarding', id: 'later', order: 10 } as never, () => null)
+    await Promise.resolve()
+    expect(listener).toHaveBeenCalledOnce()
     off()
   })
 

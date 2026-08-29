@@ -29,17 +29,18 @@ interface Koffi {
 }
 
 /**
- * Read a NUL-terminated UTF-16 string at a native address. `koffi.decode`
- * with a string type segfaults on the bigint addresses `_Out_ void **`
- * out-params surface, and `koffi.view` with a fixed large length reads past
- * the CoTaskMem allocation into pages that may be unmapped (native access
- * violation — not catchable), so measure with `lstrlenW` first and view
- * exactly the string's bytes.
+ * Read a NUL-terminated UTF-16 string at a native address. koffi's
+ * `_Out_ void **` out-params surface a raw address, and
+ * `koffi.decode(addr, 'str16')` would dereference it as a pointer — crash
+ * on real Windows — so view the memory directly instead.
  */
-function readUtf16(koffi: Koffi, lstrlenW: KoffiFunction, address: unknown): string {
-  const chars = lstrlenW(address) as number
-  if (chars <= 0) return ''
-  return Buffer.from(koffi.view(address, chars * 2)).toString('utf16le', 0, chars * 2)
+function readUtf16(koffi: Koffi, address: unknown): string {
+  const bytes = Buffer.from(koffi.view(address, 32768))
+  let end = 0
+  // UTF-16LE NUL is two zero bytes. A single zero low byte is a valid BMP
+  // code unit (U+XX00, e.g. 开 = U+5F00) and must not terminate the scan.
+  while (end + 1 < bytes.length && !(bytes[end] === 0 && bytes[end + 1] === 0)) end += 2
+  return bytes.toString('utf16le', 0, end)
 }
 
 const COINIT_APARTMENTTHREADED = 0x2
@@ -100,7 +101,6 @@ export async function loadWin32DialogBindings(): Promise<Win32DialogBindings> {
   const coCreateInstance = ole32.func('__stdcall', 'CoCreateInstance', 'int32', ['void *', 'void *', 'uint32', 'void *', 'void *'])
   const coTaskMemFree = ole32.func('__stdcall', 'CoTaskMemFree', 'void', ['void *'])
   const getCurrentThreadId = kernel32.func('__stdcall', 'GetCurrentThreadId', 'uint32', [])
-  const lstrlenW = kernel32.func('__stdcall', 'lstrlenW', 'int32', ['void *'])
 
   const protoShow = koffi.proto('int32 __stdcall DshDialogShow(void *self, void *owner)')
   const protoSetOptions = koffi.proto('int32 __stdcall DshDialogSetOptions(void *self, uint32 options)')
@@ -158,7 +158,7 @@ export async function loadWin32DialogBindings(): Promise<Win32DialogBindings> {
             const nameOut: unknown[] = [null]
             const gotName = method(item, SLOT_GET_DISPLAY_NAME, protoGetDisplayName)(SIGDN_FILESYSPATH, nameOut)
             if (gotName < 0) return { hr: gotName }
-            const path = readUtf16(koffi, lstrlenW, nameOut[0])
+            const path = readUtf16(koffi, nameOut[0])
             coTaskMemFree(nameOut[0])
             return { hr: gotName, path }
           } finally {
