@@ -42,6 +42,7 @@ declare module '@deepseek-ai/cordis' {
 /** Host Connection service whose channel registrations belong to the caller fiber. */
 export class HostConnectionService extends Service implements HostConnectionHandle {
   private readonly interceptors = new Map<string, ConnectionRpcInterceptor>()
+  private readonly channels = new Map<string, ConnectionRpcInterceptor>()
 
   /**
    * Provide the Host half over the active HTTP server.
@@ -87,6 +88,34 @@ export class HostConnectionService extends Service implements HostConnectionHand
     }
   }
 
+  /**
+   * Compose one channel-dispatch Fetch handler covering every generic channel
+   * registered through `handle`, so an in-process carrier (the desktop IPC
+   * transport) reaches them without the HTTP route table. Paths no registered
+   * channel claims fall through to `fallback`.
+   * @param fallback - handler for paths no registered channel claims.
+   * @returns Fetch handler that selects exactly one target for each request.
+   */
+  createChannelsFetchHandler(fallback: FetchHandler): FetchHandler {
+    return {
+      fetch: (request) => {
+        const segment = new URL(request.url).pathname.split('/')[1]
+        const channel = segment === undefined ? undefined : `/${segment}`
+        const entry = channel !== undefined && CHANNEL_PATTERN.test(channel)
+          ? this.channels.get(channel)
+          : undefined
+        if (entry === undefined) {
+          return fallback.fetch(request)
+        }
+        const trustedHosts = entry.options.authority === 'loopback' ? [] : this.trustedHosts
+        if (!isTrustedApiRequest(request, trustedHosts)) {
+          return Promise.resolve(new Response('forbidden', { status: 403 }))
+        }
+        return entry.fetchHandler.fetch(request)
+      },
+    }
+  }
+
   private register(
     owner: Context,
     channel: string,
@@ -108,10 +137,14 @@ export class HostConnectionService extends Service implements HostConnectionHand
         await bridge(req, res, fetchHandler)
       },
     }
-    return owner.effect(
-      () => owner.webServer.register(route),
-      `client-connection: ${channel} rpc channel`,
-    )
+    return owner.effect(() => {
+      const disposeRoute = owner.webServer.register(route)
+      this.channels.set(channel, { matches: () => true, fetchHandler, options })
+      return () => {
+        this.channels.delete(channel)
+        disposeRoute()
+      }
+    }, `client-connection: ${channel} rpc channel`)
   }
 
   private registerInterceptor(

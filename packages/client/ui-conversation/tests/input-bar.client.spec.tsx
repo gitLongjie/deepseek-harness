@@ -486,6 +486,16 @@ describe('Enter semantics', () => {
     expect(sink).not.toHaveBeenCalled()
   })
 
+  it('Escape on a running session stops the turn; idle Escape does not', () => {
+    const running = bench({ running: true })
+    fireEvent.keyDown(running.textarea, { key: 'Escape' })
+    expect(running.stop).toHaveBeenCalledTimes(1)
+
+    const idle = bench({})
+    fireEvent.keyDown(idle.textarea, { key: 'Escape' })
+    expect(idle.stop).not.toHaveBeenCalled()
+  })
+
   it('Shift+Enter newline wins even inside IME composition (unconditional precedence)', () => {
     const { textarea, sink } = bench({ draft: 'hello' })
     fireEvent.compositionStart(textarea)

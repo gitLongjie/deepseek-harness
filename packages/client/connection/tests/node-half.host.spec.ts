@@ -265,6 +265,69 @@ describe('connection node half', () => {
     expect(routes).toHaveLength(0)
   })
 
+  it('serves a registered generic channel through createChannelsFetchHandler and falls back otherwise', async () => {
+    const ctx = new Context()
+    const routes: WebRoute[] = []
+    ctx.provide('webServer', fakeHttpServer(routes, []) as WebServer)
+    ctx.provide('apiProxy', {} as unknown as ApiProxy)
+    const fiber = ctx.plugin({ inject: [...inject], apply }, { trustedHosts: ['harness.example'] })
+    await fiber.await()
+    const connection = ctx.get('connection') as HostConnectionHandle
+    const calls: unknown[] = []
+    const remove = connection.rpc.handle('/weixin', async (endpoint, payload) => {
+      calls.push({ endpoint, payload })
+      return { ok: true, value: { state: 'disconnected' } }
+    }, { authority: 'trusted-host' })
+    const fallbackCalls: string[] = []
+    const handler = connection.createChannelsFetchHandler({
+      fetch: async (request) => {
+        fallbackCalls.push(new URL(request.url).pathname)
+        return new Response('missed', { status: 404 })
+      },
+    })
+
+    const request: ClientRequest = {
+      type: 'client-request',
+      rpcId: RpcId('rpc-channel'),
+      method: 'connection.status',
+      payload: {},
+    }
+    const served = await handler.fetch(new Request('http://127.0.0.1:3080/weixin/connection.status', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', host: 'harness.example' },
+      body: JSON.stringify(request),
+    }))
+    expect(served.status).toBe(200)
+    expect(JSON.parse(await served.text())).toEqual({
+      type: 'server-response',
+      rpcId: 'rpc-channel',
+      result: { ok: true, value: { state: 'disconnected' } },
+    })
+    expect(calls).toEqual([{ endpoint: 'connection.status', payload: {} }])
+
+    const untrusted = await handler.fetch(new Request('http://127.0.0.1:3080/weixin/connection.status', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', host: 'other.example' },
+      body: JSON.stringify(request),
+    }))
+    expect(untrusted.status).toBe(403)
+    expect(calls).toHaveLength(1)
+
+    const missed = await handler.fetch(new Request('http://127.0.0.1:3080/api/session.list'))
+    expect(missed.status).toBe(404)
+    expect(fallbackCalls).toEqual(['/api/session.list'])
+
+    await remove()
+    const withdrawn = await handler.fetch(new Request('http://127.0.0.1:3080/weixin/connection.status', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', host: 'harness.example' },
+      body: JSON.stringify(request),
+    }))
+    expect(withdrawn.status).toBe(404)
+    expect(fallbackCalls).toHaveLength(2)
+    await fiber.dispose()
+  })
+
   it('dispatches claimed /api endpoints before the API Proxy fallback and withdraws the claim', async () => {
     const ctx = new Context()
     const routes: WebRoute[] = []

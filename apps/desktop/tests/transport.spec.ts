@@ -29,6 +29,9 @@ describe('dispatchTransportFetch', () => {
           return new Response('gateway', { status: 200 })
         },
       }),
+      createChannelsFetchHandler: () => ({
+        fetch: async () => new Response('unreachable', { status: 500 }),
+      }),
     } as unknown as HostConnectionHandle
     const response = await dispatchTransportFetch(
       { api: {} as ApiProxy, connection },
@@ -47,6 +50,33 @@ describe('dispatchTransportFetch', () => {
     expect(seen?.url).toBe('http://127.0.0.1/api/dynamicCordisRunner/inventory')
     expect(seen?.headers.get('host')).toBe('127.0.0.1')
     expect(seen?.headers.get('content-type')).toBe('application/json')
+  })
+
+  it('routes a generic RPC channel through the Connection channel dispatcher', async () => {
+    let seen: Request | undefined
+    const connection = {
+      createSharedFetchHandler: (_channel: '/api', fallback: { fetch(request: Request): Promise<Response> }) => fallback,
+      createChannelsFetchHandler: (fallback: unknown) => ({
+        fetch: async (request: Request) => {
+          seen = request
+          void fallback
+          return new Response('channel', { status: 200 })
+        },
+      }),
+    } as unknown as HostConnectionHandle
+    const response = await dispatchTransportFetch(
+      { api: {} as ApiProxy, connection },
+      {
+        requestId: 'r',
+        path: '/weixin/connection.status',
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: '{"type":"client-request","rpcId":"r1","method":"connection.status","payload":{}}',
+      },
+      new AbortController().signal,
+    )
+    expect(await response.text()).toBe('channel')
+    expect(seen?.url).toBe('http://127.0.0.1/weixin/connection.status')
   })
 
   it('falls back to the ApiProxy unary dispatcher without the Connection service', async () => {

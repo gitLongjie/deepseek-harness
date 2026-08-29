@@ -317,8 +317,9 @@ export class ClientModuleRegistry extends Service {
     // In a closed packaged runtime the host owns the plugin set: prefer the
     // host-provided base, because the vendored Include rewrites the subtree's
     // ctx.baseUrl to the (writable) config directory whose node_modules cannot
-    // resolve into app.asar.
-    const require = createRequire(ctx.dshBareModuleBaseUrl ?? ctx.baseUrl)
+    // resolve into app.asar. reflect.get reads the optional value without the
+    // inject requirement, since scaffolds and dev runs may never provide it.
+    const require = createRequire(ctx.reflect.get('dshBareModuleBaseUrl', false) ?? ctx.baseUrl)
     this.resolvePkgJson = spec => require.resolve(`${spec}/package.json`)
 
     // Subscribe before seeding so a fiber arriving mid-activation lands in the

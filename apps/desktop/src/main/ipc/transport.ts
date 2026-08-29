@@ -91,7 +91,11 @@ export async function dispatchTransportFetch(
   }
   if (req.body !== undefined) init.body = req.body
   const fallback = toFetchHandler(api)
-  const handler = connection?.createSharedFetchHandler('/api', fallback) ?? fallback
+  // Generic RPC channels (/weixin, …) have no /api interceptor; the channel
+  // dispatcher reaches them, and /api endpoints still take the shared handler.
+  const handler = connection === undefined
+    ? fallback
+    : connection.createSharedFetchHandler('/api', connection.createChannelsFetchHandler(fallback))
   return handler.fetch(new Request(new URL(req.path, LOOPBACK_AUTHORITY), init))
 }
 

@@ -476,7 +476,7 @@ describe('WorkspaceRegistry create and lookup', () => {
     })
   })
 
-  it('deletes only the registration and leaves its directory and session headers untouched', async () => {
+  it('deletes the registration, archives its member sessions, and leaves directory and session headers untouched', async () => {
     const dir = await makeDir('delete-registration')
     const result = await harness({ sessions: [header('kept-session', dir)] })
     const workspace = await result.registry.create(dir)
@@ -486,7 +486,12 @@ describe('WorkspaceRegistry create and lookup', () => {
     await expect(result.registry.delete(workspace.id)).resolves.toBe(false)
     expect(result.registry.get(workspace.id)).toBeUndefined()
     expect(result.registry.list()).toEqual([])
-    expect(storedState(result.pool)).toEqual({ initialized: true, workspaceIds: [], archivedSessionIds: [] })
+    expect(storedState(result.pool)).toEqual({
+      initialized: true,
+      workspaceIds: [],
+      archivedSessionIds: [SessionId('kept-session')],
+    })
+    expect(result.registry.archivedSessionIds).toEqual([SessionId('kept-session')])
     expect(result.pool.media.get('workspace')!.tables.get('workspaces')!.has(workspace.id)).toBe(false)
     await expect(realpath(dir)).resolves.toBe(dir)
     expect(result.list).toHaveBeenCalledTimes(1)
