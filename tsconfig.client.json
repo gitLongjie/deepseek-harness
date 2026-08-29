@@ -35,7 +35,10 @@
   // belongs to the host aggregate, which excludes this program's `*.client.*`
   // in turn. `exclude` wins over `include`, so the test glob above stays broad.
   "exclude": [
-    "packages/client/*/tests/**/*.host.spec.ts"
+    "packages/client/*/tests/**/*.host.spec.ts",
+    // Desktop-only seam pending the ApiProxy→Typert port; excluded from the repo programs.
+    "packages/client/runtime/**",
+    "packages/client/ui-login/**",
   ],
   "references": [
     // Shared leaf: web e2e boots the real host webserver (fixture + real-host
@@ -64,7 +67,6 @@
     { "path": "./packages/test-support/client-runtime" },
     { "path": "./packages/client/ui-layout" },
     { "path": "./packages/client/ui-sidebar" },
-    { "path": "./packages/client/ui-login" },
     { "path": "./packages/client/ui-brand-official" },
     { "path": "./packages/client/ui-approval" },
     { "path": "./packages/client/ui-chat" },

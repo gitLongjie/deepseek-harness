@@ -501,15 +501,20 @@ export function apply(ctx: Context, config: Config): void {
     resolveUserId,
     resolveAttachments: () => ctx.get('attachments'),
     providerName: 'Deepagens',
+    prepareExtensions: (request) => {
+      const extensions = ctx.get('deepseekLlmApiExtensions')
+      return extensions?.prepare(request)
+        ?? Promise.resolve({ fields: {}, accept: () => Promise.resolve() })
+    },
   })
   ctx.llm.registerConfigurableProviders([
     { provider: DEEPAGENS_PROVIDER, displayName: 'Deepagens', settingsNs: DEEPAGENS_NS, settingsPath: [] },
   ])
   const deepagensRegistration = ctx.llm.registerAdapter([DEEPAGENS_PROVIDER], deepagensAdapter)
-  ctx.llm.registerModelDiscovery(DEEPAGENS_NS, request =>
+  ctx.llm.registerModelDiscovery(DEEPAGENS_NS, (request, signal) =>
     discoverModels(request, async () => {
       try { return await resolveApiKey(deepagensOptions()) } catch { return undefined }
-    }),
+    }, signal),
   )
   let registeredDeepagensPolicy = deepagensOptions().retryPolicy
   const ensureDeepagensFacts = (): void => {
@@ -531,10 +536,10 @@ export function apply(ctx: Context, config: Config): void {
     { provider: PROVIDER, displayName: 'DeepSeek', settingsNs: NS, settingsPath: [] },
   ])
   const registration = ctx.llm.registerAdapter([PROVIDER], adapter)
-  ctx.llm.registerModelDiscovery(NS, request =>
+  ctx.llm.registerModelDiscovery(NS, (request, signal) =>
     discoverModels(request, async () => {
       try { return await resolveApiKey(options()) } catch { return undefined }
-    }),
+    }, signal),
   )
   let registeredPolicy = options().retryPolicy
   const ensureRegistrationFacts = (): void => {

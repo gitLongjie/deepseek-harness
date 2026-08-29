@@ -136,7 +136,7 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
               style="display: contents;"
             >
               <span
-                class="localBuildBrand"
+                class="fallbackBrandName"
               >
                 深度Works
               </span>
@@ -256,7 +256,7 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
               style="display: contents;"
             >
               <span
-                class="localBuildBrand"
+                class="fallbackBrandName"
               >
                 深度Works
               </span>

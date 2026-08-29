@@ -173,6 +173,7 @@ function usableProbeKey(raw: string): string {
 export async function discoverModels(
   request: LlmModelDiscoveryRequest,
   storedApiKey?: () => Promise<string | undefined>,
+  signal?: AbortSignal,
 ): Promise<readonly LlmDiscoveredModel[]> {
   if (request.baseURL === undefined || request.baseURL.length === 0) {
     throw new LlmError(
@@ -196,10 +197,10 @@ export async function discoverModels(
         ...apiKey === undefined ? {} : { authorization: `Bearer ${apiKey}` },
         ...attributionHeaders(),
       },
-      ...request.signal === undefined ? {} : { signal: request.signal },
+      ...signal === undefined ? {} : { signal },
     })
   } catch (error: unknown) {
-    if (request.signal?.aborted) {
+    if (signal?.aborted) {
       throw new LlmError('model discovery aborted by caller', 'ABORTED', { cause: error })
     }
     throw new LlmError(`could not reach ${url}`, 'DISCOVERY_FAILED', { cause: error })
@@ -217,7 +218,7 @@ export async function discoverModels(
     // Cancellation during the body read rejects with the abort reason, which
     // may be any value; the caller gets the same coded failure it would have
     // for a cancellation before the request went out.
-    if (request.signal?.aborted) {
+    if (signal?.aborted) {
       throw new LlmError('model discovery aborted by caller', 'ABORTED', { cause: error })
     }
     throw error

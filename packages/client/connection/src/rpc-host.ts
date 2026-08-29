@@ -209,14 +209,16 @@ export class HostConnectionService extends Service implements HostConnectionHand
       },
     }
     return owner.effect(() => {
-      if (this.channels.has(channel)) {
-        throw new Error(`connection: RPC channel ${JSON.stringify(channel)} is already registered`)
-      }
       this.channels.set(channel, { authority, fetchHandler })
-      const unregister = owner.webServer.register(route)
-      return () => {
+      try {
+        const unregister = owner.webServer.register(route)
+        return () => {
+          this.channels.delete(channel)
+          unregister()
+        }
+      } catch (error) {
         this.channels.delete(channel)
-        unregister()
+        throw error
       }
     }, `client-connection: ${channel} rpc channel`)
   }

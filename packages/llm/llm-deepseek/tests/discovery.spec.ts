@@ -221,10 +221,11 @@ describe('deepseek model discovery', () => {
         },
       }))
     })
-    const probe = discoverModels({
-      baseURL: 'https://slow.example/v1',
-      signal: controller.signal,
-    })
+    const probe = discoverModels(
+      { baseURL: 'https://slow.example/v1' },
+      undefined,
+      controller.signal,
+    )
     await bodyRead.promise
     controller.abort('test cancellation')
 
@@ -233,10 +234,11 @@ describe('deepseek model discovery', () => {
 
   it('honors caller cancellation', async () => {
     const aborted = AbortSignal.abort('test cancellation')
-    await expect(discoverModels({
-      baseURL: 'http://127.0.0.1:9/v1',
-      signal: aborted,
-    })).rejects.toMatchObject({ code: 'ABORTED' })
+    await expect(discoverModels(
+      { baseURL: 'http://127.0.0.1:9/v1' },
+      undefined,
+      aborted,
+    )).rejects.toMatchObject({ code: 'ABORTED' })
   })
 
   it('reports a network rejection that is not a cancellation', async () => {
