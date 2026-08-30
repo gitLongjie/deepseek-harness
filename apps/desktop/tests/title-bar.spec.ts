@@ -15,6 +15,7 @@ describe('desktop title bar', () => {
 
     const style = document.getElementById('dsh-desktop-titlebar-style')
     expect(style?.textContent).toContain(`padding-top: ${TITLE_BAR_HEIGHT_PX}px`)
+    expect(style?.textContent).toContain(`--dsh-shell-top-inset: ${TITLE_BAR_HEIGHT_PX}px`)
     expect(document.body.firstElementChild?.id).toBe('dsh-desktop-titlebar')
 
     const bar = document.getElementById('dsh-desktop-titlebar')!
@@ -29,6 +30,8 @@ describe('desktop title bar', () => {
 
     const controls = [...bar.querySelectorAll<HTMLButtonElement>('.dsh-titlebar-controls button')]
     expect(controls.map(button => button.getAttribute('aria-label'))).toEqual(['最小化', '最大化', '关闭'])
+    expect(bar.querySelector('.dsh-titlebar-spacer + .dsh-titlebar-update-slot')).not.toBeNull()
+    expect(bar.querySelector('.dsh-titlebar-update-slot + .dsh-titlebar-controls')).not.toBeNull()
   })
 
   it('routes each control click over its own IPC channel', () => {
@@ -62,14 +65,19 @@ describe('desktop title bar', () => {
     Object.defineProperty(document, 'body', { value: null, configurable: true })
     try {
       const ipc = { send: vi.fn() }
-      installTitleBar(document, ipc, './favicon.ico')
+      installTitleBar(document, ipc, () => document.querySelector<HTMLLinkElement>('link[rel~="icon"]')!.href)
       expect(document.getElementById('dsh-desktop-titlebar')).toBeNull()
     } finally {
       Object.defineProperty(document, 'body', { value: body, configurable: true })
     }
+    const favicon = document.createElement('link')
+    favicon.rel = 'icon'
+    favicon.href = './brand.ico'
+    document.head.append(favicon)
     // By DOMContentLoaded the body exists again (as in the real document), so
-    // the deferred install lands the bar.
+    // the deferred install lands the bar and resolves the parsed favicon.
     document.dispatchEvent(new Event('DOMContentLoaded'))
     expect(document.getElementById('dsh-desktop-titlebar')).not.toBeNull()
+    expect(document.querySelector<HTMLImageElement>('.dsh-titlebar-brand img')?.src).toBe(favicon.href)
   })
 })

@@ -94,7 +94,7 @@ beforeEach(() => {
   state.getAllWindows.mockReturnValue([])
   state.openExternal.mockClear()
   state.menu = undefined
-  installApplicationMenu(key => copy('zh')[key])
+  installApplicationMenu(key => copy('zh', '深度Worker')[key])
 })
 
 describe('application menu template', () => {

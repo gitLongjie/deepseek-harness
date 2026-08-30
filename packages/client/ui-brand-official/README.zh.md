@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-本包向浏览器品牌槽位——`sidebar.brand.mark`、`sidebar.brand.name` 与 `conversation.hero.brand.mark`——填充官方 DeepSeek Harness 标志与名称。它只在客户端以 `official` profile 构建时注册这些填充；其余构建同样加载插件但不注册任何内容，因此外壳回退保持可见。当部署身份就是 DeepSeek 自身时选择它；自有品牌的部署改为在相同槽位中组合另一个包。它不保留任何运行时状态，也不向模型请求贡献任何内容。
+本包向浏览器品牌槽位——`sidebar.brand.mark`、`sidebar.brand.name` 与 `conversation.hero.brand.mark`——填充构建时选定的产品名称与图标。`official` 构建或 [`oem.config.json`](../../../oem.config.json) 提供投影品牌名称时都会注册这些填充。部署只需修改该文件及其引用的公开图片，无需替换槽位包。它不保留任何运行时状态，也不向模型请求贡献任何内容。
 
 ## 目录
 
@@ -25,11 +25,11 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-在身份为 DeepSeek 自身的部署的浏览器名单中挂载本插件，然后以 `official` profile 构建客户端，让填充得以注册。
+在浏览器名单中挂载本插件，在 [`oem.config.json`](../../../oem.config.json) 中设置 `productName` 与 `brandIcon`，然后执行普通客户端构建。
 
 ### 选择 profile
 
-`DSH_CLIENT_BUILD_PROFILE` 决定渲染哪个品牌。`official` 构建在侧栏显示官方标志与名称、在会话首屏显示标志；任何其他取值都让外壳回退——鱼形标志与本地构建标签——保持原样。两种情况下插件都会照常加载并通过校验；只有注册受 profile 门控。
+构建会把 `productName` 投影为 `DSH_CLIENT_BRAND_NAME`，把 `brandIcon` 投影为 `DSH_CLIENT_BRAND_ICON`，供侧栏、Hero、登录卡片与无框架启动页共同使用。显式环境变量可为单次构建覆盖 JSON 字段。既不是 official profile、也没有投影品牌名称的构建仍会加载插件，但保持槽位为空。
 
 ### 替换品牌
 
@@ -77,7 +77,7 @@ kind: "package-reference"
 这些限制界定了品牌呈现的供给方式。它们是当前包约束，不是品牌设计对比或任务积压。
 
 - **只有一组填充**——替代呈现属于占据相同槽位的另一个 Cordis 包。
-- **浏览器标题独立**——`DSH_CLIENT_TITLE` 在构建时选择标题文本，而非通过 UI 槽位。
+- **浏览器标题独立渲染**——同一 OEM 产品名称会投影为 `DSH_CLIENT_TITLE`，但 document title 仍不经过 UI 槽位系统。
 
 <a id="dev-note"></a>
 ### 开发备注

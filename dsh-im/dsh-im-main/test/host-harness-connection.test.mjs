@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { harnessConnection } from '../plugin-src/host/harness-connection.mjs';
+import { createApiProxyAdapter, harnessConnection } from '../plugin-src/host/harness-connection.mjs';
 import { inject as hostInject } from '../plugin-src/host/index.mjs';
 
 const IM_CHANNELS = [
@@ -30,19 +30,36 @@ test('an explicit Harness URL preserves HTTP transport and never reads the Host 
   assert.throws(() => harnessConnection(ctx, { harnessBaseUrl: 'not a URL' }), TypeError);
 });
 
-test('a missing Host apiProxy fails clearly instead of silently falling back to localhost', () => {
+test('a missing Host gateway fails clearly instead of silently falling back to localhost', () => {
   assert.throws(
     () => harnessConnection({ webServer: { port: 3080 } }),
-    /requires the Host apiProxy service/,
+    /requires the Host typertGateway service/,
   );
 });
 
-test('Host and all IM channel plugins wait for apiProxy rather than a webServer', async () => {
-  assert.ok(hostInject.includes('apiProxy'));
+test('the current Connection/Typert Gateway services provide the local HarnessClient carrier', async () => {
+  const calls = [];
+  const gateway = {
+    async invoke(request) {
+      calls.push(request);
+      return { items: [] };
+    },
+    wireStream: { open: async function* () {} },
+  };
+  const adapter = createApiProxyAdapter({ typertGateway: gateway });
+  const response = await adapter.workspace.list({ rpcId: 'rpc-1', payload: {} }, new AbortController().signal);
+  assert.deepEqual(response.result, { ok: true, value: { items: [] } });
+  assert.deepEqual(calls, [{ namespace: 'workspace', method: 'list', args: {}, signal: calls[0].signal }]);
+});
+
+test('Host and all IM channel plugins wait for the Typert Gateway rather than a webServer', async () => {
+  assert.ok(hostInject.includes('typertGateway'));
+  assert.equal(hostInject.includes('apiProxy'), false);
   assert.equal(hostInject.includes('webServer'), false);
   for (const channel of IM_CHANNELS) {
     const { inject } = await import(`../plugin-src/host/channels/${channel}/index.mjs`);
-    assert.ok(inject.includes('apiProxy'), channel);
+    assert.ok(inject.includes('typertGateway'), channel);
+    assert.equal(inject.includes('apiProxy'), false, channel);
     assert.equal(inject.includes('webServer'), false, channel);
   }
 });
@@ -105,7 +122,7 @@ async function assembledHarness(channel, ctx, config = {}) {
 }
 
 for (const channel of [...IM_CHANNELS, 'office']) {
-  test(`${channel} production uses its Host apiProxy with no webServer or listening port`, async () => {
+  test(`${channel} production uses its Host gateway with no webServer or listening port`, async () => {
     const apiProxy = {};
     const root = {};
     const options = await assembledHarness(channel, { credentials: {}, apiProxy, root });

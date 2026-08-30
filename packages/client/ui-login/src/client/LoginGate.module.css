@@ -5,6 +5,7 @@
 .backdrop {
   position: fixed;
   inset: 0;
+  top: var(--dsh-shell-top-inset, 0px);
   z-index: 1000;
   display: flex;
   align-items: center;

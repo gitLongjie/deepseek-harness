@@ -1,8 +1,11 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { BootPage } from '../src/boot-page.ts'
 
-afterEach(() => { document.body.innerHTML = '' })
+afterEach(() => {
+  document.body.innerHTML = ''
+  vi.unstubAllEnvs()
+})
 
 function mount() {
   const el = document.createElement('div')
@@ -16,6 +19,16 @@ describe('BootPage', () => {
     expect(el.firstElementChild?.getAttribute('data-dsh-boot')).toBe('')
     expect(el.textContent).toContain('深度Works')
     expect(el.textContent).toContain('加载插件中…')
+  })
+
+  it('uses the OEM name and icon embedded by the client build', () => {
+    vi.stubEnv('DSH_CLIENT_BRAND_NAME', 'Acme Agent')
+    vi.stubEnv('DSH_CLIENT_BRAND_ICON', '/brand/acme.svg')
+
+    const { el } = mount()
+
+    expect(el.textContent).toContain('Acme Agent')
+    expect(el.querySelector('img')?.getAttribute('src')).toBe('/brand/acme.svg')
   })
 
   it('keeps loading while entries are active or loading', () => {

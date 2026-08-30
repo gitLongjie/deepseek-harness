@@ -77,4 +77,14 @@ describe('official browser-brand plugin', () => {
     mark.rerender(<OfficialBrandMark size={24} />)
     expect(mark.container.querySelector('img')?.getAttribute('height')).toBe('24')
   })
+
+  it('renders the configured OEM name and mark', () => {
+    vi.stubEnv('DSH_CLIENT_BRAND_NAME', 'Acme Agent')
+    vi.stubEnv('DSH_CLIENT_BRAND_ICON', '/brand/acme.svg')
+    const name = render(<OfficialBrandName />)
+    expect(name.getByText('Acme Agent')).toBeTruthy()
+    const mark = render(<OfficialBrandMark size={34} className="hero-mark" />)
+    expect(mark.container.querySelector('img')?.getAttribute('src')).toBe('/brand/acme.svg')
+    expect(mark.container.querySelector('img')?.getAttribute('width')).toBe('34')
+  })
 })

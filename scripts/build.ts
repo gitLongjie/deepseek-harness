@@ -13,6 +13,7 @@ import {
   writeClientBuildRecord,
 } from './client-build-environment.ts'
 import { pnpmInvocation } from './pnpm-invocation.ts'
+import { oemClientBuildEnvironment, readOemConfig } from './oem-config.ts'
 
 /** Run one package script through the package manager that invoked this build. */
 function runScript(script: string, environment: NodeJS.ProcessEnv): void {
@@ -35,7 +36,11 @@ function main(): void {
     allowPositionals: false,
   })
   const root = resolve(import.meta.dirname, '..')
-  const repositoryEnvironment = repositoryClientBuildEnvironment(root, process.env)
+  const configuredEnvironment = {
+    ...oemClientBuildEnvironment(readOemConfig(root)),
+    ...process.env,
+  }
+  const repositoryEnvironment = repositoryClientBuildEnvironment(root, configuredEnvironment)
   const profile = values.profile ?? process.env[CLIENT_BUILD_PROFILE_SELECTOR]
   const clientEnvironment = resolveClientBuildEnvironment(repositoryEnvironment, profile)
   const buildEnvironment = clientBuildProcessEnvironment(process.env, clientEnvironment)

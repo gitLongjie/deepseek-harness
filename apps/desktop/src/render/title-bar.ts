@@ -4,8 +4,7 @@
  * (the brand mark alone — the sidebar owns the product name and the native
  * window title stays pinned to it), the 编辑/视图/窗口/帮助 menu buttons, the
  * drag region, and the window controls; shifts the app below it through a body
- * top padding — the GUI sizes itself with percentage heights, so the padding
- * shrinks every layer cleanly; routes menu clicks to the main-process
+ * top padding and publishes that inset for fixed client overlays; routes menu clicks to the main-process
  * application menu over IPC and drives the window controls over the existing
  * generic bridge.
  * @module @deepseek-ai/dsh-desktop/render/title-bar
@@ -115,6 +114,7 @@ html, body { height: 100%; }
 body {
   box-sizing: border-box;
   padding-top: ${TITLE_BAR_HEIGHT_PX}px;
+  --dsh-shell-top-inset: ${TITLE_BAR_HEIGHT_PX}px;
 }
 #dsh-desktop-titlebar {
   position: fixed;
@@ -176,6 +176,13 @@ body {
   height: 100%;
   min-width: 4px;
 }
+#dsh-desktop-titlebar .dsh-titlebar-update-slot {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  height: 100%;
+  -webkit-app-region: no-drag;
+}
 #dsh-desktop-titlebar .dsh-titlebar-controls {
   display: inline-flex;
   flex-shrink: 0;
@@ -216,9 +223,9 @@ body {
  * the entry runs exactly once per document.
  * @param doc - the live document.
  * @param ipc - the preload bridge used for the menu and control channels.
- * @param markSrc - the brand mark image source (relative to the document).
+ * @param markSrc - the brand mark image source, or a resolver for head-phase installs.
  */
-export function installTitleBar(doc: Document, ipc: IpcSender, markSrc: string): void {
+export function installTitleBar(doc: Document, ipc: IpcSender, markSrc: string | (() => string)): void {
   const style = doc.createElement('style')
   style.id = 'dsh-desktop-titlebar-style'
   style.textContent = STYLE_TEXT
@@ -230,7 +237,6 @@ export function installTitleBar(doc: Document, ipc: IpcSender, markSrc: string):
   const brand = doc.createElement('span')
   brand.className = 'dsh-titlebar-brand'
   const mark = doc.createElement('img')
-  mark.src = markSrc
   mark.alt = ''
   brand.append(mark)
 
@@ -254,6 +260,9 @@ export function installTitleBar(doc: Document, ipc: IpcSender, markSrc: string):
   const spacer = doc.createElement('span')
   spacer.className = 'dsh-titlebar-spacer'
 
+  const updateSlot = doc.createElement('span')
+  updateSlot.className = 'dsh-titlebar-update-slot'
+
   const controlsWrap = doc.createElement('span')
   controlsWrap.className = 'dsh-titlebar-controls'
 
@@ -270,17 +279,21 @@ export function installTitleBar(doc: Document, ipc: IpcSender, markSrc: string):
     controlsWrap.append(button)
   }
 
-  bar.append(brand, menubar, spacer, controlsWrap)
+  bar.append(brand, menubar, spacer, updateSlot, controlsWrap)
 
   // The declared DOM types keep `body` non-null, but a head-phase script
   // really observes it before parse; the omitted-property view keeps the
   // deferral honest to both the runtime and the type pass.
   const docView = doc as Omit<Document, 'body'> & { body?: HTMLElement | null }
+  const mount = (): void => {
+    mark.src = typeof markSrc === 'function' ? markSrc() : markSrc
+    ;(docView.body as HTMLElement).prepend(bar)
+  }
   if (docView.body === undefined || docView.body === null) {
     // Re-read at fire time: by DOMContentLoaded the parsed body exists.
-    doc.addEventListener('DOMContentLoaded', () => { (docView.body as HTMLElement).prepend(bar) }, { once: true })
+    doc.addEventListener('DOMContentLoaded', mount, { once: true })
   } else {
-    docView.body.prepend(bar)
+    mount()
   }
 
   // Follow the main process's locale pushes so the bar text matches the

@@ -1,11 +1,25 @@
 import { readFile, writeFile } from 'node:fs/promises'
+import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 import type { Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import { clientBuildEnvironmentDefines } from '../../scripts/client-build-environment.ts'
+import {
+  oemClientBuildEnvironment,
+  projectOemWebManifest,
+  readOemConfig,
+} from '../../scripts/oem-config.ts'
 
 const src = (rel: string): string => fileURLToPath(new URL(rel, import.meta.url))
+const OEM_CONFIG = readOemConfig(src('../..'))
+const OEM_CLIENT_ENVIRONMENT = oemClientBuildEnvironment(OEM_CONFIG)
+const CLIENT_ENVIRONMENT = { ...OEM_CLIENT_ENVIRONMENT, ...process.env }
+const WEB_MANIFEST_CONFIG = {
+  ...OEM_CONFIG,
+  productName: CLIENT_ENVIRONMENT.DSH_CLIENT_BRAND_NAME ?? OEM_CONFIG.productName,
+  brandIcon: CLIENT_ENVIRONMENT.DSH_CLIENT_BRAND_ICON ?? OEM_CONFIG.brandIcon,
+}
 const STANDALONE_ERROR = 'apps/web is not a standalone application: bare Vite cannot inject window.__DSH_BOOT__. '
   + 'From a repository checkout, run `pnpm dsh web`; an installed package uses `dsh web`. '
   + 'For client-plugin HMR, run `pnpm dsh web` together with `pnpm run dev:web`.'
@@ -18,11 +32,38 @@ function escapeHtmlText(value: string): string {
 
 /** Project the public build title into the initial HTML document. */
 function clientDocumentTitle(): Plugin {
-  const title = escapeHtmlText(process.env.DSH_CLIENT_TITLE ?? DEFAULT_CLIENT_TITLE)
+  const title = escapeHtmlText(CLIENT_ENVIRONMENT.DSH_CLIENT_TITLE ?? DEFAULT_CLIENT_TITLE)
+  const icon = escapeHtmlText(CLIENT_ENVIRONMENT.DSH_CLIENT_BRAND_ICON ?? '/favicon.ico')
   return {
     name: 'dsh-client-document-title',
-    transformIndexHtml(html) {
-      return html.replace('<title>深度Works</title>', `<title>${title}</title>`)
+    transformIndexHtml: {
+      order: 'pre',
+      handler(html) {
+        return html
+          .replace('<title>深度Works</title>', `<title>${title}</title>`)
+          .replace('href="/favicon.ico"', `href="${icon}"`)
+      },
+    },
+  }
+}
+
+/** Write OEM identity into the copied Web App Manifest after a successful build. */
+function emitOemWebManifest(): Plugin {
+  let outDir: string | undefined
+  let completed = false
+  return {
+    name: 'dsh-emit-oem-web-manifest',
+    configResolved(config) {
+      outDir = config.build.outDir
+    },
+    writeBundle() {
+      completed = true
+    },
+    async closeBundle() {
+      if (!completed || outDir === undefined) return
+      const path = resolve(outDir, 'manifest.webmanifest')
+      const manifest: unknown = JSON.parse(await readFile(path, 'utf8'))
+      await writeFile(path, `${JSON.stringify(projectOemWebManifest(manifest, WEB_MANIFEST_CONFIG), null, 2)}\n`)
     },
   }
 }
@@ -141,7 +182,7 @@ export default defineConfig({
   // Relative asset URLs: preview.html mounts the same output under any base
   // directory, and the served index resolves identically from the site root.
   base: './',
-  plugins: [rejectStandaloneServe(), clientDocumentTitle(), react(), emitPreviewPage()],
+  plugins: [rejectStandaloneServe(), clientDocumentTitle(), react(), emitPreviewPage(), emitOemWebManifest()],
   build: {
     // The worker bootstrap holds its page at top-level await; Vite's default
     // `modules` target (es2020-era) rejects that syntax.
@@ -217,7 +258,7 @@ export default defineConfig({
     ],
   },
   define: {
-    ...clientBuildEnvironmentDefines(process.env),
+    ...clientBuildEnvironmentDefines(CLIENT_ENVIRONMENT),
     // vendored loader internal.ts: fromInternal() probes the Node major —
     // "0.0.0" takes neither branch, returning undefined (exactly the empty
     // internal slot the shell boot fills with the client module loader).

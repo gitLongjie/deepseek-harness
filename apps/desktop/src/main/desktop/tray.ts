@@ -20,12 +20,16 @@ export interface TrayHandle {
 }
 
 /** Install the tray and the hide-to-tray close behavior. */
-export function installTray(win: BrowserWindow, t: (key: DesktopTextKey) => string): TrayHandle {
+export function installTray(
+  win: BrowserWindow,
+  t: (key: DesktopTextKey) => string,
+  productName: string,
+): TrayHandle {
   const icon = nativeImage.createFromPath(TRAY_ICON)
   const tray = new Tray(icon.isEmpty() ? nativeImage.createEmpty() : icon)
   // Same pinned text as the native window title (window-title.ts): one brand
   // name everywhere the shell hovers.
-  tray.setToolTip('深度Works')
+  tray.setToolTip(productName)
   const rebuild = (translate: (key: DesktopTextKey) => string): void => {
     tray.setContextMenu(Menu.buildFromTemplate([
       {

@@ -4,10 +4,11 @@
 import { useId } from 'react'
 import type { ReactNode, RefObject } from 'react'
 import {
-  FishLogo, IconChevronDownOutline14, IconFolderClose16, IconFolderOpen16,
+  IconChevronDownOutline14, IconFolderClose16, IconFolderOpen16,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { workspaceTitleOf } from '@deepseek-ai/dsh-util-workspace-path'
 import type { ConversationSlotProps } from '../contract/slots.ts'
+import { heroGreetingKey } from './hero-greeting.ts'
 import css from './HeroShell.module.css'
 
 /** The owner's locale seat type, passed to hero chrome as a plain prop. */
@@ -106,8 +107,8 @@ export interface HeroShellProps {
 }
 
 /**
- * Render the hero chrome (headline only; no glow, no composer, no workspace
- * row — the glow is the owner's {@link HeroGlow}).
+ * Render the hero chrome (time-of-day greeting only; no glow, no composer, no
+ * workspace row — the glow is the owner's {@link HeroGlow}).
  * @param props - see {@link HeroShellProps}.
  * @returns the centered hero element tree.
  */
@@ -117,12 +118,9 @@ export function HeroShell({ t, renderSlot, children }: HeroShellProps) {
       <div className={css.stack}>
         <div className={css.headline}>
           <span className={css.fishHitbox}>
-            {renderSlot('conversation.hero.brand.mark', { size: 34, className: css.fish }, {
-              fallback: <FishLogo size={34} className={css.fish} />,
-            })}
+            {renderSlot('conversation.hero.brand.mark', { size: 34, className: css.fish })}
           </span>
-          <span className={css.headlineText}>{t('hero.headline')}</span>
-          <span className={css.previewBadge}>{t('hero.preview')}</span>
+          <span className={css.headlineText}>{t(heroGreetingKey())}</span>
         </div>
         <div className={css.body}>
           {/* The composer remains mounted outside this component. */}

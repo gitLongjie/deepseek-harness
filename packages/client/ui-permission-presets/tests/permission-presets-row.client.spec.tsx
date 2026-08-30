@@ -6,7 +6,7 @@ import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-test-runtime'
 import type { SettingsNamespaceView } from '@deepseek-ai/dsh-api-remotes/client'
 import { SettingsSchemaService } from '@deepseek-ai/dsh-client-ui-settings/src/client/schema.ts'
 import { PermissionRow, type PermissionRowProps } from '../src/client/PermissionRow.tsx'
-import { en } from '../src/client/locales.ts'
+import { en, zh } from '../src/client/locales.ts'
 import { SettingsDescribeMirror } from '@deepseek-ai/dsh-client-ui-settings/src/client/settings-mirror.ts'
 import { PermissionPresetSettingsController } from '../src/client/settings-store.ts'
 
@@ -48,8 +48,6 @@ function ok<T>(value: T) {
   return { ok: true as const, value }
 }
 
-const dictionary: Record<string, string> = en
-const t: PermissionRowProps['t'] = key => dictionary[key] ?? key
 type AttentionSnapshot = Parameters<Parameters<PermissionRowProps['useSessionPendingInteraction']>[0]>[0]
 const noAttention: AttentionSnapshot = new Map()
 const useSessionPendingInteraction: PermissionRowProps['useSessionPendingInteraction'] = selector => selector(noAttention)
@@ -59,7 +57,8 @@ const runtime = {
   useWorkspaces: (() => { throw new Error('unused') }) as never,
 }
 
-function mount(controller: PermissionPresetSettingsController) {
+function mount(controller: PermissionPresetSettingsController, dictionary: Record<string, string> = en) {
+  const t: PermissionRowProps['t'] = key => dictionary[key] ?? key
   return render(
     <PermissionRow
       {...runtime}
@@ -97,6 +96,21 @@ describe('PermissionRow', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: 'Workspace Write' }))
     await screen.findByRole('button', { name: 'Workspace Write' })
     expect(mutate).toHaveBeenCalledOnce()
+  })
+
+  it('localizes the built-in preset labels in Chinese', async () => {
+    const controller = derivedController({
+      settings: {
+        describe: () => Promise.resolve(ok({ writable: true, hasDocument: false, namespaces: [view('workspace-write')] })),
+        mutate: vi.fn(),
+      },
+    })
+    mount(controller, zh)
+
+    const button = await screen.findByRole('button', { name: '工作区写入' })
+    fireEvent.click(button)
+    expect(screen.getAllByRole('menuitem').map(item => item.textContent))
+      .toEqual(['只读', '工作区写入', '完全访问'])
   })
 
   it('requires explicit acknowledgement before saving Full access', async () => {

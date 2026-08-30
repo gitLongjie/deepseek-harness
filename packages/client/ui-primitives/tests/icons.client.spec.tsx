@@ -67,6 +67,22 @@ describe('FishLogo', () => {
   })
 })
 
+describe('MewoLogo', () => {
+  it('renders the square application artwork at the requested size', () => {
+    const { container } = render(<primitives.MewoLogo size={34} className="hero-mark" />)
+    const image = container.querySelector('img')!
+    const encoded = image.getAttribute('src')?.split(',')[1]
+    const png = Buffer.from(encoded ?? '', 'base64')
+
+    expect(png.subarray(1, 4).toString('ascii')).toBe('PNG')
+    expect(png.readUInt32BE(16)).toBe(72)
+    expect(png.readUInt32BE(20)).toBe(72)
+    expect(image.getAttribute('width')).toBe('34')
+    expect(image.getAttribute('height')).toBe('34')
+    expect(image.getAttribute('class')).toBe('hero-mark')
+  })
+})
+
 describe('BrandWordmark', () => {
   it('can render the name artwork with or without its leading mark', () => {
     const view = render(<primitives.BrandWordmark />)

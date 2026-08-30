@@ -9,6 +9,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { dirname, resolve } from 'node:path'
+import { oemClientBuildEnvironment, readOemConfig } from './oem-config.ts'
 
 /** Prefix reserved for build-time values that may be embedded in browser artifacts. */
 const CLIENT_BUILD_ENV_PREFIX = 'DSH_CLIENT_'
@@ -19,8 +20,18 @@ export const CLIENT_BUILD_PROFILE_SELECTOR = 'DSH_BUILD_CLIENT_PROFILE'
 /** Public client environment required by official DSH artifacts. */
 const OFFICIAL_CLIENT_BUILD_ENVIRONMENT = {
   DSH_CLIENT_BUILD_PROFILE: 'official',
-  DSH_CLIENT_TITLE: 'DeepSeek Harness',
 } as const
+
+const OEM_CLIENT_BUILD_VARIABLES = [
+  'DSH_CLIENT_BRAND_ICON',
+  'DSH_CLIENT_BRAND_NAME',
+  'DSH_CLIENT_GREETINGS_EN',
+  'DSH_CLIENT_GREETINGS_ZH',
+  'DSH_CLIENT_LOGIN_TAGLINE_EN',
+  'DSH_CLIENT_LOGIN_TAGLINE_ZH',
+  'DSH_CLIENT_LOGIN_URL',
+  'DSH_CLIENT_TITLE',
+] as const
 
 /** Public variable carrying the source commit embedded in client artifacts. */
 const CLIENT_COMMIT_HASH_VARIABLE = 'DSH_CLIENT_COMMIT_HASH'
@@ -140,9 +151,14 @@ export function officialClientBuildEnvironment(
   root: string,
   environment: NodeJS.ProcessEnv = process.env,
 ): Readonly<Record<`DSH_CLIENT_${string}`, string>> {
+  const configPath = resolve(root, 'oem.config.json')
+  const oem = existsSync(configPath) ? oemClientBuildEnvironment(readOemConfig(root)) : {}
   return {
     DSH_CLIENT_COMMIT_HASH: repositoryCommitHash(root, environment),
     DSH_CLIENT_VERSION: repositoryVersion(root),
+    DSH_CLIENT_TITLE: 'DeepSeek Harness',
+    ...oem,
+    ...oemClientBuildValues(environment),
     ...OFFICIAL_CLIENT_BUILD_ENVIRONMENT,
   }
 }
@@ -199,10 +215,22 @@ export function resolveClientBuildEnvironment(
     return {
       DSH_CLIENT_COMMIT_HASH: commitHash,
       DSH_CLIENT_VERSION: version,
+      DSH_CLIENT_TITLE: 'DeepSeek Harness',
+      ...oemClientBuildValues(environment),
       ...OFFICIAL_CLIENT_BUILD_ENVIRONMENT,
     }
   }
   throw new Error(`unknown client build profile ${JSON.stringify(profile)}; expected "official"`)
+}
+
+/** Keep only validated OEM projection names when an artifact profile isolates inherited values. */
+function oemClientBuildValues(environment: NodeJS.ProcessEnv): ClientBuildEnvironment {
+  const values: Record<string, string> = {}
+  for (const name of OEM_CLIENT_BUILD_VARIABLES) {
+    const value = environment[name]
+    if (value !== undefined) values[name] = value
+  }
+  return values
 }
 
 /**

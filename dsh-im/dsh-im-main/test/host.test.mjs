@@ -38,7 +38,6 @@ test('Host composes nine IM channels and the AI Office connector inside one plug
   assert.deepEqual(inject, [
     'connection',
     'credentials',
-    'apiProxy',
     'typertGateway',
   ]);
   assert.deepEqual(calls, [

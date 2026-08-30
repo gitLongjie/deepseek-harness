@@ -35,14 +35,14 @@ export const zh = {
   'menu.showMainWindow': '显示主窗口',
   'menu.github': 'GitHub 仓库',
   'menu.feedback': '反馈与讨论',
-  'menu.about': '关于 深度Works',
+  'menu.about': '关于 {productName}',
   'menu.autostart': '登录时启动',
   'menu.quit': '退出',
   'menu.checkUpdates': '检查更新',
   'tray.showWindow': '显示主窗口',
   'tray.quit': '退出',
   'about.title': '关于',
-  'about.message': '深度Works 桌面版',
+  'about.message': '{productName} 桌面版',
   'about.version': '版本',
   'update.availableTitle': '发现新版本',
   'update.availableMessage': '发现新版本 {version}，是否立即下载？',
@@ -87,14 +87,14 @@ export const en = {
   'menu.showMainWindow': 'Show Main Window',
   'menu.github': 'GitHub Repository',
   'menu.feedback': 'Feedback & Issues',
-  'menu.about': 'About 深度Works',
+  'menu.about': 'About {productName}',
   'menu.autostart': 'Launch at Login',
   'menu.quit': 'Quit',
   'menu.checkUpdates': 'Check for Updates',
   'tray.showWindow': 'Show Main Window',
   'tray.quit': 'Quit',
   'about.title': 'About',
-  'about.message': '深度Works Desktop',
+  'about.message': '{productName} Desktop',
   'about.version': 'Version',
   'update.availableTitle': 'Update available',
   'update.availableMessage': 'A new version ({version}) is available. Download now?',
@@ -111,14 +111,18 @@ export const en = {
 /** Locale identifiers understood by the desktop shell. */
 export type DesktopLocaleId = 'zh' | 'en'
 
-/** Pick the copy for one locale id. */
-export function copy(locale: DesktopLocaleId): Record<DesktopTextKey, string> {
-  return locale === 'en' ? en : zh
+/** Pick the copy for one locale id and project the OEM product name. */
+export function copy(locale: DesktopLocaleId, productName: string): Record<DesktopTextKey, string> {
+  const dictionary = locale === 'en' ? en : zh
+  return Object.fromEntries(Object.entries(dictionary).map(([key, value]) => [
+    key,
+    value.replaceAll('{productName}', productName),
+  ])) as Record<DesktopTextKey, string>
 }
 
 /** Translate one key for a locale id. */
-export function t(locale: DesktopLocaleId, key: DesktopTextKey): string {
-  return copy(locale)[key]
+export function t(locale: DesktopLocaleId, key: DesktopTextKey, productName: string): string {
+  return copy(locale, productName)[key]
 }
 
 /** Whether a stored preference is a known locale id (defaults to Chinese). */

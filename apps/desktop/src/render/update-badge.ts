@@ -1,8 +1,7 @@
 /**
- * In-app update badge: a "new version" pill beside the signed-in account row
- * in the sidebar footer. The main process pushes update status over
- * `dsh:update:status`; clicking the pill asks it to prompt the download or to
- * restart and apply, over `dsh:update:action`. Desktop-only — the page-world
+ * In-app update control in the desktop title bar. The main process pushes
+ * update status over `dsh:update:status`; clicking the control downloads,
+ * retries, or restarts and applies over `dsh:update:action`. Desktop-only — the page-world
  * script lives in the render bundle, never in the shared web app.
  * @module @deepseek-ai/dsh-desktop/render/update-badge
  */
@@ -20,17 +19,19 @@ type IpcSender = {
   on?(channel: string, listener: (payload: unknown) => void): () => void
 }
 
-/** Badge chrome: a rounded-rectangle accent tag; it shows download progress
-    while the update streams and flips to a green "restart to update" tag once
-    the download is ready. */
+/** Compact title-bar update control with an inline download progress fill. */
 const STYLE_TEXT = `
 #dsh-update-badge {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   align-self: center;
   flex-shrink: 0;
-  margin-left: 10px;
-  padding: 0 5px;
+  min-width: 76px;
+  max-width: 136px;
+  height: 24px;
+  margin-right: 6px;
+  padding: 0 9px;
   border: none;
   border-radius: 4px;
   background: var(--dsw-alias-accent, #6187d8);
@@ -38,21 +39,27 @@ const STYLE_TEXT = `
   font: inherit;
   font-size: 12px;
   font-weight: 600;
-  line-height: 16px;
+  line-height: 24px;
   position: relative;
-  top: 2px;
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  -webkit-app-region: no-drag;
 }
 #dsh-update-badge:hover {
   filter: brightness(1.12);
 }
+#dsh-update-badge:disabled {
+  filter: none;
+}
 #dsh-update-badge.dsh-update-downloading {
   cursor: default;
-  background: var(--dsw-alias-accent-muted, #7c95c9);
+  background: linear-gradient(
+    to right,
+    var(--dsw-alias-accent, #6187d8) var(--dsh-update-progress),
+    var(--dsw-alias-accent-muted, #7c95c9) var(--dsh-update-progress)
+  );
 }
 #dsh-update-badge.dsh-update-ready {
   background: #2f9e44;
@@ -64,12 +71,22 @@ const UPDATE_BADGE_LOCALES = {
   zh: {
     available: '更新',
     downloaded: '重启更新',
+    retry: '重试更新',
+    checking: '检查中',
+    installing: '正在启动安装',
     downloading: (percent: number): string => `下载中 ${percent}%`,
+    downloadLabel: (version: string): string => `下载版本 ${version}`,
+    installLabel: (version: string): string => `安装版本 ${version}`,
   },
   en: {
     available: 'Update',
     downloaded: 'Restart to update',
+    retry: 'Retry update',
+    checking: 'Checking',
+    installing: 'Starting installer',
     downloading: (percent: number): string => `Downloading ${percent}%`,
+    downloadLabel: (version: string): string => `Download version ${version}`,
+    installLabel: (version: string): string => `Install version ${version}`,
   },
 } as const
 
@@ -82,11 +99,13 @@ interface UpdateStatusPayload {
   percent?: number
 }
 
+type UpdateBadgeState = 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'installing' | 'error'
+
 /**
- * Install the update badge into the sidebar footer's account row. The main
+ * Install the update control into the desktop title bar. The main
  * process seeds/updates status over `dsh:update:status`; the badge shows only
- * once an update is known and the account slot has mounted (React renders it
- * asynchronously, so a MutationObserver waits for the slot).
+ * once an update or error is known. A MutationObserver handles the title bar's
+ * deferred head-phase mount.
  * @param doc - the live document.
  * @param ipc - the preload bridge.
  */
@@ -98,35 +117,53 @@ export function installUpdateBadge(doc: Document, ipc: IpcSender): void {
 
   let badge: HTMLButtonElement | undefined
   let locale: UpdateBadgeLocale = 'zh'
-  let ready = false
-  let downloading = false
+  let state: UpdateBadgeState = 'idle'
   let percent = 0
   let version: string | undefined
 
   function renderBadge(): void {
-    if (badge === undefined || version === undefined) return
+    if (badge === undefined) return
     const strings = UPDATE_BADGE_LOCALES[locale]
-    badge.textContent = downloading
+    badge.textContent = state === 'downloading'
       ? strings.downloading(percent)
-      : ready ? strings.downloaded : strings.available
-    badge.title = version
-    badge.classList.toggle('dsh-update-downloading', downloading)
-    badge.classList.toggle('dsh-update-ready', ready)
+      : state === 'downloaded' ? strings.downloaded
+        : state === 'installing' ? strings.installing
+          : state === 'error' ? strings.retry
+            : state === 'checking' ? strings.checking : strings.available
+    badge.title = version ?? strings.retry
+    badge.disabled = state === 'downloading' || state === 'checking' || state === 'installing'
+    badge.classList.toggle('dsh-update-downloading', state === 'downloading')
+    badge.classList.toggle('dsh-update-ready', state === 'downloaded')
+    if (state === 'downloading') {
+      badge.setAttribute('role', 'progressbar')
+      badge.setAttribute('aria-valuemin', '0')
+      badge.setAttribute('aria-valuemax', '100')
+      badge.setAttribute('aria-valuenow', String(percent))
+      badge.style.setProperty('--dsh-update-progress', `${percent}%`)
+    } else {
+      badge.removeAttribute('role')
+      badge.removeAttribute('aria-valuemin')
+      badge.removeAttribute('aria-valuemax')
+      badge.removeAttribute('aria-valuenow')
+      badge.style.removeProperty('--dsh-update-progress')
+      const labelVersion = version ?? ''
+      badge.setAttribute('aria-label', state === 'downloaded'
+        ? strings.installLabel(labelVersion)
+        : state === 'error' ? strings.retry : strings.downloadLabel(labelVersion))
+    }
   }
 
   function ensureBadge(): void {
-    // Only mount the pill once the main process has announced an update; the
-    // observer fires on ordinary sidebar mounts too, without any status.
-    if (badge !== undefined || version === undefined) return
-    const anchor = doc.querySelector<HTMLElement>('[data-slot="sidebar.footer.action"]')
+    if (badge !== undefined || state === 'idle') return
+    const anchor = doc.querySelector<HTMLElement>('.dsh-titlebar-update-slot')
     if (anchor === null) return
     const button = doc.createElement('button')
     button.type = 'button'
     button.id = 'dsh-update-badge'
-    button.setAttribute('aria-label', 'update')
     button.addEventListener('click', () => {
-      if (downloading) return
-      ipc.send(UPDATE_ACTION_CHANNEL, { action: ready ? 'install' : 'prompt' })
+      if (state === 'downloading' || state === 'installing') return
+      const action = state === 'downloaded' ? 'install' : state === 'error' ? 'check' : 'download'
+      ipc.send(UPDATE_ACTION_CHANNEL, { action })
     })
     anchor.appendChild(button)
     badge = button
@@ -137,22 +174,37 @@ export function installUpdateBadge(doc: Document, ipc: IpcSender): void {
     const p = (payload ?? {}) as UpdateStatusPayload
     if (p.status === 'available' && typeof p.version === 'string') {
       version = p.version
-      ready = false
-      downloading = false
+      state = 'available'
       ensureBadge()
       renderBadge()
     } else if (p.status === 'progressing' && typeof p.percent === 'number') {
       if (version === undefined) return
-      downloading = true
-      percent = p.percent
+      state = 'downloading'
+      percent = Math.min(100, Math.max(0, Math.round(p.percent)))
       ensureBadge()
       renderBadge()
     } else if (p.status === 'downloaded' && typeof p.version === 'string') {
       version = p.version
-      ready = true
-      downloading = false
+      state = 'downloaded'
       ensureBadge()
       renderBadge()
+    } else if (p.status === 'installing') {
+      state = 'installing'
+      ensureBadge()
+      renderBadge()
+    } else if (p.status === 'error') {
+      state = 'error'
+      ensureBadge()
+      renderBadge()
+    } else if (p.status === 'checking') {
+      state = 'checking'
+      ensureBadge()
+      renderBadge()
+    } else if (p.status === 'idle') {
+      state = 'idle'
+      badge?.remove()
+      badge = undefined
+      version = undefined
     }
   })
 
@@ -161,8 +213,7 @@ export function installUpdateBadge(doc: Document, ipc: IpcSender): void {
     renderBadge()
   })
 
-  // The sidebar mounts asynchronously under React; wait for the account-row
-  // slot to appear before injecting the badge.
+  // The title bar may mount after this head script reaches the document.
   const observer = new MutationObserver(() => { ensureBadge() })
   observer.observe(doc.documentElement, { childList: true, subtree: true })
 }

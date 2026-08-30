@@ -2,11 +2,11 @@
 
 [English](README.md) | 中文
 
-本包针对部署的账号服务器注册登录流程（默认端点 `https://claw.deepagens.com/api/user/deepagens-claw/login`，可用 `DSH_CLIENT_LOGIN_URL` 覆盖）。将该变量设为空字符串的构建只加载插件、不注册任何占位。
+本包针对部署的账号服务器注册登录流程。仓库 [`oem.config.json`](../../../oem.config.json) 提供默认端点、产品名称、共用的 `brandIcon` 及中英文 `loginTagline` 文案。登录卡片会渲染该图标与当前 locale 的副标题；显式的 `DSH_CLIENT_LOGIN_URL` 会覆盖端点，将它设为空字符串的构建只加载插件、不注册任何占位。
 
 两个占位通过声明感知的 `slots.inject()` 安装，因此与 ui-layout、ui-sidebar 的激活顺序无关，卸载时一并撤出：
 
-- `shell.overlay` —— 整页登录接管（品牌标、用户名/密码表单、服务器消息原文展示）。遮罩自行恢复指针事件，因为 overlay 层本身设计为点击穿透。已登录时不渲染任何内容。
+- `shell.overlay` —— 整页登录接管（品牌标、用户名/密码表单、服务器消息原文展示）。遮罩自行恢复指针事件，因为 overlay 层本身设计为点击穿透；遮罩还遵守桌面壳层发布的顶部保留区，使窗口标题栏保持可用。已登录时不渲染任何内容。
 - `sidebar.footer.action` —— 已登录账号行：头像（缺失时以首字母回退）、宽栏模式显示昵称，下拉菜单提供退出登录。
 
 登录成功（线上契约：`POST {username, password}` → `{success, message?, data: {display_name?, avatar?, api_key}}`）后，资料存入 `localStorage`，并通过既有的 `credentials.set` 线上方法写入 `DEEPSEEK_API_KEY` 与 `DEEPSEEK_BASE_URL`（端点 origin）——与模型设置页使用的同一可写层。写入被拒绝时登录响亮中止。退出登录会取消这两个引用并清除本地资料。

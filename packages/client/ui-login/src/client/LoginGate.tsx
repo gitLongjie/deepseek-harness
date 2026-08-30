@@ -6,7 +6,7 @@
 
 import { useId, useState, useSyncExternalStore } from 'react'
 import type { ReactNode } from 'react'
-import { Button, Input, MewoLogo } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, Input } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { LoginKey } from './locales.ts'
 import type { LoginStore } from './login-store.ts'
 import css from './LoginGate.module.css'
@@ -14,6 +14,7 @@ import css from './LoginGate.module.css'
 /** Inject face the registration supplies to the gate component. */
 export interface LoginGateInjected {
   controller: LoginStore
+  brandIcon: string
   t: (key: LoginKey) => string
 }
 
@@ -27,7 +28,7 @@ export type LoginGateProps = LoginGateInjected & { t: (key: LoginKey) => string 
  * @param props.t - locale seat bound to the login namespace.
  * @returns the takeover, or null while signed in or not yet hydrated.
  */
-export function LoginGate({ controller, t }: LoginGateProps): ReactNode {
+export function LoginGate({ controller, brandIcon, t }: LoginGateProps): ReactNode {
   const state = useSyncExternalStore(
     fn => controller.store.subscribe(fn),
     () => controller.store.getSnapshot(),
@@ -45,7 +46,7 @@ export function LoginGate({ controller, t }: LoginGateProps): ReactNode {
   return (
     <div className={css.backdrop} role="presentation">
       <form className={css.card} onSubmit={onSubmit}>
-        <MewoLogo size={48} className={css.logo} />
+        <img src={brandIcon} width={48} height={48} className={css.logo} alt="" />
         <h1 className={css.title}>{t('pageTitle')}</h1>
         <p className={css.tagline}>{t('tagline')}</p>
         <label className={css.field} htmlFor={usernameId}>

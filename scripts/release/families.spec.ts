@@ -1,6 +1,6 @@
 /** Release family discovery, publish order, tag naming, and the bump judgements. */
 
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -34,6 +34,13 @@ function buildFixture(environment: Record<string, string>): string {
   write(join(root, 'packages/client/example/lib/client.js'), 'module.exports = {}\n')
   writeClientBuildRecord(root, environment)
   return root
+}
+
+function copyOemConfig(target: string): void {
+  write(
+    join(target, 'oem.config.json'),
+    readFileSync(resolve(import.meta.dirname, '../../oem.config.json'), 'utf8'),
+  )
 }
 
 afterEach(() => {
@@ -106,6 +113,7 @@ describe('release families', () => {
     const officialEnvironment = officialClientBuildEnvironment(resolve(import.meta.dirname, '../..'))
     vi.stubEnv('DSH_CLIENT_COMMIT_HASH', officialEnvironment.DSH_CLIENT_COMMIT_HASH)
     const official = buildFixture(officialEnvironment)
+    copyOemConfig(official)
     const defaultBuild = buildFixture({})
     const missing = join(defaultBuild, 'missing')
     write(join(missing, 'package.json'), `${JSON.stringify({ version: officialEnvironment.DSH_CLIENT_VERSION })}\n`)

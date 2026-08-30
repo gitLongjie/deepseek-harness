@@ -409,7 +409,7 @@ export class SystemPrompt extends Service {
       this.section({
         name: 'harness:identity',
         order: FIRST_PARTY_SECTION_ORDER.HARNESS_IDENTITY,
-        text: 'You are an AI agent powered by MiaoO Harness.',
+        text: 'You are an AI agent powered by 深度Work.',
       })
     }
     this.section({

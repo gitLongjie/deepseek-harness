@@ -1,10 +1,15 @@
-# electron-builder configuration for the Deepagens Works desktop shell.
+# electron-builder configuration for the OEM desktop shell.
 # Signing and notarization are pre-wired but left off: with no CSC_LINK /
 # APPLE_* secrets in the environment, electron-builder skips Windows signing and
 # macOS notarization (identity: null). Populate the CI secrets (see README) to
 # enable real signing without touching this file.
-appId: claw.deepagens.dsh
-productName: Deepagens Works
+appId: ai.deepseek.works
+# deploy-app.mjs supplies productName and platform-native derivatives through
+# its generated dist/electron-builder.oem.json overlay.
+# Keep the packaged application artwork aligned with the runtime window and
+# tray icons. An explicit path avoids electron-builder falling back to the
+# Electron icon when the build is invoked from a different working directory.
+icon: build/icon.ico
 electronLanguages:
   - en-US
   - zh-CN
@@ -35,6 +40,9 @@ files:
   - '!**/*.map'
   - '!**/*.tsbuildinfo'
 win:
+  # Windows Explorer, the taskbar, and Task Manager read the executable's
+  # embedded icon rather than BrowserWindow's runtime icon.
+  icon: build/icon.ico
   target:
     - target: nsis
       arch:
@@ -75,7 +83,6 @@ linux:
   # not exist). Pin a flat artifact name so both Linux targets write directly
   # under dist-electron/.
   artifactName: deepagens-works-${version}-linux-${arch}.${ext}
-  synopsis: Deepagens Works Desktop
 publish:
   provider: github
   owner: gitLongjie

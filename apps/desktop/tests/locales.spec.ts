@@ -21,7 +21,9 @@ describe('desktop shell locales', () => {
   })
 
   it('copy selects the locale dictionary', () => {
-    expect(copy('zh')['menu.edit']).toBe('编辑')
-    expect(copy('en')['menu.edit']).toBe('Edit')
+    expect(copy('zh', '深度Worker')['menu.edit']).toBe('编辑')
+    expect(copy('en', '深度Worker')['menu.edit']).toBe('Edit')
+    expect(copy('zh', '深度Worker')['menu.about']).toBe('关于 深度Worker')
+    expect(copy('en', '深度Worker')['about.message']).toBe('深度Worker Desktop')
   })
 })

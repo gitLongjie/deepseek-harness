@@ -14,6 +14,7 @@ declare global {
   interface Window {
     __DSH_TRANSPORT__?: ClientTransportHooks
     __DSH_IPC__?: IpcBridge
+    __DSH_OPEN_SESSION__?: (sessionId: string) => void
   }
 }
 
@@ -22,10 +23,20 @@ if (ipc === undefined) {
   throw new Error('desktop render: preload bridge __DSH_IPC__ is missing')
 }
 
-// The title bar defers its body mount internally (this IIFE runs as a head
-// script); the transport below must stay synchronous — AppWebEntry reads it
-// during boot.
-installTitleBar(document, ipc, './favicon.ico')
+ipc.on('dsh:notification:open-session', (payload) => {
+  if (typeof payload === 'string') window.__DSH_OPEN_SESSION__?.(payload)
+})
+
+// The title bar defers its body mount and favicon lookup internally because
+// this script runs before the remaining head markup is parsed. The transport
+// below must stay synchronous — AppWebEntry reads it during boot.
+installTitleBar(document, ipc, () => {
+  const brandIcon = document.querySelector<HTMLLinkElement>('link[rel~="icon"]')?.getAttribute('href')
+  if (brandIcon === null || brandIcon === undefined) {
+    throw new Error('desktop render: OEM favicon link is missing')
+  }
+  return brandIcon
+})
 installUpdateBadge(document, ipc)
 
 const transport: ClientTransportHooks = {

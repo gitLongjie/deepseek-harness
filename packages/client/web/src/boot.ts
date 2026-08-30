@@ -78,6 +78,9 @@ export class AppWebEntry {
       this.ctx = ctx
       await this.runPluginBoot(ctx, prefetching)
       await this.mountApp(ctx)
+      ;(globalThis as { __DSH_OPEN_SESSION__?: (sessionId: string) => void }).__DSH_OPEN_SESSION__ = (sessionId) => {
+        ctx.sessions.open(sessionId as never)
+      }
     } catch (reason) {
       console.error(reason)
       this.page.fail(reason instanceof Error ? reason.message : String(reason))

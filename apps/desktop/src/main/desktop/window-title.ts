@@ -8,8 +8,13 @@
 
 import type { BrowserWindow } from 'electron'
 
-/** The only text the native window title ever carries. */
-export const DESKTOP_WINDOW_TITLE = '深度Works'
+/** Resolve the native title from the development override or packaged application identity. */
+export function resolveDesktopWindowTitle(
+  applicationName: string,
+  environment: Readonly<Record<string, string | undefined>> = process.env,
+): string {
+  return environment.DSH_DESKTOP_PRODUCT_NAME ?? applicationName
+}
 
 /**
  * Pin the native window title to DESKTOP_WINDOW_TITLE for the window's whole

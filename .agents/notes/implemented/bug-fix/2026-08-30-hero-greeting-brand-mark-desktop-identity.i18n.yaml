@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-30-hero-greeting-brand-mark-desktop-identity.md
+2026-08-30-hero-greeting-brand-mark-desktop-identity.md: 9c8177f00508c015758619d0d7839c2d335e6225
+2026-08-30-hero-greeting-brand-mark-desktop-identity.zh.md: b56ccb70c538368ab1250417e0e7715978e69271

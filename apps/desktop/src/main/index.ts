@@ -7,7 +7,7 @@
  * @module @deepseek-ai/dsh-desktop/main
  */
 
-import { appendFileSync, mkdirSync } from 'node:fs'
+import { appendFileSync, mkdirSync, readFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { dirname, join, resolve } from 'node:path'
@@ -22,9 +22,14 @@ import { renderDesktopIndex } from './ipc/index-html.ts'
 import { installSingleInstanceLock } from './desktop/single-instance.ts'
 import { installTray, type TrayHandle } from './desktop/tray.ts'
 import { copy, normalizeLocale, type DesktopLocaleId, type DesktopTextKey } from './desktop/locales.ts'
-import { DESKTOP_WINDOW_TITLE, pinWindowTitle } from './desktop/window-title.ts'
+import { pinWindowTitle, resolveDesktopWindowTitle } from './desktop/window-title.ts'
 import { installApplicationMenu, registerMenuPopupIpc } from './desktop/menu.ts'
 import { initUpdater, registerUpdateIpc, setUpdaterLocale } from './updater.ts'
+import { notifyTurnCompletion } from './desktop/completion-notification.ts'
+import {
+  resolveDesktopUpdateUrl,
+  type DesktopUpdateManifest,
+} from './desktop/update-url.ts'
 
 /** The app scheme serving the frontend dist (a standard, secure, fetch-capable scheme). */
 const WEB_SCHEME = 'dshapp'
@@ -33,6 +38,16 @@ const WEB_SCHEME = 'dshapp'
 protocol.registerSchemesAsPrivileged([
   { scheme: WEB_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true } },
 ])
+
+// Windows keys the taskbar entry, Alt+Tab label, and Task Manager's Apps row off
+// the app name and AppUserModelId; a dev launch runs the literal electron.exe, so
+// without these it presents as "electron" with Electron's atom icon. The id must
+// match electron-builder.yml's appId so dev and packaged share one identity. The
+// name must be set before any userData path (the single-instance lock below).
+const DESKTOP_PRODUCT_NAME = resolveDesktopWindowTitle(app.getName())
+const DESKTOP_UPDATE_URL = readDesktopUpdateUrl()
+app.setName(DESKTOP_PRODUCT_NAME)
+if (process.platform === 'win32') app.setAppUserModelId('ai.deepseek.works')
 
 /** Directory of the built frontend dist, beside this compiled main in both layouts. */
 const WEB_DIST_DIR = fileURLToPath(new URL('../../web/', import.meta.url))
@@ -61,7 +76,7 @@ let currentLocale: DesktopLocaleId = 'zh'
 
 /** The locale-bound translate function for the shell surfaces. */
 function shellT(locale: DesktopLocaleId): (key: DesktopTextKey) => string {
-  const strings = copy(locale)
+  const strings = copy(locale, DESKTOP_PRODUCT_NAME)
   return key => strings[key]
 }
 
@@ -139,12 +154,20 @@ async function main(): Promise<void> {
     await app.whenReady()
     registerWebProtocol(log)
     currentLocale = readLocalePreference()
-    installApplicationMenu(shellT(currentLocale))
     registerMenuPopupIpc()
     registerUpdateIpc()
     registerWindowControlsIpc()
 
     const win = createWindow()
+    let updateInstallPrepared = false
+    initUpdater(shellT(currentLocale), win, DESKTOP_UPDATE_URL, log, async () => {
+      await host.shutdown?.prepare()
+      updateInstallPrepared = true
+    })
+    installApplicationMenu(shellT(currentLocale))
+    host.ctx?.on('session/event', (session, event) => {
+      notifyTurnCompletion(win, currentLocale, String(session.id), event)
+    })
     win.webContents.on('preload-error', (_event, preloadPath, error) => {
       log(`desktop: preload error ${preloadPath}: ${error.message}`)
     })
@@ -161,14 +184,14 @@ async function main(): Promise<void> {
 
     let disposed = false
     app.on('before-quit', (event) => {
+      if (updateInstallPrepared) return
       if (disposed) return
       event.preventDefault()
       disposed = true
       void host.shutdown?.shutdown(0)
     })
 
-    trayHandle = installTray(win, shellT(currentLocale))
-    initUpdater(shellT(currentLocale), win)
+    trayHandle = installTray(win, shellT(currentLocale), DESKTOP_PRODUCT_NAME)
 
     // Language preference changes rebuild the native shell and tell the title
     // bar to follow (the web settings General → 语言 row writes this namespace).
@@ -182,6 +205,14 @@ async function main(): Promise<void> {
     log(`desktop: startup failed:\n${flattenError(error)}`)
     app.exit(1)
   }
+}
+
+/** Read packaged metadata and resolve the desktop update feed. */
+function readDesktopUpdateUrl(): string {
+  const manifest = JSON.parse(
+    readFileSync(join(app.getAppPath(), 'package.json'), 'utf8'),
+  ) as DesktopUpdateManifest
+  return resolveDesktopUpdateUrl(process.env.DSH_DESKTOP_UPDATE_URL, manifest)
 }
 
 /** Expand an error chain (causes and AggregateError entries) for diagnosis. */
@@ -204,11 +235,11 @@ function createWindow(): BrowserWindow {
     height: 800,
     show: false,
     // Taskbar/alt-tab art on Windows and Linux (macOS uses the app bundle icon).
-    icon: fileURLToPath(new URL('../../build/icon.png', import.meta.url)),
-    // The native title stays 深度Works for life: Windows surfaces it as the
+    icon: fileURLToPath(new URL('../../build/icon.ico', import.meta.url)),
+    // The native title stays the OEM product name for life: Windows surfaces it as the
     // taskbar hover tooltip and alt-tab label; page-title-updated must not
     // leak session projections there (pinWindowTitle blocks adoption).
-    title: DESKTOP_WINDOW_TITLE,
+    title: DESKTOP_PRODUCT_NAME,
     // Frameless: the renderer draws the branded title bar (render/title-bar.ts)
     // and drives these controls over the window-control IPC channels below.
     frame: false,

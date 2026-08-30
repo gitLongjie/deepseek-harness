@@ -84,6 +84,9 @@ describe('ui-login apply', () => {
 
   it('registers the gate and the account row with a bound locale seat', async () => {
     vi.stubEnv('DSH_CLIENT_LOGIN_URL', 'https://claw.deepagens.com/api/user/deepagens-claw/login')
+    vi.stubEnv('DSH_CLIENT_BRAND_ICON', '/brand/oem-login.svg')
+    vi.stubEnv('DSH_CLIENT_LOGIN_TAGLINE_ZH', '配置的登录副标题')
+    vi.stubEnv('DSH_CLIENT_LOGIN_TAGLINE_EN', 'Configured login tagline')
     const subject = await bench()
     declare(subject.slots)
     await subject.ctx.plugin({ inject: [...inject], apply }).await()
@@ -101,8 +104,10 @@ describe('ui-login apply', () => {
     expect(face.t('submit')).toBe('登录')
     expect(typeof face.controller.login).toBe('function')
     expect(face.controller.baseUrl()).toBe('https://claw.deepagens.com')
-    const other = overlay[0]!.inject as unknown as () => import('../src/client/SidebarAccount.tsx').SidebarAccountInjected
+    const other = overlay[0]!.inject as unknown as () => import('../src/client/LoginGate.tsx').LoginGateInjected
     expect(other().controller).toBe(face.controller)
+    expect(other().brandIcon).toBe('/brand/oem-login.svg')
+    expect(other().t('tagline')).toBe('配置的登录副标题')
   })
 
   it('writes the issued key and origin through the credentials domain', async () => {

@@ -5,7 +5,7 @@
  */
 import { describe, expect, it, vi } from 'vitest'
 import type { BrowserWindow } from 'electron'
-import { DESKTOP_WINDOW_TITLE, pinWindowTitle } from '../src/main/desktop/window-title.ts'
+import { pinWindowTitle, resolveDesktopWindowTitle } from '../src/main/desktop/window-title.ts'
 
 /** A listener-collecting window stub standing in for Electron's BrowserWindow. */
 function fakeWindow(): { win: BrowserWindow; emit: (event: string, payload: unknown) => void } {
@@ -26,15 +26,16 @@ function fakeWindow(): { win: BrowserWindow; emit: (event: string, payload: unkn
 }
 
 describe('pinned desktop window title', () => {
-  it('pins exactly the bare product name', () => {
-    expect(DESKTOP_WINDOW_TITLE).toBe('深度Works')
+  it('uses the OEM development name and falls back to the packaged application name', () => {
+    expect(resolveDesktopWindowTitle('Electron', { DSH_DESKTOP_PRODUCT_NAME: '深度Worker' })).toBe('深度Worker')
+    expect(resolveDesktopWindowTitle('Packaged Product', {})).toBe('Packaged Product')
   })
 
   it('prevents every page-title-updated so the constructor title survives', () => {
     const { win, emit } = fakeWindow()
     pinWindowTitle(win)
     const preventDefault = vi.fn()
-    emit('page-title-updated', { title: '会话名 — 深度Works', preventDefault })
+    emit('page-title-updated', { title: '会话名 - 深度Worker', preventDefault })
     expect(preventDefault).toHaveBeenCalledTimes(1)
   })
 })

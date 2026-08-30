@@ -1,8 +1,39 @@
 /** Unit tests for the desktop shutdown controller with injected exit wiring. */
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createProcessShutdown } from '../src/main/process-shutdown.ts'
 
 describe('createProcessShutdown', () => {
+  it('prepares disposal without exiting and lets a later shutdown complete', async () => {
+    const events: string[] = []
+    const shutdown = createProcessShutdown(
+      async () => { events.push('disposed') },
+      (code) => { events.push(`force:${code}`) },
+      (code) => { events.push(`complete:${code}`) },
+    )
+
+    await shutdown.prepare()
+    expect(events).toEqual(['disposed'])
+    await shutdown.shutdown(0)
+    expect(events).toEqual(['disposed', 'complete:0'])
+  })
+
+  it('finishes preparation at the grace limit without exiting', async () => {
+    vi.useFakeTimers()
+    const events: string[] = []
+    const shutdown = createProcessShutdown(
+      () => new Promise<void>(() => {}),
+      (code) => { events.push(`force:${code}`) },
+      (code) => { events.push(`complete:${code}`) },
+      25,
+    )
+
+    const prepared = shutdown.prepare()
+    await vi.advanceTimersByTimeAsync(25)
+    await prepared
+    expect(events).toEqual([])
+    vi.useRealTimers()
+  })
+
   it('disposes then records the natural completion code', async () => {
     let disposed = false
     const events: string[] = []

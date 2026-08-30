@@ -1,0 +1,26 @@
+{
+  "productName": "深度Worker",
+  "brandIcon": "/favicon.ico",
+  "loginUrl": "https://claw.deepagens.com/api/user/deepagens-claw/login",
+  "updateUrl": "https://github.com/gitLongjie/deepseek-harness/releases/latest/download",
+  "loginTagline": {
+    "zh": "每一步，都是新的远方",
+    "en": "Every step leads somewhere new"
+  },
+  "greetings": {
+    "zh": {
+      "morning": "晨光正好，出发吧",
+      "noon": "午间小憩，灵感正浓",
+      "afternoon": "午后时光，继续前行",
+      "evening": "暮色温柔，收获满满",
+      "night": "夜深了，好梦等你"
+    },
+    "en": {
+      "morning": "Fresh light, fresh start.",
+      "noon": "Midday pause, ideas brewing.",
+      "afternoon": "Afternoon glow, keep going.",
+      "evening": "Dusk is soft, well done today.",
+      "night": "The night is quiet. Rest well."
+    }
+  }
+}

@@ -1,4 +1,3 @@
-import { BrandWordmark, MewoLogo } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { HeroBrandMarkOwnerProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { SidebarBrandMarkOwnerProps } from '@deepseek-ai/dsh-client-ui-sidebar/client'
 
@@ -10,7 +9,8 @@ type OfficialBrandMarkProps = HeroBrandMarkOwnerProps & SidebarBrandMarkOwnerPro
  * @returns the official MEWO mark.
  */
 export function OfficialBrandMark({ size, className }: OfficialBrandMarkProps) {
-  return <MewoLogo size={size} className={className} />
+  const src = process.env.DSH_CLIENT_BRAND_ICON ?? '/favicon.svg'
+  return <img src={src} width={size} height={size} className={className} alt="" />
 }
 
 /**
@@ -18,5 +18,6 @@ export function OfficialBrandMark({ size, className }: OfficialBrandMarkProps) {
  * @returns the official name wordmark.
  */
 export function OfficialBrandName() {
-  return <BrandWordmark includeMark={false} />
+  const name = process.env.DSH_CLIENT_BRAND_NAME ?? '深度Works'
+  return <span>{name}</span>
 }

@@ -11,7 +11,7 @@ import SystemPrompt, {
  * their own sections; the built-ins' behavior is pinned by its own describe.
  */
 const BUILT_IN = ['harness:identity', 'deployment:persona']
-const IDENTITY = 'You are an AI agent powered by MiaoO Harness.'
+const IDENTITY = 'You are an AI agent powered by 深度Work.'
 function contributed(assembly: PromptAssembly): PromptAssembly['sections'] {
   return assembly.sections.filter(section => !BUILT_IN.includes(section.name))
 }

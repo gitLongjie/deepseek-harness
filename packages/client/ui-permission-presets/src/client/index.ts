@@ -57,11 +57,17 @@ function selectOf(session: SessionFace | undefined): PermissionSelect | undefine
 
 /** Flatten the projection select into popup rows; `custom` is display state, never a target. */
 function optionsOf(value: PermissionSelect, t: (key: string) => string): SelectOption[] {
+  const labelOf = (option: PermissionSelect['options'][number]): string => {
+    if (option.value === 'read-only') return t('preset.readOnly')
+    if (option.value === 'workspace-write') return t('preset.workspaceWrite')
+    if (option.value === FULL_ACCESS_PRESET) return t('preset.fullAccess')
+    return displayPermissionPreset(option.value, option.name)
+  }
   return value.options
     .filter(option => option.value !== 'custom')
     .map(option => ({
       id: option.value,
-      label: displayPermissionPreset(option.value, option.name),
+      label: labelOf(option),
       ...(option.description !== undefined ? { detail: option.description } : {}),
       ...(option.value === value.currentValue ? { active: true } : {}),
       ...(option.value === FULL_ACCESS_PRESET
@@ -92,6 +98,9 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(() => {
     const disposers = [
       ctx.locale.register(ACCESS_NS, 'zh', {
+        'preset.readOnly': accessZh['preset.readOnly'],
+        'preset.workspaceWrite': accessZh['preset.workspaceWrite'],
+        'preset.fullAccess': accessZh['preset.fullAccess'],
         'confirm.title': accessZh['confirm.title'],
         'confirm.description': accessZh['confirm.description'],
         'confirm.acknowledge': accessZh['confirm.acknowledge'],
@@ -99,6 +108,9 @@ export function apply(ctx: ClientContext): void {
         'confirm.enable': accessZh['confirm.enable'],
       }),
       ctx.locale.register(ACCESS_NS, 'en', {
+        'preset.readOnly': accessEn['preset.readOnly'],
+        'preset.workspaceWrite': accessEn['preset.workspaceWrite'],
+        'preset.fullAccess': accessEn['preset.fullAccess'],
         'confirm.title': accessEn['confirm.title'],
         'confirm.description': accessEn['confirm.description'],
         'confirm.acknowledge': accessEn['confirm.acknowledge'],

@@ -6,17 +6,25 @@
  * uploads to the configured GitHub provider.
  */
 import { spawnSync } from 'node:child_process'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { resolve } from 'node:path'
+import { dirname, resolve } from 'node:path'
+import {
+  createElectronBuilderOemConfig,
+  readDesktopOemConfig,
+  syncDesktopOemIcons,
+} from './desktop-oem-config.mjs'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 const repoRoot = resolve(root, '../..')
+const { productName, updateUrl } = readDesktopOemConfig(repoRoot)
 // pnpm 11's deps-status check aborts in a non-interactive shell unless CI is
 // set; stamp it so every pnpm invocation here inherits it.
 process.env.CI = process.env.CI ?? 'true'
 const args = process.argv.slice(2)
 const dirMode = args.includes('--dir')
 const publish = args.includes('--publish')
+const localUpdateTest = process.env.DSH_DESKTOP_LOCAL_UPDATE_TEST === '1'
 
 function run(cmd, cmdArgs, opts = {}) {
   // shell:true lets Node resolve `.cmd` shims on Windows.
@@ -37,13 +45,23 @@ run('pnpm', ['--filter', '@deepseek-ai/dsh-web-frontend', 'exec', 'vite', 'build
 run('pnpm', ['--filter', '@deepseek-ai/dsh-web-frontend', 'exec', 'vite', 'build'], {
   env: { ...process.env, DSH_DESKTOP_BUILD: '1' },
 })
+syncDesktopOemIcons(repoRoot, root)
 // 2. Build the main process and the render transport.
 run('pnpm', ['build:main'], { cwd: root })
 run('node', ['scripts/build-render-transport.mjs'], { cwd: root })
 // 3. Package from apps/desktop itself. electron-builder follows the pnpm
 // workspace symlinks in node_modules, excludes devDependencies by the manifest,
 // and emits installers to the configured output directory.
-const ebArgs = ['--config', 'electron-builder.yml']
-if (dirMode) ebArgs.push('--dir', '--publish', 'never')
+const builderConfigPath = resolve(root, 'dist', 'electron-builder.oem.json')
+mkdirSync(dirname(builderConfigPath), { recursive: true })
+writeFileSync(builderConfigPath, `${JSON.stringify(createElectronBuilderOemConfig(productName, updateUrl, {
+  allowLoopbackHttp: localUpdateTest,
+  localUpdateFeed: localUpdateTest,
+  output: process.env.DSH_DESKTOP_LOCAL_UPDATE_OUTPUT,
+  version: process.env.DSH_DESKTOP_BUILD_VERSION,
+}), null, 2)}\n`)
+const ebArgs = ['--config', builderConfigPath]
+if (dirMode) ebArgs.push('--dir')
 if (publish) ebArgs.push('--publish', 'always')
+else ebArgs.push('--publish', 'never')
 run('pnpm', ['exec', 'electron-builder', ...ebArgs], { cwd: root })

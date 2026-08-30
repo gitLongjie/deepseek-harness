@@ -75,7 +75,19 @@ export function apply(ctx: ClientContext): void {
   const authUrl = override === '' ? '' : override ?? DEFAULT_LOGIN_URL
   if (authUrl === '') return
   console.warn(`[ui-login] applying login gate against ${authUrl}`)
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-login: copy dictionaries')
+  const brandName = process.env.DSH_CLIENT_BRAND_NAME ?? '深度Works'
+  ctx.effect(() => ctx.locale.register(NS, {
+    zh: {
+      ...zh,
+      pageTitle: `登录${brandName}`,
+      tagline: process.env.DSH_CLIENT_LOGIN_TAGLINE_ZH ?? zh.tagline,
+    },
+    en: {
+      ...en,
+      pageTitle: `Sign in to ${brandName}`,
+      tagline: process.env.DSH_CLIENT_LOGIN_TAGLINE_EN ?? en.tagline,
+    },
+  }), 'ui-login: copy dictionaries')
 
   const remote = ctx.get('remote') as ClientRemote
   const controller = new LoginStore(authUrl, credentialAdapter(remote), {
@@ -84,9 +96,10 @@ export function apply(ctx: ClientContext): void {
   })
   controller.load()
   const t = ctx.locale.bind(NS) as (key: LoginKey) => string
+  const brandIcon = process.env.DSH_CLIENT_BRAND_ICON ?? '/favicon.svg'
 
   ctx.slots.inject('shell.overlay', () => ctx.slots.register(
-    { name: 'shell.overlay', id: 'login-gate', inject: () => ({ controller, t }) },
+    { name: 'shell.overlay', id: 'login-gate', inject: () => ({ controller, brandIcon, t }) },
     LoginGate,
   ))
   ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register(

@@ -3,6 +3,8 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { LoginGate } from '../src/client/LoginGate.tsx'
 import { SidebarAccount } from '../src/client/SidebarAccount.tsx'
 import { LoginStore, type LoginApi, type LoginCredentialAdapter } from '../src/client/login-store.ts'
@@ -41,14 +43,19 @@ function clawResponse(): Response {
 }
 
 describe('LoginGate', () => {
+  it('leaves the desktop shell top inset visible', () => {
+    const styles = readFileSync(resolve('packages/client/ui-login/src/client/LoginGate.module.css'), 'utf8')
+    expect(styles).toContain('top: var(--dsh-shell-top-inset, 0px);')
+  })
+
   it('renders nothing while signed in and before hydration', () => {
     localStorage.setItem('dsh.login.session', JSON.stringify({ account: '杰哥', avatar: null, apiKey: 'sk-1' }))
     const signedIn = new LoginStore('https://claw.deepagens.com/api', inertAdapter, dummyApi)
     signedIn.load()
-    const { container } = render(<LoginGate controller={signedIn} t={t} />)
+    const { container } = render(<LoginGate controller={signedIn} brandIcon="/brand/acme.svg" t={t} />)
     expect(container.childElementCount).toBe(0)
     const unhydrated = new LoginStore('https://claw.deepagens.com/api', inertAdapter, dummyApi)
-    const { container: lazy } = render(<LoginGate controller={unhydrated} t={t} />)
+    const { container: lazy } = render(<LoginGate controller={unhydrated} brandIcon="/brand/acme.svg" t={t} />)
     expect(lazy.childElementCount).toBe(0)
   })
 
@@ -56,7 +63,8 @@ describe('LoginGate', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(clawResponse()))
     const controller = new LoginStore('https://claw.deepagens.com/api', inertAdapter, dummyApi)
     controller.load()
-    const { container } = render(<LoginGate controller={controller} t={t} />)
+    const { container } = render(<LoginGate controller={controller} brandIcon="/brand/acme.svg" t={t} />)
+    expect(container.querySelector('img')?.getAttribute('src')).toBe('/brand/acme.svg')
     fireEvent.change(screen.getByLabelText('用户名'), { target: { value: 'jiege' } })
     fireEvent.change(screen.getByLabelText('密码'), { target: { value: 'pw' } })
     fireEvent.submit(container.querySelector('form')!)
@@ -70,7 +78,7 @@ describe('LoginGate', () => {
     }), { status: 200, headers: { 'content-type': 'application/json' } })))
     const controller = new LoginStore('https://claw.deepagens.com/api', inertAdapter, dummyApi)
     controller.load()
-    render(<LoginGate controller={controller} t={t} />)
+    render(<LoginGate controller={controller} brandIcon="/brand/acme.svg" t={t} />)
     fireEvent.change(screen.getByLabelText('用户名'), { target: { value: 'jiege' } })
     fireEvent.change(screen.getByLabelText('密码'), { target: { value: 'bad' } })
     fireEvent.submit(screen.getByRole('button', { name: '登录' }).closest('form')!)

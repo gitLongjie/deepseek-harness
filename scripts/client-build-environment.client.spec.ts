@@ -101,6 +101,9 @@ describe('client build environment', () => {
       DSH_CLIENT_BUILD_PROFILE: 'local',
       DSH_CLIENT_COMMIT_HASH: COMMIT_HASH.slice(0, 7),
       DSH_CLIENT_GIT_DIRTY: 'true',
+      DSH_CLIENT_BRAND_ICON: '/local.svg',
+      DSH_CLIENT_BRAND_NAME: 'Local brand',
+      DSH_CLIENT_LOGIN_URL: 'https://accounts.example.test/login',
       DSH_CLIENT_TITLE: 'Local title',
       DSH_CLIENT_VERSION: '1.2.3',
       DSH_CLIENT_EXTRA: 'local-extra',
@@ -111,8 +114,11 @@ describe('client build environment', () => {
     })
     expect(resolveClientBuildEnvironment(parent)).toEqual({
       DSH_CLIENT_BUILD_PROFILE: 'official',
+      DSH_CLIENT_BRAND_ICON: '/local.svg',
+      DSH_CLIENT_BRAND_NAME: 'Local brand',
       DSH_CLIENT_COMMIT_HASH: COMMIT_HASH.slice(0, 7),
-      DSH_CLIENT_TITLE: 'DeepSeek Harness',
+      DSH_CLIENT_LOGIN_URL: 'https://accounts.example.test/login',
+      DSH_CLIENT_TITLE: 'Local title',
       DSH_CLIENT_VERSION: '1.2.3',
     })
     expect(() => {
@@ -157,6 +163,17 @@ describe('client build environment', () => {
       DSH_CLIENT_VERSION: '1.2.3-rc.4',
     })
     expect(officialClientBuildEnvironment(fixtureRoot)).toEqual({
+      DSH_CLIENT_BUILD_PROFILE: 'official',
+      DSH_CLIENT_COMMIT_HASH: commit,
+      DSH_CLIENT_TITLE: 'DeepSeek Harness',
+      DSH_CLIENT_VERSION: '1.2.3-rc.4',
+    })
+    expect(officialClientBuildEnvironment(fixtureRoot, {
+      DSH_CLIENT_BRAND_NAME: 'Release override',
+      DSH_CLIENT_COMMIT_HASH: commit,
+      DSH_CLIENT_EXTRA: 'discarded',
+    })).toEqual({
+      DSH_CLIENT_BRAND_NAME: 'Release override',
       DSH_CLIENT_BUILD_PROFILE: 'official',
       DSH_CLIENT_COMMIT_HASH: commit,
       DSH_CLIENT_TITLE: 'DeepSeek Harness',

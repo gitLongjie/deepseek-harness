@@ -1,5 +1,5 @@
 ---
-description: "Permission preset surfaces for the Web GUI: the General-settings default row and the /permission picker for the current session; for users and maintainers of permission policy."
+description: "Permission preset surfaces for the browser GUI shared by Web and Desktop: the General-settings default row and the /permission picker for the current session."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package provides permission preset surfaces for two lifetimes in the Web GUI: a General-settings row chooses the default for later sessions without switching the current session. A picker on the host `/permission` command switches the current session through one flat preset list with the active value marked. Kebab-case names render as title-case labels, and `danger-full-access` is presented as `Full access`. Choosing full access requires an explicit risk acknowledgement before either surface writes it. Both surfaces read one host-computed projection and write through one path, so the pushed projection frame is the single confirmation both follow.
+This package provides permission preset surfaces for two lifetimes in the browser GUI shared by served Web and the Desktop renderer: a General-settings row chooses the default for later sessions without switching the current session. A picker on the host `/permission` command switches the current session through one flat preset list with the active value marked. The three built-in preset labels follow the client locale; other kebab-case names render in title case, and other host-defined names pass through. Choosing full access requires an explicit risk acknowledgement before either surface writes it. Both surfaces read one host-computed projection and write through one path, so the pushed projection frame is the single confirmation both follow.
 
 ## Table of Contents
 

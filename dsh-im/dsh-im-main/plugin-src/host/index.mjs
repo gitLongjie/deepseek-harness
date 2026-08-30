@@ -16,7 +16,6 @@ export const name = 'dsh-im-host';
 export const inject = [
   'connection',
   'credentials',
-  'apiProxy',
   'typertGateway',
 ];
 

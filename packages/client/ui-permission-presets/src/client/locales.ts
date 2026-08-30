@@ -37,11 +37,14 @@ export const en = {
 
 /** Simplified Chinese dictionary for the current-session popup gate. */
 export const accessZh = {
-  'confirm.title': '确认启用 Full access？',
-  'confirm.description': '启用 Full access 后，agent 将减少确认步骤，并且可以直接执行更多操作，包括敏感操作、文件修改或外部命令。仅建议在你信任当前任务时使用。',
+  'preset.readOnly': '只读',
+  'preset.workspaceWrite': '工作区写入',
+  'preset.fullAccess': '完全访问',
+  'confirm.title': '确认启用完全访问？',
+  'confirm.description': '启用完全访问后，智能体将减少确认步骤，并且可以直接执行更多操作，包括敏感操作、文件修改或外部命令。仅建议在你信任当前任务时使用。',
   'confirm.acknowledge': '我已了解风险，并愿意继续',
   'confirm.cancel': '取消',
-  'confirm.enable': '启用 Full access',
+  'confirm.enable': '启用完全访问',
 } satisfies Record<string, string>
 
 /** Current-session popup-gate key union. */
@@ -49,6 +52,9 @@ export type PermissionAccessKey = keyof typeof accessZh
 
 /** English dictionary for the current-session popup gate. */
 export const accessEn = {
+  'preset.readOnly': 'Read Only',
+  'preset.workspaceWrite': 'Workspace Write',
+  'preset.fullAccess': 'Full access',
   'confirm.title': 'Enable Full access?',
   'confirm.description': 'Full access reduces confirmation steps and lets the agent perform more actions directly, including sensitive operations, file changes, or external commands. Only use it when you trust the current task.',
   'confirm.acknowledge': 'I understand the risks and want to continue',

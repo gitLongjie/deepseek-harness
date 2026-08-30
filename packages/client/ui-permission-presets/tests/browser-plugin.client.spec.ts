@@ -34,11 +34,11 @@ const SELECT: PermissionSelect = {
   currentValue: 'workspace-write',
 }
 
-async function bench() {
+async function bench(localeCode = 'en') {
   const ctx = new Context()
   await ctx.plugin(SlotRegistry)
   const locale = new LocaleRuntime(ctx)
-  locale.setLocale('en')
+  locale.setLocale(localeCode)
   ctx.provide('locale', locale)
   const settingsRemote = scriptedSettingsRemote()
   const remote = new TestRemote(ctx, { settings: settingsRemote.settings })
@@ -143,6 +143,18 @@ describe('ui-permission browser plugin', () => {
     // A projection that vanished between availability and open throws.
     expect(() => c.ui.options({ sessionId: sid('ghost') }, new AbortController().signal))
       .toThrow(/not available on this host/)
+  })
+
+  it('localizes the built-in preset labels in Chinese', async () => {
+    const b = await bench('zh')
+    const c = b.decoration()!
+    const proj = { sessionId: sid('s1') }
+    b.values.set(sid('s1'), SELECT)
+
+    const options = await c.ui.options(proj, new AbortController().signal)
+    expect(options.map(option => option.label)).toEqual(['只读', '工作区写入', '完全访问'])
+    expect(options.find(option => option.id === 'danger-full-access')?.confirmation?.title)
+      .toBe('确认启用完全访问？')
   })
 
   it('a pick submits the /permission line; rejection and unmatched throw', async () => {

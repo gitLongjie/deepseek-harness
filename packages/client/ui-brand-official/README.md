@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package fills the browser brand slots — `sidebar.brand.mark`, `sidebar.brand.name`, and `conversation.hero.brand.mark` — with the official DeepSeek Harness mark and name. It registers these occupants only when the client bundle builds with the `official` profile; every other build loads the plugin but registers nothing, so the shell fallbacks stay visible. Choose it when the deployed identity is DeepSeek's own; a deployment with its own brand composes a different package into the same slots instead. It retains no runtime state and contributes nothing to model requests.
+This package fills the browser brand slots — `sidebar.brand.mark`, `sidebar.brand.name`, and `conversation.hero.brand.mark` — with the product name and icon selected at build time. It registers for an `official` build or whenever [`oem.config.json`](../../../oem.config.json) supplies the projected brand name. A deployment changes that file and its referenced public image without replacing the slot package. It retains no runtime state and contributes nothing to model requests.
 
 ## Table of Contents
 
@@ -25,11 +25,11 @@ This package fills the browser brand slots — `sidebar.brand.mark`, `sidebar.br
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this plugin in the browser roster of a deployment whose identity is DeepSeek's own, then build the client with the `official` profile so the occupants register.
+Mount this plugin in the browser roster, set `productName` and `brandIcon` in [`oem.config.json`](../../../oem.config.json), and run the normal client build.
 
 ### Choosing the profile
 
-`DSH_CLIENT_BUILD_PROFILE` selects which brand renders. An `official` build shows the official mark and name in the sidebar and the mark in the conversation hero; any other value leaves the shell fallbacks — the fish mark and the local-build label — in place. The plugin still loads and validates in both cases; only the registration is profile-gated.
+The build projects `productName` to `DSH_CLIENT_BRAND_NAME` and `brandIcon` to `DSH_CLIENT_BRAND_ICON` for the sidebar, Hero, login card, and framework-free boot page. Explicit environment values override the JSON fields for one build. A build with neither an official profile nor a projected brand name loads the plugin but leaves the slots empty.
 
 ### Replacing the brand
 
@@ -77,7 +77,7 @@ None; this package neither assembles nor sends a provider request.
 These limits define how brand presentation is supplied. They are current package constraints, not a brand-design comparison or a task backlog.
 
 - **One occupant set** — alternative presentation belongs in another Cordis package occupying the same slots.
-- **The browser title is independent** — `DSH_CLIENT_TITLE` selects title text at build time rather than through a UI slot.
+- **The browser title is independently rendered** — the same OEM product name projects to `DSH_CLIENT_TITLE`, but the document title remains outside the UI slot system.
 
 <a id="dev-note"></a>
 ### Dev Note

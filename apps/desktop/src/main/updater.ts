@@ -1,14 +1,12 @@
 /**
- * Auto-update via electron-updater. Publishes to the GitHub provider configured
- * in electron-builder.yml (gitLongjie/deepseek-harness). All releases (stable
- * and -beta) share the single latest feed; prerelease vs stable is resolved by
- * version comparison and electron-updater's allowPrerelease rule.
+ * Auto-update via electron-updater. The OEM build supplies a generic HTTPS
+ * feed containing electron-updater metadata and release artifacts.
  *
  * Availability and download-complete events are pushed to the renderer over
  * `dsh:update:status` so the in-app badge (render/update-badge.ts) shows them;
- * the badge asks back over `dsh:update:action` to prompt the download or to
- * restart and apply. Startup checks stay silent; only the Help-menu check
- * reports the all-clear or a failure through dialogs.
+ * the control asks back over `dsh:update:action` to check, download, or restart
+ * and apply. Startup checks stay silent; the Help-menu check reports available,
+ * up-to-date, and failure outcomes through dialogs.
  * @module @deepseek-ai/dsh-desktop/updater
  */
 
@@ -26,12 +24,33 @@ let currentT: (key: DesktopTextKey) => string = key => key
 /** True while an explicit Help-menu check is in flight (drives the no-update/error prompts). */
 let manualCheck = false
 
-/** The newest version announced by electron-updater, for the prompt dialog. */
-let latestVersion: string | undefined
+/** Window currently receiving updater status events. */
+let updateWindow: BrowserWindow | undefined
 
-/** Substitute the version placeholder in a template. */
-function fill(template: string, version: string): string {
+/** Durable desktop logger supplied by the main process. */
+let reportUpdateError: ((line: string) => void) | undefined
+
+/** Prevent repeated clicks from launching more than one installer. */
+let installStarted = false
+
+/** Bounded application cleanup performed before the native installer starts. */
+let prepareInstall: () => Promise<void> = async () => {}
+
+/** Select the metadata filename prefix used by electron-updater. */
+function resolveUpdateChannel(version: string): string {
+  return /^[^-]+-([A-Za-z][0-9A-Za-z-]*)/.exec(version)?.[1] ?? 'latest'
+}
+
+/** Substitute the version placeholder in localized update copy. */
+function fillVersion(template: string, version: string): string {
   return template.replace('{version}', version)
+}
+
+/** Publish one status payload when the desktop window is still alive. */
+function sendStatus(payload: Record<string, unknown>): void {
+  if (updateWindow !== undefined && !updateWindow.isDestroyed()) {
+    updateWindow.webContents.send('dsh:update:status', payload)
+  }
 }
 
 /**
@@ -39,9 +58,27 @@ function fill(template: string, version: string): string {
  * result is pushed to the renderer badge instead of auto-showing dialogs.
  * @param t - locale-bound copy resolver (desktop/locales.ts).
  * @param win - the main window whose renderer hosts the update badge.
+ * @param updateUrl - generic electron-updater feed base URL.
+ * @param log - durable desktop diagnostic sink.
+ * @param prepare - bounded application cleanup before installer launch.
  */
-export function initUpdater(t: (key: DesktopTextKey) => string, win: BrowserWindow): void {
+export function initUpdater(
+  t: (key: DesktopTextKey) => string,
+  win: BrowserWindow,
+  updateUrl: string,
+  log?: (line: string) => void,
+  prepare: () => Promise<void> = async () => {},
+): void {
   currentT = t
+  updateWindow = win
+  reportUpdateError = log
+  installStarted = false
+  prepareInstall = prepare
+  autoUpdater.setFeedURL({
+    provider: 'generic',
+    url: updateUrl,
+    channel: resolveUpdateChannel(app.getVersion()),
+  })
   if (!app.isPackaged) return
   // Keep the default channel: electron-updater derives the current channel from
   // the installed version's prerelease label (e.g. "beta"). Pinning 'latest'
@@ -51,41 +88,40 @@ export function initUpdater(t: (key: DesktopTextKey) => string, win: BrowserWind
   autoUpdater.autoInstallOnAppQuit = true
 
   autoUpdater.on('update-available', (info) => {
+    const showManualResult = manualCheck
     manualCheck = false
     // electron-updater already compares semver, but guard against an equal
     // version surfacing here (e.g. a re-published tag); only a genuinely newer
     // version should light up the in-app badge.
-    if (info.version === app.getVersion()) return
-    latestVersion = info.version
-    if (!win.isDestroyed()) {
-      win.webContents.send('dsh:update:status', { status: 'available', version: info.version })
+    if (info.version === app.getVersion()) {
+      sendStatus({ status: 'idle' })
+      if (showManualResult) void showDialog('info', currentT('update.upToDate'))
+      return
     }
+    sendStatus({ status: 'available', version: info.version })
+    if (showManualResult) void promptAvailableUpdate(info.version)
   })
 
   autoUpdater.on('download-progress', (progress) => {
-    if (!win.isDestroyed()) {
-      win.webContents.send('dsh:update:status', {
-        status: 'progressing',
-        percent: Math.round(progress.percent),
-      })
-    }
+    sendStatus({ status: 'progressing', percent: Math.round(progress.percent) })
   })
 
   autoUpdater.on('update-downloaded', (info) => {
-    latestVersion = info.version
-    if (!win.isDestroyed()) {
-      win.webContents.send('dsh:update:status', { status: 'downloaded', version: info.version })
-    }
+    sendStatus({ status: 'downloaded', version: info.version })
+    void promptDownloadedUpdate(info.version)
   })
 
   // Startup checks stay silent when there is nothing new; only an explicit
   // Help-menu check reports the all-clear or a failure.
   autoUpdater.on('update-not-available', () => {
+    sendStatus({ status: 'idle' })
     if (manualCheck) void showDialog('info', currentT('update.upToDate'))
     manualCheck = false
   })
 
-  autoUpdater.on('error', () => {
+  autoUpdater.on('error', (error) => {
+    reportUpdateError?.(`desktop: update error: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`)
+    sendStatus({ status: 'error' })
     if (manualCheck) void showDialog('error', currentT('update.error'))
     manualCheck = false
   })
@@ -103,7 +139,9 @@ export function setUpdaterLocale(t: (key: DesktopTextKey) => string): void {
 /** Explicit Help-menu update check; reports no-update/error through dialogs. */
 export function requestUpdateCheck(): void {
   manualCheck = true
+  sendStatus({ status: 'checking' })
   void autoUpdater.checkForUpdates().catch(() => {
+    sendStatus({ status: 'error' })
     manualCheck = false
   })
 }
@@ -115,33 +153,70 @@ export const UPDATE_ACTION_CHANNEL = 'dsh:update:action'
 export function registerUpdateIpc(): void {
   ipcMain.on(UPDATE_ACTION_CHANNEL, (_event, payload) => {
     const action = parseAction(payload)
-    if (action === 'prompt') void promptDownload()
-    else if (action === 'install') autoUpdater.quitAndInstall(true, true)
+    if (action === 'check') requestUpdateCheck()
+    else if (action === 'download') void downloadUpdate()
+    else if (action === 'install') void beginInstall()
   })
+}
+
+/** Publish the handoff state, then launch the native installer visibly once. */
+async function beginInstall(): Promise<void> {
+  if (installStarted) return
+  installStarted = true
+  sendStatus({ status: 'installing' })
+  try {
+    await prepareInstall()
+  } catch (error) {
+    reportUpdateError?.(`desktop: update cleanup error: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`)
+  }
+  autoUpdater.quitAndInstall(false, true)
 }
 
 /** Validate one badge action payload; unknown actions are ignored. */
-function parseAction(payload: unknown): 'prompt' | 'install' | undefined {
+function parseAction(payload: unknown): 'check' | 'download' | 'install' | undefined {
   if (typeof payload !== 'object' || payload === null) return undefined
   const record = payload as Record<string, unknown>
+  if (record.action === 'check') return 'check'
+  if (record.action === 'download') return 'download'
   if (record.action === 'install') return 'install'
-  if (record.action === 'prompt') return 'prompt'
   return undefined
 }
 
-/** Ask the user to confirm the download, then start it. */
-function promptDownload(): Promise<void> {
-  const version = latestVersion ?? ''
-  return dialog.showMessageBox({
+/** Start the download and expose immediate feedback before the first byte event. */
+async function downloadUpdate(): Promise<void> {
+  sendStatus({ status: 'progressing', percent: 0 })
+  try {
+    await autoUpdater.downloadUpdate()
+  } catch {
+    // electron-updater also emits `error`; this covers rejected implementations.
+    sendStatus({ status: 'error' })
+  }
+}
+
+/** Offer an immediate download after an explicit check discovers a version. */
+async function promptAvailableUpdate(version: string): Promise<void> {
+  const { response } = await dialog.showMessageBox({
     type: 'info',
     title: currentT('update.availableTitle'),
-    message: fill(currentT('update.availableMessage'), version),
+    message: fillVersion(currentT('update.availableMessage'), version),
     buttons: [currentT('update.download'), currentT('update.later')],
     defaultId: 0,
     cancelId: 1,
-  }).then(({ response }) => {
-    if (response === 0) void autoUpdater.downloadUpdate()
   })
+  if (response === 0) await downloadUpdate()
+}
+
+/** Offer to hand the downloaded release to the visible native installer. */
+async function promptDownloadedUpdate(version: string): Promise<void> {
+  const { response } = await dialog.showMessageBox({
+    type: 'info',
+    title: currentT('update.downloadedTitle'),
+    message: fillVersion(currentT('update.downloadedMessage'), version),
+    buttons: [currentT('update.restart'), currentT('update.later')],
+    defaultId: 0,
+    cancelId: 1,
+  })
+  if (response === 0) await beginInstall()
 }
 
 /** One-button info/error dialog for the manual check outcomes. */
