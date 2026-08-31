@@ -8,6 +8,7 @@
 import { spawnSync } from 'node:child_process'
 import { cpSync, mkdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { createRequire } from 'node:module'
 import { dirname, resolve } from 'node:path'
 import {
   createElectronBuilderOemConfig,
@@ -59,6 +60,21 @@ for (const dependency of ['esbuild', 'semver']) {
   cpSync(realpathSync(resolve(root, 'node_modules', dependency)), target, {
     recursive: true,
   })
+}
+const esbuildPlatform = `${process.platform}-${process.arch}`
+const esbuildPackage = esbuildPlatform === 'darwin-arm64' ? '@esbuild/darwin-arm64'
+  : esbuildPlatform === 'darwin-x64' ? '@esbuild/darwin-x64'
+    : esbuildPlatform === 'linux-x64' ? '@esbuild/linux-x64'
+      : esbuildPlatform === 'win32-x64' ? '@esbuild/win32-x64' : undefined
+if (esbuildPackage !== undefined) {
+  const require = createRequire(import.meta.url)
+  const source = dirname(require.resolve(`${esbuildPackage}/package.json`, {
+    paths: [resolve(root, 'node_modules', 'esbuild')],
+  }))
+  const target = resolve(dshImNodeModules, esbuildPackage)
+  rmSync(target, { recursive: true, force: true })
+  mkdirSync(dirname(target), { recursive: true })
+  cpSync(source, target, { recursive: true })
 }
 run('pnpm', ['--dir', dshImRoot, 'run', 'build'])
 run('pnpm', ['build:main'], { cwd: root })
