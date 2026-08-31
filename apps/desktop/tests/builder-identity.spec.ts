@@ -39,10 +39,13 @@ describe('desktop builder identity', () => {
 
   it('gives Windows and macOS release assets stable architecture-specific names', () => {
     expect(config).toMatch(
-      /^nsis:\s*$[\s\S]*?^\s+artifactName:\s+deepagens-works-\$\{version\}-win-\$\{arch\}\.\$\{ext\}\s*$/m,
+      /^nsis:\s*$[\s\S]*?^\s+artifactName:\s+Deepagens-Wroker-\$\{version\}-win-\$\{arch\}\.\$\{ext\}\s*$/m,
     )
     expect(config).toMatch(
-      /^mac:\s*$[\s\S]*?^\s+artifactName:\s+deepagens-works-\$\{version\}-mac-\$\{arch\}\.\$\{ext\}\s*$/m,
+      /^mac:\s*$[\s\S]*?^\s+artifactName:\s+Deepagens-Wroker-\$\{version\}-mac-\$\{arch\}\.\$\{ext\}\s*$/m,
+    )
+    expect(config).toMatch(
+      /^linux:\s*$[\s\S]*?^\s+artifactName:\s+Deepagens-Wroker-\$\{version\}-linux-\$\{arch\}\.\$\{ext\}\s*$/m,
     )
     expect(config).not.toContain('${productName}-${version}')
   })

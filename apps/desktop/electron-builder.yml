@@ -50,7 +50,7 @@ win:
 nsis:
   # Release asset URLs stay ASCII so electron-publish can upload an OEM name
   # containing non-ASCII characters without putting it in the request path.
-  artifactName: deepagens-works-${version}-win-${arch}.${ext}
+  artifactName: Deepagens-Wroker-${version}-win-${arch}.${ext}
   oneClick: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
@@ -58,7 +58,7 @@ nsis:
 mac:
   # Both architectures are built in one job. The architecture suffix prevents
   # the Intel and Apple Silicon assets from colliding in the GitHub release.
-  artifactName: deepagens-works-${version}-mac-${arch}.${ext}
+  artifactName: Deepagens-Wroker-${version}-mac-${arch}.${ext}
   target:
     - target: dmg
       arch:
@@ -74,7 +74,7 @@ mac:
   identity: null
   notarize: false
 dmg:
-  artifactName: deepagens-works-${version}-mac-${arch}.${ext}
+  artifactName: Deepagens-Wroker-${version}-mac-${arch}.${ext}
 linux:
   target:
     - AppImage
@@ -87,7 +87,7 @@ linux:
   # a missing dist-electron/@deepseek-ai/ directory (fpm: parent directory does
   # not exist). Pin a flat artifact name so both Linux targets write directly
   # under dist-electron/.
-  artifactName: deepagens-works-${version}-linux-${arch}.${ext}
+  artifactName: Deepagens-Wroker-${version}-linux-${arch}.${ext}
 publish:
   provider: github
   owner: gitLongjie
