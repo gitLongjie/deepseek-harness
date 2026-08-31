@@ -36,6 +36,10 @@ External packages that a workspace package resolves at runtime. The tier covers 
 | [`@anthropic-ai/sdk`](https://github.com/anthropics/anthropic-sdk-typescript) | MIT |
 | [`@babel/code-frame`](https://github.com/babel/babel) | MIT |
 | [`@earendil-works/pi-ai`](https://github.com/earendil-works/pi) | MIT |
+| [`@esbuild/darwin-arm64`](https://github.com/evanw/esbuild) | MIT |
+| [`@esbuild/darwin-x64`](https://github.com/evanw/esbuild) | MIT |
+| [`@esbuild/linux-x64`](https://github.com/evanw/esbuild) | MIT |
+| [`@esbuild/win32-x64`](https://github.com/evanw/esbuild) | MIT |
 | [`@joplin/turndown-plugin-gfm`](https://github.com/laurent22/joplin-turndown-plugin-gfm) | MIT |
 | [`@jridgewell/gen-mapping`](https://github.com/jridgewell/sourcemaps) | MIT |
 | [`@lexical/history`](https://github.com/facebook/lexical) | MIT |

@@ -189,5 +189,11 @@ describe('desktop builder identity', () => {
       '@deepseek-ai/dsh-settings': 'workspace:^',
       '@xmanrui/dsh-im': 'file:../../dsh-im/dsh-im-main',
     })
+    expect(manifest.optionalDependencies).toMatchObject({
+      '@esbuild/darwin-arm64': '0.28.2',
+      '@esbuild/darwin-x64': '0.28.2',
+      '@esbuild/linux-x64': '0.28.2',
+      '@esbuild/win32-x64': '0.28.2',
+    })
   })
 })
