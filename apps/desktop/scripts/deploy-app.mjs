@@ -6,7 +6,7 @@
  * uploads to the configured GitHub provider.
  */
 import { spawnSync } from 'node:child_process'
-import { cpSync, mkdirSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 import {
@@ -69,8 +69,9 @@ if (esbuildPackage !== undefined) {
   // pnpm keeps the scope marker in store directory names, e.g.
   // `@esbuild+win32-x64@0.28.2`.
   const packageDirectory = esbuildPackage.replace('/', '+')
+  const esbuildVersion = JSON.parse(readFileSync(resolve(root, 'node_modules', 'esbuild', 'package.json'), 'utf8')).version
   const pnpmStore = resolve(repoRoot, 'node_modules', '.pnpm')
-  const storeEntry = readdirSync(pnpmStore).find((entry) => entry.startsWith(`${packageDirectory}@`))
+  const storeEntry = readdirSync(pnpmStore).find((entry) => entry === `${packageDirectory}@${esbuildVersion}`)
   if (storeEntry === undefined) throw new Error(`desktop: missing ${esbuildPackage} platform package`)
   const source = resolve(pnpmStore, storeEntry, 'node_modules', esbuildPackage)
   const target = resolve(dshImNodeModules, esbuildPackage)
