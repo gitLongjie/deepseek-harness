@@ -6,7 +6,7 @@
  * uploads to the configured GitHub provider.
  */
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { cpSync, mkdirSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 import {
@@ -49,6 +49,14 @@ syncDesktopOemIcons(repoRoot, root)
 // 2. Build the main process and the render transport.
 run('pnpm', ['build:main'], { cwd: root })
 run('node', ['scripts/build-render-transport.mjs'], { cwd: root })
+// Stage the local file dependency after the TypeScript build (which clears
+// dist/) so electron-builder can include it in app.asar.
+const dshImStage = resolve(root, 'dist', 'dsh-im-package')
+cpSync(resolve(repoRoot, 'dsh-im', 'dsh-im-main'), dshImStage, {
+  recursive: true,
+  filter: (source) => source === resolve(repoRoot, 'dsh-im', 'dsh-im-main')
+    || /(?:[\\/](?:lib|package\.json|cordis\.patch\.yml))(?:$|[\\/])/.test(source),
+})
 // 3. Package from apps/desktop itself. electron-builder follows the pnpm
 // workspace symlinks in node_modules, excludes devDependencies by the manifest,
 // and emits installers to the configured output directory.

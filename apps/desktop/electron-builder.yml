@@ -32,6 +32,15 @@ files:
   - build/**
   - cordis.patch.yml
   - package.json
+  # The IM plugin is a local file dependency; electron-builder does not follow
+  # pnpm's junction when collecting production dependencies. Include its
+  # published runtime files explicitly so the loader can resolve the package.
+  - from: dist/dsh-im-package
+    to: node_modules/@xmanrui/dsh-im
+    filter:
+      - lib/**
+      - cordis.patch.yml
+      - package.json
   # Drop the app's own sources/tests/sourcemaps to keep the bundle slim. Keep
   # the globs app-relative (!src/**) so dependency sources that their package
   # main points at (e.g. debug -> src/index.js) are NOT excluded from node_modules.
