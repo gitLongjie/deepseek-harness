@@ -69,10 +69,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Build both macOS architectures from the Intel runner. electron-builder
-        # downloads both targets reliably from x64; Apple Silicon runners can
-        # fail when cross-packaging the x64 native dependency set.
-        os: [windows-latest, macos-13, ubuntu-latest]
+        os: [windows-latest, macos-latest, ubuntu-latest]
     steps:
       - uses: actions/checkout@v6
 

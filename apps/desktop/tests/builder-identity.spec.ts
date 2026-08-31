@@ -37,6 +37,13 @@ describe('desktop builder identity', () => {
     expect(config).not.toContain('executableName: 深度Works')
   })
 
+  it('names the NSIS installer from the OEM product identity', () => {
+    expect(config).toMatch(
+      /^nsis:\s*$[\s\S]*?^\s+artifactName:\s+\$\{productName\}-\$\{version\}-win-\$\{arch\}\.\$\{ext\}\s*$/m,
+    )
+    expect(config).not.toContain('${productName} Setup ${version}')
+  })
+
   it('brands the Windows development executable used by Task Manager', () => {
     const launcher = readFileSync(DEV_LAUNCHER, 'utf8')
     expect(launcher).toContain('syncDesktopOemIcons(repoRoot, root)')
