@@ -7,9 +7,9 @@ appId: ai.deepseek.works
 # deploy-app.mjs supplies productName and platform-native derivatives through
 # its generated dist/electron-builder.oem.json overlay.
 # Keep the packaged application artwork aligned with the runtime window and
-# tray icons. An explicit path avoids electron-builder falling back to the
-# Electron icon when the build is invoked from a different working directory.
-icon: build/icon.ico
+# tray icons. PNG is accepted by electron-builder on macOS and Linux; Windows
+# overrides this with the OEM ICO below.
+icon: build/icon.png
 electronLanguages:
   - en-US
   - zh-CN
