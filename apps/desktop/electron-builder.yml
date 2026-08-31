@@ -48,12 +48,17 @@ win:
       arch:
         - x64
 nsis:
-  artifactName: ${productName}-${version}-win-${arch}.${ext}
+  # Release asset URLs stay ASCII so electron-publish can upload an OEM name
+  # containing non-ASCII characters without putting it in the request path.
+  artifactName: deepagens-works-${version}-win-${arch}.${ext}
   oneClick: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
 mac:
+  # Both architectures are built in one job. The architecture suffix prevents
+  # the Intel and Apple Silicon assets from colliding in the GitHub release.
+  artifactName: deepagens-works-${version}-mac-${arch}.${ext}
   target:
     - target: dmg
       arch:
@@ -69,7 +74,7 @@ mac:
   identity: null
   notarize: false
 dmg:
-  artifactName: ${productName}-${version}-mac-${arch}.${ext}
+  artifactName: deepagens-works-${version}-mac-${arch}.${ext}
 linux:
   target:
     - AppImage

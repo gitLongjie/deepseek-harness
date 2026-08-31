@@ -37,11 +37,14 @@ describe('desktop builder identity', () => {
     expect(config).not.toContain('executableName: 深度Works')
   })
 
-  it('names the NSIS installer from the OEM product identity', () => {
+  it('gives Windows and macOS release assets stable architecture-specific names', () => {
     expect(config).toMatch(
-      /^nsis:\s*$[\s\S]*?^\s+artifactName:\s+\$\{productName\}-\$\{version\}-win-\$\{arch\}\.\$\{ext\}\s*$/m,
+      /^nsis:\s*$[\s\S]*?^\s+artifactName:\s+deepagens-works-\$\{version\}-win-\$\{arch\}\.\$\{ext\}\s*$/m,
     )
-    expect(config).not.toContain('${productName} Setup ${version}')
+    expect(config).toMatch(
+      /^mac:\s*$[\s\S]*?^\s+artifactName:\s+deepagens-works-\$\{version\}-mac-\$\{arch\}\.\$\{ext\}\s*$/m,
+    )
+    expect(config).not.toContain('${productName}-${version}')
   })
 
   it('brands the Windows development executable used by Task Manager', () => {
