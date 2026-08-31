@@ -66,7 +66,9 @@ const esbuildPackage = esbuildPlatform === 'darwin-arm64' ? '@esbuild/darwin-arm
     : esbuildPlatform === 'linux-x64' ? '@esbuild/linux-x64'
       : esbuildPlatform === 'win32-x64' ? '@esbuild/win32-x64' : undefined
 if (esbuildPackage !== undefined) {
-  const packageDirectory = esbuildPackage.slice(1).replace('/', '+')
+  // pnpm keeps the scope marker in store directory names, e.g.
+  // `@esbuild+win32-x64@0.28.2`.
+  const packageDirectory = esbuildPackage.replace('/', '+')
   const pnpmStore = resolve(repoRoot, 'node_modules', '.pnpm')
   const storeEntry = readdirSync(pnpmStore).find((entry) => entry.startsWith(`${packageDirectory}@`))
   if (storeEntry === undefined) throw new Error(`desktop: missing ${esbuildPackage} platform package`)
