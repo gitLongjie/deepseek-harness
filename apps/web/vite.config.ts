@@ -87,8 +87,12 @@ function rejectStandaloneServe(): Plugin {
  */
 function emitPreviewPage(): Plugin {
   let bootstrapFile: string | undefined
+  let outDir: string | undefined
   return {
     name: 'dsh-emit-preview-page',
+    configResolved(config) {
+      outDir = config.build.outDir
+    },
     generateBundle(_options, bundle) {
       for (const item of Object.values(bundle)) {
         if (item.type === 'chunk' && item.isEntry && item.name === 'bootstrap') bootstrapFile = item.fileName
@@ -97,12 +101,12 @@ function emitPreviewPage(): Plugin {
     },
     async closeBundle() {
       // A build that failed before generateBundle has no page to splice.
-      if (bootstrapFile === undefined) return
-      const page = await readFile(src('./dist/index.html'), 'utf8')
+      if (bootstrapFile === undefined || outDir === undefined) return
+      const page = await readFile(resolve(outDir, 'index.html'), 'utf8')
       const anchor = page.indexOf('<script type="module"')
       if (anchor === -1) throw new Error('vite: built index.html lost its module entry tag')
       const tag = `<script type="module" crossorigin src="./${bootstrapFile}"></script>`
-      await writeFile(src('./dist/preview.html'), `${page.slice(0, anchor)}${tag}${page.slice(anchor)}`)
+      await writeFile(resolve(outDir, 'preview.html'), `${page.slice(0, anchor)}${tag}${page.slice(anchor)}`)
     },
   }
 }
