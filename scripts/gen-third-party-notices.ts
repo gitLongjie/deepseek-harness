@@ -65,10 +65,8 @@ export function isOwnerAuthorizedRuntime(name: string): boolean {
  * Each entry documents why the store cannot answer.
  */
 const OVERRIDES: Record<string, { license?: string; repo?: string }> = {
-  '@esbuild/darwin-arm64': { license: 'MIT', repo: 'https://github.com/evanw/esbuild' },
-  '@esbuild/darwin-x64': { license: 'MIT', repo: 'https://github.com/evanw/esbuild' },
-  '@esbuild/linux-x64': { license: 'MIT', repo: 'https://github.com/evanw/esbuild' },
-  '@esbuild/win32-x64': { license: 'MIT', repo: 'https://github.com/evanw/esbuild' },
+  '@tencent-connect/qqbot-connector': { license: 'MIT', repo: 'https://github.com/tencent-connect/qq-bot-nodejs' },
+  '@tencent-connect/qqbot-nodejs': { license: 'MIT', repo: 'https://github.com/tencent-connect/qq-bot-nodejs' },
   // Rust workspaces publishing npm bins without `license` in package.json.
   'oxlint': { license: 'MIT', repo: 'https://github.com/oxc-project/oxc' },
   'oxlint-tsgolint': { license: 'MIT', repo: 'https://github.com/oxc-project/tsgolint' },

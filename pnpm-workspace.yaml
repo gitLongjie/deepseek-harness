@@ -7,6 +7,8 @@ packages:
   - native/landlock-run/packages/*
   # Product assemblies over the package tier; apps/cli owns the `dsh` bin.
   - apps/*
+  # Bundled OEM plugin built as part of the desktop release.
+  - dsh-im/dsh-im-main
   - website
   # Deploy root of the single-exe build: a pure dependency manifest whose
   # closure is what the exe bundles and what the Python runtime distributes.
@@ -50,6 +52,7 @@ allowBuilds:
   # Pulled in by electron-builder; its lifecycle scripts are no-ops we don't
   # need (NSIS packaging does not use Squirrel).
   electron-winstaller: false
+  '@whiskeysockets/baileys': true
 
 minimumReleaseAgeExclude:
   # Fresh pi-ai releases carry the model catalog updates that are the whole

@@ -80,8 +80,8 @@ jobs:
           node-version: 24
           cache: pnpm
 
-      - name: Install (immutable, including native optional dependencies)
-        run: pnpm install --frozen-lockfile --force --config.optional=true
+      - name: Install (immutable)
+        run: pnpm install --frozen-lockfile
 
       - name: Build host libs
         run: pnpm build:lib

@@ -6,7 +6,7 @@
  * uploads to the configured GitHub provider.
  */
 import { spawnSync } from 'node:child_process'
-import { cpSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, mkdirSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 import {
@@ -51,34 +51,6 @@ syncDesktopOemIcons(repoRoot, root)
 // dsh-im is a local file dependency rather than a workspace package. Its
 // runtime lib/ is generated and absent from a clean GitHub checkout, so build
 // it explicitly before staging it for electron-builder.
-const dshImNodeModules = resolve(dshImRoot, 'node_modules')
-mkdirSync(dshImNodeModules, { recursive: true })
-for (const dependency of ['esbuild', 'semver']) {
-  const target = resolve(dshImNodeModules, dependency)
-  rmSync(target, { recursive: true, force: true })
-  cpSync(realpathSync(resolve(root, 'node_modules', dependency)), target, {
-    recursive: true,
-  })
-}
-const esbuildPlatform = `${process.platform}-${process.arch}`
-const esbuildPackage = esbuildPlatform === 'darwin-arm64' ? '@esbuild/darwin-arm64'
-  : esbuildPlatform === 'darwin-x64' ? '@esbuild/darwin-x64'
-    : esbuildPlatform === 'linux-x64' ? '@esbuild/linux-x64'
-      : esbuildPlatform === 'win32-x64' ? '@esbuild/win32-x64' : undefined
-if (esbuildPackage !== undefined) {
-  // pnpm keeps the scope marker in store directory names, e.g.
-  // `@esbuild+win32-x64@0.28.2`.
-  const packageDirectory = esbuildPackage.replace('/', '+')
-  const esbuildVersion = JSON.parse(readFileSync(resolve(root, 'node_modules', 'esbuild', 'package.json'), 'utf8')).version
-  const pnpmStore = resolve(repoRoot, 'node_modules', '.pnpm')
-  const storeEntry = readdirSync(pnpmStore).find((entry) => entry === `${packageDirectory}@${esbuildVersion}`)
-  if (storeEntry === undefined) throw new Error(`desktop: missing ${esbuildPackage} platform package`)
-  const source = resolve(pnpmStore, storeEntry, 'node_modules', esbuildPackage)
-  const target = resolve(dshImNodeModules, esbuildPackage)
-  rmSync(target, { recursive: true, force: true })
-  mkdirSync(dirname(target), { recursive: true })
-  cpSync(source, target, { recursive: true })
-}
 run('pnpm', ['--dir', dshImRoot, 'run', 'build'])
 run('pnpm', ['build:main'], { cwd: root })
 run('node', ['scripts/build-render-transport.mjs'], { cwd: root })
