@@ -189,9 +189,5 @@ describe('desktop builder identity', () => {
       '@deepseek-ai/dsh-settings': 'workspace:^',
       '@xmanrui/dsh-im': 'file:../../dsh-im/dsh-im-main',
     })
-    const imManifest = JSON.parse(readFileSync(fileURLToPath(new URL('../../../dsh-im/dsh-im-main/package.json', import.meta.url)), 'utf8')) as {
-      dependencies?: Record<string, string>
-    }
-    expect(imManifest.dependencies).toMatchObject({ esbuild: '0.25.9' })
   })
 })

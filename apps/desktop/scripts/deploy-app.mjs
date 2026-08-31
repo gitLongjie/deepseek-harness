@@ -51,6 +51,11 @@ syncDesktopOemIcons(repoRoot, root)
 // dsh-im is a local file dependency rather than a workspace package. Its
 // runtime lib/ is generated and absent from a clean GitHub checkout, so build
 // it explicitly before staging it for electron-builder.
+const dshImNodeModules = resolve(dshImRoot, 'node_modules')
+mkdirSync(dshImNodeModules, { recursive: true })
+cpSync(resolve(root, 'node_modules', 'esbuild'), resolve(dshImNodeModules, 'esbuild'), {
+  recursive: true,
+})
 run('pnpm', ['--dir', dshImRoot, 'run', 'build'])
 run('pnpm', ['build:main'], { cwd: root })
 run('node', ['scripts/build-render-transport.mjs'], { cwd: root })

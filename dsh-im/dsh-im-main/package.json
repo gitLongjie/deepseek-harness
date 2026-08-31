@@ -89,7 +89,6 @@
     "node": ">=22.19"
   },
   "dependencies": {
-    "esbuild": "0.25.9",
     "@tencent-connect/qqbot-connector": "1.2.0",
     "@tencent-connect/qqbot-nodejs": "1.0.4",
     "@wecom/aibot-node-sdk": "1.0.7",
