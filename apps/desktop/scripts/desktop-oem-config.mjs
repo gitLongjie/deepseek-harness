@@ -64,8 +64,6 @@ export function createElectronBuilderOemConfig(productName, updateUrl, options =
     extraMetadata,
     ...(options.output === undefined ? {} : { directories: { output: options.output } }),
     ...(options.localUpdateFeed ? { publish: [{ provider: 'generic', url: updateUrl }] } : {}),
-    win: { executableName: productName },
-    linux: { synopsis: `${productName} Desktop` },
   }
 }
 

@@ -32,7 +32,7 @@ describe('desktop builder identity', () => {
   })
 
   it('pins the application icon instead of Electron default artwork', () => {
-    expect(config).toMatch(/^icon:\s*build\/icon\.ico\s*$/m)
+    expect(config).toMatch(/^icon:\s*build\/icon\.png\s*$/m)
     expect(config).toMatch(/^\s+icon:\s*build\/icon\.ico\s*$/m)
     expect(config).not.toContain('executableName: 深度Works')
   })
@@ -72,8 +72,6 @@ describe('desktop builder identity', () => {
       extraMetadata: {
         dsh: { updateUrl: 'https://updates.example.test/desktop' },
       },
-      win: { executableName: '深度Worker' },
-      linux: { synopsis: '深度Worker Desktop' },
     })
     expect(() => createElectronBuilderOemConfig('../Worker')).toThrow(/Windows filename/)
     expect(() => createElectronBuilderOemConfig('Worker', 'http://updates.example.test'))
