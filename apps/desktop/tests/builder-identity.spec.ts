@@ -81,7 +81,7 @@ describe('desktop builder identity', () => {
       'https://updates.example.test/desktop',
     )).toEqual({
       extends: 'electron-builder.yml',
-      productName: '深度Worker',
+      productName: 'Deepagens-Worker',
       extraMetadata: {
         name: 'deepagens-worker',
         productName: '深度Worker',

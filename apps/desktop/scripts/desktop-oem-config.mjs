@@ -62,7 +62,9 @@ export function createElectronBuilderOemConfig(productName, updateUrl, options =
   if (options.version !== undefined) extraMetadata.version = options.version
   return {
     extends: 'electron-builder.yml',
-    productName,
+    // Keep the Chinese runtime display name separate from the ASCII installer
+    // identity used by Windows paths, shortcuts, and release assets.
+    productName: 'Deepagens-Worker',
     extraMetadata,
     ...(options.output === undefined ? {} : { directories: { output: options.output } }),
     ...(options.localUpdateFeed ? { publish: [{ provider: 'generic', url: updateUrl }] } : {}),
