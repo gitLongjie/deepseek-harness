@@ -6,7 +6,7 @@
  * uploads to the configured GitHub provider.
  */
 import { spawnSync } from 'node:child_process'
-import { cpSync, mkdirSync, writeFileSync } from 'node:fs'
+import { cpSync, mkdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 import {
@@ -53,9 +53,13 @@ syncDesktopOemIcons(repoRoot, root)
 // it explicitly before staging it for electron-builder.
 const dshImNodeModules = resolve(dshImRoot, 'node_modules')
 mkdirSync(dshImNodeModules, { recursive: true })
-cpSync(resolve(root, 'node_modules', 'esbuild'), resolve(dshImNodeModules, 'esbuild'), {
-  recursive: true,
-})
+for (const dependency of ['esbuild', 'semver']) {
+  const target = resolve(dshImNodeModules, dependency)
+  rmSync(target, { recursive: true, force: true })
+  cpSync(realpathSync(resolve(root, 'node_modules', dependency)), target, {
+    recursive: true,
+  })
+}
 run('pnpm', ['--dir', dshImRoot, 'run', 'build'])
 run('pnpm', ['build:main'], { cwd: root })
 run('node', ['scripts/build-render-transport.mjs'], { cwd: root })
