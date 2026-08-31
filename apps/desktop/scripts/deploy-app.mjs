@@ -17,6 +17,7 @@ import {
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 const repoRoot = resolve(root, '../..')
+const dshImRoot = resolve(repoRoot, 'dsh-im', 'dsh-im-main')
 const { productName, updateUrl } = readDesktopOemConfig(repoRoot)
 // pnpm 11's deps-status check aborts in a non-interactive shell unless CI is
 // set; stamp it so every pnpm invocation here inherits it.
@@ -47,14 +48,18 @@ run('pnpm', ['--filter', '@deepseek-ai/dsh-web-frontend', 'exec', 'vite', 'build
 })
 syncDesktopOemIcons(repoRoot, root)
 // 2. Build the main process and the render transport.
+// dsh-im is a local file dependency rather than a workspace package. Its
+// runtime lib/ is generated and absent from a clean GitHub checkout, so build
+// it explicitly before staging it for electron-builder.
+run('pnpm', ['--dir', dshImRoot, 'run', 'build'])
 run('pnpm', ['build:main'], { cwd: root })
 run('node', ['scripts/build-render-transport.mjs'], { cwd: root })
 // Stage the local file dependency after the TypeScript build (which clears
 // dist/) so electron-builder can include it in app.asar.
 const dshImStage = resolve(root, 'dist', 'dsh-im-package')
-cpSync(resolve(repoRoot, 'dsh-im', 'dsh-im-main'), dshImStage, {
+cpSync(dshImRoot, dshImStage, {
   recursive: true,
-  filter: (source) => source === resolve(repoRoot, 'dsh-im', 'dsh-im-main')
+  filter: (source) => source === dshImRoot
     || /(?:[\\/](?:lib|package\.json|cordis\.patch\.yml))(?:$|[\\/])/.test(source),
 })
 // 3. Package from apps/desktop itself. electron-builder follows the pnpm
