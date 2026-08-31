@@ -6,9 +6,8 @@
  * uploads to the configured GitHub provider.
  */
 import { spawnSync } from 'node:child_process'
-import { cpSync, mkdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, mkdirSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { createRequire } from 'node:module'
 import { dirname, resolve } from 'node:path'
 import {
   createElectronBuilderOemConfig,
@@ -67,10 +66,11 @@ const esbuildPackage = esbuildPlatform === 'darwin-arm64' ? '@esbuild/darwin-arm
     : esbuildPlatform === 'linux-x64' ? '@esbuild/linux-x64'
       : esbuildPlatform === 'win32-x64' ? '@esbuild/win32-x64' : undefined
 if (esbuildPackage !== undefined) {
-  const require = createRequire(import.meta.url)
-  const source = dirname(require.resolve(`${esbuildPackage}/package.json`, {
-    paths: [resolve(root, 'node_modules', 'esbuild')],
-  }))
+  const packageDirectory = esbuildPackage.slice(1).replace('/', '+')
+  const pnpmStore = resolve(repoRoot, 'node_modules', '.pnpm')
+  const storeEntry = readdirSync(pnpmStore).find((entry) => entry.startsWith(`${packageDirectory}@`))
+  if (storeEntry === undefined) throw new Error(`desktop: missing ${esbuildPackage} platform package`)
+  const source = resolve(pnpmStore, storeEntry, 'node_modules', esbuildPackage)
   const target = resolve(dshImNodeModules, esbuildPackage)
   rmSync(target, { recursive: true, force: true })
   mkdirSync(dirname(target), { recursive: true })
