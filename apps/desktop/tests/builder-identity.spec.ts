@@ -39,13 +39,13 @@ describe('desktop builder identity', () => {
 
   it('gives Windows and macOS release assets stable architecture-specific names', () => {
     expect(config).toMatch(
-      /^nsis:\s*$[\s\S]*?^\s+artifactName:\s+Deepagens-Wroker-\$\{version\}-win-\$\{arch\}\.\$\{ext\}\s*$/m,
+      /^nsis:\s*$[\s\S]*?^\s+artifactName:\s+Deepagens-Worker-\$\{version\}-win-\$\{arch\}\.\$\{ext\}\s*$/m,
     )
     expect(config).toMatch(
-      /^mac:\s*$[\s\S]*?^\s+artifactName:\s+Deepagens-Wroker-\$\{version\}-mac-\$\{arch\}\.\$\{ext\}\s*$/m,
+      /^mac:\s*$[\s\S]*?^\s+artifactName:\s+Deepagens-Worker-\$\{version\}-mac-\$\{arch\}\.\$\{ext\}\s*$/m,
     )
     expect(config).toMatch(
-      /^linux:\s*$[\s\S]*?^\s+artifactName:\s+Deepagens-Wroker-\$\{version\}-linux-\$\{arch\}\.\$\{ext\}\s*$/m,
+      /^linux:\s*$[\s\S]*?^\s+artifactName:\s+Deepagens-Worker-\$\{version\}-linux-\$\{arch\}\.\$\{ext\}\s*$/m,
     )
     expect(config).not.toContain('${productName}-${version}')
   })
@@ -83,6 +83,8 @@ describe('desktop builder identity', () => {
       extends: 'electron-builder.yml',
       productName: '深度Worker',
       extraMetadata: {
+        name: 'deepagens-worker',
+        productName: '深度Worker',
         dsh: { updateUrl: 'https://updates.example.test/desktop' },
       },
     })
@@ -97,6 +99,8 @@ describe('desktop builder identity', () => {
     })).toMatchObject({
       directories: { output: 'C:/local-update/feed' },
       extraMetadata: {
+        name: 'deepagens-worker',
+        productName: 'Worker',
         version: '1.2.4',
         dsh: { updateUrl: 'http://127.0.0.1:43119', localUpdateTest: true },
       },

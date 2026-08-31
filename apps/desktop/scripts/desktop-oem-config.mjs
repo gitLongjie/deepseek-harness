@@ -52,6 +52,8 @@ export function createElectronBuilderOemConfig(productName, updateUrl, options =
     throw new Error('oem.config.json.updateUrl must be an HTTPS URL')
   }
   const extraMetadata = {
+    name: 'deepagens-worker',
+    productName,
     dsh: {
       updateUrl,
       ...(options.localUpdateFeed ? { localUpdateTest: true } : {}),

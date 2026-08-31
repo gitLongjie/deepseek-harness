@@ -1,5 +1,5 @@
 {
-  "productName": "深度Worker",
+  "productName": "Deepagens-Worker",
   "brandIcon": "/favicon.ico",
   "loginUrl": "https://claw.deepagens.com/api/user/deepagens-claw/login",
   "updateUrl": "https://github.com/gitLongjie/deepseek-harness/releases/latest/download",
