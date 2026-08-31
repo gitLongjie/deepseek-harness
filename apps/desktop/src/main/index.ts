@@ -47,7 +47,7 @@ protocol.registerSchemesAsPrivileged([
 const DESKTOP_PRODUCT_NAME = resolveDesktopWindowTitle(app.getName())
 const DESKTOP_UPDATE_URL = readDesktopUpdateUrl()
 app.setName(DESKTOP_PRODUCT_NAME)
-if (process.platform === 'win32') app.setAppUserModelId('ai.deepseek.works')
+if (process.platform === 'win32') app.setAppUserModelId('ai.deepagens.worker')
 
 /** Directory of the built frontend dist, beside this compiled main in both layouts. */
 const WEB_DIST_DIR = fileURLToPath(new URL('../../web/', import.meta.url))

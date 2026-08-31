@@ -3,7 +3,7 @@
 # APPLE_* secrets in the environment, electron-builder skips Windows signing and
 # macOS notarization (identity: null). Populate the CI secrets (see README) to
 # enable real signing without touching this file.
-appId: ai.deepseek.works
+appId: ai.deepagens.worker
 # deploy-app.mjs supplies productName and platform-native derivatives through
 # its generated dist/electron-builder.oem.json overlay.
 # Keep the packaged application artwork aligned with the runtime window and

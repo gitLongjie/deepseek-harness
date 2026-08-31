@@ -26,7 +26,7 @@ describe('desktop builder identity', () => {
   const config = readFileSync(BUILDER_CONFIG, 'utf8')
 
   it('ships the product name used by the native shell', () => {
-    expect(config).toMatch(/^appId:\s*ai\.deepseek\.works\s*$/m)
+    expect(config).toMatch(/^appId:\s*ai\.deepagens\.worker\s*$/m)
     expect(config).not.toMatch(/^productName:/m)
     expect(config).not.toContain('深度Works')
   })
