@@ -121,8 +121,13 @@ export function initUpdater(
 
   autoUpdater.on('error', (error) => {
     reportUpdateError?.(`desktop: update error: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`)
-    sendStatus({ status: 'error' })
-    if (manualCheck) void showDialog('error', currentT('update.error'))
+    // Startup checks are opportunistic. An offline or slow update host must
+    // not create a retry control while the user is working with the product.
+    // Explicit Help-menu checks still expose the failure and offer a retry.
+    if (manualCheck) {
+      sendStatus({ status: 'error' })
+      void showDialog('error', currentT('update.error'))
+    }
     manualCheck = false
   })
 

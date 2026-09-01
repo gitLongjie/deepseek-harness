@@ -92,14 +92,33 @@ describe('desktop updater status and actions', () => {
     mocks.listeners.get('download-progress')!({ percent: 42.4 })
     mocks.listeners.get('update-downloaded')!({ version: '1.1.0' })
     mocks.listeners.get('update-not-available')!({ version: '1.0.0' })
-    mocks.listeners.get('error')!(new Error('offline'))
 
     expect(send).toHaveBeenNthCalledWith(1, 'dsh:update:status', { status: 'available', version: '1.1.0' })
     expect(send).toHaveBeenNthCalledWith(2, 'dsh:update:status', { status: 'progressing', percent: 42 })
     expect(send).toHaveBeenNthCalledWith(3, 'dsh:update:status', { status: 'downloaded', version: '1.1.0' })
     expect(send).toHaveBeenNthCalledWith(4, 'dsh:update:status', { status: 'idle' })
-    expect(send).toHaveBeenNthCalledWith(5, 'dsh:update:status', { status: 'error' })
+  })
+
+  it('keeps a startup update failure out of the renderer while logging it', () => {
+    mocks.listeners.get('error')!(new Error('offline'))
+
+    expect(send).not.toHaveBeenCalledWith('dsh:update:status', { status: 'error' })
     expect(log).toHaveBeenCalledWith(expect.stringContaining('offline'))
+  })
+
+  it('shows a failure after an explicit update check', async () => {
+    requestUpdateCheck()
+    mocks.listeners.get('error')!(new Error('offline'))
+
+    expect(send).toHaveBeenCalledWith('dsh:update:status', { status: 'error' })
+    await vi.waitFor(() => {
+      expect(mocks.showMessageBox).toHaveBeenCalledWith({
+        type: 'error',
+        title: 'update.availableTitle',
+        message: 'update.error',
+        buttons: ['update.ok'],
+      })
+    })
   })
 
   it('prompts after a manual check finds an update and downloads on confirmation', async () => {

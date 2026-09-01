@@ -25,8 +25,8 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
     /**
      * One provider card's adapter extension area, dispatched with
      * `entryKey = settingsNs` on every card that renders a directory row: a
-     * saved row's card (its first-run setup posture included) and the
-     * add-provider draft card. The hand-declared draft card has no directory
+     * saved row's card, an unconfigured provider card, and the add-provider
+     * draft card. The hand-declared draft card has no directory
      * row yet, so it dispatches nothing until saved. Without a registrant the
      * area renders nothing.
      */

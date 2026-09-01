@@ -45,6 +45,8 @@ declare module '@deepseek-ai/cordis' {
   interface Context {
     /** The web plugin table (provided by the client-modules node half). */
     clientModules: ClientModuleRegistry
+    /** Installed-host resolution base for bare Loader entries in packaged applications. */
+    dshBareModuleBaseUrl?: string
   }
 }
 
@@ -528,7 +530,9 @@ window.__ModuleLoader__={
  * + bundle route + index injection rows. Construction runs the activation scan
  * synchronously — a malformed declaration or missing bundle among the
  * already-loaded entries aggregates into one loud throw (FAILED fiber; the
- * boot activation audit reports it).
+ * boot activation audit reports it). A graph read also reconciles the live
+ * Loader entries, so an entry created before this service installed its
+ * incremental listener still reaches the startup graph.
  */
 export class ClientModuleRegistry extends Service {
   static inject = ['webServer', 'loader']
@@ -587,15 +591,16 @@ export class ClientModuleRegistry extends Service {
       'client-modules: bundle route',
     )
     ctx.on('webserver/index-inject', (table) => {
-      table.push(...bootInjections(this.composed))
+      table.push(...bootInjections(this.graph()))
     })
   }
 
   /**
-   * Current composed entry graph (stable object between changes).
+   * Current composed entry graph after reconciling the live Loader entries.
    * @returns the graph served as `window.__DSH_BOOT__`.
    */
   graph(): WebBootGraph {
+    this.synchronizeGraph()
     return this.composed
   }
 
@@ -940,7 +945,14 @@ export class ClientModuleRegistry extends Service {
 
   private resolveSource(entry: Entry): ClientPackageSource | undefined {
     const loaderName = entry.options.name
-    const baseUrl = entry.parent.tree.ctx.baseUrl
+    const entryBaseUrl = entry.parent.tree.ctx.baseUrl
+    // The packaged root Include imports bare entries from the installed app
+    // (app.asar), while its writable profile tree keeps its own base URL.
+    // Resolve metadata from the same installed location so static browser rows
+    // are not mistaken for non-client packages on a clean machine.
+    const baseUrl = exactPackageSpecifier(loaderName) === undefined
+      ? entryBaseUrl
+      : this.ctx.dshBareModuleBaseUrl ?? entryBaseUrl
     if (baseUrl === undefined) {
       throw new Error(`client-modules: loader entry ${loaderName} has no resolution base URL`)
     }
@@ -1007,6 +1019,12 @@ export class ClientModuleRegistry extends Service {
     }
     this.composed = composed
     this.notifyGraphChanged()
+  }
+
+  /** Reconcile every current Loader row before exposing a startup graph. */
+  private synchronizeGraph(): void {
+    for (const entry of this.ctx.loader.entries()) this.dirty.add(entry.options.name)
+    this.flush((error) => { this.ctx.logger.warn(error) })
   }
 
   private readonly serveBundle = (req: IncomingMessage, res: ServerResponse): void => {

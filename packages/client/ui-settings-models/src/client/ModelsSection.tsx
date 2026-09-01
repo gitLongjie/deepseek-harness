@@ -3,9 +3,9 @@
  * directory, settings namespaces, and credential states, with one editor
  * card at a time. Rows expose only confirmed API-key state through accessible
  * solid configured or missing dots. A whole-section provider without a
- * configured key renders as its open setup card instead of a row, but only in
- * the first-run posture — no provider on the page can serve requests yet — and
- * only until the user closes that card; the add flow is a card carrying the
+ * configured key renders as its open setup card instead of a row while no
+ * provider on the page can serve requests yet, and only until the user closes
+ * that card; the add flow is a card carrying the
  * dormant-provider select. Each card kind owns its own open state, so closing
  * one never discards a draft in another. Every mutation writes through the
  * wire, while a provider removal first requires confirmation; the page
@@ -85,7 +85,7 @@ interface ProviderEditorRenderProps extends Pick<
   target: EditorTarget
 }
 
-/** Render an editor for either the setup posture or an expanded provider row. */
+/** Render an editor for either an unconfigured provider or an expanded row. */
 function renderProviderEditor({ target, ...props }: ProviderEditorRenderProps): ReactNode {
   return (
     <ProviderEditor
@@ -135,10 +135,10 @@ export async function removeProviderProfile(
 }
 
 /**
- * Whether a whole-section provider still needs its first key: an unconfigured
- * credential opens the setup card instead of showing a row. This is the
- * first-run posture alone — a user who can already reach some provider gets an
- * ordinary row with the missing-key dot, since nothing here is blocking them.
+ * Whether a whole-section provider needs its configuration card: an
+ * unconfigured credential opens the card instead of showing a row while the
+ * user has no other usable provider. Otherwise the row keeps its missing-key
+ * dot because the page does not block the user.
  * @param row - the joined provider row.
  * @param anyUsable - whether any joined row can already serve requests.
  * @returns whether to render the setup card.
@@ -291,8 +291,7 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
     ? savedTarget
     : { provider: savedRow.entry.provider, displayName: savedRow.entry.displayName }
 
-  // One fact decides both first-run postures on this page and the onboarding
-  // step: whether the user already has a provider to talk to.
+  // The page reflects whether the user already has a provider to talk to.
   const anyUsable = state.rows.some(providerUsable)
   const configured = state.rows.filter(row => row.configured)
   const addable = state.rows.filter(row => !row.configured && row.entry.settingsNs !== '')

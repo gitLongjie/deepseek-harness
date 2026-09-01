@@ -63,11 +63,13 @@ function constructWithRoute(
   options: {
     contextBaseUrl?: string
     entryBaseUrl?: string
+    bareModuleBaseUrl?: string
     internal?: NonNullable<Context['loader']['internal']>
   } = {},
 ): { context: Context; service: ClientModuleRegistry; route: WebRoute } {
   const ctx = new Context()
   ctx.baseUrl = options.contextBaseUrl ?? pathToFileURL(root!).href + '/'
+  ctx.provide('dshBareModuleBaseUrl', options.bareModuleBaseUrl)
   ctx.provide('loader', {
     internal: options.internal,
     *entries() {
@@ -240,6 +242,33 @@ describe('HTML bootstrap facade', () => {
 })
 
 describe('client bundle activation', () => {
+  it('resolves packaged bare entries from the installed host rather than the writable profile', () => {
+    const packageName = '@fixture/packaged-entry'
+    const clientPath = writePackage(packageName)
+    const hostPath = join(dirname(clientPath), 'index.js')
+    mkdirSync(dirname(hostPath), { recursive: true })
+    writeFileSync(hostPath, 'export default {}\n')
+    writeFileSync(clientPath, 'module.exports = {}\n')
+    const profileBaseUrl = pathToFileURL(join(root!, 'profile')).href + '/'
+    const installedBaseUrl = pathToFileURL(join(root!, 'installed-host')).href + '/'
+    const internal = {
+      version: 'v2' as const,
+      resolveSync: (baseUrl: string) => {
+        if (baseUrl !== installedBaseUrl) throw new Error('profile cannot resolve packaged dependency')
+        return { format: 'module' as const, url: pathToFileURL(hostPath).href }
+      },
+    }
+
+    const { service } = constructWithRoute([packageName], {
+      contextBaseUrl: profileBaseUrl,
+      entryBaseUrl: profileBaseUrl,
+      bareModuleBaseUrl: installedBaseUrl,
+      internal: internal as unknown as NonNullable<Context['loader']['internal']>,
+    })
+
+    expect(service.graph().entries.map(entry => entry.id)).toEqual([packageName])
+  })
+
   it.each(['v1', 'v2'] as const)(
     'resolves %s package metadata from the owning entry tree',
     (version) => {
@@ -261,7 +290,7 @@ describe('client bundle activation', () => {
       const { service } = constructWithRoute([packageName], {
         contextBaseUrl,
         entryBaseUrl,
-        internal: internal as NonNullable<Context['loader']['internal']>,
+        internal: internal as unknown as NonNullable<Context['loader']['internal']>,
       })
 
       expect(calls).toEqual(version === 'v2'
@@ -327,7 +356,7 @@ describe('client bundle activation', () => {
 
       const { service } = constructWithRoute([loaderName], {
         entryBaseUrl,
-        internal: internal as NonNullable<Context['loader']['internal']>,
+        internal: internal as unknown as NonNullable<Context['loader']['internal']>,
       })
 
       expect(calls).toEqual(version === 'v2'
@@ -390,6 +419,17 @@ describe('client bundle activation', () => {
     expect(service.graph().entries.map(entry => entry.id)).toEqual([packageName])
     expect(service.graph().entries[0]!.rev).not.toBe(firstRevision)
     expect(service.clientPath(packageName)).toBe(clientPath)
+  })
+
+  it('resamples entries that appeared before the next boot graph is read', () => {
+    const packageName = '@fixture/late-visible-client'
+    writeBuiltPackage(packageName, {})
+    const entries: string[] = []
+    const { service } = constructWithRoute(entries)
+
+    entries.push(packageName)
+
+    expect(service.graph().entries.map(entry => entry.id)).toEqual([packageName])
   })
 
   it('uses owning-tree package resolution for an import-only Worker module loader', () => {

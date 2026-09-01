@@ -10,6 +10,7 @@
  */
 
 import { readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
@@ -18,6 +19,8 @@ import { renderIndexInjections, type IndexInjection } from '@deepseek-ai/dsh-hos
 
 /** The built render-transport IIFE, inlined ahead of the module-system queue. */
 const TRANSPORT_IIFE_PATH = fileURLToPath(new URL('../../render-transport.js', import.meta.url))
+const CLIENT_MODULES_ID = '@deepseek-ai/dsh-client-modules'
+const CLIENT_MODULES_BOOTSTRAP_PATH = createRequire(import.meta.url).resolve(`${CLIENT_MODULES_ID}/client`)
 
 /** `</script` closes the element early when inlined; `\/` keeps the string equal. */
 function escapeInlineScript(text: string): string {
@@ -40,12 +43,14 @@ function readPluginBundle(modules: ClientModuleRegistry, src: string): string {
  * @param ctx - the settled boot context carrying webServer and clientModules.
  * @param webDistDir - directory containing the built frontend index.html.
  * @param transportIifePath - absolute path of the built render-transport IIFE.
+ * @param clientModulesBootstrapPath - packaged client module bootstrap artifact.
  * @returns the injected index.html text.
  */
 export function renderDesktopIndex(
   ctx: Context,
   webDistDir: string,
   transportIifePath: string = TRANSPORT_IIFE_PATH,
+  clientModulesBootstrapPath: string = CLIENT_MODULES_BOOTSTRAP_PATH,
 ): string {
   const server = ctx.get('webServer') as { collectIndexInjections(): IndexInjection[] } | undefined
   if (server === undefined) {
@@ -63,6 +68,20 @@ export function renderDesktopIndex(
       : readFileSync(join(webDistDir, row.src), 'utf8')
     return { kind: 'script', placement: row.placement, text: escapeInlineScript(text) }
   })
+  // The client module facade is parser-blocking and must register after the
+  // queue facade but before the Vite shell entry. A profile assembled without
+  // the corresponding index row would otherwise fail only in the renderer,
+  // after installation. Recover from the packaged client artifact here so a
+  // stale or partial profile cannot produce an unusable desktop window.
+  const hasClientModulesBootstrap = table.some(row =>
+    row.kind === 'script-src' && row.src.includes(`${CLIENT_MODULES_ID}/client.js`))
+  if (!hasClientModulesBootstrap) {
+    inline.push({
+      kind: 'script',
+      placement: 'head',
+      text: escapeInlineScript(readFileSync(clientModulesBootstrapPath, 'utf8')),
+    })
+  }
   const transport: IndexInjection = {
     kind: 'script',
     placement: 'head',

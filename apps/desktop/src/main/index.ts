@@ -16,7 +16,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { loadLayeredEnv } from '@deepseek-ai/dsh-app-boot'
 import { runDesktopBoot } from './boot.ts'
 import type { ProcessShutdown } from './process-shutdown.ts'
-import { registerTransportIpc } from './ipc/transport.ts'
+import { dispatchTransportFetch, registerTransportIpc, type TransportFetchRequest } from './ipc/transport.ts'
 import { registerBundleIpc } from './ipc/bundle.ts'
 import { renderDesktopIndex } from './ipc/index-html.ts'
 import { installSingleInstanceLock } from './desktop/single-instance.ts'
@@ -302,6 +302,33 @@ function registerWebProtocol(writeLog: (line: string) => void): void {
           injected = renderDesktopIndex(ctx, WEB_DIST_DIR)
         }
         return new Response(injected, { headers: { 'content-type': 'text/html; charset=utf-8' } })
+      }
+      // Keep the app scheme usable even when a renderer request reaches the
+      // protocol directly instead of the IPC fetch hook. API paths belong to
+      // the in-process Host connection; they are never frontend files.
+      if (pathname.startsWith('/api/')) {
+        const bodyBytes = request.method === 'GET' || request.method === 'HEAD'
+          ? undefined
+          : await request.arrayBuffer()
+        const headers: Record<string, string> = {}
+        request.headers.forEach((value, key) => { headers[key] = value })
+        const req: TransportFetchRequest = {
+          requestId: `protocol-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          path: `${pathname}${url.search}`,
+          method: request.method,
+          headers,
+          ...(bodyBytes === undefined ? {} : { body: new TextDecoder().decode(bodyBytes) }),
+        }
+        const response = await dispatchTransportFetch(
+          { connection: host.ctx?.get('connection'), gateway: host.ctx?.get('typertGateway') },
+          req,
+          new AbortController().signal,
+        )
+        const responseBody = new Uint8Array(await response.arrayBuffer())
+        const responseHeaders = new Headers()
+        const contentType = response.headers.get('content-type')
+        if (contentType !== null) responseHeaders.set('content-type', contentType)
+        return new Response(responseBody, { status: response.status, headers: responseHeaders })
       }
       // /plugins/* — dynamic client bundles owned by the module registry, not
       // static web assets. The renderer may reach them by URL when the

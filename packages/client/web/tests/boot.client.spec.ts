@@ -90,6 +90,68 @@ describe('bootstrap failure rendering', () => {
 })
 
 describe('plugin activation', () => {
+  it('activates a dynamically composed picker after its renderer and workspace providers', async () => {
+    const container = document.createElement('div')
+    document.body.append(container)
+    const target = installFacade()
+    const renderer = '@fixture/ui-renderer'
+    const workspace = '@fixture/ui-workspace'
+    const picker = '@fixture/directory-picker-native'
+    const entries: WebBootEntry[] = [
+      { id: renderer, url: '/renderer.js', rev: '1', immediately: true },
+      { id: workspace, url: '/workspace.js', rev: '1', inject: [renderer] },
+      { id: picker, url: '/picker.js', rev: '1', inject: [renderer, workspace] },
+    ]
+    const applicationUrl = '/application.js'
+    win.__DSH_BOOT__ = {
+      rev: 'graph',
+      entries,
+      batches: [{ phase: 'application', url: applicationUrl, rev: 'batch', entries: entries.map(row => row.id) }],
+    }
+    const applied: string[] = []
+    const registrations: ClientBundleRegistration[] = [
+      {
+        id: renderer,
+        factory: () => ({
+          apply: (ctx: Context) => {
+            ctx.reflect.provide('slots', {})
+            ctx.reflect.provide('uiRenderer', { mount: () => () => {} })
+            applied.push('renderer')
+          },
+        }),
+      },
+      {
+        id: workspace,
+        factory: () => ({
+          inject: ['slots'],
+          apply: (ctx: Context) => {
+            ctx.reflect.provide('uiWorkspace', {})
+            applied.push('workspace')
+          },
+        }),
+      },
+      {
+        id: picker,
+        factory: () => ({
+          inject: ['slots', 'uiWorkspace'],
+          apply: () => { applied.push('picker') },
+        }),
+      },
+    ]
+    transportGlobal.__DSH_TRANSPORT__ = {
+      loadBundle: async (url) => {
+        if (url !== applicationUrl) throw new Error(`missing fixture batch ${url}`)
+        for (const registration of registrations) target.load(registration)
+      },
+    }
+
+    const entry = new AppWebEntry(container)
+    await entry.run()
+
+    expect(applied).toEqual(['renderer', 'workspace', 'picker'])
+    await entry.dispose()
+  })
+
   it('prefetches a parser-loaded immediate row through the injected bundle transport', async () => {
     const container = document.createElement('div')
     document.body.append(container)

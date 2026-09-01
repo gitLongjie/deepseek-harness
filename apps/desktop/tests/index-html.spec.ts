@@ -73,6 +73,16 @@ describe('renderDesktopIndex', () => {
     expect(html).toContain('"<\\/script>"')
   })
 
+  it('restores the client module bootstrap when the injection table is incomplete', () => {
+    const dir = makeWebDist()
+    const bundleFile = join(dir, 'client.js')
+    writeFileSync(bundleFile, 'window.__ModuleLoader__.load({ id: "@deepseek-ai/dsh-client-modules", factory() {} })')
+    const iifeFile = join(dir, 'render-transport.js')
+    writeFileSync(iifeFile, 'window.__DSH_TRANSPORT__ = {}')
+    const html = renderDesktopIndex(makeCtx([]), dir, iifeFile, bundleFile)
+    expect(html).toContain('id: "@deepseek-ai/dsh-client-modules"')
+  })
+
   it('throws when the transport IIFE is missing', () => {
     const dir = makeWebDist()
     expect(() => renderDesktopIndex(makeCtx([]), dir, join(dir, 'missing.js'))).toThrow()
