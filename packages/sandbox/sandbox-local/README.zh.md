@@ -70,6 +70,8 @@ kind: "package-reference"
 
 选择按平台优先、探测其次：每个平台都有 runner 链（`linux`：`bwrap` 再 Landlock；`darwin`：Seatbelt；`win32`：ACL 受限令牌 runner）。唯一候选直接选择、不探测；竞争候选按链序各执行一次功能探测，首个可用结论在提供方生命周期内缓存。没有链的平台、或链上所有探测都失败时，平台不可用，并在 `confine()` 处快速失败。
 
+在打包桌面应用内，harness 运行在 Electron 主进程中，因此 `process.execPath` 是应用程序 binary 而非 Node——直接 spawn 会启动第二个应用实例，其单实例锁会无输出地静默退出。Windows rung 把它的 JS runner 解析到 `app.asar.unpacked` 下的磁盘解包副本（桌面包必须解包 runner 相关包），并在 wrap 的 `env` 上报告 `ELECTRON_RUN_AS_NODE: '1'`，由消费方执行器合并进 runner spawn；runner 在 spawn 受限子进程之前从自己的环境块删除该开关。没有可加载的磁盘入口时，`confine()` 快速失败。
+
 ### 平台 profile
 
 bwrap profile 组合只读宿主根目录、全新 `/dev` 与私有 PID 命名空间中的 `/proc`——命令可管理其后代，但看不到宿主进程，因此 procfs 魔法链接无法绕过挂载；`workspace-write` 另加临时的 `/tmp` 与可写工作区绑定挂载。[私有 PID 笔记](../../../.agents/notes/implemented/bug-fix/2026-08-06-bwrap-private-pid-namespace.zh.md)记录该边界。

@@ -71,7 +71,13 @@ export interface Win32Bindings extends Win32ProcessBindings {
     descriptor: NativePtr,
   ): number
   getTempPathW(length: number, buffer: Buffer): number
-  setEnvironmentVariableW(name: string, value: string): number
+  /**
+   * Sets or deletes one variable of the calling process's environment block.
+   * A `null` value DELETES the variable; an empty string value sets it EMPTY
+   * (verified empirically against `CreateProcess` inheritance — only the
+   * null call removes the entry from the block a fresh child receives).
+   */
+  setEnvironmentVariableW(name: string, value: string | null): number
   setConsoleCtrlHandler(handler: null, add: number): number
   createFileW(
     fileName: string,

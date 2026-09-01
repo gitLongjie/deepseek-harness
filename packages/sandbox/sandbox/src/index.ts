@@ -113,6 +113,17 @@ export interface ConfinedArgv {
    * command never ran, while denial means confinement worked and blocked it.
    */
   runnerFailureRules: readonly RunnerFailureRule[]
+  /**
+   * Environment entries the wrapped argv's DIRECT spawn requires, merged into
+   * the consumer's own spawn environment after the consumer's entries. A
+   * runner program that is a JS runtime booted through an embedding
+   * application's executable (the packaged desktop Electron host) needs
+   * `ELECTRON_RUN_AS_NODE` so the spawn runs plain Node instead of a second
+   * application instance; executable runners contribute nothing. The confined
+   * child never inherits these entries — the runner removes the ones it
+   * consumed from its own block before spawning.
+   */
+  env?: Readonly<Record<string, string>>
 }
 
 /**

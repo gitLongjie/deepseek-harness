@@ -109,6 +109,20 @@ describe('the provider hand-off', () => {
     expect(result.sandbox).toEqual({ mode: 'read-only', denied: false, enforcement: 'full' })
   })
 
+  it('merges the provider\'s required runner environment into the spawn after the spec env', async () => {
+    const { ctx, bash } = await setup({}, () => ({
+      argv: [process.execPath, '-e', 'console.log(`RUNNER-MODE:${process.env.FAKE_RUNNER_MODE}:${process.env.SPEC_ENTRY}`)'],
+      env: { FAKE_RUNNER_MODE: 'node' },
+      enforcement: 'full',
+      denialSignatures: UNIX_SIGNATURES,
+      runnerFailureRules: RUNNER_FAILURE,
+    }))
+    const spawn = vi.spyOn(ctx.subprocess, 'spawn')
+    const result = await bash.run(bash.resolve({ command: 'true', env: { SPEC_ENTRY: 'spec' } }))
+    expect(result.stdout.text).toContain('RUNNER-MODE:node:spec')
+    expect(spawn.mock.calls[0]?.[0].env).toMatchObject({ FAKE_RUNNER_MODE: 'node', SPEC_ENTRY: 'spec' })
+  })
+
   it('starts a non-Bash runner before the confined inner Bash evaluates BASH_ENV', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'dsh-bash-env-order-'))
     const hook = join(dir, 'hook.sh')

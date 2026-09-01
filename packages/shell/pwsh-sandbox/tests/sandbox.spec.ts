@@ -279,6 +279,26 @@ describe.skipIf(!pwshAvailable())('SandboxPwshExecutor', () => {
       .rejects.toThrow(SandboxUnavailableError)
   }, 30_000)
 
+  it('merges the confinement program\'s required environment into the runner spawn (foreground and background)', async () => {
+    const runnerEnv = (): ConfinedArgv => ({
+      argv: [process.execPath, '-e', 'console.log(`RUNNER-MODE:${process.env.FAKE_RUNNER_MODE ?? "missing"}`)', '--'],
+      env: { FAKE_RUNNER_MODE: 'node' },
+      enforcement: 'full',
+      denialSignatures: [],
+      runnerFailureRules: [],
+    })
+    // The fake runner exits after logging: the assertions pin the DIRECT
+    // spawn's environment, which is the entry the provider's env rides on.
+    const { executor } = await setup(runnerEnv)
+    const result = await executor.run(executor.resolve({ command: 'echo env-check', sandboxPolicy: RO }))
+    expect(result.exitCode).toBe(0)
+    expect(result.stdout.text).toContain('RUNNER-MODE:node')
+
+    const background = executor.start(executor.resolve({ command: 'echo bg-env-check', sandboxPolicy: RO }))
+    await background.done
+    expect(background.readOutput().delta).toContain('RUNNER-MODE:node')
+  }, 30_000)
+
   it('background confined runs stamp clean facts at settlement', async () => {
     const { executor } = await setup()
     const clean = executor.start(executor.resolve({ command: 'echo background-ok', sandboxPolicy: RO }))

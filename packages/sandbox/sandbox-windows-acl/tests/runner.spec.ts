@@ -25,10 +25,11 @@ function pwshAvailable(): boolean {
   return spawnSync(resolvePwshPath(), ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', '$true'], { encoding: 'utf8' }).status === 0
 }
 
-function runRunner(args: string[], timeoutMs = 30_000) {
+function runRunner(args: string[], timeoutMs = 30_000, env?: NodeJS.ProcessEnv) {
   return spawnSync(process.execPath, ['--import', 'tsx/esm', runnerEntry, ...args], {
     timeout: timeoutMs,
     encoding: 'utf8',
+    ...env !== undefined ? { env: { ...process.env, ...env } } : {},
   })
 }
 
@@ -105,6 +106,21 @@ describe.skipIf(!isWin32 || !pwshAvailable())('windows-acl runner', () => {
     expect(result.stdout).toContain('CIM: DENIED')
     expect(existsSync(escapeFile)).toBe(false)
     expect(existsSync(join(writableDir, 'child-wrote.txt'))).toBe(true)
+  }, 30_000)
+
+  it('Node-mode boot: the runner scrubs ELECTRON_RUN_AS_NODE from the confined child environment', () => {
+    // The desktop host boots the runner through the Electron binary in Node
+    // mode; the child inherits the runner's environment block, and a child
+    // that spawns Electron itself must not receive the switch. Simulated by
+    // setting the switch on a plain-Node runner boot (the switch is inert
+    // there, exactly as it is after the runner consumed it at startup).
+    const result = runRunner([
+      '--workspace', writableDir, '--temp', isolatedTemp, '--mode', 'workspace-write',
+      '--', 'pwsh', '/NoLogo', '/NonInteractive', '/NoProfile', '/Command',
+      '\'RUNNER-MODE: \' + $env:ELECTRON_RUN_AS_NODE + \'END\'',
+    ], 30_000, { ELECTRON_RUN_AS_NODE: '1' })
+    expect(result.status, `stderr: ${result.stderr}`).toBe(0)
+    expect(result.stdout).toContain('RUNNER-MODE: END')
   }, 30_000)
 
   it('read-only: no write-SID grants — workspace/temp writes denied, reads and $null redirection fine, CIM unavailable', () => {

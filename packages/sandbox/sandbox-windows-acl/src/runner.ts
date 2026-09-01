@@ -13,6 +13,13 @@
  *    ['--write-sid', <S-1-4-…>,
  *     '--temp-write-sid', <S-1-4-…>], '--', <argv...>]
  *
+ * The program slot may be the embedding desktop host's Electron binary booted
+ * in Node mode (`ELECTRON_RUN_AS_NODE=1` in its spawn environment, set by
+ * dsh-sandbox-local because a packaged Electron executable otherwise launches
+ * the application instead of this script). The runner deletes that switch
+ * from its own environment before spawning, so the confined child's
+ * inherited block never carries it.
+ *
  * Modes:
  *  - workspace-write: the workspace and temp directories carry distinct
  *    capability-SID Write grants; other ACL-addressable writes are denied
@@ -136,6 +143,16 @@ async function main(): Promise<number> {
   // child's exit code.
   if (api.setConsoleCtrlHandler(null, 1) === 0) {
     fail(`SetConsoleCtrlHandler failed (Win32 ${api.getLastError()})`)
+  }
+  // An embedding desktop host boots this runner through the Electron binary
+  // in Node mode (ELECTRON_RUN_AS_NODE, set by dsh-sandbox-local); the child
+  // inherits this process's environment block (lpEnvironment NULL), and a
+  // child that spawns Electron itself must not receive the switch. The null
+  // value DELETES the variable — an empty string would leave an empty entry,
+  // which an Electron child still reads as "run as Node" (verified
+  // empirically).
+  if (api.setEnvironmentVariableW('ELECTRON_RUN_AS_NODE', null) === 0) {
+    fail(`SetEnvironmentVariableW ELECTRON_RUN_AS_NODE failed (Win32 ${api.getLastError()})`)
   }
 
   let ownedTempDir: string | undefined

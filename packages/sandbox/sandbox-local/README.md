@@ -70,6 +70,8 @@ This section explains runner selection, the per-platform profiles, and the failu
 
 Selection is by platform first, probes second: each platform has a runner chain (`linux`: `bwrap` then Landlock; `darwin`: Seatbelt; `win32`: the ACL restricted-token runner). A sole candidate is selected without a probe; competing candidates are functionally probed once in chain order, and the first usable verdict is cached for the provider's lifetime. A platform with no chain, or a chain where every probe fails, is unavailable and fails closed at `confine()`.
 
+Inside the packaged desktop app the harness runs in the Electron main process, so `process.execPath` is the application binary, not Node — a plain spawn would launch a second app instance, which the single-instance lock exits silently with no output. The Windows rung resolves its JS runner to the unpacked on-disk entry under `app.asar.unpacked` (the desktop package must unpack the runner packages) and reports `ELECTRON_RUN_AS_NODE: '1'` on the wrap's `env`, which the consuming executor merges into the runner spawn; the runner deletes the switch from its own block before spawning the confined child. With no loadable on-disk entry, `confine()` fails closed.
+
 ### Platform profiles
 
 The bwrap profile combines a read-only host root, a fresh `/dev`, and `/proc` from a private PID namespace — commands manage their descendants but cannot see host processes, so procfs magic links cannot bypass the mounts; `workspace-write` adds an ephemeral `/tmp` and a writable workspace bind. The [private-PID note](../../../.agents/notes/implemented/bug-fix/2026-08-06-bwrap-private-pid-namespace.md) records the boundary.

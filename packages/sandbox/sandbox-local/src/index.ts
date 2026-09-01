@@ -23,7 +23,7 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   LAUNCHER_BIN,
@@ -64,6 +64,40 @@ export interface Config {
   probeTimeoutMs?: number
 }
 
+/**
+ * The runner environment inside an Electron embedding: the host's executable
+ * must run the windows-acl runner as plain Node, not as a second application
+ * instance (the packaged desktop app's single-instance lock exits the second
+ * launch silently with no output).
+ */
+const ELECTRON_RUN_AS_NODE_ENV: Readonly<Record<string, string>> = { ELECTRON_RUN_AS_NODE: '1' }
+
+/**
+ * The on-disk twin of an asar-resolved path: the same relative path under the
+ * `app.asar.unpacked` tree. Undefined when the path lives outside an asar
+ * archive and needs no conversion. Plain-Node mode (`ELECTRON_RUN_AS_NODE`)
+ * has no asar support, so a runner entry resolved inside the archive must be
+ * served from this twin.
+ */
+function unpackedAsarPath(path: string): string | undefined {
+  const segments = path.split(sep)
+  const asarIndex = segments.lastIndexOf('app.asar')
+  if (asarIndex === -1) return undefined
+  segments[asarIndex] = 'app.asar.unpacked'
+  return segments.join(sep)
+}
+
+/**
+ * The runner program for one wrap: the exact argv prefix and, when the
+ * program requires environment cooperation, the entries its direct spawn
+ * must carry. bwrap, Landlock, and Seatbelt are executables; only the
+ * windows-acl runner can require entries (Node mode inside an Electron host).
+ */
+interface RunnerProgram {
+  argv: string[]
+  env?: Readonly<Record<string, string>>
+}
+
 /** Probe whether `bwrap` can create the profile; the provider caches the bounded result. */
 function defaultProbeBwrap(timeoutMs: number): boolean {
   const probe = spawnSync('bwrap', [...bwrapProfileArgs({ mode: 'read-only', workspaceRoot: '/' }), '--', 'true'], {
@@ -95,18 +129,22 @@ function defaultProbeSeatbelt(seatbeltExec: string, timeoutMs: number): boolean 
  * no ACL mutation) around `cmd /c exit 0` — exit 0 means the runner created
  * the restricted token and spawned the child under it. The win32 chain is a
  * sole candidate, so the product never probes; the probe exists for override
- * chains and mirrors the other rungs' shape.
+ * chains and mirrors the other rungs' shape. The probe carries the runner
+ * program's required environment (Node mode inside an Electron host).
  */
-function defaultProbeWindowsAcl(runnerInvocation: string[], timeoutMs: number): boolean {
-  const program = runnerInvocation[0]
-  if (program === undefined) return false
+function defaultProbeWindowsAcl(runner: RunnerProgram | undefined, timeoutMs: number): boolean {
+  if (runner === undefined || runner.argv[0] === undefined) return false
+  const program = runner.argv[0]
   const probe = spawnSync(program, [
-    ...runnerInvocation.slice(1),
+    ...runner.argv.slice(1),
     '--workspace', tmpdir(), '--temp', tmpdir(), '--mode', 'read-only',
     '--', 'cmd', '/c', 'exit', '0',
   ], {
     timeout: timeoutMs,
     stdio: 'ignore',
+    // spawnSync replaces the whole environment: the runner program's required
+    // entries merge over the ambient block.
+    ...runner.env !== undefined ? { env: { ...process.env, ...runner.env } } : {},
   })
   return probe.status === 0
 }
@@ -131,6 +169,11 @@ export interface SandboxInternals {
   windowsAclRunnerArgs?: string[]
   /** Replaces the resolved windows-acl runner built entry path (a fake lib/runner.js location). */
   windowsAclRunnerEntry?: string
+  /**
+   * Treats the host as an Electron embedding for runner-program resolution
+   * (exercises the packaged desktop's Node-mode runner from a plain Node host).
+   */
+  electronHost?: boolean
   /** Replaces the functional windows-acl probe (the win32 chain's sole rung — only consulted if that chain ever grows). */
   probeWindowsAcl?: () => boolean
   /** Replaces the private-temp-directory removal at provider dispose (a throwing fake exercises the cleanup-failure path). */
@@ -323,57 +366,69 @@ export class LocalSandboxProvider extends SandboxProvider {
       }
     }
     const selected = this.selectRunner(policy.mode)
-    const runnerArgv = this.runnerArgv(selected.runner, policy)
+    const program = this.runnerProgram(selected.runner, policy)
     return {
-      argv: [...runnerArgv, '--', ...argv],
+      argv: [...program.argv, '--', ...argv],
+      ...program.env !== undefined ? { env: program.env } : {},
       enforcement: selected.enforcement,
       denialSignatures: DENIAL_SIGNATURES[selected.runner],
       runnerFailureRules: RUNNER_FAILURE_RULES[selected.runner],
     }
   }
 
-  /** The selected rung's runner invocation (program + profile arguments) for one policy. */
-  private runnerArgv(runner: SelectedRunner['runner'], policy: SandboxPolicy): string[] {
+  /** The selected rung's runner program (argv prefix plus required spawn environment) for one policy. */
+  private runnerProgram(runner: SelectedRunner['runner'], policy: SandboxPolicy): RunnerProgram {
     switch (runner) {
-      case 'bwrap': return ['bwrap', ...bwrapProfileArgs(policy)]
-      case 'landlock': return [this.landlockLauncher(), ...landlockProfileArgs(policy)]
-      case 'seatbelt': return [this.seatbeltExec(), ...seatbeltProfileArgs(policy)]
-      case 'windows-acl': return this.windowsAclRunnerArgv(policy)
+      case 'bwrap': return { argv: ['bwrap', ...bwrapProfileArgs(policy)] }
+      case 'landlock': return { argv: [this.landlockLauncher(), ...landlockProfileArgs(policy)] }
+      case 'seatbelt': return { argv: [this.seatbeltExec(), ...seatbeltProfileArgs(policy)] }
+      case 'windows-acl': return this.windowsAclRunnerProgram(policy)
       default: return assertNever(runner)
     }
   }
 
   /**
-   * The windows-acl runner argv for one policy. With a calling session (the
-   * policy's `sessionId`) under workspace-write, the grants are materialized
-   * once per provider lifetime — the standing workspace-root grant per
-   * workspace and a revocable, RANDOM private-temp capability per live
-   * session/workspace pair. The runner receives `--write-sid` plus
+   * The windows-acl runner program for one policy. With a calling session
+   * (the policy's `sessionId`) under workspace-write, the grants are
+   * materialized once per provider lifetime — the standing workspace-root
+   * grant per workspace and a revocable, RANDOM private-temp capability per
+   * live session/workspace pair. The runner receives `--write-sid` plus
    * `--temp-write-sid` and grants nothing itself. Agentless workspace-write
    * calls pass the ambient temp ROOT and no SID flags: the runner creates and
-   * removes a random private child directory for that one invocation.
+   * removes a random private child directory for that one invocation. Fails
+   * closed when the embedding host has no loadable runner entry (the command
+   * never runs).
    * @param policy - the resolved per-call policy.
-   * @returns the runner invocation.
+   * @returns the runner program.
    */
-  private windowsAclRunnerArgv(policy: SandboxPolicy): string[] {
+  private windowsAclRunnerProgram(policy: SandboxPolicy): RunnerProgram {
+    const invocation = this.windowsAclRunnerInvocation()
+    if (invocation === undefined) {
+      throw new SandboxUnavailableError(
+        policy.mode,
+        'the packaged desktop host exposes no on-disk windows-acl runner entry; '
+        + 'rebuild the desktop application so the sandbox runner packages are unpacked from app.asar',
+      )
+    }
+    let profileArgs: string[]
     const sessionId = policy.sessionId
     if (sessionId === undefined || policy.mode === 'read-only') {
-      return [
-        ...this.windowsAclRunnerInvocation(),
+      profileArgs = [
         '--workspace', policy.workspaceRoot,
         '--temp', tmpdir(),
         '--mode', policy.mode,
       ]
+    } else {
+      const temp = this.materializeAclGrant(sessionId, policy.workspaceRoot)
+      profileArgs = [
+        '--workspace', policy.workspaceRoot,
+        '--temp', temp.dir,
+        '--mode', policy.mode,
+        '--write-sid', workspaceWriteSid(policy.workspaceRoot),
+        '--temp-write-sid', temp.writeSid,
+      ]
     }
-    const temp = this.materializeAclGrant(sessionId, policy.workspaceRoot)
-    return [
-      ...this.windowsAclRunnerInvocation(),
-      '--workspace', policy.workspaceRoot,
-      '--temp', temp.dir,
-      '--mode', policy.mode,
-      '--write-sid', workspaceWriteSid(policy.workspaceRoot),
-      '--temp-write-sid', temp.writeSid,
-    ]
+    return { argv: [...invocation.argv, ...profileArgs], ...invocation.env !== undefined ? { env: invocation.env } : {} }
   }
 
   /**
@@ -553,14 +608,36 @@ export class LocalSandboxProvider extends SandboxProvider {
    * present (production), else the package source through tsx (development).
    * The prefix stays `[node, runner, ...]` — a future native-exe runner keeps
    * the same argv contract and only swaps these entries.
+   *
+   * Inside an Electron embedding `process.execPath` is the application
+   * binary: a plain spawn launches the packaged app — whose single-instance
+   * lock exits the second launch silently with no output — instead of
+   * running the runner. There the program runs in `ELECTRON_RUN_AS_NODE`
+   * mode (plain Node), which cannot read inside an asar archive, so the
+   * entry must exist on disk: the archive-resolved built entry resolves to
+   * its `app.asar.unpacked` twin, and `existsSync` is trusted only for
+   * non-asar paths. Undefined when no loadable entry exists; callers fail
+   * closed instead of spawning a runner that cannot start.
    */
-  private windowsAclRunnerInvocation(): string[] {
+  private windowsAclRunnerInvocation(): RunnerProgram | undefined {
     const override = this.internals.windowsAclRunnerArgs
-    if (override !== undefined) return override
+    if (override !== undefined) return { argv: override }
     const builtEntry = this.internals.windowsAclRunnerEntry ?? fileURLToPath(import.meta.resolve('@deepseek-ai/dsh-sandbox-windows-acl/runner'))
-    if (existsSync(builtEntry)) return [process.execPath, builtEntry]
+    const electronHost = this.internals.electronHost === true || process.versions.electron !== undefined
+    if (!electronHost) {
+      if (existsSync(builtEntry)) return { argv: [process.execPath, builtEntry] }
+      const sourceEntry = fileURLToPath(import.meta.resolve('@deepseek-ai/dsh-sandbox-windows-acl/src/runner.ts'))
+      return { argv: [process.execPath, '--import', 'tsx/esm', sourceEntry] }
+    }
+    const unpackedEntry = unpackedAsarPath(builtEntry)
+    if (unpackedEntry !== undefined) {
+      if (existsSync(unpackedEntry)) return { argv: [process.execPath, unpackedEntry], env: ELECTRON_RUN_AS_NODE_ENV }
+      return undefined
+    }
+    if (existsSync(builtEntry)) return { argv: [process.execPath, builtEntry], env: ELECTRON_RUN_AS_NODE_ENV }
     const sourceEntry = fileURLToPath(import.meta.resolve('@deepseek-ai/dsh-sandbox-windows-acl/src/runner.ts'))
-    return [process.execPath, '--import', 'tsx/esm', sourceEntry]
+    if (existsSync(sourceEntry)) return { argv: [process.execPath, '--import', 'tsx/esm', sourceEntry], env: ELECTRON_RUN_AS_NODE_ENV }
+    return undefined
   }
 }
 

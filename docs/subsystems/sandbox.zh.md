@@ -117,7 +117,7 @@ interface RunnerFailureRule {
 }
 ```
 
-`ConfinedArgv` 是消费方实际 spawn 的内容。除了替换后的 argv，它还携带后端的强制执行事实和两种正交的 stderr 分类器。`denialSignatures` 用于识别沙箱正常工作时受限命令被阻止的情况。`runnerFailureRules` 用于识别沙箱 runner 在执行命令之前拒绝或失败的情况；消费方应先检查后者，将其作为沙箱基础设施故障上报，而非普通任务失败。
+`ConfinedArgv` 是消费方实际 spawn 的内容。除了替换后的 argv，它还携带后端的强制执行事实、两种正交的 stderr 分类器，以及 runner 程序直接 spawn 所需的环境项。`denialSignatures` 用于识别沙箱正常工作时受限命令被阻止的情况。`runnerFailureRules` 用于识别沙箱 runner 在执行命令之前拒绝或失败的情况；消费方应先检查后者，将其作为沙箱基础设施故障上报，而非普通任务失败。当 runner 是通过宿主应用程序可执行文件启动的 JS 运行时时（打包桌面 Electron 宿主），`env` 携带诸如 `ELECTRON_RUN_AS_NODE` 的条目；消费方将其合并进 runner spawn，而 runner 在 spawn 受限子进程之前删除自己消费过的条目。
 
 ```ts type-equiv
 /**
@@ -146,6 +146,17 @@ interface ConfinedArgv {
    * command never ran, while denial means confinement worked and blocked it.
    */
   runnerFailureRules: readonly RunnerFailureRule[]
+  /**
+   * Environment entries the wrapped argv's DIRECT spawn requires, merged into
+   * the consumer's own spawn environment after the consumer's entries. A
+   * runner program that is a JS runtime booted through an embedding
+   * application's executable (the packaged desktop Electron host) needs
+   * `ELECTRON_RUN_AS_NODE` so the spawn runs plain Node instead of a second
+   * application instance; executable runners contribute nothing. The confined
+   * child never inherits these entries — the runner removes the ones it
+   * consumed from its own block before spawning.
+   */
+  env?: Readonly<Record<string, string>>
 }
 ```
 

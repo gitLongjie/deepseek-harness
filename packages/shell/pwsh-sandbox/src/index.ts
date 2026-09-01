@@ -103,7 +103,7 @@ export class SandboxPwshExecutor extends PwshLocalExecutor {
     const confined = this.confine(spec, { ...policy, mode })
     let result: ShellRunResult
     try {
-      result = await this.runArgv(spec, confined.argv)
+      result = await this.runArgv(this.withRunnerEnvironment(spec, confined), confined.argv)
     } catch (error) {
       // An upstream abort remains cancellation even when it prevents spawn.
       if (spec.signal?.aborted === true) spec.signal.throwIfAborted()
@@ -130,7 +130,7 @@ export class SandboxPwshExecutor extends PwshLocalExecutor {
     const confined = this.confine(spec, { ...policy, mode })
     let proc: ShellProcess
     try {
-      proc = this.startArgv(spec, confined.argv)
+      proc = this.startArgv(this.withRunnerEnvironment(spec, confined), confined.argv)
     } catch (error) {
       if (isRunnerSpawnFailure(error, confined.argv[0], spec.workdir)) {
         throw new SandboxUnavailableError(mode, String(error))
@@ -170,6 +170,16 @@ export class SandboxPwshExecutor extends PwshLocalExecutor {
       }
     }
     super.onProcessDone(proc, stderr, spawnFailed, spawnError)
+  }
+
+  /**
+   * Merge the confinement program's required environment into the spec's
+   * spawn environment. The runner program is the direct child of this spawn;
+   * the confined command inherits the runner's block, and the runner removes
+   * the entries it consumed before spawning.
+   */
+  private withRunnerEnvironment(spec: ShellExecSpec, confined: ConfinedArgv): ShellExecSpec {
+    return confined.env === undefined ? spec : { ...spec, env: { ...spec.env, ...confined.env } }
   }
 
   /**
