@@ -16,9 +16,19 @@ electronLanguages:
 asar: true
 asarUnpack:
   - '**/*.node'
+  # The Windows ACL sandbox runner runs through the Electron binary in Node
+  # mode (ELECTRON_RUN_AS_NODE), which cannot read inside the asar archive;
+  # the runner and its koffi binding closure must exist on disk.
+  - '**/node_modules/@deepseek-ai/dsh-sandbox-windows-acl/**'
+  - '**/node_modules/@deepseek-ai/dsh-win32-process/**'
+  - '**/node_modules/koffi/**'
 # node-pty ships a prebuild matching this Electron's Node ABI; skipping the
 # node-gyp rebuild avoids requiring a full native toolchain on every platform.
 npmRebuild: false
+# build/afterPack.cjs ad-hoc seals the mac bundle when no CSC_LINK/CSC_NAME is
+# configured: identity: null leaves Electron's linker-signed resources
+# unsealed, which macOS Gatekeeper reports as "damaged" with no bypass.
+afterPack: build/afterPack.cjs
 directories:
   # Relative to the electron-builder working directory (apps/desktop); kept
   # apart from the app's own dist/ (main-process build output).
