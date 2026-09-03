@@ -6,8 +6,8 @@ import {
   spawnInheritedJobProcess,
   spawnPipedProcess,
 } from '../src/index.ts'
-import { CREATE_SUSPENDED } from '../src/abi.ts'
-import { PROCESS_INFORMATION } from '../src/ffi.ts'
+import { CREATE_SUSPENDED, STARTF_USESHOWWINDOW, STARTF_USESTDHANDLES, SW_HIDE } from '../src/abi.ts'
+import { PROCESS_INFORMATION, STARTUPINFOW } from '../src/ffi.ts'
 import type { NativePtr, Win32ProcessBindings } from '../src/index.ts'
 
 const PVOID = koffi.pointer('void')
@@ -102,6 +102,14 @@ describe('spawnInheritedJobProcess', () => {
       expect.anything(),
       expect.anything(),
     )
+    const startupInfo = koffi.decode(
+      createProcessAsUserW.mock.calls[0]![9] as NativePtr,
+      STARTUPINFOW,
+    ) as { dwFlags: number; wShowWindow: number }
+    expect(startupInfo).toMatchObject({
+      dwFlags: STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW,
+      wShowWindow: SW_HIDE,
+    })
   })
 
   it('restores already-enabled stdio and closes the Job when inheritance setup fails', () => {
@@ -214,6 +222,15 @@ describe('wait and pipe cleanup', () => {
     let nextPipe = 10n
     const terminateProcess = vi.fn(() => 1)
     const closeHandle = vi.fn(() => 1)
+    const createProcessAsUserW = vi.fn((_token, _app, _line, _pa, _ta, _inherit, _flags, _env, _cwd, _startup, info) => {
+      koffi.encode(info, PROCESS_INFORMATION, {
+        hProcess: 60n,
+        hThread: 0n,
+        dwProcessId: 1234,
+        dwThreadId: 0,
+      })
+      return 1
+    })
     const api = {
       createPipe: vi.fn((readSlot, writeSlot) => {
         koffi.encode(readSlot, PVOID, nextPipe++)
@@ -221,15 +238,7 @@ describe('wait and pipe cleanup', () => {
         return 1
       }),
       setHandleInformation: vi.fn(() => 1),
-      createProcessAsUserW: vi.fn((_token, _app, _line, _pa, _ta, _inherit, _flags, _env, _cwd, _startup, info) => {
-        koffi.encode(info, PROCESS_INFORMATION, {
-          hProcess: 60n,
-          hThread: 0n,
-          dwProcessId: 1234,
-          dwThreadId: 0,
-        })
-        return 1
-      }),
+      createProcessAsUserW,
       terminateProcess,
       closeHandle,
     } as unknown as Win32ProcessBindings
@@ -240,5 +249,13 @@ describe('wait and pipe cleanup', () => {
       token,
     })).toThrow('null process/thread handles')
     expect(terminateProcess).toHaveBeenCalledWith(60n, 1)
+    const startupInfo = koffi.decode(
+      createProcessAsUserW.mock.calls[0]![9] as NativePtr,
+      STARTUPINFOW,
+    ) as { dwFlags: number; wShowWindow: number }
+    expect(startupInfo).toMatchObject({
+      dwFlags: STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW,
+      wShowWindow: SW_HIDE,
+    })
   })
 })

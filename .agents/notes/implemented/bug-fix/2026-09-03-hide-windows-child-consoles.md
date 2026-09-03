@@ -10,7 +10,7 @@ Local child processes launched by the desktop application could create transient
 
 ## Decision
 
-The local subprocess provider sets Node's `windowsHide` spawn option for every child process. The option is harmless on non-Windows hosts and does not change stdio routing or process-tree ownership.
+The local subprocess provider sets Node's `windowsHide` spawn option for every child process. The Windows ACL sandbox starts wrapped commands through a separate `CreateProcessAsUserW` path, so the shared Win32 process layer also sets `STARTF_USESHOWWINDOW` with `SW_HIDE` while retaining `STARTF_USESTDHANDLES`. Neither path changes stdio routing or process-tree ownership.
 
 ## Alternatives considered
 
@@ -21,3 +21,5 @@ The local subprocess provider sets Node's `windowsHide` spawn option for every c
 ## Consequences
 
 Windows child processes no longer request transient console windows through Node's spawn path. PTY sessions retain their interactive behavior, and non-Windows process-tree behavior is unchanged.
+
+Windows ACL-sandboxed PowerShell and command launches now receive the same hidden-window treatment without the `CREATE_NO_WINDOW` or `CREATE_NEW_CONSOLE` creation flags that the restricted token cannot initialize under.

@@ -502,6 +502,29 @@ describe('ModelsSection', () => {
     ])
   })
 
+  it('declares image input for an added DeepSeek model', async () => {
+    const { mutate } = await mountDeepSeekCard({
+      mutate: vi.fn(() => Promise.resolve(remoteOk(wireNamespaces()[0]))),
+    })
+    fireEvent.click(screen.getByText(en.customized))
+    fireEvent.click(screen.getByText(en.addModel))
+    const ids = screen.getAllByLabelText(new RegExp(en.modelId))
+    fireEvent.change(ids[2] as HTMLInputElement, { target: { value: 'private-vision' } })
+    expandRow(3)
+    fireEvent.click(screen.getByLabelText(`${en.modelInputImage} 3`))
+    fireEvent.click(screen.getByText(en.apply))
+
+    await waitFor(() => { expect(mutate).toHaveBeenCalledTimes(1) })
+    expect(mutate.mock.calls[0]?.[1]).toEqual([{
+      op: 'set',
+      path: ['models'],
+      value: [
+        ...DEFAULT_DEEPSEEK_MODELS,
+        { id: 'private-vision', inputModalities: ['text', 'image'] },
+      ],
+    }])
+  })
+
   it('rejects duplicate DeepSeek model ids before writing', async () => {
     const { mutate } = await mountDeepSeekCard()
     fireEvent.click(screen.getByText(en.customized))
@@ -536,6 +559,9 @@ describe('ModelsSection', () => {
     expect(validateDeepSeekModels([{ id: 'model', maxTokens: 0 }]))
       .toEqual({ index: 0, key: 'modelMaxTokensInvalid' })
     expect(validateDeepSeekModels([{ id: 'model', maxTokens: 8192 }])).toBeUndefined()
+    expect(validateDeepSeekModels([{ id: 'model', inputModalities: ['text', 'image'] }])).toBeUndefined()
+    expect(validateDeepSeekModels([{ id: 'model', inputModalities: ['video'] }]))
+      .toEqual({ index: 0, key: 'modelInputInvalid' })
   })
 
   it('reads context windows written as counts, thousands, or millions', () => {

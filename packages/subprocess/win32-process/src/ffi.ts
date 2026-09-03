@@ -40,6 +40,7 @@ export function isNullPtr(value: NativePtr | null | undefined): value is null | 
 export interface StartupInfoInput {
   cb: number
   dwFlags: number
+  wShowWindow: number
   hStdInput: NativePtr
   hStdOutput: NativePtr
   hStdError: NativePtr
@@ -183,7 +184,7 @@ export function allocStartupInfo(): NativePtr {
 }
 
 /**
- * Encode the stdio-bearing STARTUPINFOW fields.
+ * Encode the stdio-bearing and initial-window-state STARTUPINFOW fields.
  * @param startupInfo - allocated STARTUPINFOW pointer.
  * @param fields - fields required for inherited stdio.
  */

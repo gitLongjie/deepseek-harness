@@ -17,7 +17,7 @@ import styles from './ModelsSection.module.css'
 export type DeepSeekModelDraft = Record<string, unknown>
 
 /** The catalog fields this editor writes. */
-type CatalogField = 'id' | 'name' | 'contextWindow' | 'maxTokens'
+type CatalogField = 'id' | 'name' | 'contextWindow' | 'maxTokens' | 'inputModalities'
 
 /** The two token counts edited as K/M-suffixed text behind a row's disclosure. */
 type CapacityField = 'contextWindow' | 'maxTokens'
@@ -74,7 +74,59 @@ export interface DeepSeekModelsValidationFailure {
   index: number
   /** Message key owned by the Models settings section. */
   key: 'modelIdRequired' | 'modelIdDuplicate' | 'modelNameInvalid' | 'modelContextInvalid'
-  | 'modelMaxTokensInvalid'
+  | 'modelMaxTokensInvalid' | 'modelInputInvalid'
+}
+
+/** The input media the current message and provider adapters can carry. */
+const MODEL_INPUTS = ['text', 'image'] as const
+
+/** Whether one user-owned media declaration names text and optionally images. */
+function validModelInputs(value: unknown): boolean {
+  return Array.isArray(value)
+    && value.includes('text')
+    && value.every(item => MODEL_INPUTS.includes(item as typeof MODEL_INPUTS[number]))
+    && new Set(value).size === value.length
+}
+
+/** Props for a model input-media declaration. */
+export interface ModelInputTypesProps {
+  /** Config key used by the adapter family. */
+  field: 'input' | 'inputModalities'
+  /** Current model entry. */
+  model: DeepSeekModelDraft
+  /** One-based model number used in accessible control names. */
+  number: number
+  /** Section copy. */
+  t: (key: keyof typeof en) => string
+  /** Disable the mutable image option. */
+  disabled: boolean
+  /** Save the selected media types to the row. */
+  onChange: (value: readonly ('text' | 'image')[]) => void
+}
+
+/** Render the text baseline and optional image input capability for one model. */
+export function ModelInputTypes(props: ModelInputTypesProps): ReactNode {
+  const current = props.model[props.field]
+  const supportsImage = Array.isArray(current) && current.includes('image')
+  return (
+    <fieldset className={styles['modelInputTypes']}>
+      <legend className={styles['modelFieldLabel']}>{props.t('modelInputTypes')}</legend>
+      <label className={styles['modelInputOption']}>
+        <input type="checkbox" checked disabled aria-label={`${props.t('inputText')} ${String(props.number)}`} />
+        {props.t('inputText')}
+      </label>
+      <label className={styles['modelInputOption']}>
+        <input
+          type="checkbox"
+          checked={supportsImage}
+          aria-label={`${props.t('modelInputImage')} ${String(props.number)}`}
+          disabled={props.disabled}
+          onChange={(event) => { props.onChange(event.target.checked ? ['text', 'image'] : ['text']) }}
+        />
+        {props.t('inputImage')}
+      </label>
+    </fieldset>
+  )
 }
 
 /** Convert a schema-validated catalog value into records without dropping hidden fields. */
@@ -117,6 +169,11 @@ export function validateDeepSeekModels(value: unknown): DeepSeekModelsValidation
     if (maxTokens !== undefined
       && (typeof maxTokens !== 'number' || !Number.isInteger(maxTokens) || maxTokens <= 0)) {
       return { index, key: 'modelMaxTokensInvalid' }
+    }
+    for (const field of ['input', 'inputModalities'] as const) {
+      if (model[field] !== undefined && !validModelInputs(model[field])) {
+        return { index, key: 'modelInputInvalid' }
+      }
     }
   }
   return undefined
@@ -343,6 +400,14 @@ export function DeepSeekModelsEditor(props: DeepSeekModelsEditorProps): ReactNod
                     <div className={styles['modelAdvanced']}>
                       {capacityField(model, index, 'contextWindow', props.defaultContextWindow)}
                       {capacityField(model, index, 'maxTokens', props.defaultMaxTokens)}
+                      <ModelInputTypes
+                        field="inputModalities"
+                        model={model}
+                        number={index + 1}
+                        t={props.t}
+                        disabled={props.disabled}
+                        onChange={(value) => { update(index, 'inputModalities', [...value]) }}
+                      />
                     </div>
                   )
                   : null}

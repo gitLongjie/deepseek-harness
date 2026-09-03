@@ -10,7 +10,7 @@ Status: implemented
 
 ## Decision
 
-本地 subprocess provider 为每个子进程设置 Node 的 `windowsHide` spawn 选项。该选项在非 Windows 主机上无副作用，也不改变 stdio 路由或进程树归属。
+本地 subprocess provider 为每个子进程设置 Node 的 `windowsHide` spawn 选项。Windows ACL 沙箱通过独立的 `CreateProcessAsUserW` 路径启动包装后的命令，因此共享 Win32 进程层也会在保留 `STARTF_USESTDHANDLES` 的同时设置带 `SW_HIDE` 的 `STARTF_USESHOWWINDOW`。两条路径都不改变 stdio 路由或进程树归属。
 
 ## Alternatives considered
 
@@ -21,3 +21,5 @@ Status: implemented
 ## Consequences
 
 Windows 子进程不再通过 Node 的 spawn 路径请求瞬时控制台窗口。PTY 会话保留交互行为，非 Windows 的进程树行为不变。
+
+Windows ACL 沙箱中的 PowerShell 与命令启动现在也会隐藏窗口，并且不会使用受限令牌无法初始化的 `CREATE_NO_WINDOW` 或 `CREATE_NEW_CONSOLE` 创建标志。
