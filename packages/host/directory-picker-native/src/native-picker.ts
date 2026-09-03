@@ -2,7 +2,7 @@
 
 import { createRequire } from 'node:module'
 import { runNativeCommand, type NativeCommandRunner } from '@deepseek-ai/dsh-native-command'
-import { pickWin32Directory } from './win32-dialog.ts'
+import { DIALOG_TITLE, pickWin32Directory } from './win32-dialog.ts'
 
 /** Testable command boundary; native implementations never invoke a shell. */
 export type DirectoryPickerRunner = NativeCommandRunner
@@ -31,7 +31,7 @@ async function pickElectronDirectory(signal: AbortSignal): Promise<string | null
   // (Electron exposes no abort for showOpenDialog), so it is deliberately unused.
   void signal
   const result = await electron.dialog.showOpenDialog({
-    title: 'Select Workspace Directory',
+    title: DIALOG_TITLE,
     properties: ['openDirectory', 'createDirectory'],
   })
   if (result.canceled || result.filePaths.length === 0) return null
@@ -85,7 +85,7 @@ export async function pickNativeDirectory(
   if (platform === 'darwin') {
     try {
       const result = await run('osascript', [
-        '-e', 'set selectedFolder to choose folder with prompt "Select Workspace Directory"',
+        '-e', `set selectedFolder to choose folder with prompt "${DIALOG_TITLE}"`,
         '-e', 'POSIX path of selectedFolder',
       ], signal)
       return outputPath(result.stdout)
@@ -109,7 +109,7 @@ export async function pickNativeDirectory(
   if (platform === 'linux') {
     try {
       const result = await run('zenity', [
-        '--file-selection', '--directory', '--title=Select Workspace Directory',
+        '--file-selection', '--directory', `--title=${DIALOG_TITLE}`,
       ], signal)
       return outputPath(result.stdout)
     } catch (error: unknown) {
@@ -120,7 +120,7 @@ export async function pickNativeDirectory(
 
     try {
       const result = await run('kdialog', [
-        '--getexistingdirectory', '.', '--title', 'Select Workspace Directory',
+        '--getexistingdirectory', '.', '--title', DIALOG_TITLE,
       ], signal)
       return outputPath(result.stdout)
     } catch (error: unknown) {

@@ -230,10 +230,15 @@ function workspaceGroupHalf(e: { clientY: number; currentTarget: HTMLElement }):
   return e.clientY < rect.top + rect.height / 2 ? 'before' : 'after'
 }
 
+/** Force the native opener to treat a Workspace path as a directory target. */
+function workspaceDirectoryPath(path: string): string {
+  return `${path.replace(/[\\/]+$/, '')}/.`
+}
+
 type SessionTreeProps = Pick<
   WorkspaceBrowserProps,
   'useSessions' | 'useSessionPendingInteraction' | 'startSession' | 'open' | 'forkSession'
-  | 'insertWorkspaceBefore' | 'insertSessionBefore' | 't'
+  | 'insertWorkspaceBefore' | 'insertSessionBefore' | 'openWorkspacePath' | 't'
 > & {
   /** Host account home for POSIX hover-path abbreviation. */
   home?: string | undefined
@@ -267,7 +272,7 @@ type SessionTreeProps = Pick<
 /** The scrolling session tree; unmounting drops the sessions subscription and expand-all state. */
 function SessionTree({
   useSessions, useSessionPendingInteraction, startSession, open, forkSession, workspaces, archivedSessionIds,
-  onRenameRequest, onDeleteRequest, onSessionRename, onSessionArchive,
+  onRenameRequest, onDeleteRequest, onSessionRename, onSessionArchive, openWorkspacePath,
   insertWorkspaceBefore, insertSessionBefore, orderBy,
   groupExpansion, setGroupExpanded,
   sessionOrderByAccount, sessionUpdatedAtByAccount, syncSessionOrderAccount, setSessionOrder, home, t,
@@ -522,6 +527,11 @@ function SessionTree({
                     delete: () => {
                     /* v8 ignore next -- narrowing guard: the actions object exists only for real-workspace groups. */
                       if (group.workspaceId !== undefined) onDeleteRequest(group.workspaceId, group.label)
+                    },
+                    reveal: () => {
+                      if (group.cwd !== undefined) void openWorkspacePath(workspaceDirectoryPath(group.cwd)).catch((reason: unknown) => {
+                        console.warn('workspace directory reveal rejected:', reason)
+                      })
                     },
                   }}
               />
@@ -813,6 +823,7 @@ export function WorkspaceBrowser({
   forkSession,
   renameWorkspace,
   deleteWorkspace,
+  openWorkspacePath,
   insertWorkspaceBefore,
   archiveSession,
   insertSessionBefore,
@@ -1249,6 +1260,7 @@ export function WorkspaceBrowser({
                 open={open}
                 insertWorkspaceBefore={insertWorkspaceBefore}
                 insertSessionBefore={insertSessionBefore}
+                openWorkspacePath={openWorkspacePath}
                 orderBy={orderBy}
                 home={home}
                 t={t}

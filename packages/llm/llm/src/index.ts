@@ -491,6 +491,9 @@ export class LlmRuntime extends TypertRemoteService {
         if (entry.settingsPath.some(segment => segment.length === 0)) {
           throw new LlmError(`configurable provider "${entry.provider}" has an empty settingsPath segment`, 'INVALID_DIRECTORY')
         }
+        if (entry.editorFamily !== undefined && entry.editorFamily.length === 0) {
+          throw new LlmError(`configurable provider "${entry.provider}" has an empty editorFamily`, 'INVALID_DIRECTORY')
+        }
         if ((this.directory.has(entry.provider) && !own.has(entry.provider))
           || detached.some(seen => seen.provider === entry.provider)) {
           throw new LlmError(`configurable provider "${entry.provider}" is already declared`, 'DUPLICATE_DIRECTORY')

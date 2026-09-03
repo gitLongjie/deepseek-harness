@@ -2,8 +2,8 @@
  * Workspace browser tree row components (figma Cell set 14:3080): pure presentational —
  * all data and callbacks arrive via props. Hover swaps (folder->chevron,
  * time->ellipsis, action buttons) are CSS-only. Row ... menus are visual-only
- * except workspace Rename/Delete and session Rename/Fork/Archive; the session
- * and workspace hover cards are suppressed while a menu is open.
+ * except workspace Rename/Delete/Reveal and session Rename/Fork/Archive; the
+ * session and workspace hover cards are suppressed while a menu is open.
  */
 import { useState } from 'react'
 import clsx from 'clsx'
@@ -113,7 +113,7 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home,
   onToggle: () => void
   onCreate: () => void
   /** Real-Workspace actions; absent for the ungrouped bucket (no menu shown). */
-  actions?: { rename: () => void; delete: () => void } | undefined
+  actions?: { rename: () => void; delete: () => void; reveal: () => void } | undefined
   /** Present only for real Workspace rows in the grouped view. */
   drag?: WorkspaceRowDragProps | undefined
   /** Host account home; POSIX home-rooted hover paths display as `~`. */
@@ -127,6 +127,7 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home,
   const [menuOpen, setMenuOpen] = useState(false)
   const workspaceMenuItems = [
     { id: 'rename', label: t('rename'), icon: <IconEditOutline16 /> },
+    { id: 'reveal', label: t('menu.revealInExplorer'), icon: <IconFolderOpen16 /> },
     { id: 'delete', label: t('delete.workspace'), icon: <IconTrashOutline16 />, danger: true },
   ]
   const ownRow = (
@@ -165,8 +166,9 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home,
               // Unknown ids leave before the dispatch: a future menu row must
               // not inherit the destructive branch as an else fallback.
               /* v8 ignore next -- Menu can emit only the rename and delete rows supplied above. */
-              if (id !== 'rename' && id !== 'delete') return
+              if (id !== 'rename' && id !== 'reveal' && id !== 'delete') return
               if (id === 'rename') actions.rename()
+              else if (id === 'reveal') actions.reveal()
               else actions.delete()
             }}
             portal

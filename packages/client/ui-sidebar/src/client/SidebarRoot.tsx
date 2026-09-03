@@ -144,8 +144,7 @@ export function SidebarRoot({
             </span>
           </button>
         )}
-        {/* Rail resting state uses the deployment Logo when available; hovering
-            swaps in the panel icon as the expand affordance. */}
+        {/* The collapsed rail uses only the panel icon as the expand affordance. */}
         <Tooltip label={collapsed ? t('toggle.open') : t('toggle.collapse')} delayMs={500}>
           <button
             type="button"
@@ -153,11 +152,6 @@ export function SidebarRoot({
             aria-label={collapsed ? t('toggle.open') : t('toggle.collapse')}
             onClick={() => { toggleSidebar() }}
           >
-            {!wide && (
-              <span className={css.railMark} aria-hidden="true">
-                {renderSlot('sidebar.brand.mark', { size: 24 })}
-              </span>
-            )}
             {/* Rail icons render at 18 (figma rail spec); expanded keeps the glyph-native sizes. */}
             <IconPanelLeftOutline16 className={css.panelIcon} size={wide ? 16 : 18} />
           </button>

@@ -20,6 +20,10 @@ function event(reason: string): never {
   return { type: 'turn/end', seq: 1, time: 1, data: { turn: 1, reason: { kind: reason } } } as never
 }
 
+function errorEvent(message: string): never {
+  return { type: 'turn/end', seq: 1, time: 1, data: { turn: 1, reason: { kind: 'error', error: { message, code: 'SERVER' } } } } as never
+}
+
 function windowStub(focused = false): BrowserWindow {
   return {
     isDestroyed: () => false,
@@ -36,6 +40,12 @@ describe('desktop completion notification', () => {
   it('notifies and beeps only when an answer ends while the window is inactive', () => {
     notifyTurnCompletion(windowStub(), 'zh', 'session-1', event('completed'))
     expect(notification).toHaveBeenCalledWith({ title: '深度Work', body: '回答已完成' })
+    expect(beep).toHaveBeenCalledOnce()
+  })
+
+  it('uses a system notification for a model response error', () => {
+    notifyTurnCompletion(windowStub(), 'zh', 'session-error', errorEvent('模型服务暂时不可用'))
+    expect(notification).toHaveBeenCalledWith({ title: '深度Work', body: '模型回答失败：模型服务暂时不可用' })
     expect(beep).toHaveBeenCalledOnce()
   })
 

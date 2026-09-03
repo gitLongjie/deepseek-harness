@@ -102,6 +102,7 @@ function scriptedFace(options: {
           settingsNs: 'llm-pi-ai',
           settingsPath: ['providers', provider],
           declared: options.declaredRoutes?.includes(provider) ?? false,
+          editorFamily: 'pi-ai',
         })),
       ))),
       discoverModels: discover,
@@ -831,6 +832,7 @@ describe('hand-declared providers', () => {
       settingsNs: 'llm-pi-ai',
       settingsPath: ['providers', 'acme-gateway'],
       declared: true,
+      editorFamily: 'pi-ai',
     }])))
     openEditor('acme-gateway')
 

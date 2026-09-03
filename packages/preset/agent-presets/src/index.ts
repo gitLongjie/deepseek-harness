@@ -35,7 +35,7 @@ import type {} from '@deepseek-ai/dsh-session-projection'
 import type {} from '@deepseek-ai/dsh-tools'
 import { settingsNamespace, type SettingsScope, type default as SettingsService } from '@deepseek-ai/dsh-settings'
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
-import { discoverPresets, SHIPPED_PRESET_ROOT, USER_PRESET_DIR } from './discovery.ts'
+import { discoverPresets, installedHostBase, SHIPPED_PRESET_ROOT, USER_PRESET_DIR } from './discovery.ts'
 import {
   copyComposition, deleteComposition, readComposition,
   InvalidPresetIdError, PresetExistsError, PresetNotWritableError,
@@ -123,7 +123,7 @@ export const AgentPresetSettingsSchema: z<AgentPresetSettings> = z.object({
   default: z.string(),
 })
 
-export { COMPOSITION_FILE, discoverPresets, scanRoot, SHIPPED_PRESET_ROOT } from './discovery.ts'
+export { COMPOSITION_FILE, discoverPresets, installedHostBase, scanRoot, SHIPPED_PRESET_ROOT } from './discovery.ts'
 export {
   METADATA_FILE, readPresetMetadata, renderPresetMetadata, type PresetMetadata,
 } from './metadata.ts'
@@ -181,14 +181,20 @@ export class AgentPresets extends TypertRemoteService {
   private readonly resolvedRoots: readonly PresetRoot[]
 
   /**
-   * Where a row's package name resolves from: the base URL of the composition
-   * this roster was loaded by, which is inside the installed harness.
+   * Where a row's package name resolves from: the installed-application root
+   * when this package runs inside a packaged Electron archive, else the base
+   * URL of the composition this roster was loaded by — in both cases inside
+   * the running harness.
    *
    * Discovery needs it because a preset's own directory is the wrong base for
    * a package name — a locally authored preset lives under the user's home,
    * where Node's upward `node_modules` walk never reaches the harness's
    * dependencies. The mount already resolves rows this way; holding the same
    * base here is what lets health answer the question before a session does.
+   * The composition base is not enough in a packaged runtime: it is the
+   * writable profile under the harness home, whose `node_modules` a closed
+   * runtime never materializes, which is exactly the state that reports every
+   * shipped preset broken on a fresh install ({@link installedHostBase}).
    */
   private readonly harnessBase: string
 
@@ -229,7 +235,7 @@ export class AgentPresets extends TypertRemoteService {
         + 'compose it under a Loader, or set the base on the context this plugin is applied to',
       )
     }
-    this.harnessBase = baseUrl
+    this.harnessBase = installedHostBase() ?? baseUrl
     this.resolvedRoots = [
       ...config.includeShippedRoot ? [{ path: SHIPPED_PRESET_ROOT, trust: 'system' } satisfies PresetRoot] : [],
       ...config.roots,

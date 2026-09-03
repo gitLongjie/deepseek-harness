@@ -1,0 +1,4 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority.
+2026-09-02-ripgrep-runtime-architecture.md: 3292b61b763b106f14666ad24880694b19494412
+2026-09-02-ripgrep-runtime-architecture.zh.md: 8f225c657e1fe7c265d39a622ac1f58edd94c80a

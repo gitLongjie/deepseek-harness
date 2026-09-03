@@ -44,6 +44,10 @@ Default sends commit optimistically: Enter clears the draft, occurrence table, a
 
 While a normal composer is running, its primary pointer action remains Stop when the draft is empty or input is unavailable. Actionable text or attachments switch the same seat to Queue Send; clearing or successfully submitting the draft restores Stop. The busy-Enter setting continues to select the Queue or Steer keyboard action. Continuable subagents keep separate Send and Stop actions ([decision](../../../.agents/notes/implemented/bug-fix/2026-08-20-running-draft-primary-send.md)).
 
+Escape follows the same layering as the composer popup: an open popup consumes it first; otherwise, a running current Session consumes Escape and invokes the existing Stop operation. Escape used to cancel an active IME composition never stops the Session.
+
+The resident composer announces `SessionSnapshot.lastAgentError` through the existing error Toast, so a failed turn is presented as an error rather than ordinary completion. When a pending question, approval, or plan review requires user participation, it also shows a localized waiting-for-answer status strip alongside the dedicated takeover surface.
+
 <a id="temporary-composer-entries"></a>
 ## Temporary composer entries
 

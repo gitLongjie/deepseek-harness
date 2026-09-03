@@ -304,6 +304,16 @@
   --dsh-composer-text-max-height: 336px;
 }
 
+.pendingNotice {
+  align-self: center;
+  width: min(var(--dsh-composer-card-max-width), calc(100% - 32px));
+  padding: 6px 12px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 13px;
+  line-height: 20px;
+  text-align: center;
+}
+
 /* Active phase: header is ordinary column chrome above the scrollport (not
    sticky). The scroll body holds the transcript and the sticky composer seat
    so wheel over the footer moves the flow. */

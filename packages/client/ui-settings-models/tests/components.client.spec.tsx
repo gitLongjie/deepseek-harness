@@ -159,11 +159,11 @@ function scriptedFace(overrides: {
         { id: 'openai', name: 'openai' },
       ]))),
       listConfigurableProviders: vi.fn(() => Promise.resolve(remoteOk([
-        { provider: 'deepseek-official', displayName: 'DeepSeek', settingsNs: 'llm-deepseek', settingsPath: [], active: true },
-        { provider: 'openai', displayName: 'openai', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'openai'], active: true },
-        { provider: 'anthropic', displayName: 'anthropic', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'anthropic'], active: false },
-        { provider: 'zombie', displayName: 'zombie', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'zombie'], active: false },
-        { provider: 'broken', displayName: 'broken', settingsNs: 'llm-pi-ai', settingsPath: ['nope', 'x'], active: false },
+        { provider: 'deepseek-official', displayName: 'DeepSeek', settingsNs: 'llm-deepseek', settingsPath: [], active: true, editorFamily: 'deepseek' },
+        { provider: 'openai', displayName: 'openai', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'openai'], active: true, editorFamily: 'pi-ai' },
+        { provider: 'anthropic', displayName: 'anthropic', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'anthropic'], active: false, editorFamily: 'pi-ai' },
+        { provider: 'zombie', displayName: 'zombie', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'zombie'], active: false, editorFamily: 'pi-ai' },
+        { provider: 'broken', displayName: 'broken', settingsNs: 'llm-pi-ai', settingsPath: ['nope', 'x'], active: false, editorFamily: 'pi-ai' },
         { provider: 'plain', displayName: 'plain', settingsNs: 'llm-plain', settingsPath: ['profiles', 'plain'], active: false },
       ].map(({ active: _active, ...entry }) => entry)))),
       discoverModels: vi.fn(() => Promise.resolve(remoteOk([]))),
@@ -653,6 +653,7 @@ describe('ModelsSection', () => {
     render(<ProviderEditor
       provider="deepseek-official"
       displayName="DeepSeek"
+      editorFamily="deepseek"
       namespace={overridden}
       schema={settingsSchema}
       settingsPath={[]}
@@ -883,6 +884,7 @@ describe('ModelsSection', () => {
     render(<ProviderEditor
       provider="deepseek-official"
       displayName="DeepSeek"
+      editorFamily="deepseek"
       namespace={bare}
       schema={settingsSchema}
       settingsPath={[]}
@@ -898,6 +900,74 @@ describe('ModelsSection', () => {
     expect(baseURL.value).toBe('https://x')
     fireEvent.change(baseURL, { target: { value: '' } })
     expect(baseURL.value).toBe('')
+  })
+
+  it('curates a gateway-seeded namespace whose adapter declares the deepseek family', async () => {
+    // The Deepagens regression: a second adapter route sharing the deepseek
+    // section shape must render the same curated card its declaration names,
+    // not fall to the advanced hint because its namespace id is new.
+    const { face } = scriptedFace()
+    const deepagens: SettingsNamespaceView = {
+      ns: 'llm-deepagens',
+      schema: JSON.parse(JSON.stringify(DeepSeekConfig.toJSON())) as JsonValue,
+      value: {
+        baseURL: 'https://claw.deepagens.com/v1',
+        models: [{ id: 'gateway-model', name: 'Gateway Model', contextWindow: 128_000, maxTokens: 4_096 }],
+      },
+      base: { models: [] },
+      // The login flow writes the catalog into the user layer, which is the
+      // layer this card edits — the rows it shows are the user rows.
+      user: {
+        baseURL: 'https://claw.deepagens.com/v1',
+        models: [{ id: 'gateway-model', name: 'Gateway Model', contextWindow: 128_000, maxTokens: 4_096 }],
+      },
+      applies: 'live',
+      secrets: [],
+      revision: 2,
+    }
+    const { ProviderEditor } = await import('../src/client/ProviderEditor.tsx')
+    render(<ProviderEditor
+      provider="deepagens"
+      displayName="Deepagens"
+      editorFamily="deepseek"
+      namespace={deepagens}
+      schema={settingsSchema}
+      settingsPath={[]}
+      api={face as never}
+      t={t}
+      readOnly={false}
+      onClose={() => {}}
+    />)
+    fireEvent.click(screen.getByText(en.customized))
+    expect(screen.getByLabelText<HTMLInputElement>(en.baseUrl).value).toBe('https://claw.deepagens.com/v1')
+    expect(screen.getAllByLabelText(new RegExp(en.modelId)).map(input => (input as HTMLInputElement).value))
+      .toEqual(['gateway-model'])
+  })
+
+  it('renders the advanced hint for a route whose adapter claims no curated family', async () => {
+    const { face } = scriptedFace()
+    const bare: SettingsNamespaceView = {
+      ns: 'llm-deepseek',
+      schema: JSON.parse(JSON.stringify(DeepSeekConfig.toJSON())) as JsonValue,
+      value: {},
+      applies: 'live',
+      secrets: [],
+      revision: 0,
+    }
+    const { ProviderEditor } = await import('../src/client/ProviderEditor.tsx')
+    render(<ProviderEditor
+      provider="deepseek-official"
+      displayName="DeepSeek"
+      namespace={bare}
+      schema={settingsSchema}
+      settingsPath={[]}
+      api={face as never}
+      t={t}
+      readOnly={false}
+      onClose={() => {}}
+    />)
+    expect(screen.getByText(`${en.advancedHint} (llm-deepseek)`)).toBeTruthy()
+    expect(screen.queryByLabelText(en.baseUrl)).toBeNull()
   })
 
   it('rejects an invalid draft before writing', async () => {

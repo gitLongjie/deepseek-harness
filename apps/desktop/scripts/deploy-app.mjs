@@ -54,6 +54,12 @@ syncDesktopOemIcons(repoRoot, root)
 run('pnpm', ['--dir', dshImRoot, 'run', 'build'])
 run('pnpm', ['build:main'], { cwd: root })
 run('node', ['scripts/build-render-transport.mjs'], { cwd: root })
+// The built module is the asar-unpack manifest's single source of truth, shared
+// with the app's boot-time completeness assertions; injecting it here keeps the
+// packager and the runtime assertions on one list.
+const { ASAR_UNPACK_GLOBS } = await import(
+  new URL('../dist/main/desktop/packaged-resources.js', import.meta.url).href
+)
 // Stage the local file dependency after the TypeScript build (which clears
 // dist/) so electron-builder can include it in app.asar.
 const dshImStage = resolve(root, 'dist', 'dsh-im-package')
@@ -72,6 +78,7 @@ writeFileSync(builderConfigPath, `${JSON.stringify(createElectronBuilderOemConfi
   localUpdateFeed: localUpdateTest,
   output: process.env.DSH_DESKTOP_LOCAL_UPDATE_OUTPUT,
   version: process.env.DSH_DESKTOP_BUILD_VERSION,
+  asarUnpack: ASAR_UNPACK_GLOBS,
 }), null, 2)}\n`)
 const ebArgs = ['--config', builderConfigPath]
 if (dirMode) ebArgs.push('--dir')

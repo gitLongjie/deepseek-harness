@@ -7,11 +7,11 @@
  * @module @deepseek-ai/dsh-desktop/main
  */
 
-import { appendFileSync, mkdirSync, readFileSync } from 'node:fs'
+import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { dirname, join, resolve } from 'node:path'
-import { app, BrowserWindow, ipcMain, protocol } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, protocol } from 'electron'
 import type { Context } from '@deepseek-ai/cordis'
 import { loadLayeredEnv } from '@deepseek-ai/dsh-app-boot'
 import { runDesktopBoot } from './boot.ts'
@@ -30,6 +30,12 @@ import {
   resolveDesktopUpdateUrl,
   type DesktopUpdateManifest,
 } from './desktop/update-url.ts'
+import {
+  findMissingPackagedResources,
+  type MissingPackagedResource,
+  type PackagedResourceLabel,
+} from './desktop/packaged-resources.ts'
+import { runPackagedSmoke } from './desktop/packaged-smoke.ts'
 
 /** The app scheme serving the frontend dist (a standard, secure, fetch-capable scheme). */
 const WEB_SCHEME = 'dshapp'
@@ -48,6 +54,11 @@ const DESKTOP_PRODUCT_NAME = resolveDesktopWindowTitle(app.getName())
 const DESKTOP_UPDATE_URL = readDesktopUpdateUrl()
 app.setName(DESKTOP_PRODUCT_NAME)
 if (process.platform === 'win32') app.setAppUserModelId('ai.deepagens.worker')
+// The smoke harness must never contend with a real instance's lock: the
+// single-instance lock is scoped to userData, so the harness points it at its
+// own directory. Must run before installSingleInstanceLock() below.
+const smokeUserData = process.env.DSH_PACKAGED_SMOKE_USER_DATA
+if (smokeUserData !== undefined && smokeUserData !== '') app.setPath('userData', smokeUserData)
 
 /** Directory of the built frontend dist, beside this compiled main in both layouts. */
 const WEB_DIST_DIR = fileURLToPath(new URL('../../web/', import.meta.url))
@@ -129,6 +140,15 @@ function log(line: string): void {
  */
 async function main(): Promise<void> {
   try {
+    // Fail loud before anything mounts: a package missing boot-critical on-disk
+    // resources (web dist, presets, unpacked twins) must not half-work.
+    if (app.isPackaged) {
+      const missing = findMissingPackagedResources(app.getAppPath())
+      if (missing.length > 0) {
+        failMissingPackagedResources(missing)
+        return
+      }
+    }
     const environment = loadLayeredEnv('desktop')
     log(`desktop: booting (packaged=${String(app.isPackaged)}) execArgv=${JSON.stringify(process.execArgv)} node=${process.versions.node}`)
     const result = await runDesktopBoot({
@@ -143,6 +163,13 @@ async function main(): Promise<void> {
     host.ctx = result.ctx
     host.shutdown = result.shutdown
     log('desktop: host booted')
+
+    // The packaging gate branch: run the boot self-check suite and exit with
+    // the verdict instead of starting the shell.
+    if (process.env.DSH_PACKAGED_SMOKE === '1') {
+      await runPackagedSmokeAndExit()
+      return
+    }
 
     registerTransportIpc(() => ({
       gateway: host.ctx?.get('typertGateway'),
@@ -171,8 +198,24 @@ async function main(): Promise<void> {
     win.webContents.on('preload-error', (_event, preloadPath, error) => {
       log(`desktop: preload error ${preloadPath}: ${error.message}`)
     })
-    win.webContents.on('console-message', (_event, level, message, line, sourceId) => {
-      if (level >= 2) log(`desktop: renderer console[${level}] ${message} (${sourceId}:${line})`)
+    win.webContents.on('console-message', (event) => {
+      if (event.level === 'warning' || event.level === 'error') {
+        log(`desktop: renderer console[${event.level}] ${event.message} (${event.sourceId}:${event.lineNumber})`)
+      }
+    })
+    win.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+      if (isMainFrame) {
+        log(`desktop: renderer main-frame load failed ${errorCode} ${errorDescription} (${validatedURL})`)
+      }
+    })
+    win.webContents.on('render-process-gone', (_event, details) => {
+      log(`desktop: renderer process gone reason=${details.reason} exitCode=${details.exitCode}`)
+    })
+    win.webContents.on('unresponsive', () => {
+      log('desktop: renderer became unresponsive')
+    })
+    win.webContents.on('responsive', () => {
+      log('desktop: renderer became responsive')
     })
     log('desktop: loading window')
     // A `localhost` authority keeps the renderer's origin inside the loopback
@@ -213,6 +256,70 @@ function readDesktopUpdateUrl(): string {
     readFileSync(join(app.getAppPath(), 'package.json'), 'utf8'),
   ) as DesktopUpdateManifest
   return resolveDesktopUpdateUrl(process.env.DSH_DESKTOP_UPDATE_URL, manifest)
+}
+
+/** Locale key carrying each missing-resource label's copy. */
+const RESOURCE_LABEL_KEYS: Record<PackagedResourceLabel, DesktopTextKey> = {
+  'web-dist': 'resources.missing.web-dist',
+  'agent-presets': 'resources.missing.agent-presets',
+  'desktop-patch': 'resources.missing.desktop-patch',
+  'workflow-worker': 'resources.missing.workflow-worker',
+  'windows-acl-runner': 'resources.missing.windows-acl-runner',
+  'koffi-binding': 'resources.missing.koffi-binding',
+}
+
+/**
+ * Report an incomplete package and stop: show the native error dialog (GUI
+ * users have no other surface for startup failures), log the full list for
+ * diagnosis, and exit non-zero.
+ */
+function failMissingPackagedResources(missing: MissingPackagedResource[]): void {
+  const t = copy(currentLocale, DESKTOP_PRODUCT_NAME)
+  const list = missing
+    .map(entry => `${t[RESOURCE_LABEL_KEYS[entry.label]]}: ${entry.path}`)
+    .join('\n')
+  log(`desktop: packaged resources incomplete:\n${missing.map(entry => `${entry.label}: ${entry.path}`).join('\n')}`)
+  try {
+    dialog.showErrorBox(t['resources.missingTitle'], t['resources.missingMessage'].replace('{list}', list))
+  } catch {
+    // No display available (headless diagnosis); the log line above carries
+    // the failure and the non-zero exit reports it to the launcher.
+  }
+  app.exit(1)
+}
+
+/**
+ * Run the packaging-gate smoke suite against the settled host, write the
+ * structured verdict for `scripts/packaged-smoke.mjs`, and exit with the
+ * verdict. Never starts the shell surfaces.
+ */
+async function runPackagedSmokeAndExit(): Promise<void> {
+  const ctx = host.ctx
+  if (ctx === undefined) {
+    log('desktop: smoke failed: the host context never settled')
+    app.exit(1)
+    return
+  }
+  const result = await runPackagedSmoke({
+    appRoot: app.getAppPath(),
+    webDistDir: WEB_DIST_DIR,
+    ctx,
+  })
+  const resultPath = process.env.DSH_PACKAGED_SMOKE_RESULT
+  if (resultPath !== undefined && resultPath !== '') {
+    try {
+      writeFileSync(resultPath, `${JSON.stringify(result, null, 2)}\n`)
+    } catch {
+      // The harness also reads the exit code, so a failed verdict write must
+      // not change the outcome.
+    }
+  }
+  for (const check of result.checks) {
+    log(`desktop: smoke ${check.ok ? 'ok' : 'FAIL'} ${check.name}: ${check.detail}`)
+  }
+  log(`desktop: smoke ${result.ok ? 'ok' : 'failed'}`)
+  await host.shutdown?.shutdown(result.ok ? 0 : 1)
+  app.exit(result.ok ? 0 : 1)
 }
 
 /** Expand an error chain (causes and AggregateError entries) for diagnosis. */

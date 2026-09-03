@@ -629,7 +629,10 @@ export class Session implements SessionFace {
     if (entries.some(entry => entry.event.type === 'turn/start')) this.firstPromptPendingTurn = false
     if (projections !== undefined) this.projections.seed(projections)
     this.eventSource.replace(entries, hasMore)
-    for (const entry of entries) this.observeSubmissionEvent(entry.event)
+    for (const entry of entries) {
+      this.observeAgentErrorEvent(entry.event)
+      this.observeSubmissionEvent(entry.event)
+    }
     this.notifier.markDirty()
   }
 
@@ -647,11 +650,19 @@ export class Session implements SessionFace {
     if (event.type === 'turn/start') this.firstPromptPendingTurn = false
     const queueChanged = this.queueMirror.acceptDurable(event)
     this.eventSource.append(entry)
+    this.observeAgentErrorEvent(event)
     // After the feed append: the conversation assembly's animation frame is
     // registered by the feed subscribers above, so the echo-retirement frame
     // scheduled here always runs after the durable node became renderable.
     this.observeSubmissionEvent(event)
     return queueChanged || awaitingFirstTurn !== this.firstPromptPendingTurn
+  }
+
+  /** Mirror a durable turn failure into the transient Session error surface. */
+  private observeAgentErrorEvent(event: SessionEventLikeEntry['event']): void {
+    if (event.type !== 'turn/end' || event.data.reason.kind !== 'error') return
+    const { code, message } = event.data.reason.error
+    this.lastAgentError = `${code}: ${message}`
   }
 
   /** Retire the matching echo when a durable browser-prompt `user/message` becomes visible. */

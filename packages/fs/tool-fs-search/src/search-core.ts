@@ -156,14 +156,43 @@ function completeStdout(toolName: string, stdout: SubprocessOutputRead, rawOutpu
 
 let rgPathPromise: Promise<string> | undefined
 
+/** Resolve the dependency path without letting an install-time arch override the running process. */
+async function importNodeRipgrepPath(): Promise<string> {
+  const original = process.env.npm_config_arch
+  process.env.npm_config_arch = process.arch
+  try {
+    return (await import('@vscode/ripgrep')).rgPath
+  } finally {
+    if (original === undefined) delete process.env.npm_config_arch
+    else process.env.npm_config_arch = original
+  }
+}
+
+/**
+ * The on-disk twin of an asar-resolved path: the same relative path under the
+ * `app.asar.unpacked` tree. Undefined when the path lives outside an asar
+ * archive. A packaged Electron host resolves the binary inside app.asar, but
+ * Windows cannot spawn an executable from inside the archive, so the packaged
+ * desktop must spawn electron-builder's unpacked twin instead.
+ */
+function unpackedAsarPath(path: string): string | undefined {
+  const segments = path.split(sep)
+  const asarIndex = segments.lastIndexOf('app.asar')
+  if (asarIndex === -1) return undefined
+  segments[asarIndex] = 'app.asar.unpacked'
+  return segments.join(sep)
+}
+
 /**
  * The packaged ripgrep binary path, resolved lazily once per process.
  *
  * A single-file runtime uses the executable's `-rg` sidecar because a native
  * helper cannot be spawned from pkg's virtual filesystem. Node-mode builds
- * fall back to the platform package selected by `@vscode/ripgrep`. Resolving
- * at the call boundary keeps a missing or corrupt binary at the first search
- * call as `SEARCH_FAILED`, rather than failing the Loader composition.
+ * fall back to the platform package selected by `@vscode/ripgrep`. A path
+ * resolved inside an asar archive converts to its `app.asar.unpacked` twin
+ * for the same spawnability reason. Resolving at the call boundary keeps a
+ * missing or corrupt binary at the first search call as `SEARCH_FAILED`,
+ * rather than failing the Loader composition.
  *
  * @returns the packaged binary's absolute path; the memoized promise rejects
  *   when the platform package cannot be resolved.
@@ -174,8 +203,10 @@ export function resolveRgPath(): Promise<string> {
     const executableSidecar = process.platform === 'win32'
       ? join(executable.dir, `${executable.name}-rg.exe`)
       : `${process.execPath}-rg`
-    if ('pkg' in process && existsSync(executableSidecar)) return executableSidecar
-    return (await import('@vscode/ripgrep')).rgPath
+    const resolved = 'pkg' in process && existsSync(executableSidecar)
+      ? executableSidecar
+      : await importNodeRipgrepPath()
+    return unpackedAsarPath(resolved) ?? resolved
   })
   return rgPathPromise
 }

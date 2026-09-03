@@ -28,6 +28,8 @@ export interface ComposerKeymapHandlers {
   space(): boolean
   /** Dismiss the popupSelect shell (Escape layering: an open overlay closes first). */
   dismissPopup(): void
+  /** Stop the active session; return true when Escape was consumed. */
+  stop(): boolean
   /** Whether Enter may submit right now (locked/busy states refuse). */
   canSubmit(): boolean
   /** The Enter gesture after every guard passed; `accelerated` = Ctrl/Cmd held. */
@@ -91,7 +93,14 @@ export function registerComposerKeymap(editor: LexicalEditor, handlers: Composer
       // Escape layering: an open overlay closes; claimed without an overlay
       // does NOT release (backspacing the token is the only exit gesture).
       handlers.dismissPopup()
-      if (handlers.arbitrate('escape', isComposingEvent(event, recentlyComposing)) === 'consumed') {
+      const inComposition = isComposingEvent(event, recentlyComposing)
+      if (handlers.arbitrate('escape', inComposition) === 'consumed') {
+        event.preventDefault()
+        return true
+      }
+      // IME Escape cancels the candidate/composition; it is not a request to
+      // stop the active session.
+      if (!inComposition && handlers.stop()) {
         event.preventDefault()
         return true
       }

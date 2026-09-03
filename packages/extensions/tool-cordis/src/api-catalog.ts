@@ -545,11 +545,11 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
   {
     key: 'clientModules',
     summary: 'The web plugin table service: incremental `dsh.client` scan + wire composition + bundle route + index injection rows.',
-    description: 'The web plugin table service: incremental `dsh.client` scan + wire composition + bundle route + index injection rows. Construction runs the activation scan synchronously — a malformed declaration or missing bundle among the already-loaded entries aggregates into one loud throw (FAILED fiber; the boot activation audit reports it).',
+    description: 'The web plugin table service: incremental `dsh.client` scan + wire composition + bundle route + index injection rows. Construction runs the activation scan synchronously — a malformed declaration or missing bundle among the already-loaded entries aggregates into one loud throw (FAILED fiber; the boot activation audit reports it). A graph read also reconciles the live Loader entries, so an entry created before this service installed its incremental listener still reaches the startup graph.',
     methods: [
       {
         signature: 'graph(): WebBootGraph',
-        description: 'Current composed entry graph (stable object between changes).',
+        description: 'Current composed entry graph after reconciling the live Loader entries.',
         parameters: [],
         returns: 'the graph served as `window.__DSH_BOOT__`.',
       },
@@ -558,6 +558,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Absolute path of an entry\'s client bundle.',
         parameters: [{ name: 'id', description: 'entry id (package name).' }],
         returns: 'the path, or undefined for an unknown id.',
+      },
+      {
+        signature: 'bundleResponse(resourceUrl: string): { body: Buffer; contentType: string } | undefined',
+        description: 'Served bytes for one advertised bundle resource URL (single or combo).',
+        parameters: [{ name: 'resourceUrl', description: 'pathname plus search, exactly as the injection table advertises it.' }],
+        returns: 'the body and media type, or undefined for an unadvertised URL.',
       },
       {
         signature: 'artifactBaseline(id: string): ClientArtifactBaseline | undefined',
@@ -3676,7 +3682,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ConfinedArgv',
-    declaration: 'export interface ConfinedArgv {\n    argv: string[];\n    enforcement: SandboxEnforcement;\n    denialSignatures: readonly string[];\n    runnerFailureRules: readonly RunnerFailureRule[];\n}',
+    declaration: 'export interface ConfinedArgv {\n    argv: string[];\n    enforcement: SandboxEnforcement;\n    denialSignatures: readonly string[];\n    runnerFailureRules: readonly RunnerFailureRule[];\n    env?: Readonly<Record<string, string>>;\n}',
   },
   {
     name: 'ConfinedSandboxMode',
@@ -4248,7 +4254,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'LlmConfigurableProvider',
-    declaration: 'export interface LlmConfigurableProvider {\n    provider: string;\n    displayName: string;\n    settingsNs: string;\n    settingsPath: readonly string[];\n    declared?: boolean;\n}',
+    declaration: 'export interface LlmConfigurableProvider {\n    provider: string;\n    displayName: string;\n    settingsNs: string;\n    settingsPath: readonly string[];\n    declared?: boolean;\n    editorFamily?: string;\n}',
   },
   {
     name: 'LlmDiscoveredModel',

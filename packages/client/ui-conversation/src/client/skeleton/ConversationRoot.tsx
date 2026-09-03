@@ -371,6 +371,11 @@ export function ConversationRoot({
   // end off-screen when the user is not pinned to the floor.
   const composerSeat = (
     <div ref={seatResizeRef} className={css.composerSeat} data-composer-seat="">
+      {pendingInteraction !== undefined && (
+        <div className={css.pendingNotice} role="status">
+          {t('notification.waitingAnswer')}
+        </div>
+      )}
       {composer}
     </div>
   )

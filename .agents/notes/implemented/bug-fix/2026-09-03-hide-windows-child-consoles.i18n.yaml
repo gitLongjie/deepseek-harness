@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-03-hide-windows-child-consoles.md
+2026-09-03-hide-windows-child-consoles.md: f7357ed5a01d78ae1134ad467ea5c2bb537f0893
+2026-09-03-hide-windows-child-consoles.zh.md: 1f14aae9210106395cf4b7ddb1f361b08a279991

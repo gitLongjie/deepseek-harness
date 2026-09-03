@@ -114,11 +114,11 @@ Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnp
 
 ### `ctx.clientModules` — `ClientModuleRegistry`
 
-The web plugin table service: incremental `dsh.client` scan + wire composition + bundle route + index injection rows. Construction runs the activation scan synchronously — a malformed declaration or missing bundle among the already-loaded entries aggregates into one loud throw (FAILED fiber; the boot activation audit reports it).
+The web plugin table service: incremental `dsh.client` scan + wire composition + bundle route + index injection rows. Construction runs the activation scan synchronously — a malformed declaration or missing bundle among the already-loaded entries aggregates into one loud throw (FAILED fiber; the boot activation audit reports it). A graph read also reconciles the live Loader entries, so an entry created before this service installed its incremental listener still reaches the startup graph.
 
 ```ts cordis-catalog
 /**
- * Current composed entry graph (stable object between changes).
+ * Current composed entry graph after reconciling the live Loader entries.
  * @returns the graph served as `window.__DSH_BOOT__`.
  */
 graph(): WebBootGraph
@@ -129,6 +129,13 @@ graph(): WebBootGraph
  * @returns the path, or undefined for an unknown id.
  */
 clientPath(id: string): string | undefined
+
+/**
+ * Served bytes for one advertised bundle resource URL (single or combo).
+ * @param resourceUrl - pathname plus search, exactly as the injection table advertises it.
+ * @returns the body and media type, or undefined for an unadvertised URL.
+ */
+bundleResponse(resourceUrl: string): { body: Buffer; contentType: string } | undefined
 
 /**
  * Filesystem baseline captured before an entry's current bytes were read.

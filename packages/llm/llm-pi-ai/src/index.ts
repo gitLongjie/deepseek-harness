@@ -131,6 +131,7 @@ function directoryEntries(
       // narrowing a shipped provider's models stores a profile too, and that
       // route is still one pi-ai knows.
       declared: !catalog.has(provider),
+      editorFamily: 'pi-ai',
     })
   }
   for (const provider of catalog) declare(provider, provider)

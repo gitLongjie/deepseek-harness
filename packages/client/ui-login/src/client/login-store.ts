@@ -171,15 +171,6 @@ export class LoginStore {
       state.status = 'ready'
       state.session = session
     })
-    // A reloaded session refreshes the gateway catalog in the background too,
-    // so the selector and the Models page stay on the live model list without
-    // forcing a fresh sign-in; failures keep the last stored catalog.
-    if (session !== null) {
-      console.warn(`[ui-login] session restored for ${session.account}; refreshing gateway catalog`)
-      void this.syncCatalogFromGateway(session.apiKey).catch((error: unknown) => {
-        console.warn('[ui-login] gateway catalog sync failed:', error instanceof Error ? error.message : String(error))
-      })
-    }
   }
 
   /**

@@ -164,10 +164,23 @@ describe('configurable-provider directory', () => {
     [entry({ displayName: '' }), /non-empty provider/],
     [entry({ settingsNs: '' }), /non-empty provider/],
     [entry({ settingsPath: ['providers', ''] }), /empty settingsPath segment/],
+    [entry({ editorFamily: '' }), /empty editorFamily/],
   ])('rejects invalid entries all-or-nothing', async (invalid, message) => {
     const ctx = await setup()
     expect(() => ctx.llm.registerConfigurableProviders([entry({ provider: 'valid-first' }), invalid])).toThrow(message)
     expect(ctx.llm.listConfigurableProviders()).toEqual([])
+  })
+
+  it('carries the declared editor family on listed entries', async () => {
+    const ctx = await setup()
+    ctx.llm.registerConfigurableProviders([
+      entry({ editorFamily: 'deepseek' }),
+      entry({ provider: 'second' }),
+    ])
+    expect(ctx.llm.listConfigurableProviders()).toEqual([
+      { provider: 'openai', displayName: 'OpenAI', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'openai'], editorFamily: 'deepseek' },
+      { provider: 'second', displayName: 'OpenAI', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'openai'] },
+    ])
   })
 
   it('replaces its entries atomically, keeping the old set when a candidate collides', async () => {

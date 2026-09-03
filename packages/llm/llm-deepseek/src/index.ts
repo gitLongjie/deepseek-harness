@@ -508,7 +508,15 @@ export function apply(ctx: Context, config: Config): void {
     },
   })
   ctx.llm.registerConfigurableProviders([
-    { provider: DEEPAGENS_PROVIDER, displayName: 'Deepagens', settingsNs: DEEPAGENS_NS, settingsPath: [] },
+    {
+      provider: DEEPAGENS_PROVIDER,
+      displayName: 'Deepagens',
+      settingsNs: DEEPAGENS_NS,
+      settingsPath: [],
+      // Same adapter class and section schema as the DeepSeek route, so the
+      // settings page renders the same curated card for it.
+      editorFamily: 'deepseek',
+    },
   ])
   const deepagensRegistration = ctx.llm.registerAdapter([DEEPAGENS_PROVIDER], deepagensAdapter)
   ctx.llm.registerModelDiscovery(DEEPAGENS_NS, (request, signal) =>
@@ -533,7 +541,7 @@ export function apply(ctx: Context, config: Config): void {
   // provider directories; both share the same adapter class and the DEEPSEEK_*
   // credentials, differing only in their settings namespace.
   ctx.llm.registerConfigurableProviders([
-    { provider: PROVIDER, displayName: 'DeepSeek', settingsNs: NS, settingsPath: [] },
+    { provider: PROVIDER, displayName: 'DeepSeek', settingsNs: NS, settingsPath: [], editorFamily: 'deepseek' },
   ])
   const registration = ctx.llm.registerAdapter([PROVIDER], adapter)
   ctx.llm.registerModelDiscovery(NS, (request, signal) =>

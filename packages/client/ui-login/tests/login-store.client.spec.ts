@@ -84,17 +84,13 @@ describe('LoginStore', () => {
     expect(store.store.getSnapshot()).toMatchObject({ status: 'ready', session: { account: '杰哥' } })
   })
 
-  it('refreshes the gateway catalog when a persisted session loads', async () => {
+  it('does not refresh the gateway catalog while restoring a persisted session', async () => {
     localStorage.setItem('dsh.login.session', JSON.stringify({ account: '杰哥', avatar: null, apiKey: 'sk-1' }))
     const store = new LoginStore(AUTH_URL, adapter(), dummyApi)
     store.load()
-    // A restored session seeds the catalog in the background; the write settles
-    // after the synchronous store update returns.
-    expect(discoverMock).toHaveBeenCalledWith('llm-deepagens', {
-      baseURL: 'https://claw.deepagens.com/v1',
-      apiKey: 'sk-1',
-    })
-    await vi.waitFor(() => { expect(mutateMock).toHaveBeenCalled() })
+    expect(store.store.getSnapshot()).toMatchObject({ status: 'ready', session: { account: '杰哥' } })
+    expect(discoverMock).not.toHaveBeenCalled()
+    expect(mutateMock).not.toHaveBeenCalled()
   })
 
   it('signs in on a successful Claw response and hands the key to the credential layer', async () => {

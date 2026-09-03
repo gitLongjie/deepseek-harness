@@ -1665,8 +1665,8 @@ describe('plugin registration and config', () => {
       { id: 'deepseek-official', name: 'DeepSeek' },
     ])
     expect(ctx.llm.listConfigurableProviders()).toEqual([
-      { provider: 'deepagens', displayName: 'Deepagens', settingsNs: 'llm-deepagens', settingsPath: [] },
-      { provider: 'deepseek-official', displayName: 'DeepSeek', settingsNs: 'llm-deepseek', settingsPath: [] },
+      { provider: 'deepagens', displayName: 'Deepagens', settingsNs: 'llm-deepagens', settingsPath: [], editorFamily: 'deepseek' },
+      { provider: 'deepseek-official', displayName: 'DeepSeek', settingsNs: 'llm-deepseek', settingsPath: [], editorFamily: 'deepseek' },
     ])
     await fiber.dispose()
     expect(ctx.llm.listProviders()).toEqual([])

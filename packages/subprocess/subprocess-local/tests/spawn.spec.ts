@@ -6,6 +6,7 @@ import {
   childEnv,
   killGroup,
   OutputCollector,
+  spawnOptions,
   spawnSubprocess,
   taskkillProcessTree,
 } from '../src/spawn.ts'
@@ -162,6 +163,10 @@ async function waitForPidFile(path: string, timeoutMs = 5_000): Promise<number> 
 }
 
 describe('spawnSubprocess', () => {
+  it('hides child console windows on Windows', () => {
+    expect(spawnOptions('win32')).toMatchObject({ windowsHide: true })
+  })
+
   it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY, MAX_TIMER_DELAY_MS + 1])(
     'rejects an invalid grace before spawning: %s',
     (graceMs) => {

@@ -153,9 +153,9 @@ describe('SidebarRoot shell', () => {
   it('renders statically collapsed on a cold start (no crossfade classes)', () => {
     const b = mountShell({ collapsed: true })
     expect(b.regionOwner().wide).toBe(false)
-    expect(screen.getByTestId('custom-brand-mark')).toBeTruthy()
+    expect(screen.queryByTestId('custom-brand-mark')).toBeNull()
     const toggle = screen.getByRole('button', { name: 'Open sidebar' })
     expect(toggle).toBeTruthy()
-    expect(toggle.querySelector('svg')).not.toBeNull()
+    expect(toggle.querySelectorAll('svg')).toHaveLength(1)
   })
 })

@@ -42,6 +42,9 @@
     },
     {
       "path": "../../packages/bundle/web-app"
+    },
+    {
+      "path": "../../packages/fs/tool-fs-search"
     }
   ]
 }

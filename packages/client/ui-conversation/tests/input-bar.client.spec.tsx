@@ -71,6 +71,7 @@ interface BenchOptions {
   workspacePickerOpen?: boolean
   onRequestWorkspace?: () => void
   promptError?: SessionSnapshot['promptError']
+  lastAgentError?: string | null
   /** Authoritative queue rows served to the machine overlay (empty = none). */
   queue?: SessionSnapshot['queue']
   /** The hub's steer-all face (empty-draft accelerated Enter). */
@@ -112,6 +113,7 @@ function bench(over?: BenchOptions) {
     subagent: over?.subagent ?? null,
     removed: over?.disabled ?? false,
     promptError: over?.promptError ?? null,
+    lastAgentError: over?.lastAgentError ?? null,
     queue: over?.queue ?? [],
   }))
   type ShellDeps = ConstructorParameters<typeof SessionInputShell>[0]
@@ -518,6 +520,14 @@ describe('Enter semantics', () => {
     const idle = bench({})
     fireEvent.keyDown(idle.textarea, { key: 'Escape' })
     expect(idle.stop).not.toHaveBeenCalled()
+  })
+
+  it('Escape outside the composer stops the current running session', () => {
+    const running = bench({ running: true })
+    const outside = document.createElement('button')
+    document.body.appendChild(outside)
+    fireEvent.keyDown(outside, { key: 'Escape' })
+    expect(running.stop).toHaveBeenCalledTimes(1)
   })
 
   it('Shift+Enter newline wins even inside IME composition (unconditional precedence)', () => {
@@ -1231,6 +1241,11 @@ describe('insertText (scoped event body)', () => {
 })
 
 describe('strips and variants', () => {
+  it('does not render a toast for a model response error', () => {
+    const { view } = bench({ lastAgentError: '模型请求失败' })
+    expect(view.queryByRole('alert')).toBeNull()
+  })
+
   it('announces promptError as a fading toast (ordinary failure — no transaction UI, no Retry)', () => {
     vi.useFakeTimers()
     try {

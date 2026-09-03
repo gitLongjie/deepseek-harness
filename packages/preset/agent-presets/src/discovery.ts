@@ -95,6 +95,29 @@ function entryListProblem(rows: unknown, at = ''): string | undefined {
 }
 
 /**
+ * The base URL bare package names resolve from when this package runs inside
+ * an Electron `app.asar` archive: the archive root, where the packaged
+ * application's whole plugin `node_modules` lives. A packaged runtime has no
+ * `node_modules` above its writable composition directory (the profile under
+ * the harness home), and OS links cannot reach into the archive, so the
+ * archive root is the only base the upward walk can answer from — the same
+ * installed-host base `boot()` hands the Loader for bare imports.
+ * @param moduleDir - filesystem path this check anchors at; defaults to this
+ *   package's own directory, which sits inside the archive when packaged.
+ * @returns the archive root directory URL, or undefined outside an archive.
+ */
+export function installedHostBase(
+  moduleDir: string = fileURLToPath(new URL('../', import.meta.url)),
+): string | undefined {
+  // Segment-exact so an `app.asar.unpacked` twin — whose name merely starts
+  // with the archive's — does not match.
+  const segments = moduleDir.split(/[\\/]/)
+  const archiveDepth = segments.lastIndexOf('app.asar')
+  if (archiveDepth === -1) return undefined
+  return pathToFileURL(segments.slice(0, archiveDepth + 1).join('/') + '/').href
+}
+
+/**
  * Whether a package name is installed anywhere above `base`.
  *
  * Node's own upward `node_modules` walk, stopping at the package directory:

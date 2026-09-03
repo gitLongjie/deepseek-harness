@@ -10,7 +10,9 @@ import {
   bindSnapshotSelector, makeTranslate, sessionSnapshot as sessionFixture,
 } from '@deepseek-ai/dsh-client-test-runtime'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import type { SessionPendingInteractionSnapshot } from '@deepseek-ai/dsh-client-ui-session/client'
+import type {
+  SessionPendingInteraction, SessionPendingInteractionSnapshot,
+} from '@deepseek-ai/dsh-client-ui-session/client'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import type { ConversationRootProps } from '../src/client/skeleton/ConversationRoot.tsx'
 import { en as commonEn } from '@deepseek-ai/dsh-client-locale/src/locales/en.ts'
@@ -125,6 +127,8 @@ function mount(
     composerBlock?: { reason: string }
     /** Mutable view ledger used by registration-order regressions. */
     viewTabs?: ViewTab[]
+    /** Pending user interaction shown while a takeover owns the composer. */
+    pendingInteraction?: SessionPendingInteraction
   } = {},
 ) {
   const root = sid('root')
@@ -158,7 +162,9 @@ function mount(
   const conversation = createSnapshotStore<ConversationSnapshot>(EMPTY_CONVERSATION_SNAPSHOT)
   const useConversation = bindSnapshotSelector(conversation)
   const useSessionPendingInteraction = bindSnapshotSelector(
-    createSnapshotStore<SessionPendingInteractionSnapshot>(new Map()),
+    createSnapshotStore<SessionPendingInteractionSnapshot>(new Map<SessionId, SessionPendingInteraction>(
+      options.pendingInteraction === undefined ? [] : [[SID, options.pendingInteraction]],
+    )),
   )
   const store = createConversationStore().create()
   store.actions.setDraft('ordinary draft')
@@ -339,6 +345,15 @@ describe('Hero chrome', () => {
 })
 
 describe('ConversationRoot resident composer', () => {
+  it('keeps the waiting notice visible when a question takeover hides the default composer', () => {
+    const b = mount(sessionSnapshotOf(), undefined, undefined, {
+      overlayTakeover: true,
+      pendingInteraction: { key: 'question-1', kind: 'question', sessionId: SID } as SessionPendingInteraction,
+    })
+    expect(b.view.getByRole('status').textContent).toBe('等待回答')
+    expect(b.view.getByTestId('composer-takeover')).toBeTruthy()
+  })
+
   it('renders the composer inert with the blocker\u2019s own reason', () => {
     const b = mount(sessionSnapshotOf(), undefined, undefined, {
       composerBlock: { reason: 'select a model first' },

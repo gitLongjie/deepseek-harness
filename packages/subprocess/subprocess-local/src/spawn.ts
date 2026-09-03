@@ -8,6 +8,7 @@
  */
 
 import { type ChildProcess, spawn, spawnSync } from 'node:child_process'
+import type { SpawnOptions } from 'node:child_process'
 import type { Readable } from 'node:stream'
 import { randomBytes } from 'node:crypto'
 import { closeSync, mkdtempSync, openSync, unlinkSync, writeSync } from 'node:fs'
@@ -56,6 +57,22 @@ export interface SpawnInternals {
   platform?: NodeJS.Platform
   /** Linux process-group member probe (defaults to `/proc` inspection). */
   linuxProcessGroupHasLiveMembers?: (processGroupId: number) => boolean | undefined
+}
+
+/**
+ * Build the Node spawn options shared by every local child process.
+ * @param platform - host platform used for process-tree ownership.
+ * @returns detached and Windows console-visibility options.
+ */
+export function spawnOptions(platform: NodeJS.Platform): Pick<SpawnOptions, 'detached' | 'windowsHide'> {
+  return {
+    // `detached` gives teardown a tree root on POSIX (its own process group);
+    // Windows terminates by root pid through taskkill /T instead.
+    detached: platform !== 'win32',
+    // Commands run by the desktop app must not create a transient console.
+    // Node ignores this option on non-Windows hosts.
+    windowsHide: true,
+  }
 }
 
 /**
@@ -355,9 +372,7 @@ export function spawnSubprocess(spec: SubprocessSpawnSpec, internals: SpawnInter
       outMode === 'inherit' ? 'inherit' : 'pipe',
       errMode === 'inherit' ? 'inherit' : 'pipe',
     ],
-    // `detached` gives teardown a tree root on POSIX (its own process group);
-    // Windows terminates by root pid through taskkill /T instead.
-    detached: platform !== 'win32',
+    ...spawnOptions(platform),
   })
 
   const collectStream = (mode: SubprocessOutputMode, stream: Readable | null, label: string): OutputCollector | undefined => {

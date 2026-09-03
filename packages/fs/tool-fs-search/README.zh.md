@@ -70,7 +70,7 @@ kind: "package-reference"
 
 ### 部署要求
 
-Node 部署在受支持的 macOS、Linux 与 Windows 目标上获得 `@vscode/ripgrep` 平台包；Python SDK wheel 把目标原生二进制复制到单文件运行时旁，作为 `-rg` 伴随文件。两种载体均不要求宿主安装 `rg`。返回路径相对于解析后的工作目录显示（有会话 cwd 时使用会话 cwd），只有该工作目录与文件系统根目录是同一工作区时，才能用 `read` 继续读取。
+Node 部署在受支持的 macOS、Linux 与 Windows 目标上获得 `@vscode/ripgrep` 平台包；Python SDK wheel 把目标原生二进制复制到单文件运行时旁，作为 `-rg` 伴随文件。运行时解析使用当前 Node 进程的架构，不使用安装时的 `npm_config_arch` 覆盖值。两种载体均不要求宿主安装 `rg`。返回路径相对于解析后的工作目录显示（有会话 cwd 时使用会话 cwd），只有该工作目录与文件系统根目录是同一工作区时，才能用 `read` 继续读取。
 
 ### 失败与恢复
 

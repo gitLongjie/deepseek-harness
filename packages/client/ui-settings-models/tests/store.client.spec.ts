@@ -25,9 +25,9 @@ function remoteFail<T>(message: string): RemoteAnswer<T> {
 }
 
 const DIRECTORY = [
-  { provider: 'deepseek-official', displayName: 'DeepSeek', settingsNs: 'llm-deepseek', settingsPath: [], active: true },
-  { provider: 'openai', displayName: 'openai', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'openai'], active: true },
-  { provider: 'anthropic', displayName: 'anthropic', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'anthropic'], active: false },
+  { provider: 'deepseek-official', displayName: 'DeepSeek', settingsNs: 'llm-deepseek', settingsPath: [], active: true, editorFamily: 'deepseek' },
+  { provider: 'openai', displayName: 'openai', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'openai'], active: true, editorFamily: 'pi-ai' },
+  { provider: 'anthropic', displayName: 'anthropic', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'anthropic'], active: false, editorFamily: 'pi-ai' },
   { provider: 'ghost', displayName: 'Ghost', settingsNs: '', settingsPath: [], active: true },
 ]
 
@@ -134,6 +134,11 @@ describe('ModelsSettingsStore', () => {
     expect(byProvider.get('anthropic')).toMatchObject({ configured: false, removable: false })
     expect(byProvider.get('anthropic')?.apiKeyEnv).toBeUndefined()
     expect(byProvider.get('ghost')).toMatchObject({ configured: false, removable: false })
+    // The adapter-declared editor family travels to the row so the editor
+    // card keys off the declaration instead of a namespace-id table.
+    expect(byProvider.get('deepseek-official')?.entry.editorFamily).toBe('deepseek')
+    expect(byProvider.get('openai')?.entry.editorFamily).toBe('pi-ai')
+    expect(byProvider.get('ghost')?.entry.editorFamily).toBeUndefined()
     expect(state.namespaces.get('llm-pi-ai')?.ns).toBe('llm-pi-ai')
   })
 

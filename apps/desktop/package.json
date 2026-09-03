@@ -20,6 +20,7 @@
     "pack": "node scripts/deploy-app.mjs --dir",
     "dist": "node scripts/deploy-app.mjs",
     "release": "node scripts/deploy-app.mjs --publish always",
+    "smoke": "node scripts/packaged-smoke.mjs",
     "test:update:local": "node scripts/test-local-update.mjs",
     "test": "vitest run apps/desktop/tests --root ../..",
     "typecheck": "tsc -b tsconfig.json --pretty false"

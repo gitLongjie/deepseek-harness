@@ -132,6 +132,27 @@ describe('live event path', () => {
     expect(session.eventSource.getSnapshot()).toBe(before)
   })
 
+  it('surfaces a durable turn error as the latest agent error', async () => {
+    const { api, session } = await opened()
+    await follow(api, {
+      seq: 6,
+      time: 1_700_000_000_006,
+      type: 'turn/end',
+      data: {
+        turn: 1,
+        reason: {
+          kind: 'error',
+          error: {
+            code: 'ServerOverloaded',
+            message: 'The service is currently unable to handle additional requests.',
+          },
+        },
+      },
+    } as SessionEvent)
+    expect(session.getSnapshot().lastAgentError).toContain('ServerOverloaded')
+    expect(session.getSnapshot().lastAgentError).toContain('unable to handle additional requests')
+  })
+
   it('keeps the authoritative host blank bit across unrelated log events', async () => {
     const { api, session } = await opened([])
     session.handleBlank(true)

@@ -146,6 +146,7 @@ describe('hand-declared providers', () => {
       // Nothing in the installed catalog answers for this route, which is what
       // configuration surfaces mark as a route this deployment declared.
       declared: true,
+      editorFamily: 'pi-ai',
     })
     // Membership of the catalog, not of the settings document: a shipped
     // provider carries a stored profile the moment anyone corrects it.
@@ -1216,6 +1217,7 @@ describe('configurable-provider directory', () => {
       settingsNs: 'llm-pi-ai',
       settingsPath: ['providers', 'openai-codex'],
       declared: false,
+      editorFamily: 'pi-ai',
     })
   })
 })

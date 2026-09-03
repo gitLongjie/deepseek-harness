@@ -535,7 +535,7 @@ window.__ModuleLoader__={
  * incremental listener still reaches the startup graph.
  */
 export class ClientModuleRegistry extends Service {
-  static inject = ['webServer', 'loader']
+  static inject = ['webServer', 'loader', 'dshBareModuleBaseUrl']
 
   private readonly table = new Map<string, WebPluginRecord>()
   private readonly sources = new Map<string, ClientPackageSource>()

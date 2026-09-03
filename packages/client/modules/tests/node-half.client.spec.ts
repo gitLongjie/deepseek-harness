@@ -23,6 +23,12 @@ const mapUrl = (url: string): string => url.replace(/\/client\.js(?=,|&rev=)/g, 
 const BOOTSTRAP_URL = comboUrl([MODULES_ID], 'boot')
 const APPLICATION_URL = comboUrl([UI_RENDERER_ID], 'app')
 
+describe('ClientModuleRegistry injection contract', () => {
+  it('injects the packaged bare-module resolution base', () => {
+    expect(ClientModuleRegistry.inject).toContain('dshBareModuleBaseUrl')
+  })
+})
+
 let root: string | undefined
 
 afterEach(() => {

@@ -14,14 +14,11 @@ electronLanguages:
   - en-US
   - zh-CN
 asar: true
-asarUnpack:
-  - '**/*.node'
-  # The Windows ACL sandbox runner runs through the Electron binary in Node
-  # mode (ELECTRON_RUN_AS_NODE), which cannot read inside the asar archive;
-  # the runner and its koffi binding closure must exist on disk.
-  - '**/node_modules/@deepseek-ai/dsh-sandbox-windows-acl/**'
-  - '**/node_modules/@deepseek-ai/dsh-win32-process/**'
-  - '**/node_modules/koffi/**'
+# asarUnpack is NOT declared here: scripts/deploy-app.mjs injects it into the
+# generated dist/electron-builder.oem.json overlay from
+# src/main/desktop/packaged-resources.ts, the single source of truth shared
+# with the app's boot-time completeness assertions. Keep native modules and
+# Node-mode (ELECTRON_RUN_AS_NODE) load closures in that module.
 # node-pty ships a prebuild matching this Electron's Node ABI; skipping the
 # node-gyp rebuild avoids requiring a full native toolchain on every platform.
 npmRebuild: false

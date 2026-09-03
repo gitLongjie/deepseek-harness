@@ -1,12 +1,16 @@
-/** Native desktop notification for a completed agent turn. */
+/** Native desktop notification for an agent turn that ended in the background. */
 import { Notification, shell, type BrowserWindow } from 'electron'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import type { DesktopLocaleId } from './locales.ts'
 
-/** Native completion notification copy. */
-const COPY: Record<DesktopLocaleId, { title: string; body: string }> = {
-  zh: { title: '深度Work', body: '回答已完成' },
-  en: { title: '深度Work', body: 'Answer completed' },
+/** Native turn-end notification copy. */
+const COPY: Record<DesktopLocaleId, {
+  title: string
+  completed: string
+  error: (message: string) => string
+}> = {
+  zh: { title: '深度Work', completed: '回答已完成', error: message => `模型回答失败：${message}` },
+  en: { title: '深度Work', completed: 'Answer completed', error: message => `Model response failed: ${message}` },
 }
 
 /** Reasons that represent a response that should not alert the operator. */
@@ -29,9 +33,12 @@ export function notifyTurnCompletion(
   if (win.isDestroyed() || win.isFocused()) return
 
   const copy = COPY[locale]
+  const body = event.data.reason.kind === 'error'
+    ? copy.error(event.data.reason.error.message)
+    : copy.completed
   try {
     if (Notification.isSupported()) {
-      const notification = new Notification({ title: copy.title, body: copy.body })
+      const notification = new Notification({ title: copy.title, body })
       notification.on('click', () => {
         if (win.isDestroyed()) return
         win.show()

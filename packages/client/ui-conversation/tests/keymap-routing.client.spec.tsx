@@ -23,6 +23,7 @@ describe('keymap keydown routing', () => {
       arbitrate: () => 'pass',
       space: () => false,
       dismissPopup: () => {},
+      stop: () => false,
       canSubmit: () => true,
       submit,
       intakeFiles: () => {},
@@ -48,6 +49,7 @@ describe('keymap keydown routing', () => {
       arbitrate,
       space: () => false,
       dismissPopup: () => {},
+      stop: () => false,
       canSubmit: () => true,
       submit: () => {},
       intakeFiles: () => {},
@@ -58,6 +60,80 @@ describe('keymap keydown routing', () => {
     expect(consumed).toBe(false) // consumed: preventDefault fired
     const passed = fireEvent.keyDown(root, { key: 'Tab', keyCode: 9 })
     expect(passed).toBe(true) // pass: the browser keeps native focus traversal
+  })
+
+  it('stops the running session when Escape is not claimed by a popup', () => {
+    const editor = createEditor({ namespace: 'keymap-escape-stop', onError: (e) => { throw e } })
+    const root = document.createElement('div')
+    root.contentEditable = 'true'
+    document.body.appendChild(root)
+    editor.setRootElement(root)
+    registerPlainText(editor)
+    const stop = vi.fn(() => true)
+    registerComposerKeymap(editor, {
+      arbitrate: () => 'pass',
+      space: () => false,
+      dismissPopup: () => {},
+      stop,
+      canSubmit: () => true,
+      submit: () => {},
+      intakeFiles: () => {},
+      pasteText: () => {},
+    })
+
+    const consumed = fireEvent.keyDown(root, { key: 'Escape' })
+
+    expect(stop).toHaveBeenCalledOnce()
+    expect(consumed).toBe(false)
+  })
+
+  it('does not stop when Escape is claimed by the popup arbitration', () => {
+    const editor = createEditor({ namespace: 'keymap-escape-popup', onError: (e) => { throw e } })
+    const root = document.createElement('div')
+    root.contentEditable = 'true'
+    document.body.appendChild(root)
+    editor.setRootElement(root)
+    registerPlainText(editor)
+    const stop = vi.fn(() => true)
+    registerComposerKeymap(editor, {
+      arbitrate: () => 'consumed',
+      space: () => false,
+      dismissPopup: () => {},
+      stop,
+      canSubmit: () => true,
+      submit: () => {},
+      intakeFiles: () => {},
+      pasteText: () => {},
+    })
+
+    fireEvent.keyDown(root, { key: 'Escape' })
+
+    expect(stop).not.toHaveBeenCalled()
+  })
+
+  it('leaves Escape available to cancel an IME composition', () => {
+    const editor = createEditor({ namespace: 'keymap-escape-ime', onError: (e) => { throw e } })
+    const root = document.createElement('div')
+    root.contentEditable = 'true'
+    document.body.appendChild(root)
+    editor.setRootElement(root)
+    registerPlainText(editor)
+    const stop = vi.fn(() => true)
+    registerComposerKeymap(editor, {
+      arbitrate: () => 'pass',
+      space: () => false,
+      dismissPopup: () => {},
+      stop,
+      canSubmit: () => true,
+      submit: () => {},
+      intakeFiles: () => {},
+      pasteText: () => {},
+    })
+
+    fireEvent.compositionStart(root)
+    fireEvent.keyDown(root, { key: 'Escape', isComposing: true })
+
+    expect(stop).not.toHaveBeenCalled()
   })
 
 })

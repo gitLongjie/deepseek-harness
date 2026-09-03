@@ -94,6 +94,14 @@ describe('desktop builder identity', () => {
     expect(() => createElectronBuilderOemConfig('../Worker')).toThrow(/Windows filename/)
     expect(() => createElectronBuilderOemConfig('Worker', 'http://updates.example.test'))
       .toThrow(/updateUrl/)
+    expect(createElectronBuilderOemConfig('Worker', 'https://updates.example.test/desktop', {
+      asarUnpack: ['**/*.node', '**/node_modules/koffi/**'],
+    })).toMatchObject({ asarUnpack: ['**/*.node', '**/node_modules/koffi/**'] })
+    expect(createElectronBuilderOemConfig('Worker', 'https://updates.example.test/desktop'))
+      .not.toHaveProperty('asarUnpack')
+    expect(() => createElectronBuilderOemConfig('Worker', 'https://updates.example.test/desktop', {
+      asarUnpack: [],
+    })).toThrow(/asarUnpack/)
     expect(createElectronBuilderOemConfig('Worker', 'http://127.0.0.1:43119', {
       allowLoopbackHttp: true,
       localUpdateFeed: true,

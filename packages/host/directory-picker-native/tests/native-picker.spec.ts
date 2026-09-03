@@ -109,6 +109,7 @@ describe('native directory picker', () => {
     const [command, args, options] = execFileMock.mock.calls[0]!
     expect(command).toBe('zenity')
     expect(args).toEqual(expect.arrayContaining(['--file-selection', '--directory']))
+    expect(args).toContain('--title=选择工作区目录')
     expect(options.encoding).toBe('utf8')
     expect(options.windowsHide).toBe(true)
     expect(options.signal).toBeInstanceOf(AbortSignal)

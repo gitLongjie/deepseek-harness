@@ -174,22 +174,6 @@
   height: 36px;
 }
 
-/* Collapsed, the toggle always shows the panel icon so the control remains
-   visible even when no deployment supplies a brand mark. */
-.collapsed .toggle .panelIcon {
-  display: inline;
-}
-
-.collapsed .toggle:hover .railMark {
-  display: none;
-}
-
-.railMark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
 /* Rail icons ride the primary ink (figma rail spec); expanded keeps the
    secondary icon-button ink. */
 .collapsed .iconButton {

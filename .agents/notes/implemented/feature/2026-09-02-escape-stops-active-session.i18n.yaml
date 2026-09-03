@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-02-escape-stops-active-session.md
+2026-09-02-escape-stops-active-session.md: f55e79286b93d6cb7835558c95b9b74af4914401
+2026-09-02-escape-stops-active-session.zh.md: fe49c24792aa2b9ac2d0996a2d0afb0385731b5d

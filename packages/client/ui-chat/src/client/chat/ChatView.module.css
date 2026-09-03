@@ -54,6 +54,11 @@
 /* Settled-flow identity boundary. It is neutral until it becomes the natural
    measurement/mount unit for a virtualizer without changing the column gap. */
 .flowItem {
+  /* Long transcripts can contain millions of rendered Markdown characters.
+     Let Chromium skip layout and paint for rows outside the reading window;
+     AssistantNodeView also defers their React subtree. */
+  content-visibility: auto;
+  contain-intrinsic-size: 0 96px;
   min-width: 0;
 }
 

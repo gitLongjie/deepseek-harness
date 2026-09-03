@@ -14,7 +14,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { CSSProperties, KeyboardEvent, MouseEvent, ReactNode } from 'react'
+import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, MouseEvent, ReactNode } from 'react'
 import clsx from 'clsx'
 import {
   IconPlusOutline16, IconWarningOutline16, Toast, Tooltip,
@@ -70,7 +70,7 @@ export function InputBar({
     [draftImages, input?.imageIds],
   )
   const empty = draft.trim() === '' && attachments.length === 0
-  // Transient error banner (machine notices, image-intake rejections, and
+  // Transient error banner (machine notices and image-intake rejections,
   // prompt failures): the seq keys the Toast so an identical repeated message
   // restarts the hold-then-fade cycle instead of reusing the faded one.
   const [toast, setToast] = useState<{ seq: number; text: string } | null>(null)
@@ -247,19 +247,25 @@ export function InputBar({
   // The keymap handlers read live bar state through this ref so the editor
   // registration survives re-renders without re-arming per keystroke.
   const gate = useRef({
-    locked, machineBusy, canSteerQueue, running, subagent, resolveSubmitMode, intakeImages,
+    locked, machineBusy, canSteerQueue, running, subagent, resolveSubmitMode, intakeImages, stop,
   })
-  gate.current = { locked, machineBusy, canSteerQueue, running, subagent, resolveSubmitMode, intakeImages }
+  gate.current = { locked, machineBusy, canSteerQueue, running, subagent, resolveSubmitMode, intakeImages, stop }
 
   useEffect(() => {
     if (editor === null || keyboard === undefined) return
-    return registerComposerKeymap(editor, {
+    const unregisterKeymap = registerComposerKeymap(editor, {
       arbitrate: (key, composing) => keyboard.arbitrate(key, composing),
       space: () => {
         if (gate.current.machineBusy || gate.current.locked) return false
         return keyboard.space()
       },
       dismissPopup: () => { keyboard.dismissPopup() },
+      stop: () => {
+        const g = gate.current
+        if (!g.running || g.locked || g.stop === undefined) return false
+        g.stop()
+        return true
+      },
       canSubmit: () => !gate.current.locked && !gate.current.machineBusy,
       submit: (accelerated) => {
         const g = gate.current
@@ -282,6 +288,30 @@ export function InputBar({
         keyboard.paste(text)
       },
     })
+    // The active Session is global to the workspace, so Escape must also work
+    // when focus is in the sidebar or conversation body. The editor keymap
+    // handles events inside its root; this listener handles the remaining
+    // document events without issuing a second stop for editor events.
+    const onDocumentKeyDown = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return
+      const root = editor.getRootElement()
+      if (root !== null && event.target instanceof Node && root.contains(event.target)) return
+      if (event.isComposing) return
+      const g = gate.current
+      if (!g.running || g.locked || g.stop === undefined) return
+      keyboard.dismissPopup()
+      if (keyboard.arbitrate('escape', false) === 'consumed') {
+        event.preventDefault()
+        return
+      }
+      g.stop()
+      event.preventDefault()
+    }
+    document.addEventListener('keydown', onDocumentKeyDown)
+    return () => {
+      unregisterKeymap()
+      document.removeEventListener('keydown', onDocumentKeyDown)
+    }
   }, [editor, keyboard])
 
   // Button presses steal focus from the editor; suppress at mousedown so
@@ -299,7 +329,7 @@ export function InputBar({
 
   // The no-session Workspace trigger: the resident editable div acts as the
   // picker trigger for keyboard users (no editor is bound in this state).
-  const onWorkspaceKeyDown = (e: KeyboardEvent<HTMLDivElement>): void => {
+  const onWorkspaceKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>): void => {
     if (!workspaceTrigger) return
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault()

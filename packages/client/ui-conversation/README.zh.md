@@ -44,6 +44,10 @@ View 选择规则固定：有效且已注册的持久化选择优先，其次是
 
 普通 composer 运行时，如果草稿为空或输入不可用，主指针操作保持为 Stop。可提交的文字或附件会把同一位置切换为 Queue Send；清空或成功提交草稿后恢复 Stop。繁忙态 Enter 设置继续选择 Queue 或 Steer 键盘操作。可继续 subagent 保留独立的 Send 与 Stop 操作（[决策](../../../.agents/notes/implemented/bug-fix/2026-08-20-running-draft-primary-send.zh.md)）。
 
+Escape 遵循 composer 弹层的现有层级：打开的弹层优先消费该按键；否则，正在运行的当前 Session 消费 Escape 并调用已有的 Stop 操作。Escape 用于取消输入法组合态时不会停止 Session。
+
+常驻 composer 通过现有错误 Toast 展示 `SessionSnapshot.lastAgentError`，因此出错轮次会提示为错误而不是普通完成。当待处理的问题、审批或计划审阅需要用户参与时，composer 还会在专用 takeover 界面旁展示本地化的等待回答提示条。
+
 <a id="temporary-composer-entries"></a>
 ## 临时 composer entry
 

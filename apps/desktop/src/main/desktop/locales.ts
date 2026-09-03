@@ -54,6 +54,14 @@ export const zh = {
   'update.downloadedMessage': '新版本 {version} 已下载，是否立即重启安装？',
   'update.restart': '立即重启',
   'update.ok': '确定',
+  'resources.missingTitle': '应用资源不完整',
+  'resources.missingMessage': '安装包缺少以下资源，应用无法继续启动。请重新安装；若反复出现请携带安装包版本号反馈：\n\n{list}',
+  'resources.missing.web-dist': '前端页面资源 (web/index.html)',
+  'resources.missing.agent-presets': '内置 agent 预设 (config/agent-presets)',
+  'resources.missing.desktop-patch': '插件组合配置 (cordis.patch.yml)',
+  'resources.missing.workflow-worker': '工作流 worker 脚本 (lib/worker.cjs)',
+  'resources.missing.windows-acl-runner': '沙箱 runner (dsh-sandbox-windows-acl)',
+  'resources.missing.koffi-binding': '原生 FFI 绑定 (koffi)',
 } satisfies Record<string, string>
 
 /** Desktop-shell string key. */
@@ -106,6 +114,14 @@ export const en = {
   'update.downloadedMessage': 'Version {version} has been downloaded. Restart now to apply it?',
   'update.restart': 'Restart',
   'update.ok': 'OK',
+  'resources.missingTitle': 'Incomplete application resources',
+  'resources.missingMessage': 'The installation is missing the resources below and cannot start. Reinstall; if it keeps happening, report it with the installer version:\n\n{list}',
+  'resources.missing.web-dist': 'Frontend page assets (web/index.html)',
+  'resources.missing.agent-presets': 'Built-in agent presets (config/agent-presets)',
+  'resources.missing.desktop-patch': 'Plugin composition (cordis.patch.yml)',
+  'resources.missing.workflow-worker': 'Workflow worker script (lib/worker.cjs)',
+  'resources.missing.windows-acl-runner': 'Sandbox runner (dsh-sandbox-windows-acl)',
+  'resources.missing.koffi-binding': 'Native FFI binding (koffi)',
 } satisfies Record<DesktopTextKey, string>
 
 /** Locale identifiers understood by the desktop shell. */

@@ -60,6 +60,12 @@ export interface ProviderEditorProps {
    * override every one of them and the card does not offer it.
    */
   declared?: boolean
+  /**
+   * The curated editor family the owning adapter declares for this route's
+   * namespace (see {@link ProviderEditorProps}). Absent or unknown renders
+   * the advanced-fields hint instead of guessing a family from the namespace.
+   */
+  editorFamily?: string
   /** The owning namespace view (schema, layers, secrets). */
   namespace: SettingsNamespaceView
   /** Settings-owned synchronous schema and immutable path operations. */
@@ -116,10 +122,15 @@ export function pathOps(
   return ops
 }
 
-/** The editor layout the owning namespace selects. */
-function layoutOf(ns: string): EditorLayout {
-  if (ns === 'llm-deepseek') return 'deepseek'
-  if (ns === 'llm-pi-ai') return 'pi-ai'
+/**
+ * The editor layout one declared adapter family selects. The family travels on
+ * the provider directory entry — the adapter's own claim about how its
+ * namespace edits — so a new adapter namespace curates its card by declaring,
+ * not by being hardcoded here; a family nothing curates renders the hint.
+ */
+function layoutOf(family: string | undefined): EditorLayout {
+  if (family === 'deepseek') return 'deepseek'
+  if (family === 'pi-ai') return 'pi-ai'
   return 'unknown'
 }
 
@@ -160,7 +171,7 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
   const node = useMemo(() => schema.nodeAtPath(root, settingsPath), [root, schema, settingsPath])
   const fallback = schema.getPath(namespace.value, settingsPath)
   const disabled = props.readOnly || busy
-  const layout = layoutOf(namespace.ns)
+  const layout = layoutOf(props.editorFamily)
   const keyRef = refFor(schema, namespace, settingsPath, props.provider)
   // The same schema read the create card makes, so the choices offered here
   // and there cannot drift apart: both come from the adapter's own `Config`.

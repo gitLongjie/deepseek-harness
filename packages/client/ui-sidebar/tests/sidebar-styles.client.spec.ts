@@ -64,6 +64,11 @@ describe('SidebarRoot.module.css', () => {
     expect(declarations('.collapsed .newSession')?.get('width')).toBe('36px')
   })
 
+  it('does not reserve a collapsed-rail logo treatment', () => {
+    expect(css).not.toMatch(/\.railMark\s*\{/)
+    expect(css).not.toMatch(/\.collapsed \.toggle:hover \.railMark/)
+  })
+
   it('keeps the slotted brand row at the full artwork height', () => {
     expect(declarations('.brandIdentity')?.get('height')).toBe('24px')
     expect(declarations('.brandName')?.get('height')).toBe('24px')

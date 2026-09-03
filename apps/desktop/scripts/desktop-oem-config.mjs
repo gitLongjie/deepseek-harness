@@ -51,21 +51,33 @@ export function createElectronBuilderOemConfig(productName, updateUrl, options =
   if (!isHttpsUrl(updateUrl) && !(options.allowLoopbackHttp && isLoopbackHttpUrl(updateUrl))) {
     throw new Error('oem.config.json.updateUrl must be an HTTPS URL')
   }
-  const extraMetadata = {
-    name: 'deepagens-worker',
-    productName,
-    dsh: {
-      updateUrl,
-      ...(options.localUpdateFeed ? { localUpdateTest: true } : {}),
-    },
-  }
-  if (options.version !== undefined) extraMetadata.version = options.version
-  return {
+  const config = {
     extends: 'electron-builder.yml',
     // Keep the Chinese runtime display name separate from the ASCII installer
     // identity used by Windows paths, shortcuts, and release assets.
     productName: 'Deepagens-Worker',
-    extraMetadata,
+    extraMetadata: {
+      name: 'deepagens-worker',
+      productName,
+      dsh: {
+        updateUrl,
+        ...(options.localUpdateFeed ? { localUpdateTest: true } : {}),
+      },
+    },
+  }
+  if (options.version !== undefined) config.extraMetadata.version = options.version
+  // The asar-unpack manifest comes from the app's own single source of truth
+  // (src/main/desktop/packaged-resources.ts), not from this overlay's callers.
+  if (options.asarUnpack !== undefined) {
+    if (!Array.isArray(options.asarUnpack)
+      || options.asarUnpack.length === 0
+      || !options.asarUnpack.every(glob => typeof glob === 'string' && glob !== '')) {
+      throw new Error('the asarUnpack overlay must be a non-empty array of non-empty globs')
+    }
+    config.asarUnpack = [...options.asarUnpack]
+  }
+  return {
+    ...config,
     ...(options.output === undefined ? {} : { directories: { output: options.output } }),
     ...(options.localUpdateFeed ? { publish: [{ provider: 'generic', url: updateUrl }] } : {}),
   }

@@ -19,6 +19,7 @@ import { Context, type Fiber } from '@deepseek-ai/cordis'
 import { Include } from '@deepseek-ai/cordis-plugin-include'
 import type { EntryTree } from '@deepseek-ai/cordis-plugin-loader'
 import { scopeOf, scopeParentOf, type ScopeKey } from '@deepseek-ai/dsh-scope'
+import { installedHostBase } from './discovery.ts'
 import { PresetMountError, type AgentPreset } from './preset.ts'
 import { classifyRowSpecifier } from './specifier.ts'
 
@@ -369,10 +370,14 @@ export async function mountPreset(agentCtx: Context, preset: AgentPreset): Promi
   }
   const config: Include.Config = { path: pathToFileURL(preset.path).href }
   // Captured before the subtree exists: the standing scope context still
-  // carries the host composition's base, which is inside the installed
-  // harness and is therefore where a row's package name has to resolve from.
-  /* v8 ignore next -- the Loader sets `baseUrl` on the root before any scoped context derives from it */
-  if (agentCtx.baseUrl !== undefined) harnessBase.set(config, agentCtx.baseUrl)
+  // carries the base a row's package name has to resolve from — the installed
+  // application root in a packaged runtime, whose writable composition
+  // directory has no `node_modules` a closed runtime could walk, else the
+  // host composition's base. The same rule the roster's health check applies,
+  // so a preset reported healthy imports healthy.
+  /* v8 ignore next 2 -- the Loader sets `baseUrl` on the root before any scoped context derives from it */
+  const base = installedHostBase() ?? agentCtx.baseUrl
+  if (base !== undefined) harnessBase.set(config, base)
   // Before the record this mount is about to add: standing mounts are one per
   // preset and live until whole-tree teardown, so pruning here only sweeps
   // records of torn-down runtimes (tests; an HMR reload of the roster).

@@ -86,10 +86,18 @@ jobs:
       - name: Build host libs
         run: pnpm build:lib
 
-      # deploy-app.mjs --publish always builds and uploads to the GitHub
-      # Release for the current version (tag v<version>).
-      - name: Package and publish to GitHub Releases
-        run: pnpm --filter @deepseek-ai/dsh-desktop run release
+      # Package the --dir artifact, boot it under the smoke harness, and only
+      # after the smoke passes run the release build with --publish always
+      # (same rev, GH_TOKEN from the environment). A packaged artifact that
+      # cannot boot never reaches users.
+      - name: Package, smoke, and publish to GitHub Releases
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            xvfb-run --auto-servernum pnpm --filter @deepseek-ai/dsh-desktop run smoke -- --publish
+          else
+            pnpm --filter @deepseek-ai/dsh-desktop run smoke -- --publish
+          fi
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

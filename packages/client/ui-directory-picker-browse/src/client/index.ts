@@ -9,6 +9,7 @@
  * package owns its own strings.
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
+import type { Translate } from '@deepseek-ai/dsh-client-locale/client'
 // Type-only: pulls the SlotMap merge declaring the directory-flow holes.
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 // Type-only: pulls the SlotRegistry service merge (ctx.slots).
@@ -18,6 +19,19 @@ import { BrowseDirectoryFlow } from './flow.ts'
 
 /** Locale namespace owning the browser dialog's copy. */
 const LOCALE_NS = 'directory-browser'
+
+type DirectoryBrowserKey =
+  | 'browser.title' | 'browser.home' | 'browser.newFolder' | 'browser.folderName'
+  | 'browser.createIn' | 'browser.untitledFolder' | 'browser.create' | 'browser.cancel'
+  | 'browser.open' | 'browser.editPath' | 'browser.loading' | 'browser.truncated'
+  | 'browser.showHidden'
+
+declare module '@deepseek-ai/dsh-client-ui-slots' {
+  interface LocaleNamespaceMap {
+    /** Copy for the in-app workspace directory browser. */
+    'directory-browser': DirectoryBrowserKey
+  }
+}
 
 /** Required services (cordis fiber inject): the slot registry, workspace UI service, and locale. */
 export const inject = ['slots', 'uiWorkspace', 'locale']
@@ -30,12 +44,8 @@ export const inject = ['slots', 'uiWorkspace', 'locale']
  */
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => {
-    // The two dictionaries land as a unit: if the second registration hits a
-    // rival owner of the namespace, the first rolls back before the throw —
-    // a failed activation must not squat the namespace's other locale.
-    const disposers: (() => void)[] = []
-    const dictionaries: [locale: string, dict: Record<string, string>][] = [
-      ['zh', {
+    return ctx.locale.register(LOCALE_NS, {
+      zh: {
         'browser.title': '选择工作区目录',
         'browser.home': '主目录',
         'browser.newFolder': '新建文件夹',
@@ -49,8 +59,8 @@ export function apply(ctx: ClientContext): void {
         'browser.loading': '加载中…',
         'browser.truncated': '文件夹过多，仅显示开头部分。',
         'browser.showHidden': '显示隐藏文件',
-      }],
-      ['en', {
+      },
+      en: {
         'browser.title': 'Select Workspace Directory',
         'browser.home': 'Home',
         'browser.newFolder': 'New folder',
@@ -64,21 +74,14 @@ export function apply(ctx: ClientContext): void {
         'browser.loading': 'Loading…',
         'browser.truncated': 'Too many folders to list; only the beginning is shown.',
         'browser.showHidden': 'Show hidden files',
-      }],
-    ]
-    try {
-      for (const [locale, dict] of dictionaries) disposers.push(ctx.locale.register(LOCALE_NS, locale, dict))
-    } catch (error) {
-      for (const dispose of disposers.reverse()) dispose()
-      throw error
-    }
-    return () => { for (const dispose of disposers) dispose() }
+      },
+    })
   }, 'directory-picker-browse: dialog dictionaries')
 
   const injected = (): BrowseFlowInjected => ({
     listDirectory: (path, signal) => ctx.uiWorkspace.listDirectory(path, signal),
     createDirectory: (path, name) => ctx.uiWorkspace.createDirectory(path, name),
-    t: ctx.locale.bind(LOCALE_NS),
+    t: ctx.locale.bind(LOCALE_NS) as Translate,
   })
   // Both declaration lifetimes must be live before the pair installs; the
   // generator makes the two registrations one transactional effect. The
