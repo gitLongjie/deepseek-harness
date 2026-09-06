@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
@@ -324,5 +324,21 @@ describe('uninstall', () => {
       pnpmTimeoutMs: 1_000,
       maxOutputTailBytes: 100,
     })
+  })
+
+  it('uses a configured install anchor instead of the search-path probe', async () => {
+    const anchor = join(harnesses.at(-1)!.home, 'shell-package.json')
+    writeFileSync(anchor, '{}')
+    const market = build({ profile: 'market-test', installAnchor: anchor })
+    vi.mocked(pnpmUninstall).mockResolvedValueOnce({ ok: true, packageName: 'pkg-a', restartRequired: true })
+    await expect(market.uninstall('pkg-a' as never)).resolves.toMatchObject({ ok: true })
+    expect(vi.mocked(pnpmUninstall)).toHaveBeenCalledWith('market-local', 'pkg-a', expect.objectContaining({
+      installAnchor: anchor,
+    }))
+  })
+
+  it('rejects a configured install anchor that does not exist', () => {
+    expect(() => build({ profile: 'market-test', installAnchor: join(harnesses.at(-1)!.home, 'missing.json') }))
+      .toThrow(/install anchor does not exist/)
   })
 })

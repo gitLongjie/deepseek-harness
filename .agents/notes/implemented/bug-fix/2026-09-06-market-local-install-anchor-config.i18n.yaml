@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-06-market-local-install-anchor-config.md
+2026-09-06-market-local-install-anchor-config.md: 310b4c0f6b27cfd206068f256ab9327f7aa92cfc
+2026-09-06-market-local-install-anchor-config.zh.md: d3372d478b1aaf86dcbbdc54ccb9a24bfc1f4b1e

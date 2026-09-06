@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { resolveInstallationModuleLinks } from '@deepseek-ai/dsh-app-boot'
-import { ensureRootPluginLinks, resolveTelemetryPatch } from '../src/main/boot.ts'
+import { ensureRootPluginLinks, resolveMarketAnchorPatch, resolveTelemetryPatch } from '../src/main/boot.ts'
 
 describe('resolveTelemetryPatch', () => {
   it('returns undefined when the switch is unset or the row is absent', () => {
@@ -18,6 +18,17 @@ describe('resolveTelemetryPatch', () => {
     expect(resolveTelemetryPatch('0', true)).toEqual({ id: 'session-telemetry-otel', disabled: true })
     expect(resolveTelemetryPatch('1', true)).toEqual({ id: 'session-telemetry-otel', disabled: true })
     expect(resolveTelemetryPatch('false', true)).toEqual({ id: 'session-telemetry-otel', disabled: true })
+  })
+})
+
+describe('resolveMarketAnchorPatch', () => {
+  it('returns undefined when the composition has no market-local row', () => {
+    expect(resolveMarketAnchorPatch(false, 'C:/app/package.json')).toBeUndefined()
+  })
+
+  it('hands the boot anchor to the market-local row', () => {
+    expect(resolveMarketAnchorPatch(true, 'C:/app/package.json'))
+      .toEqual({ id: 'market-local', config: { installAnchor: 'C:/app/package.json' } })
   })
 })
 

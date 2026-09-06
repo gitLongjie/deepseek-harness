@@ -9,6 +9,7 @@
 
 import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
+import { existsSync } from 'node:fs'
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import {
   Market,
@@ -39,6 +40,12 @@ import type { StoredSourcesFile } from './schemas.ts'
 export interface Config {
   /** Profile the market manages; default: the launcher's profile fact. */
   profile?: string
+  /**
+   * Path of the running installation's package.json. Default: search-path
+   * probe for the app package. Hosts whose app package sits off every search
+   * path (the packaged desktop shell's asar root) pass it explicitly.
+   */
+  installAnchor?: string
   /** npm registry base URL used as the install-version authority. */
   npmRegistryUrl?: string
   /** Per-request wall-time bound for catalog and registry fetches (ms). */
@@ -55,8 +62,8 @@ export interface Config {
   maxOutputTailBytes?: number
 }
 
-/** The shape after schemastery applied the defaults (profile stays optional). */
-type ResolvedConfig = Required<Omit<Config, 'profile'>> & Pick<Config, 'profile'>
+/** The shape after schemastery applied the defaults (profile and installAnchor stay optional). */
+type ResolvedConfig = Required<Omit<Config, 'profile' | 'installAnchor'>> & Pick<Config, 'profile' | 'installAnchor'>
 
 function assertPositiveFinite(name: string, value: number): void {
   if (!Number.isFinite(value) || value <= 0) {
@@ -74,6 +81,7 @@ export default class LocalMarket extends Market {
 
   static Config: z<Config> = z.object({
     profile: z.string(),
+    installAnchor: z.string(),
     npmRegistryUrl: z.string().default('https://registry.npmjs.org'),
     requestTimeoutMs: z.number().default(15_000),
     maxCatalogBytes: z.number().default(8 * 1024 * 1024),
@@ -122,7 +130,14 @@ export default class LocalMarket extends Market {
     // launcher profile still serves catalog browsing); profile-mutating
     // operations resolve it lazily and fail loud when it is absent.
     this.profileName = resolved.profile ?? ctx.get('launcherProfile')?.get() ?? null
-    this.installAnchor = resolveInstallAnchor(import.meta.url)
+    // The packaged desktop shell's app package sits at the asar root, off
+    // every Node search path, so such hosts pass their anchor through config;
+    // everywhere else the probe resolves the CLI installation. The probe
+    // fails loud on its own; a configured anchor must point at a real file.
+    this.installAnchor = resolved.installAnchor ?? resolveInstallAnchor(import.meta.url)
+    if (!existsSync(this.installAnchor)) {
+      throw new Error(`market-local: install anchor does not exist: ${this.installAnchor}`)
+    }
   }
 
   /** The managed profile identity and directory, or a loud error when no profile is resolvable. */

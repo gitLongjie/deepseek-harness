@@ -149,6 +149,20 @@ export function resolveTelemetryPatch(disabledEnv: string | undefined, hasRow: b
   return { id: TELEMETRY_ROW_ID, disabled: true }
 }
 
+/**
+ * Resolve the market anchor handoff into its boot patch. The packaged shell's
+ * app package sits at the asar root, off every Node search path, so
+ * market-local's own probe cannot resolve the installation anchor it
+ * reconciles profile bundles against.
+ * @param hasRow - whether the composition mounts the `market-local` row.
+ * @param installAnchor - this boot's installation anchor (package.json path).
+ * @returns the config patch, or `undefined` when the composition has no row.
+ */
+export function resolveMarketAnchorPatch(hasRow: boolean, installAnchor: string): PatchOptions | undefined {
+  if (!hasRow) return undefined
+  return { id: 'market-local', config: { installAnchor } }
+}
+
 /** Options for {@link runDesktopBoot}. */
 export interface DesktopBootOptions {
   /** This run's frozen environment snapshot, provided before any entry mounts. */
@@ -207,6 +221,18 @@ export async function runDesktopBoot(options: DesktopBootOptions): Promise<Deskt
       config: {
         ...(rows.get('agent-presets')?.config ?? {}) as Record<string, unknown>,
         roots: [{ path: SHIPPED_PRESET_ROOT, trust: 'system' }],
+      },
+    })
+  }
+  // A patch's config replaces the row's config wholesale, so the market anchor
+  // rides on the row's own composed config.
+  const marketAnchorPatch = resolveMarketAnchorPatch(rows.has('market-local'), INSTALL_ANCHOR)
+  if (marketAnchorPatch !== undefined) {
+    overlays.push({
+      ...marketAnchorPatch,
+      config: {
+        ...(rows.get('market-local')?.config ?? {}) as Record<string, unknown>,
+        ...marketAnchorPatch.config as Record<string, unknown>,
       },
     })
   }

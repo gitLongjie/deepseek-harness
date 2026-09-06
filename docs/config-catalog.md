@@ -1445,6 +1445,12 @@ Source: [`packages/lsp/lsp-stdio/src/index.ts:82`](../packages/lsp/lsp-stdio/src
 export interface Config {
   /** Profile the market manages; default: the launcher's profile fact. */
   profile?: string
+  /**
+   * Path of the running installation's package.json. Default: search-path
+   * probe for the app package. Hosts whose app package sits off every search
+   * path (the packaged desktop shell's asar root) pass it explicitly.
+   */
+  installAnchor?: string
   /** npm registry base URL used as the install-version authority. */
   npmRegistryUrl?: string
   /** Per-request wall-time bound for catalog and registry fetches (ms). */
@@ -1462,7 +1468,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/market/market-local/src/index.ts:39`](../packages/market/market-local/src/index.ts)
+Source: [`packages/market/market-local/src/index.ts:40`](../packages/market/market-local/src/index.ts)
 
 <a id="deepseek-aidsh-mcp-client"></a>
 
