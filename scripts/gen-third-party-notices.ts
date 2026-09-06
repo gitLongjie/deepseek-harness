@@ -65,6 +65,9 @@ export function isOwnerAuthorizedRuntime(name: string): boolean {
  * Each entry documents why the store cannot answer.
  */
 const OVERRIDES: Record<string, { license?: string; repo?: string }> = {
+  // Foreign-platform optional binaries: pnpm skips installing them off-platform,
+  // so the license lookup cannot read their manifests locally.
+  '@img/sharp-linux-x64': { license: 'Apache-2.0', repo: 'https://github.com/lovell/sharp' },
   '@tencent-connect/qqbot-connector': { license: 'MIT', repo: 'https://github.com/tencent-connect/qq-bot-nodejs' },
   '@tencent-connect/qqbot-nodejs': { license: 'MIT', repo: 'https://github.com/tencent-connect/qq-bot-nodejs' },
   // Rust workspaces publishing npm bins without `license` in package.json.

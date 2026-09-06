@@ -123,6 +123,9 @@
     "@xmanrui/dsh-im": "file:../../dsh-im/dsh-im-main",
     "electron-updater": "^6.8.9"
   },
+  "optionalDependencies": {
+    "@img/sharp-linux-x64": "0.35.3"
+  },
   "devDependencies": {
     "@deepseek-ai/dsh-web-frontend": "workspace:^",
     "@types/node": "^22.0.0",
