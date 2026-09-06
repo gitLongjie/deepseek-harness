@@ -67,6 +67,7 @@ export function isOwnerAuthorizedRuntime(name: string): boolean {
 const OVERRIDES: Record<string, { license?: string; repo?: string }> = {
   // Foreign-platform optional binaries: pnpm skips installing them off-platform,
   // so the license lookup cannot read their manifests locally.
+  '@img/sharp-libvips-linux-x64': { license: 'Apache-2.0', repo: 'https://github.com/lovell/sharp' },
   '@img/sharp-linux-x64': { license: 'Apache-2.0', repo: 'https://github.com/lovell/sharp' },
   '@tencent-connect/qqbot-connector': { license: 'MIT', repo: 'https://github.com/tencent-connect/qq-bot-nodejs' },
   '@tencent-connect/qqbot-nodejs': { license: 'MIT', repo: 'https://github.com/tencent-connect/qq-bot-nodejs' },
