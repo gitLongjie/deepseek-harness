@@ -15,6 +15,7 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } 
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import yaml from 'js-yaml'
 
 const desktopRoot = fileURLToPath(new URL('../', import.meta.url))
 const outputRoot = resolve(desktopRoot, 'dist-electron')
@@ -64,7 +65,11 @@ export function findPackagedExecutable(platform = process.platform, root = outpu
           .filter(entry => entry.isFile() && statSync(join(dir, entry.name)).mode & 0o111 && !entry.name.includes('.so'))
           .map(entry => entry.name)
       : []
-    const preferred = exes.includes('deepagens-worker') ? ['deepagens-worker'] : exes
+    // Electron helpers (chrome-sandbox, chrome_crashpad_handler) match the
+    // mode filter too; the declared executable name from the builder config
+    // picks the app binary out of that set.
+    const declared = yaml.load(readFileSync(join(desktopRoot, 'electron-builder.yml'), 'utf8'))?.linux?.executableName
+    const preferred = typeof declared === 'string' && exes.includes(declared) ? [declared] : exes
     if (preferred.length === 1) return join(dir, preferred[0])
     throw new Error(`expected exactly one executable in ${dir}, found [${exes.join(', ')}]`)
   }
