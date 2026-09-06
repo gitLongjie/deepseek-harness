@@ -193,6 +193,8 @@ describe('desktop builder identity', () => {
       '@deepseek-ai/dsh-attachment': 'workspace:^',
       '@deepseek-ai/dsh-credentials': 'workspace:^',
       '@deepseek-ai/dsh-jobs': 'workspace:^',
+      '@deepseek-ai/dsh-market': 'workspace:^',
+      '@deepseek-ai/dsh-market-local': 'workspace:^',
       '@deepseek-ai/dsh-session-persistence': 'workspace:^',
       '@deepseek-ai/dsh-session-query': 'workspace:^',
       '@deepseek-ai/dsh-settings': 'workspace:^',

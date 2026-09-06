@@ -601,6 +601,12 @@ importers:
       '@deepseek-ai/dsh-launch-environment':
         specifier: workspace:^
         version: link:../../packages/util/launch-environment
+      '@deepseek-ai/dsh-market':
+        specifier: workspace:^
+        version: link:../../packages/market/market
+      '@deepseek-ai/dsh-market-local':
+        specifier: workspace:^
+        version: link:../../packages/market/market-local
       '@deepseek-ai/dsh-mcp-client':
         specifier: workspace:^
         version: link:../../packages/mcp/mcp-client
