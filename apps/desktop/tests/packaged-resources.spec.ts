@@ -37,6 +37,11 @@ describe('ASAR_UNPACK_GLOBS', () => {
       expect(ASAR_UNPACK_GLOBS).toContain(`**/node_modules/${name}/**`)
     }
   })
+
+  it('unpacks shared libraries the sharp linux binding dlopens', () => {
+    expect(ASAR_UNPACK_GLOBS).toContain('**/*.so')
+    expect(ASAR_UNPACK_GLOBS).toContain('**/*.so.*')
+  })
 })
 
 describe('findMissingPackagedResources', () => {

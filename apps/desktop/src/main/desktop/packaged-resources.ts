@@ -27,6 +27,10 @@ export const REQUIRED_UNPACKED_PACKAGES: readonly string[] = [
 /** electron-builder `asarUnpack` globs covering every required unpacked package. */
 export const ASAR_UNPACK_GLOBS: readonly string[] = [
   '**/*.node',
+  // The sharp Linux binding dlopens libvips-cpp.so from its RUNPATH beside the
+  // unpacked binding; dlopen cannot read inside the archive.
+  '**/*.so',
+  '**/*.so.*',
   ...REQUIRED_UNPACKED_PACKAGES.map(name => `**/node_modules/${name}/**`),
 ]
 
