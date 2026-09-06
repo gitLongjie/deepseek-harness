@@ -11,7 +11,8 @@
  * and `dsh --profile web -h` prints the web app's help, not this one's.
  *
  * `web` is a hardcoded alias for `--profile web`; `plugin` manages a profile's
- * plugin dependencies by forwarding to pnpm.
+ * plugin dependencies by forwarding to pnpm; `market` browses and installs
+ * plugins through market sources.
  * @module @deepseek-ai/dsh/args
  */
 
@@ -44,8 +45,31 @@ interface PluginInvocation {
   args: string[]
 }
 
+/** The `dsh market` subcommands, dispatched by bin.ts. */
+export type MarketSubcommand =
+  | 'search'
+  | 'view'
+  | 'install'
+  | 'installed'
+  | 'uninstall'
+  | 'sources'
+  | 'source-add'
+  | 'source-remove'
+  | 'source-select'
+
+/** Browse, inspect, install, or uninstall profile plugins through a market source. */
+interface MarketInvocation {
+  mode: 'market'
+  profile: string
+  subcommand: MarketSubcommand
+  /** Search words, an entry id, a bundle id, or a source id, per subcommand. */
+  args: string[]
+  /** Options collected for `source add`; absent for every other subcommand. */
+  sourceAdd?: { name: string; kind: string; url: string }
+}
+
 /** The resolved `dsh` invocation. Help, version, and errors exit inside {@link parseDshArgs}. */
-export type DshInvocation = ProfileInvocation | DumpConfigInvocation | PluginInvocation
+export type DshInvocation = ProfileInvocation | DumpConfigInvocation | PluginInvocation | MarketInvocation
 
 /** Launcher flags shared by the default command and the `web` alias. */
 interface BootOptions {
@@ -69,6 +93,8 @@ Examples:
   dsh --profile tui --resume <session>       arguments after the launcher flags reach the app
   dsh --profile web --help                   the web app's own flags and help
   dsh plugin --profile tui add <package>     install a plugin into the tui profile
+  dsh market --profile tui search todo       search the selected plugin market source
+  dsh market --profile tui install <entry>   install a marketplace plugin into the tui profile
 `
 
 /**
@@ -178,6 +204,94 @@ export function parseDshArgs(argv: readonly string[], version: string): DshInvoc
       if (options.profile === '') program.error('error: --profile needs a name')
       if (args.length === 0) program.error('error: plugin needs pnpm arguments to forward (e.g. add <package>)')
       resolved = { mode: 'plugin', profile: options.profile, args }
+    })
+
+  /** Resolve the market's required --profile from the command's own options. */
+  const marketProfile = (command: Command): string => {
+    const profile = command.optsWithGlobals<{ profile?: string }>().profile
+    if (profile === undefined || profile === '') program.error('error: --profile <name> is required')
+    return profile
+  }
+
+  /** Resolve one required positional argument. */
+  const marketArgument = (command: Command, value: string | undefined, what: string): string[] => {
+    if (value === undefined || value === '') command.error(`error: ${what} is required`)
+    return [value]
+  }
+
+  const market = program.command('market').description('browse and manage profile plugins through a market source (the built-in community store is preselected)')
+  market
+    .requiredOption('--profile <name>', 'the profile the market manages (initialized on first use)')
+    .action(() => {
+      rejectParentOptions('market')
+      program.error('error: market needs a subcommand (search, view, install, installed, uninstall, sources, or source); see: dsh market --help')
+    })
+
+  market.command('search').description('search the selected source; omit the words to list entries')
+    .argument('[words...]', 'search words matched against names, summaries, packages, and publishers')
+    .action((words: string[]) => {
+      rejectParentOptions('market search')
+      resolved = { mode: 'market', profile: marketProfile(market), subcommand: 'search', args: words }
+    })
+
+  market.command('view').description('show one entry and its npm installability check')
+    .argument('<entryId>', 'the source-local entry id shown by search')
+    .action((entryId) => {
+      rejectParentOptions('market view')
+      resolved = { mode: 'market', profile: marketProfile(market), subcommand: 'view', args: marketArgument(market, entryId, 'an entry id') }
+    })
+
+  market.command('install').description('validate the entry against the npm registry and install it into the profile')
+    .argument('<entryId>', 'the source-local entry id shown by search')
+    .action((entryId) => {
+      rejectParentOptions('market install')
+      resolved = { mode: 'market', profile: marketProfile(market), subcommand: 'install', args: marketArgument(market, entryId, 'an entry id') }
+    })
+
+  market.command('installed').description('list the profile\'s installed plugins and installation-owned layers')
+    .action(() => {
+      rejectParentOptions('market installed')
+      resolved = { mode: 'market', profile: marketProfile(market), subcommand: 'installed', args: [] }
+    })
+
+  market.command('uninstall').description('remove a dependency-managed plugin from the profile')
+    .argument('<bundleId>', 'the npm package name shown by installed')
+    .action((bundleId) => {
+      rejectParentOptions('market uninstall')
+      resolved = { mode: 'market', profile: marketProfile(market), subcommand: 'uninstall', args: marketArgument(market, bundleId, 'a bundle id') }
+    })
+
+  market.command('sources').description('list the configured market sources and the selection')
+    .action(() => {
+      rejectParentOptions('market sources')
+      resolved = { mode: 'market', profile: marketProfile(market), subcommand: 'sources', args: [] }
+    })
+
+  const source = market.command('source').description('register, remove, or select a market source')
+  source
+    .action(() => {
+      rejectParentOptions('market source')
+      program.error('error: source needs a subcommand (add, remove, or select); see: dsh market source --help')
+    })
+  source.command('add').description('register a new source from its https:// endpoint')
+    .requiredOption('--name <name>', 'display name')
+    .requiredOption('--kind <kind>', 'source kind: catalog (provider manifest) or store-v1 (plugin store projection)')
+    .requiredOption('--url <url>', 'https:// endpoint of the source')
+    .action((options: { name: string; kind: string; url: string }) => {
+      rejectParentOptions('market source add')
+      resolved = { mode: 'market', profile: marketProfile(market), subcommand: 'source-add', args: [], sourceAdd: options }
+    })
+  source.command('remove').description('remove a configured source; removing the selected source clears the selection')
+    .argument('<sourceId>', 'the source id shown by sources')
+    .action((sourceId) => {
+      rejectParentOptions('market source remove')
+      resolved = { mode: 'market', profile: marketProfile(market), subcommand: 'source-remove', args: marketArgument(market, sourceId, 'a source id') }
+    })
+  source.command('select').description('select the source that search, view, and install read')
+    .argument('<sourceId>', 'the source id shown by sources')
+    .action((sourceId) => {
+      rejectParentOptions('market source select')
+      resolved = { mode: 'market', profile: marketProfile(market), subcommand: 'source-select', args: marketArgument(market, sourceId, 'a source id') }
     })
 
   try {

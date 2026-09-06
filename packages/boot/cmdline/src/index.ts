@@ -52,6 +52,15 @@ export interface AppReady {
   onReady(listener: () => void): () => void
 }
 
+/** The launcher-provided profile name fact. */
+export interface LauncherProfile {
+  /**
+   * Read the profile name the launcher booted.
+   * @returns the profile name.
+   */
+  get(): string
+}
+
 declare module '@deepseek-ai/cordis' {
   interface Context {
     /** The invocation's inner arguments; provided by a launcher before the tree mounts. */
@@ -60,6 +69,8 @@ declare module '@deepseek-ai/cordis' {
     appExit?: AppExit
     /** Successful startup signal; provided by a launcher before the tree mounts. */
     appReady?: AppReady
+    /** The booted profile's name; provided by a profile launcher before the tree mounts. */
+    launcherProfile?: LauncherProfile
   }
 }
 
@@ -71,13 +82,14 @@ export interface CmdlineHost {
   exit: AppExit
   /** Successful startup signal for lifecycle work that must not mask boot failure. */
   ready?: AppReady
+  /** The booted profile's name; omitted by embedding launchers that boot a bare config. */
+  profile?: string
 }
 
 /**
  * Provide launcher facts on a host context before any tree entry mounts: the
- * command line, bounded exit request, and optional successful-startup signal.
- * An embedding host with no command line provides an empty argument list; a
- * host that mounts a stdio application also provides readiness.
+ * command line, bounded exit request, optional successful-startup signal, and
+ * optional profile name.
  * @param ctx - the host context the tree will mount under.
  * @param host - the invocation's arguments, exit request, and optional readiness signal.
  */
@@ -86,6 +98,7 @@ export function provideCmdline(ctx: Context, host: CmdlineHost): void {
   ctx.provide('cmdlineArgs', { get: () => snapshot })
   ctx.provide('appExit', host.exit)
   if (host.ready !== undefined) ctx.provide('appReady', host.ready)
+  if (host.profile !== undefined) ctx.provide('launcherProfile', { get: () => host.profile })
 }
 
 /** Process stdin operations used to bind a stdio application's lifetime. */

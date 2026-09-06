@@ -1206,6 +1206,77 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'market',
+    summary: 'The market capability.',
+    description: 'The market capability. All identity arguments are host-validated: clients submit opaque ids and the service resolves every package name, version, and command itself. Catalog data is untrusted provider content; only entries this service normalized can install, and the npm registry is the sole version authority at install time.',
+    methods: [
+      {
+        signature: 'abstract listSources(): Promise<readonly MarketSource[]>',
+        description: 'List the configured sources in registry order.',
+        parameters: [],
+        returns: 'the configured sources in registry order.',
+      },
+      {
+        signature: 'abstract selectedSource(): Promise<MarketSourceId | null>',
+        description: 'The selected source\'s id, or null when no source is selected.',
+        parameters: [],
+        returns: 'the selected source id, or null when nothing is selected.',
+      },
+      {
+        signature: 'abstract selectSource(id: MarketSourceId): Promise<void>',
+        description: 'Select the source subsequent browsing reads. Selection is durable, user-owned state.',
+        parameters: [{ name: 'id', description: 'the source to select; must be configured.' }],
+      },
+      {
+        signature: 'abstract addSource(input: MarketSourceInput): Promise<MarketSource>',
+        description: 'Register a new source and select nothing (selection changes only through selectSource).',
+        parameters: [{ name: 'input', description: 'the source\'s display name, transport kind, and HTTPS URL.' }],
+        returns: 'the registered source with its assigned identity.',
+      },
+      {
+        signature: 'abstract removeSource(id: MarketSourceId): Promise<void>',
+        description: 'Remove a configured source. Removing the selected source clears the selection and drops that source\'s cached catalog.',
+        parameters: [{ name: 'id', description: 'the source to remove.' }],
+      },
+      {
+        signature: 'abstract browse(query: MarketBrowseQuery): Promise<MarketCatalogPage>',
+        description: 'Read one page from the selected source. Server-side sources translate the query into their endpoint call; bounded-projection sources filter their cached list client-side. Failures name the source and stage.',
+        parameters: [{ name: 'query', description: 'free-text query, category filter, cursor, and page size.' }],
+        returns: 'one page of normalized entries with an opaque next cursor.',
+      },
+      {
+        signature: 'abstract entryDetail(ref: MarketEntryRef): Promise<MarketCatalogEntry | undefined>',
+        description: 'Resolve one entry through its source: cache-first, with a catalog source searched for the id when the cache has not observed it. Undefined means the source does not list the id — never an error, so callers can probe.',
+        parameters: [{ name: 'ref', description: 'the source and entry to resolve.' }],
+        returns: 'the observed entry, or undefined when the source does not know it.',
+      },
+      {
+        signature: 'abstract installability(ref: MarketEntryRef): Promise<MarketInstallability>',
+        description: 'Validate one entry\'s installability against the npm registry: exactly one declared npm package, whose registry `latest` manifest carries the same name, an exact stable version, and a `dsh.bundle.patch` declaration.',
+        parameters: [{ name: 'ref', description: 'the source and entry to validate.' }],
+        returns: 'the installability verdict with one reason per unmet requirement.',
+      },
+      {
+        signature: 'abstract install(ref: MarketEntryRef): Promise<MarketInstallOutcome>',
+        description: 'Install one entry into the managed profile: validate installability, then run the profile package manager with the exact resolved version and reconcile `dsh.profile.bundles`. The new layer activates on the next host start.',
+        parameters: [{ name: 'ref', description: 'the source and entry to install.' }],
+        returns: 'the discriminated install outcome with the exact added version on success.',
+      },
+      {
+        signature: 'abstract installed(): Promise<readonly MarketInstalledPlugin[]>',
+        description: 'List the managed profile\'s direct plugin dependencies with their bundle state. Every install route appears — this market, another market, or the CLI — because the profile manifest is the only truth read.',
+        parameters: [],
+        returns: 'the profile\'s plugin dependencies, dependencies first.',
+      },
+      {
+        signature: 'abstract uninstall(bundleId: MarketBundleId): Promise<MarketUninstallOutcome>',
+        description: 'Uninstall one dependency-managed plugin from the managed profile. The bundle id is revalidated against the live profile manifest; installation owned template layers refuse.',
+        parameters: [{ name: 'bundleId', description: 'the opaque handle from a previous {@link installed} read.' }],
+        returns: 'the discriminated uninstall outcome naming the removed package.',
+      },
+    ],
+  },
+  {
     key: 'messageFeedback',
     summary: 'Storage-domain sidecar service.',
     description: 'Storage-domain sidecar service. It inspects persisted Session history and never creates or resumes an Agent or Session.',

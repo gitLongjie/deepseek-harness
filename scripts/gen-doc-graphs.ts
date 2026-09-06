@@ -580,6 +580,15 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Producers (background bash, PTY sends, and subagent delegations) register running work; tool-jobs is the model-facing controller that reads, lists, and kills it; jobs-local is the process-local registry.',
   },
   {
+    key: 'market',
+    pkg: 'market',
+    title: 'Plugin market',
+    mode: 'seam',
+    implementations: ['market-local'],
+    consumers: ['market-gateway'],
+    note: 'The market-local provider reads configured catalog sources, validates candidates against the npm registry, and installs exact versions into the managed profile; market-gateway projects the seam onto the Typert wire for the web settings tab and the dsh market CLI reads it in-process.',
+  },
+  {
     key: 'web',
     pkg: 'web',
     title: 'Web access provider registry',

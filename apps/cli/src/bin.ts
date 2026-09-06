@@ -39,6 +39,11 @@ switch (invocation.mode) {
     process.exit(runPlugin(invocation.profile, invocation.args))
     break
   }
+  case 'market': {
+    const { runMarket } = await import('./market.ts')
+    process.exit(await runMarket(invocation.profile, invocation.subcommand, invocation.args, invocation.sourceAdd))
+    break
+  }
   case 'dump-config': {
     const { runDumpConfig } = await import('./dump-config.ts')
     runDumpConfig(invocation.profile, invocation.defaultOnly, invocation.patches)

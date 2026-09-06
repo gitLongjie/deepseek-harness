@@ -8,8 +8,8 @@
  * @module @deepseek-ai/dsh-desktop/boot
  */
 
-import { existsSync, mkdirSync, readdirSync, symlinkSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, mkdirSync, readdirSync, readlinkSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
+import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { FiberState, type Context } from '@deepseek-ai/cordis'
 import type { PatchOptions } from '@deepseek-ai/cordis-plugin-include'
@@ -23,6 +23,7 @@ import {
   loadOverlayPatches,
   loadProfile,
   PROFILE_PATCH_FILENAME,
+  resolveInstallationModuleLinks,
   watchUserPatches,
 } from '@deepseek-ai/dsh-app-boot'
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
@@ -54,33 +55,76 @@ const PROFILE_ROOT_CONFIG = `# dsh profile root — an empty entry list. The tre
 /** The session-telemetry row id the DSH_TELEMETRY_DISABLED switch targets. */
 const TELEMETRY_ROW_ID = 'session-telemetry-otel'
 
+/** Directory overrides for {@link ensureRootPluginLinks}, so tests never touch the real tree. */
+export interface RootPluginLinkDirs {
+  /** The shared `$DSH_HOME/profiles/node_modules/@deepseek-ai` fallback directory. */
+  profilesAi?: string
+  /** The repository-root `node_modules/@deepseek-ai` directory the links are written into. */
+  rootAi?: string
+  /** The installation anchor whose plugin closure the direct links follow. */
+  installAnchor?: string
+}
+
 /**
- * Mirror the healed profile plugin links into the repository root node_modules.
+ * Link the loader-visible plugin packages into the repository root node_modules.
  * In the open (non-packaged) runtime the vendored Loader's plain bare import
  * resolves from vendor/loader, whose lookup walks up to the repository root —
- * not the profile baseUrl — so root node_modules must carry every plugin link,
- * mirroring what the packaged app gets from its own node_modules. Junctions
- * avoid Windows symlink privileges. Best-effort: the packaged runtime needs
- * none of this.
+ * not the profile baseUrl — so every dsh-owned link points directly at the
+ * running installation's resolved package directory and is rewritten when its
+ * target differs: the shared fallback directory is rewritten by whichever dsh
+ * installation healed last, and a mirror link would follow whatever foreign
+ * plugin generation it currently holds. Names outside the installation closure
+ * keep that mirror for profile-scope plugins. Junctions avoid Windows symlink
+ * privileges. Best-effort: the packaged runtime needs none of this.
+ * @param dirs - directory overrides for tests.
  */
-function ensureRootPluginLinks(): void {
+export function ensureRootPluginLinks(dirs: RootPluginLinkDirs = {}): void {
   try {
-    const profilesAi = join(resolveDshHome(), 'profiles', 'node_modules', '@deepseek-ai')
+    const profilesAi = dirs.profilesAi ?? join(resolveDshHome(), 'profiles', 'node_modules', '@deepseek-ai')
     // dist/main → repository root is four hops (main → dist → desktop → apps → root).
-    const rootAi = fileURLToPath(new URL('../../../../node_modules/@deepseek-ai', import.meta.url))
+    const rootAi = dirs.rootAi ?? fileURLToPath(new URL('../../../../node_modules/@deepseek-ai', import.meta.url))
     mkdirSync(rootAi, { recursive: true })
+    // rootAi is one package scope directory; only that scope's closure entries
+    // belong here, named without the scope prefix. Other closure packages
+    // resolve beside their dependents and stay out of this mirror.
+    const scope = `${basename(rootAi)}/`
+    const targets = new Map<string, string>()
+    for (const [packageName, target] of resolveInstallationModuleLinks(dirs.installAnchor ?? INSTALL_ANCHOR)) {
+      if (packageName.startsWith(scope)) targets.set(packageName.slice(scope.length), target)
+    }
+    if (existsSync(profilesAi)) {
+      for (const name of readdirSync(profilesAi)) {
+        if (!targets.has(name)) targets.set(name, join(profilesAi, name))
+      }
+    }
     let created = 0
-    for (const name of readdirSync(profilesAi)) {
-      const target = join(rootAi, name)
-      if (existsSync(target)) continue
+    let updated = 0
+    for (const [name, target] of targets) {
+      const link = join(rootAi, name)
+      let current: string | undefined
       try {
-        symlinkSync(join(profilesAi, name), target, 'junction')
-        created += 1
+        current = readlinkSync(link)
+      } catch {
+        // Missing link — nothing to compare or replace.
+      }
+      if (current === target) continue
+      if (current !== undefined) {
+        try {
+          unlinkSync(link)
+        } catch {
+          // A non-link entry (pnpm-owned or foreign) is not ours to replace.
+          continue
+        }
+      }
+      try {
+        symlinkSync(target, link, 'junction')
+        if (current === undefined) created += 1
+        else updated += 1
       } catch {
         // A racing link or permission denial is not fatal; a later launch retries.
       }
     }
-    console.error(`desktop: root plugin links ensured (${created} created, ${readdirSync(profilesAi).length} profiles)`)
+    console.error(`desktop: root plugin links ensured (${created} created, ${updated} updated)`)
   } catch (error) {
     console.error(`desktop: root plugin links failed: ${error instanceof Error ? error.message : String(error)}`)
   }
@@ -140,7 +184,7 @@ export async function runDesktopBoot(options: DesktopBootOptions): Promise<Deskt
   // creating $DSH_HOME/profiles/node_modules symlinks inside app.asar is not
   // reliable.
   if (options.bareModuleBaseUrl === undefined) {
-    healProfilesModuleFallback({ installAnchor: INSTALL_ANCHOR })
+    await healProfilesModuleFallback({ installAnchor: INSTALL_ANCHOR })
     ensureRootPluginLinks()
   }
   const profile = loadProfile(NAME, 'web', INSTALL_ANCHOR)
@@ -185,6 +229,9 @@ export async function runDesktopBoot(options: DesktopBootOptions): Promise<Deskt
     provideCmdline(hostCtx, {
       args: options.args,
       exit: code => void shutdown.shutdown(code),
+      // The desktop boots the web profile; profile-scoped services (the
+      // plugin market) resolve the profile they manage from this fact.
+      profile: 'web',
     })
   }, options.bareModuleBaseUrl)
   app.current = ctx

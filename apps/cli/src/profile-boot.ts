@@ -253,12 +253,13 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
     // Before any config-tree entry mounts, so plugins resolve all launch-time
     // environment values from the same immutable provenance snapshot.
     hostCtx.provide(DSH_LAUNCH_ENVIRONMENT_KEY, options.environment)
-    // The command line and bounded exit request are launcher facts available
-    // to every app plugin that injects the argument snapshot.
+    // The command line, bounded exit request, and booted profile name are
+    // launcher facts available to every app plugin that injects them.
     provideCmdline(hostCtx, {
       args: options.args,
       exit: code => void shutdown.shutdown(code),
       ready: appReady.service,
+      profile: composed.profile.name,
     })
   })
   app.current = ctx

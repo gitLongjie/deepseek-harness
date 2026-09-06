@@ -47,12 +47,17 @@ describe('OEM configuration', () => {
     expect(() => { parseOemConfig({ ...valid, brandIcon: '/brand/acme.svg' }, 'fixture') }).toThrow(/\.ico/)
     expect(() => { parseOemConfig({ ...valid, brandIcon: 'https://cdn.acme.test/icon.ico' }, 'fixture') })
       .toThrow(/local/)
-    expect(() => { parseOemConfig({ ...valid, loginUrl: 'http://accounts.acme.test' }, 'fixture') }).toThrow(/loginUrl/)
+    expect(() => { parseOemConfig({ ...valid, loginUrl: 'ftp://accounts.acme.test' }, 'fixture') }).toThrow(/loginUrl/)
     expect(() => { parseOemConfig({ ...valid, updateUrl: 'http://updates.acme.test' }, 'fixture') }).toThrow(/updateUrl/)
     expect(() => { parseOemConfig({ ...valid, loginTagline: { zh: '只有中文' } }, 'fixture') }).toThrow(/loginTagline/)
     expect(() => {
       parseOemConfig({ ...valid, greetings: { ...valid.greetings, en: { morning: 'only one' } } }, 'fixture')
     }).toThrow(/greetings\.en/)
+  })
+
+  it('accepts a plain-HTTP login endpoint while keeping the update URL HTTPS-only', () => {
+    expect(parseOemConfig({ ...valid, loginUrl: 'http://accounts.acme.test/api/login' }, 'fixture').loginUrl)
+      .toBe('http://accounts.acme.test/api/login')
   })
 
   it('keeps the repository OEM file parseable as the build source of truth', () => {

@@ -20,10 +20,12 @@ import {
   PROFILE_PATCH_FILENAME,
   PROFILE_TEMPLATES,
   readProfileManifest,
+  reconcileProfileBundles,
   resolveBundleDir,
   resolveProfileDir,
   writeProfileManifest,
   type Profile,
+  type ProfileManifest,
 } from '../src/index.ts'
 
 const tmp = (): string => mkdtempSync(join(tmpdir(), 'dsh-profile-'))
@@ -328,6 +330,61 @@ describe('healProfilesModuleFallback', () => {
     await healProfilesModuleFallback({ installAnchor: anchor, home })
     const before = readlinkSync(join(fallback, 'dep-of-a'))
     expect(before).toContain('dep-of-a')
+  })
+
+  it('anchors a linked bundle dependency at its physical package directory', async () => {
+    // The bundle is linked pnpm-style: its dependency lives in the physical
+    // package's own node_modules, and the fallback must record that physical
+    // directory — a link path would keep the entry riding whatever the link
+    // points at later.
+    const root = tmp()
+    const appDir = join(root, 'app')
+    const storeBundle = join(root, 'store', 'bundle-a')
+    const physicalDep = join(storeBundle, 'node_modules', 'dep-of-a')
+    mkdirSync(join(appDir, 'node_modules'), { recursive: true })
+    mkdirSync(physicalDep, { recursive: true })
+    symlinkSync(storeBundle, join(appDir, 'node_modules', 'bundle-a'), 'junction')
+    writeFileSync(join(storeBundle, 'package.json'), JSON.stringify({
+      name: 'bundle-a', version: '0.0.0', type: 'module', main: './index.js', dependencies: { 'dep-of-a': '0.0.0' },
+    }))
+    writeFileSync(join(storeBundle, 'index.js'), '')
+    writeFileSync(join(physicalDep, 'package.json'), JSON.stringify({ name: 'dep-of-a', version: '0.0.0' }))
+    const anchor = join(appDir, 'package.json')
+    writeFileSync(anchor, JSON.stringify({
+      name: 'dsh-app', version: '0.0.0', type: 'module', main: './index.js', dependencies: { 'bundle-a': '0.0.0' },
+    }))
+
+    const home = tmp()
+    await healProfilesModuleFallback({ installAnchor: anchor, home })
+
+    expect(readlinkSync(join(home, 'profiles', 'node_modules', 'dep-of-a')))
+      .toBe(realpathSync.native(physicalDep))
+  })
+
+  it('anchors a dependency found above the installation at its physical target', async () => {
+    // A top-level link (the open runtime's repo-root mirror) resolves dep-of-a
+    // for an installation whose own packages do not carry it. Recording the
+    // link path itself would make the shared entry a self-referential cycle;
+    // the link's physical target is what the loader must serve.
+    const root = tmp()
+    const appDir = join(root, 'app')
+    mkdirSync(join(appDir, 'node_modules'), { recursive: true })
+    mkdirSync(join(root, 'node_modules'), { recursive: true })
+    const foreign = join(root, 'foreign', 'dep-of-a')
+    mkdirSync(foreign, { recursive: true })
+    writeFileSync(join(foreign, 'package.json'), JSON.stringify({ name: 'dep-of-a', version: '0.0.0' }))
+    symlinkSync(foreign, join(root, 'node_modules', 'dep-of-a'), 'junction')
+    const anchor = join(appDir, 'package.json')
+    writeFileSync(anchor, JSON.stringify({
+      name: 'dsh-app', version: '0.0.0', type: 'module', main: './index.js', dependencies: { 'dep-of-a': '0.0.0' },
+    }))
+
+    const home = tmp()
+    await healProfilesModuleFallback({ installAnchor: anchor, home })
+
+    const link = join(home, 'profiles', 'node_modules', 'dep-of-a')
+    expect(readlinkSync(link)).toBe(realpathSync.native(foreign))
+    expect(existsSync(join(link, 'package.json'))).toBe(true)
   })
 
   it('throws when a fallback entry is a foreign file or directory', async () => {
@@ -954,5 +1011,128 @@ describe('healProfilesModuleFallback', () => {
     } finally {
       delete (process as NodeJS.Process & { pkg?: unknown }).pkg
     }
+  })
+})
+
+/** Stage an installed profile: an after-state manifest plus node_modules dependency packages. */
+function stageReconcileProfile(
+  dir: string,
+  manifest: Record<string, unknown>,
+  deps: Record<string, { bundle?: boolean; resolvable?: boolean }>,
+): void {
+  mkdirSync(join(dir, 'node_modules'), { recursive: true })
+  const dependencies: Record<string, string> = {}
+  for (const [name, spec] of Object.entries(deps)) {
+    dependencies[name] = '1.0.0'
+    if (spec.resolvable === false) continue
+    const depDir = join(dir, 'node_modules', name)
+    mkdirSync(depDir, { recursive: true })
+    writeFileSync(join(depDir, 'package.json'), JSON.stringify({
+      name,
+      version: '1.0.0',
+      type: 'module',
+      main: './index.js',
+      ...(spec.bundle === true ? { dsh: { bundle: { patch: './cordis.patch.yml' } } } : {}),
+    }))
+    writeFileSync(join(depDir, 'index.js'), '')
+  }
+  writeFileSync(
+    join(dir, 'package.json'),
+    JSON.stringify({ name: 'dsh-profile-t', private: true, dependencies, ...manifest }),
+  )
+}
+
+describe('reconcileProfileBundles', () => {
+  const anchorFor = (dir: string): string => join(dir, 'package.json')
+  const bundlesOf = (dir: string): string[] => {
+    const manifest = readProfileManifest('t', dir)
+    return manifest.dsh?.profile?.bundles ?? []
+  }
+
+  it('appends bundle dependencies to the layer list in dependency order', () => {
+    const dir = join(tmp(), 'profile')
+    stageReconcileProfile(dir, { dsh: { profile: { bundles: ['@deepseek-ai/dsh-base'] } } }, {
+      'plugin-a': { bundle: true },
+      'plugin-b': { bundle: true },
+    })
+    reconcileProfileBundles('t', { dependencies: {} }, dir, anchorFor(dir), () => {})
+    expect(bundlesOf(dir)).toEqual(['@deepseek-ai/dsh-base', 'plugin-a', 'plugin-b'])
+  })
+
+  it('warns once per newly added bundle-less dependency and keeps it out of the layers', () => {
+    const dir = join(tmp(), 'profile')
+    stageReconcileProfile(dir, { dsh: { profile: { bundles: [] } } }, { 'plain-lib': {} })
+    const warnings: string[] = []
+    reconcileProfileBundles('t', { dependencies: {} }, dir, anchorFor(dir), message => warnings.push(message))
+    expect(warnings).toEqual([
+      't: warning: plain-lib declares no dsh.bundle — installed as a plain dependency, not a profile layer '
+      + '(a later update that gains one activates it automatically)',
+    ])
+    expect(bundlesOf(dir)).toEqual([])
+  })
+
+  it('treats an unresolvable dependency as plain and warns', () => {
+    const dir = join(tmp(), 'profile')
+    stageReconcileProfile(dir, { dsh: { profile: { bundles: [] } } }, { 'ghost-lib': { resolvable: false } })
+    const warnings: string[] = []
+    reconcileProfileBundles('t', { dependencies: {} }, dir, anchorFor(dir), message => warnings.push(message))
+    expect(warnings).toHaveLength(1)
+    expect(warnings[0]).toContain('ghost-lib declares no dsh.bundle')
+    expect(bundlesOf(dir)).toEqual([])
+  })
+
+  it('drops listed bundles whose dependency was removed', () => {
+    const dir = join(tmp(), 'profile')
+    stageReconcileProfile(dir, { dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', 'plugin-a'] } } }, {})
+    reconcileProfileBundles(
+      't',
+      { dependencies: { 'plugin-a': '1.0.0' } },
+      dir,
+      anchorFor(dir),
+      () => {},
+    )
+    expect(bundlesOf(dir)).toEqual(['@deepseek-ai/dsh-base'])
+  })
+
+  it('drops a listed bundle whose installed version no longer declares dsh.bundle', () => {
+    const dir = join(tmp(), 'profile')
+    stageReconcileProfile(dir, { dsh: { profile: { bundles: ['plugin-a'] } } }, { 'plugin-a': {} })
+    reconcileProfileBundles(
+      't',
+      { dependencies: { 'plugin-a': '0.9.0' } },
+      dir,
+      anchorFor(dir),
+      () => {},
+    )
+    expect(bundlesOf(dir)).toEqual([])
+  })
+
+  it('never touches template bundles that are not dependencies', () => {
+    const dir = join(tmp(), 'profile')
+    stageReconcileProfile(dir, { dsh: { profile: { bundles: ['@deepseek-ai/dsh-base'] } } }, {})
+    reconcileProfileBundles('t', { dependencies: {} }, dir, anchorFor(dir), () => {})
+    expect(bundlesOf(dir)).toEqual(['@deepseek-ai/dsh-base'])
+  })
+
+  it('leaves the manifest byte-identical when nothing changed', () => {
+    const dir = join(tmp(), 'profile')
+    stageReconcileProfile(dir, { dsh: { profile: { bundles: [] } } }, {})
+    const raw = readFileSync(join(dir, 'package.json'), 'utf8')
+    reconcileProfileBundles('t', { dependencies: {} }, dir, anchorFor(dir), () => {})
+    expect(readFileSync(join(dir, 'package.json'), 'utf8')).toBe(raw)
+  })
+
+  it('preserves unrelated manifest fields when the layer list changes', () => {
+    const dir = join(tmp(), 'profile')
+    stageReconcileProfile(
+      dir,
+      { custom: true, dsh: { profile: { bundles: [], patchReload: 'startup' } } },
+      { 'plugin-a': { bundle: true } },
+    )
+    reconcileProfileBundles('t', { dependencies: {} }, dir, anchorFor(dir), () => {})
+    const manifest = readProfileManifest('t', dir) as ProfileManifest & { custom?: unknown }
+    expect(manifest.custom).toBe(true)
+    expect(manifest.dsh?.profile?.patchReload).toBe('startup')
+    expect(manifest.dsh?.profile?.bundles).toEqual(['plugin-a'])
   })
 })

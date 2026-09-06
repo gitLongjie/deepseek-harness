@@ -1012,6 +1012,36 @@
       "source": "packages/jobs/jobs/src/types.ts"
     },
     {
+      "doc": "docs/subsystems/market.md",
+      "symbol": "MarketSourceKind",
+      "source": "packages/market/market/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/market.md",
+      "symbol": "MarketSource",
+      "source": "packages/market/market/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/market.md",
+      "symbol": "MarketCatalogEntry",
+      "source": "packages/market/market/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/market.md",
+      "symbol": "MarketInstallability",
+      "source": "packages/market/market/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/market.md",
+      "symbol": "MarketInstalledPlugin",
+      "source": "packages/market/market/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/market.md",
+      "symbol": "MarketInstallSuccess",
+      "source": "packages/market/market/src/types.ts"
+    },
+    {
       "doc": "docs/subsystems/jobs.md",
       "symbol": "JobRead",
       "source": "packages/jobs/jobs/src/types.ts"

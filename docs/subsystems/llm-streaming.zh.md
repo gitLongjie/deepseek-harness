@@ -690,6 +690,8 @@ interface LlmDiscoveredModel {
   contextWindow?: number
   /** Maximum output tokens, when disclosed. */
   maxTokens?: number
+  /** Accepted request modalities, when disclosed by the endpoint. */
+  inputModalities?: readonly ModelModality[]
 }
 ```
 

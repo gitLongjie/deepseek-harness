@@ -10,7 +10,7 @@ Status: implemented
 
 ## 决策
 
-仓库根目录的 `oem.config.json` 是 `productName`、`brandIcon`、`loginUrl`、`updateUrl`、中英文 `loginTagline` 值及两种语言五段问候语的编写来源。`brandIcon` 指向 `apps/web/public` 下一个根相对 `.ico` 文件，`updateUrl` 指向存放 electron-updater 频道元数据和发布产物的 HTTPS 目录。`scripts/oem-config.ts` 会校验精确字段集、必填字符串、本地 ICO 路径、HTTPS 端点、登录副标题与完整问候语字典，然后将浏览器持有的值投影为 `DSH_CLIENT_*` 构建值。
+仓库根目录的 `oem.config.json` 是 `productName`、`brandIcon`、`loginUrl`、`updateUrl`、中英文 `loginTagline` 值及两种语言五段问候语的编写来源。`brandIcon` 指向 `apps/web/public` 下一个根相对 `.ico` 文件，`updateUrl` 指向存放 electron-updater 频道元数据和发布产物的 HTTPS 目录。`scripts/oem-config.ts` 会校验精确字段集、必填字符串、本地 ICO 路径、HTTP 或 HTTPS 登录端点、仅允许 HTTPS 的更新 URL、登录副标题与完整问候语字典，然后将浏览器持有的值投影为 `DSH_CLIENT_*` 构建值。
 
 Vite 与动态客户端 tsdown preset 读取同一份已校验文件。Vite 会把配置的名称与图标投影到初始 HTML 和解析后的 Web App Manifest。完整根构建通过既有客户端构建环境传递这些投影值，因此构建记录仍会把所有公开值同时绑定到两类产物。显式提供的 OEM `DSH_CLIENT_*` 值可为单次构建覆盖文件；空登录 URL 覆盖继续保留受支持的编译排除行为。
 
@@ -36,4 +36,4 @@ Vite 与动态客户端 tsdown preset 读取同一份已校验文件。Vite 会�
 
 ## 后果
 
-修改一份 JSON 即可在同一次构建中更新浏览器标题和 favicon、Web App Manifest、品牌槽位、登录端点、更新源、图标与本地化副标题、全部分时 Hero 问候语、桌面原生窗口与托盘标签和图标、“关于”文案及打包产品身份。非法 OEM 字段会在产生部分产物前停止构建。配置的品牌图标必须是 `apps/web/public` 下的本地 `.ico` 文件；远程及非 ICO 图片会被拒绝，因为 Electron 的 Windows 可执行文件资源需要 ICO 数据。更新 URL 必须使用 HTTPS，并提供 electron-updater 元数据及匹配的产物。该配置会进入公开产物，绝不能包含凭证。维护者无需发布 release 或修改编写版本，即可在本地演练打包应用的更新发现、可见下载进度、差分下载、重启确认与可见原生安装。
+修改一份 JSON 即可在同一次构建中更新浏览器标题和 favicon、Web App Manifest、品牌槽位、登录端点、更新源、图标与本地化副标题、全部分时 Hero 问候语、桌面原生窗口与托盘标签和图标、“关于”文案及打包产品身份。非法 OEM 字段会在产生部分产物前停止构建。配置的品牌图标必须是 `apps/web/public` 下的本地 `.ico` 文件；远程及非 ICO 图片会被拒绝，因为 Electron 的 Windows 可执行文件资源需要 ICO 数据。更新 URL 必须使用 HTTPS，并提供 electron-updater 元数据及匹配的产物。登录端点可以使用明文 HTTP，让没有 TLS 的 OEM 部署也能接入；更新 URL 仍仅允许 HTTPS，因为它承载可执行文件。该配置会进入公开产物，绝不能包含凭证。维护者无需发布 release 或修改编写版本，即可在本地演练打包应用的更新发现、可见下载进度、差分下载、重启确认与可见原生安装。

@@ -26,7 +26,7 @@ export function parseOemConfig(value: unknown, source: string): OemConfig {
   const brandIcon = nonEmptyString(root.brandIcon, `${source}.brandIcon`)
   assertLocalBrandIcon(brandIcon, `${source}.brandIcon`)
   const loginUrl = nonEmptyString(root.loginUrl, `${source}.loginUrl`)
-  if (!isHttpsUrl(loginUrl)) throw new Error(`${source}.loginUrl must be an HTTPS URL`)
+  if (!isHttpUrl(loginUrl)) throw new Error(`${source}.loginUrl must be an HTTP or HTTPS URL`)
   const updateUrl = nonEmptyString(root.updateUrl, `${source}.updateUrl`)
   if (!isHttpsUrl(updateUrl)) throw new Error(`${source}.updateUrl must be an HTTPS URL`)
   const loginTagline = objectWithKeys(root.loginTagline, ['en', 'zh'], `${source}.loginTagline`)
@@ -122,6 +122,14 @@ function objectWithKeys(
 function nonEmptyString(value: unknown, subject: string): string {
   if (typeof value !== 'string' || value.trim() === '') throw new Error(`${subject} must be a non-empty string`)
   return value
+}
+
+function isHttpUrl(value: string): boolean {
+  try {
+    return ['http:', 'https:'].includes(new URL(value).protocol)
+  } catch {
+    return false
+  }
 }
 
 function isHttpsUrl(value: string): boolean {

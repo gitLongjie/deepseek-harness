@@ -521,7 +521,14 @@ function resolveModuleFallbackEntries(
     }
   }
   const entries = !isPackagedExecutable()
-    ? [...links].map(([packageName, packageDir]) => ({ kind: 'symlink' as const, packageName, packageDir }))
+    ? [...links].map(([packageName, packageDir]) => ({
+      kind: 'symlink' as const,
+      packageName,
+      // Anchor the open runtime at the physical package: a link path here
+      // would keep the entry riding whatever the link points at later — on a
+      // shared fallback directory, that is whatever installation healed last.
+      packageDir: physicalPackageDir(packageDir),
+    }))
     : [...links].flatMap(([packageName, packageDir]) => {
       const source = packageProxySource(packageName, packageDir)
       return Object.keys(source.targets).length === 0
@@ -529,6 +536,33 @@ function resolveModuleFallbackEntries(
         : [{ kind: 'proxy' as const, packageName, version: source.version, targets: source.targets }]
     })
   return { entries, packageNames: new Set(links.keys()) }
+}
+
+/** Resolve a package directory to its physical location behind any symlink or junction chain. */
+function physicalPackageDir(dir: string): string {
+  try {
+    return realpathSync.native(dir)
+  } catch {
+    // A pkg-snapshot path has no host location to resolve to; the snapshot
+    // path is already the physical package.
+    return dir
+  }
+}
+
+/**
+ * Resolve the running installation's loader-visible plugin packages to their
+ * physical directories. An open runtime links bare plugin names directly at
+ * these directories when its loader resolves above the installation, so a
+ * fallback directory another installation re-points cannot serve a foreign
+ * plugin generation.
+ * @param installAnchor - absolute package.json path of the running dsh installation.
+ * @returns plugin package name → physical package directory.
+ */
+export function resolveInstallationModuleLinks(installAnchor: string): ReadonlyMap<string, string> {
+  const { entries } = resolveModuleFallbackEntries(installAnchor)
+  return new Map(entries.flatMap(entry => entry.kind === 'symlink'
+    ? [[entry.packageName, entry.packageDir] as const]
+    : []))
 }
 
 /** Return whether one existing fallback entry already matches its resolved installation generation. */
@@ -786,6 +820,79 @@ export function resolveBundleDir(
     `${binName}: cannot resolve profile bundle ${JSON.stringify(packageName)} from the dsh installation or ${profileDir}; `
     + `run 'dsh plugin --profile ${basename(profileDir)} install' if its dependency is not installed`,
   )
+}
+
+/**
+ * Whether a resolved dependency exports a profile patch, i.e. is a bundle.
+ * @param binName - the diagnostic prefix on thrown errors.
+ * @param packageName - the dependency's package name.
+ * @param profileDir - the profile directory (resolution anchor).
+ * @param installAnchor - absolute path of a file inside the dsh installation (first resolution anchor).
+ * @returns true when the package manifest declares `dsh.bundle`.
+ */
+function exportsPatch(
+  binName: string, packageName: string, profileDir: string, installAnchor: string,
+): boolean {
+  let dir: string
+  try {
+    dir = resolveBundleDir(binName, packageName, installAnchor, profileDir)
+  } catch {
+    return false // the package manager reported success yet the package is unresolvable — treat as plain
+  }
+  const manifest = readProfileManifest(binName, dir)
+  return manifest.dsh?.bundle?.patch !== undefined
+}
+
+/**
+ * Reconcile `dsh.profile.bundles` against the installed dependency state after
+ * a package-manager run in the profile directory: a dependency that resolves
+ * to a `dsh.bundle`-declaring package joins the layer stack (appended in
+ * dependency order); a listed dependency that no longer does — removed, or the
+ * installed version dropped the declaration — leaves it. Reconciling by
+ * installed state, not by dependency diff, means `update` activates a package
+ * that gained its `dsh.bundle` declaration in a newer version. Template
+ * bundles (installation-owned layers that are not dependencies) are never
+ * touched. The manifest is rewritten only when the layer list changed.
+ * @param binName - the diagnostic prefix on thrown errors and warnings.
+ * @param before - the profile manifest read before the package-manager ran.
+ * @param profileDir - the profile directory holding the updated manifest.
+ * @param installAnchor - absolute path of a file inside the dsh installation (first resolution anchor).
+ * @param warn - sink for one-line diagnostics (without a trailing newline) about
+ *   newly added bundle-less dependencies; a plain library is fine, the warning orients.
+ */
+export function reconcileProfileBundles(
+  binName: string, before: ProfileManifest, profileDir: string, installAnchor: string,
+  warn: (message: string) => void,
+): void {
+  const after = readProfileManifest(binName, profileDir)
+  const beforeDeps = new Set(Object.keys(before.dependencies ?? {}))
+  const dependencies = Object.keys(after.dependencies ?? {})
+  const plugins = after.dsh?.profile?.bundles ?? []
+  let changed = false
+  for (const packageName of dependencies) {
+    const isBundle = exportsPatch(binName, packageName, profileDir, installAnchor)
+    if (isBundle && !plugins.includes(packageName)) {
+      plugins.push(packageName)
+      changed = true
+    } else if (!isBundle && !beforeDeps.has(packageName)) {
+      warn(`${binName}: warning: ${packageName} declares no dsh.bundle — installed as a plain dependency, not a profile layer `
+        + '(a later update that gains one activates it automatically)')
+    }
+  }
+  const dependencySet = new Set(dependencies)
+  for (const packageName of [...plugins]) {
+    // Only dependency-managed entries are subject to removal; template
+    // bundles (dsh-base and friends) are not dependencies.
+    const wasDependency = beforeDeps.has(packageName) || dependencySet.has(packageName)
+    const stillBundle = dependencySet.has(packageName) && exportsPatch(binName, packageName, profileDir, installAnchor)
+    if (wasDependency && !stillBundle) {
+      plugins.splice(plugins.indexOf(packageName), 1)
+      changed = true
+    }
+  }
+  if (!changed) return
+  after.dsh = { ...after.dsh, profile: { ...after.dsh?.profile, bundles: plugins } }
+  writeProfileManifest(profileDir, after)
 }
 
 /**

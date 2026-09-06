@@ -8,7 +8,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
-import { dirname, resolve } from 'node:path'
+import { dirname, resolve, basename } from 'node:path'
 import { Data, NtExecutable, NtExecutableResource, Resource } from 'resedit'
 import { readDesktopOemConfig, syncDesktopOemIcons } from './desktop-oem-config.mjs'
 
@@ -110,7 +110,38 @@ async function launchBrandedWindowsElectron(): Promise<ReturnType<typeof spawn>>
     version.outputToResourceEntries(resources.entries)
   }
   resources.outputResource(executable)
-  writeFileSync(brandedExecutable, Buffer.from(executable.generate()))
+  await writeBrandedExecutable(brandedExecutable, Buffer.from(executable.generate()))
 
   return spawn(brandedExecutable, ['--expose-internals', root], { cwd: root, stdio: 'inherit', env: electronEnvironment })
+}
+
+/**
+ * Write the branded exe, retrying briefly because a freshly written exe can
+ * stay locked for a moment by antivirus or the search indexer. A lock that
+ * outlives the retries means the previous dev instance still runs the file —
+ * Windows refuses to overwrite a running executable — so the error names that
+ * remedy instead of surfacing a raw EBUSY stack.
+ */
+async function writeBrandedExecutable(brandedExecutable: string, contents: Buffer): Promise<void> {
+  const name = basename(brandedExecutable)
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      writeFileSync(brandedExecutable, contents)
+      return
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code
+      if (code !== 'EBUSY' && code !== 'EPERM') throw error
+      if (attempt < 3) {
+        await new Promise<void>(wake => setTimeout(wake, 300))
+        continue
+      }
+      // tasklist exits 0 when the image filter matches, so the check does not
+      // depend on the console code page.
+      const probe = spawnSync('tasklist', ['/FI', `IMAGENAME eq ${name}`], { encoding: 'utf8' })
+      if (probe.status === 0) {
+        throw new Error(`desktop dev: an earlier ${name} instance is still running and locks the dev executable — close it (or run: taskkill /F /IM ${name}) and start again`)
+      }
+      throw new Error(`desktop dev: ${name} stayed locked after retries — another process such as antivirus holds it; retry shortly`)
+    }
+  }
 }

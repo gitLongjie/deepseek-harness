@@ -57,6 +57,49 @@ describe('parseDshArgs', () => {
       .toEqual({ mode: 'plugin', profile: 'tui', args: ['add', '--save-dev', 'x'] })
   })
 
+  it('routes the market subcommands', () => {
+    expect(parse(['market', '--profile', 'tui', 'search']))
+      .toEqual({ mode: 'market', profile: 'tui', subcommand: 'search', args: [] })
+    expect(parse(['market', '--profile', 'tui', 'search', 'todo', 'list']))
+      .toEqual({ mode: 'market', profile: 'tui', subcommand: 'search', args: ['todo', 'list'] })
+    expect(parse(['market', '--profile', 'tui', 'view', 'owner/entry-1']))
+      .toEqual({ mode: 'market', profile: 'tui', subcommand: 'view', args: ['owner/entry-1'] })
+    expect(parse(['market', '--profile', 'tui', 'install', '@scope/entry']))
+      .toEqual({ mode: 'market', profile: 'tui', subcommand: 'install', args: ['@scope/entry'] })
+    expect(parse(['market', '--profile', 'tui', 'installed']))
+      .toEqual({ mode: 'market', profile: 'tui', subcommand: 'installed', args: [] })
+    expect(parse(['market', '--profile', 'tui', 'uninstall', 'turtle-ui']))
+      .toEqual({ mode: 'market', profile: 'tui', subcommand: 'uninstall', args: ['turtle-ui'] })
+    expect(parse(['market', '--profile', 'tui', 'sources']))
+      .toEqual({ mode: 'market', profile: 'tui', subcommand: 'sources', args: [] })
+    expect(parse(['market', '--profile', 'tui', 'source', 'add', '--name', 'My Market', '--kind', 'catalog', '--url', 'https://example.com/v1/plugins']))
+      .toEqual({
+        mode: 'market',
+        profile: 'tui',
+        subcommand: 'source-add',
+        args: [],
+        sourceAdd: { name: 'My Market', kind: 'catalog', url: 'https://example.com/v1/plugins' },
+      })
+    expect(parse(['market', '--profile', 'tui', 'source', 'remove', 'abc-1']))
+      .toEqual({ mode: 'market', profile: 'tui', subcommand: 'source-remove', args: ['abc-1'] })
+    expect(parse(['market', '--profile', 'tui', 'source', 'select', 'abc-1']))
+      .toEqual({ mode: 'market', profile: 'tui', subcommand: 'source-select', args: ['abc-1'] })
+  })
+
+  it('rejects missing market profile, subcommand, arguments, and parent options', () => {
+    expect(exitCode(['market', 'search'])).toBe(1) // --profile required
+    expect(exitCode(['market', '--profile', ''])).toBe(1)
+    expect(exitCode(['market', '--profile', 'tui'])).toBe(1) // no subcommand
+    expect(exitCode(['market', '--profile', 'tui', 'view'])).toBe(1) // no entry id
+    expect(exitCode(['market', '--profile', 'tui', 'install'])).toBe(1)
+    expect(exitCode(['market', '--profile', 'tui', 'uninstall'])).toBe(1)
+    expect(exitCode(['market', '--profile', 'tui', 'source'])).toBe(1) // no source subcommand
+    expect(exitCode(['market', '--profile', 'tui', 'source', 'add', '--name', 'n', '--kind', 'catalog'])).toBe(1)
+    expect(exitCode(['market', '--profile', 'tui', 'source', 'remove'])).toBe(1)
+    expect(exitCode(['market', '--profile', 'tui', 'source', 'select'])).toBe(1)
+    expect(exitCode(['--profile', 'x', 'market', 'search'])).toBe(1) // parent options are not market options
+  })
+
   it('routes profile and web config dumps', () => {
     expect(parse(['--profile', 'web', '--dump-config']))
       .toEqual({ mode: 'dump-config', profile: 'web', defaultOnly: false, patches: [] })

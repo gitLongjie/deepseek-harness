@@ -59,6 +59,7 @@ Only writers contend — readers never take the lock — and a contender backs o
 ### Failures to plan for
 
 `withFileLock` serializes the writers of one file across processes, for the read-render-commit cycles a bare atomic commit cannot make safe on its own. The lock is a `wx`-created `<filename>.lock` sibling recording the holder's pid, so readers never contend; waiters back off exponentially and fail with a timeout rather than block forever. `EEXIST` identifies contention directly; `EPERM` does so only when a fresh `lstat` confirms that the lock path exists, covering Windows exclusive-create behavior without hiding an unrelated permission failure. A contender removes the lock only when its recorded pid names no live process — a holder that died before its release step — and every other contention (a live owner, a reused pid, or content it cannot judge) waits out the deadline without deleting a lock it cannot prove orphaned.
+
 The lock's parent directory must already exist, so `withFileLock` rejects an invalid parent hierarchy before running the operation. A process that exits while holding the lock leaves the lock sibling behind; later writers time out, and an operator removes it only after verifying that no writer still owns it.
 
 -----

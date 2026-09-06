@@ -1,0 +1,66 @@
+/** Copy dictionaries for the plugin marketplace Settings section. */
+
+/** Simplified Chinese dictionary and key source of truth. */
+export const zh = {
+  tab: '插件市场',
+  loading: '正在读取…',
+  error: '操作暂时失败。',
+  retry: '重试',
+  viewDiscover: '发现',
+  viewInstalled: '已安装',
+  viewSources: '来源',
+  search: '搜索插件',
+  empty: '没有条目。',
+  emptySearch: '没有匹配的插件。',
+  morePages: '还有更多结果，可在命令行翻页。',
+  installable: '可安装',
+  notInstallable: '暂不可安装',
+  npmLatest: 'npm 最新版',
+  install: '安装',
+  installing: '安装中…',
+  installSuccess: '安装完成：',
+  restartRequired: '重启 dsh 宿主后生效。',
+  uninstall: '卸载',
+  uninstalling: '卸载中…',
+  uninstallSuccess: '卸载完成。',
+  bundleLayer: 'bundle 层',
+  installationOwned: '随安装携带',
+  unresolved: '版本未知',
+  selected: '当前来源',
+  select: '选用',
+  noSourceSelected: '尚未选择来源。',
+} satisfies Record<string, string>
+
+/** Marketplace locale key union. */
+export type MarketLocaleKey = keyof typeof zh
+
+/** English dictionary checked against the Chinese key set. */
+export const en = {
+  tab: 'Marketplace',
+  loading: 'Loading…',
+  error: 'The operation failed. Try again later.',
+  retry: 'Retry',
+  viewDiscover: 'Discover',
+  viewInstalled: 'Installed',
+  viewSources: 'Sources',
+  search: 'Search plugins',
+  empty: 'No entries.',
+  emptySearch: 'No matching plugins.',
+  morePages: 'More results are available; page through the CLI.',
+  installable: 'Installable',
+  notInstallable: 'Not installable',
+  npmLatest: 'npm latest',
+  install: 'Install',
+  installing: 'Installing…',
+  installSuccess: 'Installed:',
+  restartRequired: 'Restart the dsh host to activate it.',
+  uninstall: 'Uninstall',
+  uninstalling: 'Uninstalling…',
+  uninstallSuccess: 'Uninstalled.',
+  bundleLayer: 'bundle layer',
+  installationOwned: 'installation-owned',
+  unresolved: 'unknown version',
+  selected: 'Selected source',
+  select: 'Select',
+  noSourceSelected: 'No source is selected.',
+} satisfies Record<MarketLocaleKey, string>

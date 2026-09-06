@@ -57,6 +57,12 @@
       "path": "../../packages/mcp/mcp-client"
     },
     {
+      "path": "../../packages/market/market"
+    },
+    {
+      "path": "../../packages/market/market-local"
+    },
+    {
       "path": "../../packages/test-support/loader-smoke"
     },
     {

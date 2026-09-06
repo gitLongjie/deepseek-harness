@@ -1,26 +1,26 @@
 {
-  "productName": "深度Worker",
+  "productName": "MiaoWorker",
   "brandIcon": "/favicon.ico",
-  "loginUrl": "https://claw.deepagens.com/api/user/deepagens-claw/login",
-  "updateUrl": "https://github.com/gitLongjie/deepseek-harness/releases/latest/download",
+  "loginUrl": "http://ciyuan.three-friend.com/api/user/deepagens-claw/login",
+  "updateUrl": "https://github.com/gitLongjie/miaoWorker/releases/latest/download",
   "loginTagline": {
-    "zh": "每一步，都是新的远方",
-    "en": "Every step leads somewhere new"
+    "zh": "喵力加持，事事有着落",
+    "en": "With a helping paw, everything lands."
   },
   "greetings": {
     "zh": {
-      "morning": "晨光正好，出发吧",
-      "noon": "午间小憩，灵感正浓",
-      "afternoon": "午后时光，继续前行",
-      "evening": "暮色温柔，收获满满",
-      "night": "夜深了，好梦等你"
+      "morning": "早起的喵，有鱼吃",
+      "noon": "午间小憩，蓄满喵力",
+      "afternoon": "午后时光，喵力正盛",
+      "evening": "暮色渐浓，收获入袋",
+      "night": "夜深了，剩下的交给喵"
     },
     "en": {
-      "morning": "Fresh light, fresh start.",
-      "noon": "Midday pause, ideas brewing.",
-      "afternoon": "Afternoon glow, keep going.",
-      "evening": "Dusk is soft, well done today.",
-      "night": "The night is quiet. Rest well."
+      "morning": "The early cat gets the fish.",
+      "noon": "A short nap recharges the pounce.",
+      "afternoon": "Afternoon glow, paws at full stretch.",
+      "evening": "Dusk settles in — today's wins are in the bag.",
+      "night": "Leave the rest to me. Rest well."
     }
   }
 }

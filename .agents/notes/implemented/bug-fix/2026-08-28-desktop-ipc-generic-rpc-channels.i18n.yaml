@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-28-desktop-ipc-generic-rpc-channels.md
+2026-08-28-desktop-ipc-generic-rpc-channels.md: bfeb9c1559381dfdd2ba517669e70a49d97a7ca7
+2026-08-28-desktop-ipc-generic-rpc-channels.zh.md: e85b186a8e6bf6e770b2116cb1ef1392f35ba3e9
