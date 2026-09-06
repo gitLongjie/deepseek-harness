@@ -3,7 +3,7 @@
 # APPLE_* secrets in the environment, electron-builder skips Windows signing and
 # macOS notarization (identity: null). Populate the CI secrets (see README) to
 # enable real signing without touching this file.
-appId: ai.deepagens.worker
+appId: com.meowwork.app
 # deploy-app.mjs supplies productName and platform-native derivatives through
 # its generated dist/electron-builder.oem.json overlay.
 # Keep the packaged application artwork aligned with the runtime window and
@@ -59,7 +59,7 @@ win:
   # Windows Explorer, the taskbar, and Task Manager read the executable's
   # embedded icon rather than BrowserWindow's runtime icon.
   icon: build/icon.ico
-  executableName: Deepagens-Worker
+  executableName: MeowWork
   target:
     - target: nsis
       arch:
@@ -67,17 +67,17 @@ win:
 nsis:
   # Release asset URLs stay ASCII so electron-publish can upload an OEM name
   # containing non-ASCII characters without putting it in the request path.
-  artifactName: Deepagens-Worker-${version}-win-${arch}.${ext}
+  artifactName: MeowWork-${version}-win-${arch}.${ext}
   oneClick: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  shortcutName: Deepagens-Worker
-  uninstallDisplayName: Deepagens-Worker
+  shortcutName: MeowWork
+  uninstallDisplayName: MeowWork
 mac:
   # Both architectures are built in one job. The architecture suffix prevents
   # the Intel and Apple Silicon assets from colliding in the GitHub release.
-  artifactName: Deepagens-Worker-${version}-mac-${arch}.${ext}
+  artifactName: MeowWork-${version}-mac-${arch}.${ext}
   target:
     - target: dmg
       arch:
@@ -93,7 +93,7 @@ mac:
   identity: null
   notarize: false
 dmg:
-  artifactName: Deepagens-Worker-${version}-mac-${arch}.${ext}
+  artifactName: MeowWork-${version}-mac-${arch}.${ext}
 linux:
   target:
     - AppImage
@@ -101,12 +101,12 @@ linux:
   category: Development
   # Without an explicit name, AppImage/deb infer executableName from the
   # package.json name (which contains @ and /) and the build fails.
-  executableName: deepagens-worker
+  executableName: meowwork
   # The scoped package name (@deepseek-ai/dsh-desktop) would put the .deb under
   # a missing dist-electron/@deepseek-ai/ directory (fpm: parent directory does
   # not exist). Pin a flat artifact name so both Linux targets write directly
   # under dist-electron/.
-  artifactName: Deepagens-Worker-${version}-linux-${arch}.${ext}
+  artifactName: MeowWork-${version}-linux-${arch}.${ext}
 publish:
   provider: github
   owner: gitLongjie

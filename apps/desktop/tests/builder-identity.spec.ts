@@ -26,7 +26,7 @@ describe('desktop builder identity', () => {
   const config = readFileSync(BUILDER_CONFIG, 'utf8')
 
   it('ships the product name used by the native shell', () => {
-    expect(config).toMatch(/^appId:\s*ai\.deepagens\.worker\s*$/m)
+    expect(config).toMatch(/^appId:\s*com\.meowwork\.app\s*$/m)
     expect(config).not.toMatch(/^productName:/m)
     expect(config).not.toContain('深度Works')
   })
@@ -39,13 +39,13 @@ describe('desktop builder identity', () => {
 
   it('gives Windows and macOS release assets stable architecture-specific names', () => {
     expect(config).toMatch(
-      /^nsis:\s*$[\s\S]*?^\s+artifactName:\s+Deepagens-Worker-\$\{version\}-win-\$\{arch\}\.\$\{ext\}\s*$/m,
+      /^nsis:\s*$[\s\S]*?^\s+artifactName:\s+MeowWork-\$\{version\}-win-\$\{arch\}\.\$\{ext\}\s*$/m,
     )
     expect(config).toMatch(
-      /^mac:\s*$[\s\S]*?^\s+artifactName:\s+Deepagens-Worker-\$\{version\}-mac-\$\{arch\}\.\$\{ext\}\s*$/m,
+      /^mac:\s*$[\s\S]*?^\s+artifactName:\s+MeowWork-\$\{version\}-mac-\$\{arch\}\.\$\{ext\}\s*$/m,
     )
     expect(config).toMatch(
-      /^linux:\s*$[\s\S]*?^\s+artifactName:\s+Deepagens-Worker-\$\{version\}-linux-\$\{arch\}\.\$\{ext\}\s*$/m,
+      /^linux:\s*$[\s\S]*?^\s+artifactName:\s+MeowWork-\$\{version\}-linux-\$\{arch\}\.\$\{ext\}\s*$/m,
     )
     expect(config).not.toContain('${productName}-${version}')
   })
@@ -85,9 +85,9 @@ describe('desktop builder identity', () => {
       'https://updates.example.test/desktop',
     )).toEqual({
       extends: 'electron-builder.yml',
-      productName: 'Deepagens-Worker',
+      productName: 'MeowWork',
       extraMetadata: {
-        name: 'deepagens-worker',
+        name: 'meowwork',
         productName: '深度Worker',
         dsh: { updateUrl: 'https://updates.example.test/desktop' },
       },
@@ -111,7 +111,7 @@ describe('desktop builder identity', () => {
     })).toMatchObject({
       directories: { output: 'C:/local-update/feed' },
       extraMetadata: {
-        name: 'deepagens-worker',
+        name: 'meowwork',
         productName: 'Worker',
         version: '1.2.4',
         dsh: { updateUrl: 'http://127.0.0.1:43119', localUpdateTest: true },

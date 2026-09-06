@@ -55,9 +55,9 @@ export function createElectronBuilderOemConfig(productName, updateUrl, options =
     extends: 'electron-builder.yml',
     // Keep the Chinese runtime display name separate from the ASCII installer
     // identity used by Windows paths, shortcuts, and release assets.
-    productName: 'Deepagens-Worker',
+    productName: 'MeowWork',
     extraMetadata: {
-      name: 'deepagens-worker',
+      name: 'meowwork',
       productName,
       dsh: {
         updateUrl,
