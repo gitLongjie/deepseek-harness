@@ -10,12 +10,15 @@ import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 
 /** The renderer-visible bridge. */
 export interface DshDesktopIpcBridge {
+  /** The preload process's `process.platform`; the title bar branches its chrome on it. */
+  readonly platform: NodeJS.Platform
   invoke(channel: string, payload?: unknown): Promise<unknown>
   send(channel: string, payload?: unknown): void
   on(channel: string, listener: (payload: unknown) => void): () => void
 }
 
 contextBridge.exposeInMainWorld('__DSH_IPC__', {
+  platform: process.platform,
   invoke: (channel: string, payload?: unknown): Promise<unknown> => ipcRenderer.invoke(channel, payload),
   send: (channel: string, payload?: unknown): void => {
     ipcRenderer.send(channel, payload)

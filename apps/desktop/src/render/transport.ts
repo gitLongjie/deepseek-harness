@@ -10,6 +10,8 @@ import type { RpcStreamOpen } from '@deepseek-ai/dsh-client-connection'
 
 /** The preload bridge surface, exposed as `window.__DSH_IPC__`. */
 export interface IpcBridge {
+  /** The preload process's `process.platform`; `installTitleBar` narrows it to the styled set. */
+  readonly platform: string
   invoke(channel: string, payload?: unknown): Promise<unknown>
   send(channel: string, payload?: unknown): void
   on(channel: string, listener: (payload: unknown) => void): () => void

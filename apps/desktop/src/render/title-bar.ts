@@ -1,17 +1,45 @@
 /**
  * Desktop-only custom title bar, installed by the render entry before the web
- * app boots. The window runs frameless; this module draws the branded bar
- * (the brand mark alone — the sidebar owns the product name and the native
- * window title stays pinned to it), the 编辑/视图/窗口/帮助 menu buttons, the
- * drag region, and the window controls; shifts the app below it through a body
+ * app boots. The window runs frameless on Windows and Linux; this module draws
+ * the branded bar (the brand mark alone — the sidebar owns the product name and
+ * the native window title stays pinned to it), the 编辑/视图/窗口/帮助 menu buttons,
+ * the drag region, and the window controls; shifts the app below it through a body
  * top padding and publishes that inset for fixed client overlays; routes menu clicks to the main-process
  * application menu over IPC and drives the window controls over the existing
- * generic bridge.
+ * generic bridge. The chrome branches on the preload bridge's platform:
+ * macOS draws none of that — the native traffic lights (main/desktop/window-chrome.ts
+ * hiddenInset) own minimize/maximize/close and the system menu bar owns the
+ * menus — so the bar is the brand, the drag region, and the update slot past
+ * the lights inset; Linux keeps the menu buttons and swaps the Windows control
+ * stack for Adwaita-style circular controls without the red close fill.
  * @module @deepseek-ai/dsh-desktop/render/title-bar
  */
 
 /** Title bar height in px; the body padding and the bar share it. */
 export const TITLE_BAR_HEIGHT_PX = 36
+
+/**
+ * Left inset (px) the macOS bar reserves for the native traffic lights that
+ * main/desktop/window-chrome.ts pins at x=12 — three 12px lights with 8px gaps
+ * end at 64px, and the brand starts past that.
+ */
+export const MACOS_TRAFFIC_LIGHTS_INSET_PX = 80
+
+/** The platforms the title bar styles for. */
+export type TitleBarPlatform = 'darwin' | 'win32' | 'linux'
+
+/**
+ * Narrow the preload bridge's `process.platform` to the styled set. Anything
+ * beyond Electron's shipped desktop platforms falls through to the linux
+ * chrome — the only fully renderer-drawn variant that collaborates with no
+ * native title bar.
+ * @param platform - the raw `process.platform` string from the preload bridge.
+ * @returns the chrome variant to render.
+ */
+export function normalizeTitleBarPlatform(platform: string): TitleBarPlatform {
+  if (platform === 'darwin' || platform === 'win32') return platform
+  return 'linux'
+}
 
 /** The IPC channels the main process listens on for window controls. */
 export const WINDOW_CHANNELS = {
@@ -65,8 +93,10 @@ const MENUS: ReadonlyArray<{ id: string; labelKey: 'menu.edit' | 'menu.view' | '
   { id: 'help', labelKey: 'menu.help' },
 ]
 
-/** The generic preload bridge the controls ride (already exposed page-world). */
+/** The generic preload bridge the chrome rides (already exposed page-world). */
 type IpcSender = {
+  /** The preload process's `process.platform`; normalizeTitleBarPlatform narrows it. */
+  readonly platform: string
   send(channel: string, payload?: unknown): void
   on?(channel: string, listener: (payload: unknown) => void): () => void
 }
@@ -109,7 +139,7 @@ function applyTitleBarLocale(locale: TitleBarLocale, doc: Document): void {
 }
 
 /** The injected stylesheet: app shift, bar chrome, drag regions, hover states. */
-const STYLE_TEXT = `
+const SHARED_STYLE_TEXT = `
 html, body { height: 100%; }
 body {
   box-sizing: border-box;
@@ -185,12 +215,11 @@ body {
 }
 #dsh-desktop-titlebar .dsh-titlebar-controls {
   display: inline-flex;
+  align-items: center;
   flex-shrink: 0;
   -webkit-app-region: no-drag;
 }
 #dsh-desktop-titlebar .dsh-titlebar-controls button {
-  width: 46px;
-  height: ${TITLE_BAR_HEIGHT_PX}px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -204,31 +233,77 @@ body {
 #dsh-desktop-titlebar .dsh-titlebar-controls button:hover {
   background: var(--dsw-alias-interactive-bg-hover, rgba(0, 0, 0, 0.06));
 }
-#dsh-desktop-titlebar .dsh-titlebar-controls button.dsh-titlebar-close:hover {
-  background: #e81123;
-  color: #fff;
-}
 #dsh-desktop-titlebar button:focus-visible {
   outline: 1px solid var(--dsw-alias-interactive-focus, #6187d8);
   outline-offset: -2px;
 }
 `
 
+/** Windows control geometry: full-height rectangles and the red close fill. */
+const WINDOWS_STYLE_TEXT = `
+#dsh-desktop-titlebar .dsh-titlebar-controls button {
+  width: 46px;
+  height: ${TITLE_BAR_HEIGHT_PX}px;
+}
+#dsh-desktop-titlebar .dsh-titlebar-controls button.dsh-titlebar-close:hover {
+  background: #e81123;
+  color: #fff;
+}
+`
+
 /**
- * Install the title bar: inject the stylesheet, build the bar DOM, wire the
- * menu buttons to the popup channel, and the controls to the IPC bridge. The
- * render entry runs as a head script, so the bar's body mount defers to
- * DOMContentLoaded when the body is not parsed yet; everything else (style,
- * listeners) touches only the head and window. Idempotence is not required —
- * the entry runs exactly once per document.
+ * Linux control geometry: Adwaita-style header-bar buttons — circular neutral
+ * hover indicators with a gap between them; no red close fill.
+ */
+const LINUX_STYLE_TEXT = `
+#dsh-desktop-titlebar .dsh-titlebar-controls {
+  gap: 6px;
+  padding-right: 6px;
+}
+#dsh-desktop-titlebar .dsh-titlebar-controls button {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+}
+`
+
+/** macOS inset: the bar keeps its drag role but starts past the traffic lights. */
+const MACOS_STYLE_TEXT = `
+#dsh-desktop-titlebar {
+  padding-left: ${MACOS_TRAFFIC_LIGHTS_INSET_PX}px;
+}
+`
+
+/**
+ * Compose the stylesheet for one chrome variant. The platform blocks only add
+ * geometry and the Windows close fill; layout, drag, and hover behavior stay in
+ * the shared block.
+ * @param platform - the narrowed chrome variant.
+ * @returns the full stylesheet text to inject.
+ */
+function titleBarStyleText(platform: TitleBarPlatform): string {
+  if (platform === 'darwin') return SHARED_STYLE_TEXT + MACOS_STYLE_TEXT
+  if (platform === 'win32') return SHARED_STYLE_TEXT + WINDOWS_STYLE_TEXT
+  return SHARED_STYLE_TEXT + LINUX_STYLE_TEXT
+}
+
+/**
+ * Install the title bar: inject the platform's stylesheet, build the bar DOM,
+ * wire the menu buttons to the popup channel, and the controls to the IPC
+ * bridge. The render entry runs as a head script, so the bar's body mount
+ * defers to DOMContentLoaded when the body is not parsed yet; everything else
+ * (style, listeners) touches only the head and window. Idempotence is not
+ * required — the entry runs exactly once per document.
  * @param doc - the live document.
- * @param ipc - the preload bridge used for the menu and control channels.
+ * @param ipc - the preload bridge used for the platform, the menu channel, and
+ *   the control channels.
  * @param markSrc - the brand mark image source, or a resolver for head-phase installs.
  */
 export function installTitleBar(doc: Document, ipc: IpcSender, markSrc: string | (() => string)): void {
+  const platform = normalizeTitleBarPlatform(ipc.platform)
   const style = doc.createElement('style')
   style.id = 'dsh-desktop-titlebar-style'
-  style.textContent = STYLE_TEXT
+  style.textContent = titleBarStyleText(platform)
   doc.head.appendChild(style)
 
   const bar = doc.createElement('div')
@@ -239,22 +314,28 @@ export function installTitleBar(doc: Document, ipc: IpcSender, markSrc: string |
   const mark = doc.createElement('img')
   mark.alt = ''
   brand.append(mark)
+  bar.append(brand)
 
-  const menubar = doc.createElement('span')
-  menubar.className = 'dsh-titlebar-menubar'
-  for (const menu of MENUS) {
-    const button = doc.createElement('button')
-    button.type = 'button'
-    button.className = 'dsh-titlebar-menu-btn'
-    button.dataset.labelKey = menu.labelKey
-    button.textContent = TITLE_BAR_LOCALES.zh[menu.labelKey]
-    button.setAttribute('aria-haspopup', 'menu')
-    button.addEventListener('click', () => {
-      // Window coordinates: the popup anchors just below the clicked button.
-      const rect = button.getBoundingClientRect()
-      ipc.send(MENU_POPUP_CHANNEL, { id: menu.id, x: Math.round(rect.left), y: Math.round(rect.bottom) + 4 })
-    })
-    menubar.append(button)
+  // macOS renders neither the menu buttons (the system menu bar owns them) nor
+  // the window controls (the native traffic lights own them).
+  if (platform !== 'darwin') {
+    const menubar = doc.createElement('span')
+    menubar.className = 'dsh-titlebar-menubar'
+    for (const menu of MENUS) {
+      const button = doc.createElement('button')
+      button.type = 'button'
+      button.className = 'dsh-titlebar-menu-btn'
+      button.dataset.labelKey = menu.labelKey
+      button.textContent = TITLE_BAR_LOCALES.zh[menu.labelKey]
+      button.setAttribute('aria-haspopup', 'menu')
+      button.addEventListener('click', () => {
+        // Window coordinates: the popup anchors just below the clicked button.
+        const rect = button.getBoundingClientRect()
+        ipc.send(MENU_POPUP_CHANNEL, { id: menu.id, x: Math.round(rect.left), y: Math.round(rect.bottom) + 4 })
+      })
+      menubar.append(button)
+    }
+    bar.append(menubar)
   }
 
   const spacer = doc.createElement('span')
@@ -263,23 +344,27 @@ export function installTitleBar(doc: Document, ipc: IpcSender, markSrc: string |
   const updateSlot = doc.createElement('span')
   updateSlot.className = 'dsh-titlebar-update-slot'
 
-  const controlsWrap = doc.createElement('span')
-  controlsWrap.className = 'dsh-titlebar-controls'
+  bar.append(spacer, updateSlot)
 
-  for (const control of CONTROLS) {
-    const button = doc.createElement('button')
-    button.type = 'button'
-    button.dataset.labelKey = control.labelKey
-    button.setAttribute('aria-label', TITLE_BAR_LOCALES.zh[control.labelKey])
-    if (control.danger === true) button.className = 'dsh-titlebar-close'
-    button.innerHTML = `<svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="${control.glyph}" stroke="currentColor" stroke-width="1"/></svg>`
-    button.addEventListener('click', () => {
-      ipc.send(control.channel)
-    })
-    controlsWrap.append(button)
+  if (platform !== 'darwin') {
+    const controlsWrap = doc.createElement('span')
+    controlsWrap.className = 'dsh-titlebar-controls'
+
+    for (const control of CONTROLS) {
+      const button = doc.createElement('button')
+      button.type = 'button'
+      button.dataset.labelKey = control.labelKey
+      button.setAttribute('aria-label', TITLE_BAR_LOCALES.zh[control.labelKey])
+      if (control.danger === true) button.className = 'dsh-titlebar-close'
+      button.innerHTML = `<svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="${control.glyph}" stroke="currentColor" stroke-width="1"/></svg>`
+      button.addEventListener('click', () => {
+        ipc.send(control.channel)
+      })
+      controlsWrap.append(button)
+    }
+
+    bar.append(controlsWrap)
   }
-
-  bar.append(brand, menubar, spacer, updateSlot, controlsWrap)
 
   // The declared DOM types keep `body` non-null, but a head-phase script
   // really observes it before parse; the omitted-property view keeps the

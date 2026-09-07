@@ -1,6 +1,13 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { installTitleBar, MENU_POPUP_CHANNEL, TITLE_BAR_HEIGHT_PX, WINDOW_CHANNELS } from '../src/render/title-bar.ts'
+import {
+  installTitleBar,
+  MACOS_TRAFFIC_LIGHTS_INSET_PX,
+  MENU_POPUP_CHANNEL,
+  normalizeTitleBarPlatform,
+  TITLE_BAR_HEIGHT_PX,
+  WINDOW_CHANNELS,
+} from '../src/render/title-bar.ts'
 
 /** Fresh body/head per test; jsdom shares one window across the file. */
 beforeEach(() => {
@@ -8,17 +15,25 @@ beforeEach(() => {
   document.body.replaceChildren()
 })
 
+/** The preload-bridge mock installTitleBar consumes; the platform picks the chrome. */
+function ipcMock(platform: string): { platform: string; send: ReturnType<typeof vi.fn> } {
+  return { platform, send: vi.fn() }
+}
+
+function installedBar(platform: string): HTMLElement {
+  installTitleBar(document, ipcMock(platform), './favicon.ico')
+  return document.getElementById('dsh-desktop-titlebar')!
+}
+
 describe('desktop title bar', () => {
-  it('injects the app-shift stylesheet, the logo-only brand, menus, and three controls', () => {
-    const ipc = { send: vi.fn() }
-    installTitleBar(document, ipc, './favicon.ico')
+  it('injects the app-shift stylesheet, the logo-only brand, menus, and three controls on Windows', () => {
+    const bar = installedBar('win32')
 
     const style = document.getElementById('dsh-desktop-titlebar-style')
     expect(style?.textContent).toContain(`padding-top: ${TITLE_BAR_HEIGHT_PX}px`)
     expect(style?.textContent).toContain(`--dsh-shell-top-inset: ${TITLE_BAR_HEIGHT_PX}px`)
     expect(document.body.firstElementChild?.id).toBe('dsh-desktop-titlebar')
 
-    const bar = document.getElementById('dsh-desktop-titlebar')!
     // Logo only: the brand span carries no text node next to the mark.
     expect(bar.querySelector('.dsh-titlebar-brand img')?.getAttribute('src')).toBe('./favicon.ico')
     expect(bar.querySelector('.dsh-titlebar-brand')?.textContent).toBe('')
@@ -30,12 +45,39 @@ describe('desktop title bar', () => {
 
     const controls = [...bar.querySelectorAll<HTMLButtonElement>('.dsh-titlebar-controls button')]
     expect(controls.map(button => button.getAttribute('aria-label'))).toEqual(['最小化', '最大化', '关闭'])
+    expect(style?.textContent).toContain('width: 46px')
+    expect(style?.textContent).toContain('#e81123')
     expect(bar.querySelector('.dsh-titlebar-spacer + .dsh-titlebar-update-slot')).not.toBeNull()
     expect(bar.querySelector('.dsh-titlebar-update-slot + .dsh-titlebar-controls')).not.toBeNull()
   })
 
+  it('renders the macOS chrome: brand past the traffic-light inset, no menus, no controls', () => {
+    const bar = installedBar('darwin')
+
+    expect(bar.querySelector('.dsh-titlebar-menu-btn')).toBeNull()
+    expect(bar.querySelector('.dsh-titlebar-controls')).toBeNull()
+    expect(bar.querySelector('.dsh-titlebar-brand img')?.getAttribute('src')).toBe('./favicon.ico')
+
+    const style = document.getElementById('dsh-desktop-titlebar-style')
+    expect(style?.textContent).toContain(`padding-left: ${MACOS_TRAFFIC_LIGHTS_INSET_PX}px`)
+    expect(style?.textContent).not.toContain('#e81123')
+  })
+
+  it('renders the Linux chrome: menus kept and circular controls without the red close fill', () => {
+    const bar = installedBar('linux')
+
+    const menuButtons = [...bar.querySelectorAll<HTMLButtonElement>('.dsh-titlebar-menu-btn')]
+    expect(menuButtons.map(button => button.textContent)).toEqual(['编辑', '视图', '窗口', '帮助'])
+    const controls = [...bar.querySelectorAll<HTMLButtonElement>('.dsh-titlebar-controls button')]
+    expect(controls.map(button => button.getAttribute('aria-label'))).toEqual(['最小化', '最大化', '关闭'])
+
+    const style = document.getElementById('dsh-desktop-titlebar-style')
+    expect(style?.textContent).toContain('border-radius: 50%')
+    expect(style?.textContent).not.toContain('#e81123')
+  })
+
   it('routes each control click over its own IPC channel', () => {
-    const ipc = { send: vi.fn() }
+    const ipc = ipcMock('win32')
     installTitleBar(document, ipc, './favicon.ico')
     const buttons = [...document.querySelectorAll<HTMLButtonElement>('#dsh-desktop-titlebar .dsh-titlebar-controls button')]
     buttons[0].click()
@@ -47,7 +89,7 @@ describe('desktop title bar', () => {
   })
 
   it('asks the main process to pop up each menu next to its button', () => {
-    const ipc = { send: vi.fn() }
+    const ipc = ipcMock('win32')
     installTitleBar(document, ipc, './favicon.ico')
     const buttons = [...document.querySelectorAll<HTMLButtonElement>('.dsh-titlebar-menu-btn')]
     buttons[0].click()
@@ -57,6 +99,13 @@ describe('desktop title bar', () => {
     expect(ipc.send).toHaveBeenNthCalledWith(2, MENU_POPUP_CHANNEL, { id: 'help', x: 0, y: 4 })
   })
 
+  it('narrows preload platforms to the styled set, falling unknown ones through to linux', () => {
+    expect(normalizeTitleBarPlatform('darwin')).toBe('darwin')
+    expect(normalizeTitleBarPlatform('win32')).toBe('win32')
+    expect(normalizeTitleBarPlatform('linux')).toBe('linux')
+    expect(normalizeTitleBarPlatform('freebsd')).toBe('linux')
+  })
+
   it('defers the install past DOMContentLoaded while the document is still in its head phase', () => {
     // The transport IIFE executes before <body> is parsed; shadowing body with
     // null reproduces that head phase (the crash this regression pins). The
@@ -64,7 +113,7 @@ describe('desktop title bar', () => {
     const body = document.body
     Object.defineProperty(document, 'body', { value: null, configurable: true })
     try {
-      const ipc = { send: vi.fn() }
+      const ipc = ipcMock('win32')
       installTitleBar(document, ipc, () => document.querySelector<HTMLLinkElement>('link[rel~="icon"]')!.href)
       expect(document.getElementById('dsh-desktop-titlebar')).toBeNull()
     } finally {

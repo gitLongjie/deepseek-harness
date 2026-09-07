@@ -24,6 +24,7 @@ import { installTray, type TrayHandle } from './desktop/tray.ts'
 import { copy, normalizeLocale, type DesktopLocaleId, type DesktopTextKey } from './desktop/locales.ts'
 import { pinWindowTitle, resolveDesktopWindowTitle } from './desktop/window-title.ts'
 import { installApplicationMenu, registerMenuPopupIpc } from './desktop/menu.ts'
+import { resolveWindowChrome } from './desktop/window-chrome.ts'
 import { initUpdater, registerUpdateIpc, setUpdaterLocale } from './updater.ts'
 import { notifyTurnCompletion } from './desktop/completion-notification.ts'
 import {
@@ -347,9 +348,11 @@ function createWindow(): BrowserWindow {
     // taskbar hover tooltip and alt-tab label; page-title-updated must not
     // leak session projections there (pinWindowTitle blocks adoption).
     title: DESKTOP_PRODUCT_NAME,
-    // Frameless: the renderer draws the branded title bar (render/title-bar.ts)
-    // and drives these controls over the window-control IPC channels below.
-    frame: false,
+    // Per-platform frame chrome (desktop/window-chrome.ts): Windows and Linux
+    // draw the whole bar in the renderer (render/title-bar.ts) over the
+    // window-control IPC channels below; macOS keeps the native traffic lights
+    // over the same bar via hiddenInset.
+    ...resolveWindowChrome(process.platform),
     backgroundColor: '#ffffff',
     webPreferences: {
       preload: PRELOAD_PATH,
@@ -365,8 +368,9 @@ function createWindow(): BrowserWindow {
 
 /**
  * Window-control channels the renderer's title bar sends over the generic IPC
- * bridge. Each targets the sender's own window, so a malicious page can only
- * affect the window it lives in.
+ * bridge (Windows/Linux only; macOS renders no custom controls). Each targets
+ * the sender's own window, so a malicious page can only affect the window it
+ * lives in.
  */
 const WINDOW_CONTROL_CHANNELS: ReadonlyArray<{ channel: string; action: (win: BrowserWindow) => void }> = [
   { channel: 'dsh:window:minimize', action: (win) => { win.minimize() } },
