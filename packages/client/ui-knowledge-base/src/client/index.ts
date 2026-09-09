@@ -93,6 +93,13 @@ export function apply(ctx: Context): void {
       }))
       return { documents: page.documents, total: page.total }
     },
+    readDocument: async (documentId: string, page?: number) => {
+      const content = await call('knowledgeBase.readDocument', () => ctx.remote.knowledgeBase.readDocument({
+        documentId: documentId as never,
+        ...(page === undefined ? {} : { query: { page } }),
+      }))
+      return content
+    },
     startSession: () => {
       // The session watcher in UiKnowledgeService closes the page on the
       // resulting navigation; the explicit close keeps the intent local.

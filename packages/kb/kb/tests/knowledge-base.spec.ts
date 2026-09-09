@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import KnowledgeBase, { default as DefaultKnowledgeBase } from '../src/index.ts'
-import type { KnowledgeBaseId, KnowledgeBaseView, KnowledgeDocumentPage } from '../src/types.ts'
+import type {
+  KnowledgeBaseId, KnowledgeBaseView, KnowledgeDocumentContent, KnowledgeDocumentPage,
+} from '../src/types.ts'
 
 /** Minimal concrete provider exercising the abstract Service Definition. */
 class StubKnowledgeBase extends KnowledgeBase {
@@ -9,6 +11,9 @@ class StubKnowledgeBase extends KnowledgeBase {
   webUi(): string | null { return null }
   async listDocuments(_baseId: KnowledgeBaseId): Promise<KnowledgeDocumentPage> {
     return { documents: [], total: 0 }
+  }
+  async readDocument(documentId: Parameters<KnowledgeBase['readDocument']>[0]): Promise<KnowledgeDocumentContent> {
+    return { id: documentId, title: 'doc', chunks: [], total: 0, page: 1, pageSize: 20 }
   }
 }
 

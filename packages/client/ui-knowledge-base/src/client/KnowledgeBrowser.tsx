@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import clsx from 'clsx'
 import {
-  IconChevronLeftOutline14, IconLibraryOutline16, IconSearchOutline16,
+  IconChevronLeftOutline14, IconChevronRightOutline14, IconLibraryOutline16, IconSearchOutline16,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import type { KnowledgeDocumentRow } from './contract/slots.ts'
@@ -49,6 +49,21 @@ export interface KnowledgeBrowserProps {
     documents: readonly KnowledgeDocumentRow[]
     total: number
   }>
+  /**
+   * Read one document's assembled content, one page of blocks at a time.
+   * @param documentId - the document id from a double-clicked row.
+   * @param page - 1-based page number; omission reads the first page.
+   */
+  readDocument: (documentId: string, page?: number) => Promise<{
+    id: string
+    title: string
+    summary?: string
+    sourceUrl?: string
+    chunks: readonly { index: number; content: string }[]
+    total: number
+    page: number
+    pageSize: number
+  }>
   /** The header's ask action: start a New Session grounded in this base. */
   onAsk: () => void
   /** The header's back action: return to the base list. */
@@ -65,6 +80,7 @@ export interface KnowledgeBrowserProps {
 export function KnowledgeBrowser({
   base,
   listDocuments,
+  readDocument,
   onAsk,
   onClose,
   t,
@@ -77,6 +93,8 @@ export function KnowledgeBrowser({
   const [query, setQuery] = useState('')
   const [searchExpanded, setSearchExpanded] = useState(false)
   const searchInput = useRef<HTMLInputElement>(null)
+  // The document under read (double-clicked row); undefined shows the table.
+  const [reading, setReading] = useState<KnowledgeDocumentRow | undefined>(undefined)
 
   useEffect(() => {
     const reader = new AbortController()
@@ -102,6 +120,18 @@ export function KnowledgeBrowser({
     setLoadError(false)
     setReloadToken(token => token + 1)
   }, [])
+
+  // A document under read replaces the table; back returns to it.
+  if (reading !== undefined) {
+    return (
+      <DocumentReader
+        doc={reading}
+        readDocument={readDocument}
+        onClose={() => { setReading(undefined) }}
+        t={t}
+      />
+    )
+  }
 
   const visible = documents ?? []
   return (
@@ -175,7 +205,18 @@ export function KnowledgeBrowser({
           <div className={css.statusRow}>{query.trim() === '' ? t('empty.documents') : t('empty.noMatches')}</div>
         )}
         {visible.map(doc => (
-          <div key={doc.id} className={css.docRow} title={doc.title}>
+          <div
+            key={doc.id}
+            className={css.docRow}
+            title={doc.title}
+            role="button"
+            tabIndex={0}
+            onDoubleClick={() => { setReading(doc) }}
+            onKeyDown={(e) => {
+              if (e.key !== 'Enter') return
+              setReading(doc)
+            }}
+          >
             <span className={css.docName}>
               <IconLibraryOutline16 size={14} className={css.docIcon} />
               <span className={css.docTitle}>{doc.title}</span>
@@ -183,6 +224,139 @@ export function KnowledgeBrowser({
             <span className={css.docType}>{typeLabel(doc, t)}</span>
             <span className={css.docUpdated}>{updatedAt(doc, t)}</span>
           </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/** One page of a document's assembled content, as the reader fetches it. */
+interface DocumentContentPage {
+  readonly id: string
+  readonly title: string
+  readonly summary?: string
+  readonly sourceUrl?: string
+  readonly chunks: readonly { index: number; content: string }[]
+  readonly total: number
+  readonly page: number
+  readonly pageSize: number
+}
+
+/** Props of the document reader pane. */
+export interface DocumentReaderProps {
+  /** The double-clicked document row. */
+  doc: KnowledgeDocumentRow
+  /**
+   * Read the document's assembled content, one page of blocks at a time.
+   * @param documentId - the document id to read.
+   * @param page - 1-based page number; omission reads the first page.
+   */
+  readDocument: (documentId: string, page?: number) => Promise<DocumentContentPage>
+  /** The header's back action: return to the document table. */
+  onClose: () => void
+  /** The locale seat. */
+  t: PaneTranslate
+}
+
+/**
+ * Render the document reader: title and summary over the page's content
+ * blocks, with page navigation and the original-source link for web entries.
+ * @param props - reader props.
+ * @returns the reader element tree.
+ */
+export function DocumentReader({
+  doc,
+  readDocument,
+  onClose,
+  t,
+}: DocumentReaderProps) {
+  const [page, setPage] = useState(1)
+  // undefined = the page read is in flight; error switches the body for a
+  // retry row until a read succeeds.
+  const [content, setContent] = useState<DocumentContentPage | undefined>(undefined)
+  const [loadError, setLoadError] = useState(false)
+  const [reloadToken, setReloadToken] = useState(0)
+
+  useEffect(() => {
+    const reader = new AbortController()
+    readDocument(doc.id, page)
+      .then((result) => {
+        if (reader.signal.aborted) return
+        setContent(result)
+        setLoadError(false)
+      })
+      .catch(() => {
+        if (reader.signal.aborted) return
+        setLoadError(true)
+      })
+    return () => { reader.abort() }
+  }, [doc.id, page, readDocument, reloadToken])
+
+  const retry = () => {
+    setLoadError(false)
+    setReloadToken(token => token + 1)
+  }
+
+  const pageSize = content?.pageSize ?? 1
+  const pages = content === undefined ? 1 : Math.max(1, Math.ceil(content.total / pageSize))
+  return (
+    <div className={css.root}>
+      <div className={css.browserHeader}>
+        <button
+          type="button"
+          className={css.backButton}
+          aria-label={t('browser.back')}
+          onClick={() => { onClose() }}
+        >
+          <IconChevronLeftOutline14 size={14} />
+        </button>
+        <span className={css.browserTitle}>{content?.title ?? doc.title}</span>
+        {content?.sourceUrl !== undefined && (
+          <a className={css.sourceLink} href={content.sourceUrl} target="_blank" rel="noreferrer">
+            {t('reader.source')}
+          </a>
+        )}
+        <span className={css.pageNav}>
+          <button
+            type="button"
+            className={css.pageButton}
+            aria-label={t('reader.prev')}
+            disabled={page <= 1 || content === undefined}
+            onClick={() => { setPage(current => Math.max(1, current - 1)) }}
+          >
+            <IconChevronLeftOutline14 size={14} />
+          </button>
+          <span className={css.pageLabel}>{t('reader.page', { page: String(page), pages: String(pages) })}</span>
+          <button
+            type="button"
+            className={css.pageButton}
+            aria-label={t('reader.next')}
+            disabled={content === undefined || page >= pages}
+            onClick={() => { setPage(current => Math.min(pages, current + 1)) }}
+          >
+            <IconChevronRightOutline14 size={14} />
+          </button>
+        </span>
+      </div>
+
+      <div className={css.readerBody}>
+        {loadError && (
+          <div className={css.statusRow}>
+            <span>{t('error.message')}</span>
+            <button type="button" className={css.retryButton} onClick={() => { retry() }}>
+              {t('error.retry')}
+            </button>
+          </div>
+        )}
+        {!loadError && content === undefined && <div className={css.statusRow}>{t('loading')}</div>}
+        {!loadError && content !== undefined && content.chunks.length === 0 && (
+          <div className={css.statusRow}>{t('reader.empty')}</div>
+        )}
+        {content?.summary !== undefined && (
+          <p className={css.readerSummary}>{content.summary}</p>
+        )}
+        {content?.chunks.map(chunk => (
+          <p key={chunk.index} className={css.readerChunk}>{chunk.content}</p>
         ))}
       </div>
     </div>

@@ -15,6 +15,8 @@ import { KnowledgeBase } from '@deepseek-ai/dsh-kb'
 import type {
   KnowledgeBaseId,
   KnowledgeBaseView,
+  KnowledgeDocumentChunk,
+  KnowledgeDocumentContent,
   KnowledgeDocumentId,
   KnowledgeDocumentKind,
   KnowledgeDocumentPage,
@@ -25,6 +27,9 @@ import { credentialRef } from '@deepseek-ai/dsh-credentials'
 
 /** Default API root of a stock `docker compose up` deployment. */
 const DEFAULT_BASE_URL = 'http://localhost:8080/api/v1'
+
+/** Content blocks per reader page; a readable scroll, not the route's cap. */
+const DOCUMENT_CHUNK_PAGE_SIZE = 20
 
 /** Plugin config (all fields optional — `static Config` supplies the defaults). */
 export interface Config {
@@ -153,6 +158,39 @@ export default class WeknoraKnowledgeBase extends KnowledgeBase {
     }
   }
 
+  async readDocument(documentId: KnowledgeDocumentId, query?: { page?: number }): Promise<KnowledgeDocumentContent> {
+    const apiKey = await this.resolveApiKey()
+    // The document's identity facts and one page of its content blocks: two
+    // bounded reads, assembled into the reader's view.
+    const [record, chunks] = await Promise.all([
+      this.request(`/knowledge/${encodeURIComponent(documentId)}`, apiKey),
+      this.request(`/chunks/${encodeURIComponent(documentId)}?${new URLSearchParams({
+        page: String(query?.page ?? 1),
+        page_size: String(DOCUMENT_CHUNK_PAGE_SIZE),
+      })}`, apiKey),
+    ])
+    const raw = (record.data ?? {}) as RawKnowledgeDocument
+    if (typeof raw.id !== 'string' || raw.id === '') {
+      throw new WeknoraKnowledgeBaseError('GET /knowledge/:id returned a document without an id')
+    }
+    if (!Array.isArray(chunks.data)) {
+      throw new WeknoraKnowledgeBaseError('GET /chunks/:id returned a response without a chunk array')
+    }
+    const parsed = chunks.data.map(parseChunk)
+    return {
+      id: raw.id as KnowledgeDocumentId,
+      title: typeof raw.title === 'string' && raw.title !== ''
+        ? raw.title
+        : typeof raw.file_name === 'string' && raw.file_name !== '' ? raw.file_name : raw.id,
+      ...(typeof raw.description === 'string' && raw.description !== '' ? { summary: raw.description } : {}),
+      ...(typeof raw.source === 'string' && raw.source !== '' ? { sourceUrl: raw.source } : {}),
+      chunks: parsed,
+      total: typeof chunks.total === 'number' ? chunks.total : parsed.length,
+      page: typeof chunks.page === 'number' ? chunks.page : (query?.page ?? 1),
+      pageSize: typeof chunks.page_size === 'number' ? chunks.page_size : DOCUMENT_CHUNK_PAGE_SIZE,
+    }
+  }
+
   /**
    * Resolve the configured credential reference for one operation.
    * @returns the current key, or undefined for an unauthenticated deployment.
@@ -169,7 +207,12 @@ export default class WeknoraKnowledgeBase extends KnowledgeBase {
    * @param apiKey - the operation's credential, or undefined to send none.
    * @returns the parsed envelope body.
    */
-  private async request(path: string, apiKey: string | undefined): Promise<{ data?: unknown; total?: unknown }> {
+  private async request(path: string, apiKey: string | undefined): Promise<{
+    data?: unknown
+    total?: unknown
+    page?: unknown
+    page_size?: unknown
+  }> {
     const url = `${this.baseUrl}${path}`
     const headers: Record<string, string> = { accept: 'application/json' }
     if (apiKey !== undefined) headers['x-api-key'] = apiKey
@@ -187,7 +230,7 @@ export default class WeknoraKnowledgeBase extends KnowledgeBase {
     }
     const text = await this.readBounded(response, url)
     try {
-      return JSON.parse(text) as { data?: unknown; total?: unknown }
+      return JSON.parse(text) as { data?: unknown; total?: unknown; page?: unknown; page_size?: unknown }
     } catch {
       throw new WeknoraKnowledgeBaseError(`GET ${path} returned a non-JSON body`)
     }
@@ -253,6 +296,8 @@ interface RawKnowledgeDocument {
   file_type?: unknown
   file_size?: unknown
   updated_at?: unknown
+  description?: unknown
+  source?: unknown
 }
 
 /** The closed union of entry kinds WeKnora reports; anything else reads as a file. */
@@ -286,4 +331,26 @@ function parseDocumentView(input: unknown): KnowledgeDocumentView {
     ...(fileSize === undefined ? {} : { fileSize }),
     ...(updatedAt === undefined ? {} : { updatedAt }),
   }
+}
+
+/** One raw chunk entry of the WeKnora chunk-page envelope. */
+interface RawKnowledgeChunk {
+  chunk_index?: unknown
+  content?: unknown
+}
+
+/**
+ * Validate one raw chunk entry into its reader view; the index falls back to
+ * the entry's position in the page plus one.
+ * @param input - the unvalidated envelope entry.
+ * @param position - 0-based position within the page, for the index fallback.
+ * @returns the chunk view.
+ */
+function parseChunk(input: unknown, position: number): KnowledgeDocumentChunk {
+  const raw = (input ?? {}) as RawKnowledgeChunk
+  const content = typeof raw.content === 'string' ? raw.content : ''
+  const index = typeof raw.chunk_index === 'number' && Number.isInteger(raw.chunk_index)
+    ? raw.chunk_index
+    : position + 1
+  return { index, content }
 }

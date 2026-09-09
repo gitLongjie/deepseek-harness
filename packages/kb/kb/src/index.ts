@@ -8,7 +8,13 @@
  */
 
 import { Context, Service } from '@deepseek-ai/cordis'
-import type { KnowledgeBaseId, KnowledgeBaseView, KnowledgeDocumentPage } from './types.ts'
+import type {
+  KnowledgeBaseId,
+  KnowledgeBaseView,
+  KnowledgeDocumentContent,
+  KnowledgeDocumentId,
+  KnowledgeDocumentPage,
+} from './types.ts'
 
 export type * from './types.ts'
 
@@ -50,6 +56,15 @@ export abstract class KnowledgeBase extends Service {
    * @returns one page of documents with the backend's total count.
    */
   abstract listDocuments(baseId: KnowledgeBaseId, query?: { keyword?: string }): Promise<KnowledgeDocumentPage>
+
+  /**
+   * Read one document's assembled content, one page of blocks at a time.
+   * @param documentId - the opaque document identity from a previous
+   *   {@link listDocuments} read.
+   * @param query - optional 1-based page number; omission reads the first page.
+   * @returns the page's blocks with the document's identity facts and totals.
+   */
+  abstract readDocument(documentId: KnowledgeDocumentId, query?: { page?: number }): Promise<KnowledgeDocumentContent>
 }
 
 export default KnowledgeBase

@@ -98,6 +98,21 @@ export type KnowledgePageInjected = {
     documents: readonly KnowledgeDocumentRow[]
     total: number
   }>
+  /**
+   * Read one document's assembled content, one page of blocks at a time.
+   * @param documentId - the structural document id from a list row.
+   * @param page - 1-based page number; omission reads the first page.
+   */
+  readDocument: (documentId: string, page?: number) => Promise<{
+    id: string
+    title: string
+    summary?: string
+    sourceUrl?: string
+    chunks: readonly { index: number; content: string }[]
+    total: number
+    page: number
+    pageSize: number
+  }>
   /** Start a New Session (the browser pane's ask action); closes the page. */
   startSession: () => void
   /** Return from a base's documents to the base list. */

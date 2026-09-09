@@ -142,6 +142,51 @@ describe('kb-weknora provider', () => {
     expect(url).toBe('http://localhost:8080/api/v1/knowledge-bases/kb-2/knowledge?page=1&page_size=1000')
   })
 
+  it('reads one document as facts plus a page of chunks', async () => {
+    const fetchStub = vi.fn(async (url: string | URL | Request) => jsonResponse(
+      String(url).includes('/chunks/')
+        ? JSON.stringify({
+          data: [{ chunk_index: 1, content: '第一步。' }, { content: '第二步。' }],
+          total: 22, page: 2, page_size: 20,
+        })
+        : JSON.stringify({ data: { id: 'doc-1', title: '指南', description: '摘要', source: 'https://example.com' } }),
+    ))
+    vi.stubGlobal('fetch', fetchStub)
+    const { provider } = makeProvider({ baseUrl: 'http://kb.internal:8080/api/v1' })
+
+    await expect(provider.readDocument('doc-1' as never, { page: 2 })).resolves.toEqual({
+      id: 'doc-1',
+      title: '指南',
+      summary: '摘要',
+      sourceUrl: 'https://example.com',
+      chunks: [{ index: 1, content: '第一步。' }, { index: 2, content: '第二步。' }],
+      total: 22,
+      page: 2,
+      pageSize: 20,
+    })
+    const [factsUrl, chunksUrl] = fetchStub.mock.calls.map(call => (call[0] as unknown as string))
+    expect(factsUrl).toBe('http://kb.internal:8080/api/v1/knowledge/doc-1')
+    expect(chunksUrl).toBe('http://kb.internal:8080/api/v1/chunks/doc-1?page=2&page_size=20')
+  })
+
+  it('raises loud contract failures for a bad document record and a bad chunk page', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string | URL | Request) => jsonResponse(
+      String(url).includes('/chunks/')
+        ? JSON.stringify({ data: [{ content: 'x' }], total: 1 })
+        : JSON.stringify({ data: { title: 'no id' } }),
+    )))
+    await expect(makeProvider({}).provider.readDocument('doc-1' as never))
+      .rejects.toThrow(/document without an id/)
+
+    vi.stubGlobal('fetch', vi.fn(async (url: string | URL | Request) => jsonResponse(
+      String(url).includes('/chunks/')
+        ? JSON.stringify({ data: 'nope' })
+        : JSON.stringify({ data: { id: 'doc-1' } }),
+    )))
+    await expect(makeProvider({}).provider.readDocument('doc-1' as never))
+      .rejects.toThrow(/chunk array/)
+  })
+
   it('raises a loud contract failure for a non-array document listing and an id-less document', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(JSON.stringify({ data: 'nope' }))))
     await expect(makeProvider({}).provider.listDocuments('kb-1' as never))

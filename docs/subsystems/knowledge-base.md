@@ -24,7 +24,7 @@ interface KnowledgeBaseView {
 
 ## Documents
 
-`listDocuments(baseId, query?)` reads one base's documents through the backend's keyword-filtered, page-bounded listing. The display title falls back to the backend's file name, then the id; the entry kind (`file`/`url`/`manual`) and lowercase file extension travel separately so clients label them in their own vocabulary.
+`listDocuments(baseId, query?)` reads one base's documents through the backend's keyword-filtered, page-bounded listing. The display title falls back to the backend's file name, then the id; the entry kind (`file`/`url`/`manual`) and lowercase file extension travel separately so clients label them in their own vocabulary. `readDocument(documentId, query?)` assembles one document's readable content — identity facts (title, summary, source URL for web entries) plus one page of ordered text blocks — so the client reader pages through long documents.
 
 ## Client surface
 

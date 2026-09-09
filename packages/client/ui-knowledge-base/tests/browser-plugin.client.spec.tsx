@@ -14,6 +14,7 @@ afterEach(cleanup)
 type RemoteStub = {
   list: ReturnType<typeof vi.fn>
   listDocuments: ReturnType<typeof vi.fn>
+  readDocument: ReturnType<typeof vi.fn>
   describe: ReturnType<typeof vi.fn>
 }
 
@@ -21,6 +22,10 @@ function stub(): RemoteStub {
   return {
     list: vi.fn(async () => ({ ok: true, value: { bases: [{ id: 'kb-1', name: '产品文档' }] } })),
     listDocuments: vi.fn(async () => ({ ok: true, value: { documents: [], total: 0 } })),
+    readDocument: vi.fn(async () => ({
+      ok: true,
+      value: { id: 'doc-1', title: '指南', chunks: [{ index: 1, content: '第一步。' }], total: 1, page: 1, pageSize: 20 },
+    })),
     describe: vi.fn(async () => ({ ok: true, value: { webUiUrl: 'http://kb.internal:8080' } })),
   }
 }

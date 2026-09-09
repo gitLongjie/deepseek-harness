@@ -44,3 +44,30 @@ export interface KnowledgeDocumentPage {
   readonly documents: readonly KnowledgeDocumentView[]
   readonly total: number
 }
+
+/** One content block of a document, in the backend's own order. */
+export interface KnowledgeDocumentChunk {
+  /** 1-based position of the block within the document. */
+  readonly index: number
+  /** The block's text content. */
+  readonly content: string
+}
+
+/** One page of a document's assembled content, with its identity facts. */
+export interface KnowledgeDocumentContent {
+  readonly id: KnowledgeDocumentId
+  /** Display title; the backend's file name when it stores no title. */
+  readonly title: string
+  /** The backend's description, when it stores one. */
+  readonly summary?: string
+  /** Original source URL, for web-page entries. */
+  readonly sourceUrl?: string
+  /** The page's content blocks. */
+  readonly chunks: readonly KnowledgeDocumentChunk[]
+  /** Total block count across all pages. */
+  readonly total: number
+  /** 1-based page number this response carries. */
+  readonly page: number
+  /** Page size the backend used. */
+  readonly pageSize: number
+}

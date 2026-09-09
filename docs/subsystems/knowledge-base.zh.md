@@ -24,7 +24,7 @@ interface KnowledgeBaseView {
 
 ## 文档
 
-`listDocuments(baseId, query?)` 经后端支持关键词过滤、有分页上界的列表接口读取一个知识库的文档。显示标题回退为后端的文件名,再回退为 id;条目种类(`file`/`url`/`manual`)与小写扩展名分开传递,客户端用自己的词汇为其命名。
+`listDocuments(baseId, query?)` 经后端支持关键词过滤、有分页上界的列表接口读取一个知识库的文档。显示标题回退为后端的文件名,再回退为 id;条目种类(`file`/`url`/`manual`)与小写扩展名分开传递,客户端用自己的词汇为其命名。`readDocument(documentId, query?)` 组装一个文档的可读内容——身份事实(标题、摘要、网页条目的来源 URL)加一页有序文本块——客户端阅读器由此翻阅长文档。
 
 ## 客户端界面
 

@@ -12,7 +12,9 @@ import type { KnowledgeBase as KnowledgeBaseService } from '@deepseek-ai/dsh-kb'
 import { TypertRemoteService, Remote } from '@deepseek-ai/dsh-typert-protocol'
 // Typert-generated ./typert and ./remote artifacts import Zod at runtime.
 import type {} from 'zod'
-import type { KnowledgeBaseId, KnowledgeBaseView, KnowledgeDocumentPage } from './types.ts'
+import type {
+  KnowledgeBaseId, KnowledgeBaseView, KnowledgeDocumentContent, KnowledgeDocumentId, KnowledgeDocumentPage,
+} from './types.ts'
 
 export type * from './types.ts'
 
@@ -51,6 +53,17 @@ export class KnowledgeBaseGateway extends TypertRemoteService {
   @Remote('listDocuments')
   async listDocuments(request: { baseId: KnowledgeBaseId; query?: { keyword?: string } }): Promise<KnowledgeDocumentPage> {
     return this.knowledgeBase.listDocuments(request.baseId, request.query)
+  }
+
+  /**
+   * Read one document's assembled content, one page of blocks at a time.
+   * @param request - the opaque document identity and an optional 1-based page
+   *   number; omission reads the first page.
+   * @returns the page's blocks with the document's identity facts and totals.
+   */
+  @Remote('readDocument')
+  async readDocument(request: { documentId: KnowledgeDocumentId; query?: { page?: number } }): Promise<KnowledgeDocumentContent> {
+    return this.knowledgeBase.readDocument(request.documentId, request.query)
   }
 
   /**

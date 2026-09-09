@@ -283,3 +283,91 @@
     transition: none;
   }
 }
+
+/* A double-clickable table row carries a button affordance. */
+.docRow {
+  cursor: pointer;
+}
+
+.docRow:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: -2px;
+}
+
+/* Original-source link in the reader header (web-page entries). */
+.sourceLink {
+  flex: none;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-state-business-primary);
+  text-decoration: none;
+}
+
+.sourceLink:hover {
+  text-decoration: underline;
+}
+
+/* Page navigation in the reader header. */
+.pageNav {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.pageButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 6px;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  color: inherit;
+}
+
+.pageButton:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.pageButton:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.pageLabel {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+  white-space: nowrap;
+}
+
+/* Reader body: the document's summary and content blocks as prose. */
+.readerBody {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 8px 24px;
+  scrollbar-gutter: stable;
+}
+
+.readerSummary {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 22px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.readerChunk {
+  margin: 0 0 12px;
+  font-size: 14px;
+  line-height: 24px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--dsw-alias-label-primary);
+}

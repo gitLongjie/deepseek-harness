@@ -21,6 +21,7 @@ export function KnowledgeLibrary({
   useView,
   load,
   listDocuments,
+  readDocument,
   startSession,
   closeBase,
   openBase,
@@ -101,6 +102,7 @@ export function KnowledgeLibrary({
           <KnowledgeBrowser
             base={browsed}
             listDocuments={listDocuments}
+            readDocument={readDocument}
             onAsk={() => { startSession() }}
             onClose={() => { closeBase() }}
             t={t}
