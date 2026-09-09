@@ -32,11 +32,18 @@ import {
   type DesktopUpdateManifest,
 } from './desktop/update-url.ts'
 import {
+  applyKnowledgeBaseEnvironment, desktopKnowledgeBaseEnvironment, resolveDesktopKnowledgeBase,
+  type DesktopKnowledgeManifest,
+} from './desktop/knowledge-base.ts'
+import {
   findMissingPackagedResources,
   type MissingPackagedResource,
   type PackagedResourceLabel,
 } from './desktop/packaged-resources.ts'
 import { runPackagedSmoke } from './desktop/packaged-smoke.ts'
+
+/** Absolute path of this desktop app's package.json (the OEM resolution anchor). */
+const INSTALL_ANCHOR = fileURLToPath(new URL('../../package.json', import.meta.url))
 
 /** The app scheme serving the frontend dist (a standard, secure, fetch-capable scheme). */
 const WEB_SCHEME = 'dshapp'
@@ -149,6 +156,16 @@ async function main(): Promise<void> {
         failMissingPackagedResources(missing)
         return
       }
+    }
+    // The OEM knowledge-base connection joins the trusted environment before
+    // the layered snapshot freezes it, without replacing values the launching
+    // environment already owns.
+    const knowledgeBase = resolveDesktopKnowledgeBase(
+      INSTALL_ANCHOR,
+      JSON.parse(readFileSync(join(app.getAppPath(), 'package.json'), 'utf8')) as DesktopKnowledgeManifest,
+    )
+    if (knowledgeBase !== undefined) {
+      applyKnowledgeBaseEnvironment(process.env, desktopKnowledgeBaseEnvironment(knowledgeBase))
     }
     const environment = loadLayeredEnv('desktop')
     log(`desktop: booting (packaged=${String(app.isPackaged)}) execArgv=${JSON.stringify(process.execArgv)} node=${process.versions.node}`)

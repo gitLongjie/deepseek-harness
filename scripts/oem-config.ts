@@ -2,10 +2,19 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const GREETING_SLOTS = ['morning', 'noon', 'afternoon', 'evening', 'night'] as const
-const CONFIG_KEYS = ['brandIcon', 'greetings', 'loginTagline', 'loginUrl', 'productName', 'updateUrl'] as const
+const CONFIG_KEYS = ['brandIcon', 'greetings', 'knowledgeBase', 'loginTagline', 'loginUrl', 'productName', 'updateUrl'] as const
+const KNOWLEDGE_BASE_KEYS = ['apiKeyEnv', 'baseUrl', 'tenantId', 'webUiUrl'] as const
 
 /** One complete locale-specific set of blank-panel greetings. */
 export type OemGreetings = Readonly<Record<(typeof GREETING_SLOTS)[number], string>>
+
+/** The deployment's knowledge-base connection, resolved by the desktop launcher. */
+export interface OemKnowledgeBase {
+  readonly baseUrl: string
+  readonly apiKeyEnv: string
+  readonly tenantId?: string
+  readonly webUiUrl?: string
+}
 
 /** Build-owned product identity and endpoint configuration. */
 export interface OemConfig {
@@ -15,6 +24,7 @@ export interface OemConfig {
   readonly updateUrl: string
   readonly loginTagline: { readonly zh: string; readonly en: string }
   readonly greetings: { readonly zh: OemGreetings; readonly en: OemGreetings }
+  readonly knowledgeBase: OemKnowledgeBase
 }
 
 /** Parse and validate an OEM config before any browser artifact is compiled. */
@@ -44,6 +54,46 @@ export function parseOemConfig(value: unknown, source: string): OemConfig {
       zh: parseGreetings(greetings.zh, `${source}.greetings.zh`),
       en: parseGreetings(greetings.en, `${source}.greetings.en`),
     },
+    knowledgeBase: parseOemKnowledgeBase(root.knowledgeBase, `${source}.knowledgeBase`),
+  }
+}
+
+/**
+ * Parse the knowledge-base connection section: the API root and the
+ * credential-reference name are the deployment's own facts; the secret value
+ * itself never enters the OEM file.
+ */
+function parseOemKnowledgeBase(value: unknown, subject: string): OemKnowledgeBase {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new Error(`${subject} must be an object`)
+  }
+  const record = value as Record<string, unknown>
+  const extra = Object.keys(record).filter(key => !KNOWLEDGE_BASE_KEYS.includes(key as (typeof KNOWLEDGE_BASE_KEYS)[number]))
+  if (extra.length > 0) throw new Error(`${subject} has invalid fields: ${extra.join(', ')}`)
+  const baseUrl = nonEmptyString(record.baseUrl, `${subject}.baseUrl`)
+  if (!isHttpUrl(baseUrl)) throw new Error(`${subject}.baseUrl must be an HTTP or HTTPS URL`)
+  const apiKeyEnv = nonEmptyString(record.apiKeyEnv ?? 'WEKNORA_API_KEY', `${subject}.apiKeyEnv`)
+  const tenantId = record.tenantId === undefined ? undefined : nonEmptyString(record.tenantId, `${subject}.tenantId`)
+  const webUiUrl = record.webUiUrl === undefined ? undefined : nonEmptyString(record.webUiUrl, `${subject}.webUiUrl`)
+  if (webUiUrl !== undefined && !isHttpUrl(webUiUrl)) throw new Error(`${subject}.webUiUrl must be an HTTP or HTTPS URL`)
+  return {
+    baseUrl,
+    apiKeyEnv,
+    ...tenantId === undefined ? {} : { tenantId },
+    ...webUiUrl === undefined ? {} : { webUiUrl },
+  }
+}
+
+/**
+ * Project the knowledge-base connection into the environment names the
+ * kb-weknora plugin resolves as its config defaults (trusted launch layer).
+ */
+export function oemKnowledgeBaseEnvironment(config: OemConfig): Readonly<Record<`WEKNORA_${string}`, string>> {
+  return {
+    WEKNORA_API_KEY_ENV: config.knowledgeBase.apiKeyEnv,
+    WEKNORA_BASE_URL: config.knowledgeBase.baseUrl,
+    ...config.knowledgeBase.tenantId === undefined ? {} : { WEKNORA_TENANT_ID: config.knowledgeBase.tenantId },
+    ...config.knowledgeBase.webUiUrl === undefined ? {} : { WEKNORA_WEB_UI_URL: config.knowledgeBase.webUiUrl },
   }
 }
 

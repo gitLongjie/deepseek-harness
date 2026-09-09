@@ -1,13 +1,19 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { oemClientBuildEnvironment, parseOemConfig, projectOemWebManifest } from './oem-config.ts'
+import {
+  oemClientBuildEnvironment, oemKnowledgeBaseEnvironment, parseOemConfig, projectOemWebManifest,
+} from './oem-config.ts'
 
 const valid = {
   productName: 'Acme Agent',
   brandIcon: '/brand/acme.ico',
   loginUrl: 'https://accounts.acme.test/api/login',
   updateUrl: 'https://updates.acme.test/desktop',
+  knowledgeBase: {
+    baseUrl: 'http://weknora.internal:8080/api/v1',
+    apiKeyEnv: 'ACME_KB_KEY',
+  },
   loginTagline: {
     zh: '探索 Acme 妙想之境',
     en: 'Explore the Acme realm of wonder',
@@ -57,8 +63,7 @@ describe('OEM configuration', () => {
 
   it('accepts a plain-HTTP login endpoint while keeping the update URL HTTPS-only', () => {
     expect(parseOemConfig({ ...valid, loginUrl: 'http://accounts.acme.test/api/login' }, 'fixture').loginUrl)
-      .toBe('http://accounts.acme.test/api/login')
-  })
+      .toBe('http://accounts.acme.test/api/login')  })
 
   it('keeps the repository OEM file parseable as the build source of truth', () => {
     const path = resolve(import.meta.dirname, '..', 'oem.config.json')
@@ -83,5 +88,41 @@ describe('OEM configuration', () => {
       display: 'fullscreen',
       icons: [{ src: '/brand/acme.ico', sizes: 'any', type: 'image/x-icon', purpose: 'any' }],
     })
+  })
+
+  it('projects the knowledge-base connection into the plugin default environment', () => {
+    expect(oemKnowledgeBaseEnvironment(parseOemConfig(valid, 'fixture'))).toEqual({
+      WEKNORA_API_KEY_ENV: 'ACME_KB_KEY',
+      WEKNORA_BASE_URL: 'http://weknora.internal:8080/api/v1',
+    })
+    expect(oemKnowledgeBaseEnvironment(parseOemConfig({
+      ...valid,
+      knowledgeBase: {
+        baseUrl: 'http://weknora.internal:8080/api/v1',
+        apiKeyEnv: 'ACME_KB_KEY',
+        tenantId: 'ws-1',
+        webUiUrl: 'http://weknora.internal:8080',
+      },
+    }, 'fixture'))).toEqual({
+      WEKNORA_API_KEY_ENV: 'ACME_KB_KEY',
+      WEKNORA_BASE_URL: 'http://weknora.internal:8080/api/v1',
+      WEKNORA_TENANT_ID: 'ws-1',
+      WEKNORA_WEB_UI_URL: 'http://weknora.internal:8080',
+    })
+  })
+
+  it('rejects a malformed knowledge-base section before anything compiles', () => {
+    expect(() => {
+      parseOemConfig({ ...valid, knowledgeBase: { baseUrl: 'ftp://weknora.internal' } }, 'fixture')
+    }).toThrow(/knowledgeBase\.baseUrl/)
+    expect(() => {
+      parseOemConfig({ ...valid, knowledgeBase: { apiKeyEnv: 'ACME_KB_KEY' } }, 'fixture')
+    }).toThrow(/knowledgeBase\.baseUrl/)
+    expect(() => {
+      parseOemConfig({ ...valid, knowledgeBase: { ...valid.knowledgeBase, token: 'sk-secret' } }, 'fixture')
+    }).toThrow(/invalid fields/)
+    expect(() => {
+      parseOemConfig({ ...valid, knowledgeBase: { ...valid.knowledgeBase, webUiUrl: 'javascript:alert(1)' } }, 'fixture')
+    }).toThrow(/knowledgeBase\.webUiUrl/)
   })
 })

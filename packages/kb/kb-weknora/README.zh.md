@@ -36,7 +36,7 @@ kind: "package-reference"
 
 ### 最小配置
 
-`baseUrl` 默认指向标准 `docker compose up` 部署(`http://localhost:8080/api/v1`);凭据引用默认 `WEKNORA_API_KEY`,经凭据接缝逐次解析。设 `apiKeyEnv: ''` 声明无鉴权部署,平台级密钥配 `tenantId`,配 `webUiUrl` 让客户端分区获得管理入口。
+yml 中缺席的每个连接字段先经信任环境层解析,再到内置默认:`baseUrl` 回退 `$WEKNORA_BASE_URL`(再到 `http://localhost:8080/api/v1`),凭据引用回退 `$WEKNORA_API_KEY_ENV`(再到 `WEKNORA_API_KEY`,经凭据接缝逐次解析),`tenantId` 回退 `$WEKNORA_TENANT_ID`,`webUiUrl` 回退 `$WEKNORA_WEB_UI_URL`。桌面启动器把 OEM 文件的 `knowledgeBase` 段按这些名字注入,因此打包部署在 `oem.config.json` 里配置连接。设 `apiKeyEnv: ''` 声明无鉴权部署。
 
 ### 会出什么问题
 

@@ -36,7 +36,7 @@ Mount the plugin on a host whose web clients should see the deployment's knowled
 
 ### Minimal configuration
 
-`baseUrl` defaults to a stock `docker compose up` deployment (`http://localhost:8080/api/v1`); the credential reference defaults to `WEKNORA_API_KEY`, resolved per operation through the credentials seam. Set `apiKeyEnv: ''` to declare an unauthenticated deployment, `tenantId` for a platform-level key, and `webUiUrl` to give the client section a manage action.
+Every connection field absent from yml resolves through the trusted environment layer before its built-in default: `baseUrl` falls back to `$WEKNORA_BASE_URL` (then `http://localhost:8080/api/v1`), the credential reference to `$WEKNORA_API_KEY_ENV` (then `WEKNORA_API_KEY`, resolved per operation through the credentials seam), `tenantId` to `$WEKNORA_TENANT_ID`, and `webUiUrl` to `$WEKNORA_WEB_UI_URL`. The desktop launcher injects the OEM file's `knowledgeBase` section as exactly these names, so a packaged deployment configures the connection in `oem.config.json`. Set `apiKeyEnv: ''` to declare an unauthenticated deployment.
 
 ### What can go wrong
 

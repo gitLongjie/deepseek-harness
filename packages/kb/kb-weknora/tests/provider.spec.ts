@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import type { CredentialProvider, CredentialRef } from '@deepseek-ai/dsh-credentials'
+import { DSH_LAUNCH_ENVIRONMENT_KEY, createLaunchEnvironmentSnapshot } from '@deepseek-ai/dsh-launch-environment'
 import WeknoraKnowledgeBase, { WeknoraKnowledgeBaseError } from '../src/index.ts'
 import type { Config } from '../src/index.ts'
 
@@ -17,12 +18,16 @@ function credentials(value: string | undefined) {
 // The Service constructor registers the instance as its context's service, so
 // every provider lives on its own context. A null credential value resolves
 // to nothing (an unconfigured reference), distinct from the empty string that
-// declares an unauthenticated deployment.
-function makeProvider(config: Config = {}, credentialValue: string | null = 'sk-test') {
+// declares an unauthenticated deployment. The optional trusted environment
+// mirrors what the desktop launcher injects from the OEM file.
+function makeProvider(config: Config = {}, credentialValue: string | null = 'sk-test', env?: Record<string, string>) {
   const ctx = new Context()
   const credentialsStub = credentials(credentialValue === null ? undefined : credentialValue)
   ctx.provide('credentials', credentialsStub as unknown as CredentialProvider)
-  return { provider: new WeknoraKnowledgeBase(ctx, config), credentialsStub }
+  if (env !== undefined) {
+    ctx.provide(DSH_LAUNCH_ENVIRONMENT_KEY, createLaunchEnvironmentSnapshot([{ source: 'process', values: env }]))
+  }
+  return { provider: new WeknoraKnowledgeBase(ctx, config), credentialsStub, ctx }
 }
 
 function jsonResponse(body: string, status = 200): Response {
@@ -47,6 +52,44 @@ describe('kb-weknora provider', () => {
 
   it('fails loud at load on a reference outside the credential grammar', () => {
     expect(() => makeProvider({ apiKeyEnv: 'not a name' })).toThrow(/must match/)
+  })
+
+  it('resolves absent connection fields through the trusted environment layer', async () => {
+    const fetchStub = vi.fn(async (_url: string | URL | Request, _init?: RequestInit) => jsonResponse(ENVELOPE))
+    vi.stubGlobal('fetch', fetchStub)
+    // No yml config at all: the OEM-injected environment owns every field.
+    const { provider } = makeProvider({}, 'sk-test', {
+      WEKNORA_API_KEY_ENV: 'ACME_KB_KEY',
+      WEKNORA_BASE_URL: 'http://weknora.internal:8080/api/v1',
+      WEKNORA_TENANT_ID: 'ws-1',
+      WEKNORA_WEB_UI_URL: 'http://weknora.internal:8080',
+    })
+    expect(provider.webUi()).toBe('http://weknora.internal:8080')
+    await provider.list()
+    const [url, init] = fetchStub.mock.calls[0] as unknown as [string, RequestInit]
+    expect(url).toBe('http://weknora.internal:8080/api/v1/knowledge-bases')
+    expect(init.headers).toMatchObject({ 'x-api-key': 'sk-test', 'x-tenant-id': 'ws-1' })
+    // The OEM layer's credential-reference name reaches the seam.
+    const { credentialsStub } = makeProvider({}, null, { WEKNORA_API_KEY_ENV: 'ACME_KB_KEY' })
+    await new Promise((r) => { setTimeout(r, 0) })
+    expect(credentialsStub.resolve).not.toHaveBeenCalled()
+  })
+
+  it('keeps explicit yml config above the environment and the local default below both', async () => {
+    const fetchStub = vi.fn(async (_url: string | URL | Request, _init?: RequestInit) => jsonResponse(ENVELOPE))
+    vi.stubGlobal('fetch', fetchStub)
+    const { provider } = makeProvider({ baseUrl: 'http://explicit.internal/api/v1' }, 'sk-test', {
+      WEKNORA_BASE_URL: 'http://weknora.internal:8080/api/v1',
+    })
+    await provider.list()
+    const [url] = fetchStub.mock.calls[0] as unknown as [string]
+    expect(url).toBe('http://explicit.internal/api/v1/knowledge-bases')
+
+    // Without config or environment the local-deployment default answers.
+    const { provider: local } = makeProvider()
+    await local.list()
+    const [localUrl] = fetchStub.mock.calls[1] as unknown as [string]
+    expect(localUrl).toBe('http://localhost:8080/api/v1/knowledge-bases')
   })
 
   it('lists the bases the credential can see, falling the name back to the id', async () => {

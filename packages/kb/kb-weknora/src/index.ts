@@ -24,6 +24,7 @@ import type {
 } from '@deepseek-ai/dsh-kb'
 import type { CredentialProvider, CredentialRef } from '@deepseek-ai/dsh-credentials'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
+import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
 
 /** Default API root of a stock `docker compose up` deployment. */
 const DEFAULT_BASE_URL = 'http://localhost:8080/api/v1'
@@ -33,26 +34,31 @@ const DOCUMENT_CHUNK_PAGE_SIZE = 20
 
 /** Plugin config (all fields optional — `static Config` supplies the defaults). */
 export interface Config {
-  /** WeKnora API root including its version prefix, e.g. `http://weknora.internal:8080/api/v1`. */
+  /**
+   * WeKnora API root including its version prefix, e.g. `http://weknora.internal:8080/api/v1`.
+   * Falls back to $WEKNORA_BASE_URL from the trusted environment layer, then
+   * the local-deployment default.
+   */
   baseUrl?: string
   /**
    * Credential reference (environment-variable name) resolved per operation;
-   * default `WEKNORA_API_KEY`. Set the reference to the empty string in yml
-   * (`apiKeyEnv: ''`) to declare an unauthenticated deployment.
+   * falls back to $WEKNORA_API_KEY_ENV, then `WEKNORA_API_KEY`. Set the
+   * reference to the empty string in yml (`apiKeyEnv: ''`) to declare an
+   * unauthenticated deployment.
    */
   apiKeyEnv?: string
-  /** Workspace scope for a platform-level API key, sent as `X-Tenant-ID`. */
+  /** Workspace scope for a platform-level API key, sent as `X-Tenant-ID`; falls back to $WEKNORA_TENANT_ID. */
   tenantId?: string
   /** Per-request wall-time bound (ms, default 15,000). */
   requestTimeoutMs?: number
   /** Maximum accepted response body size (bytes, default 8 MiB). */
   maxResponseBytes?: number
-  /** Browser-openable deployment console the client section's manage action opens. */
+  /** Browser-openable deployment console the client page's manage action opens; falls back to $WEKNORA_WEB_UI_URL. */
   webUiUrl?: string
 }
 
-/** The shape after schemastery applied the defaults (optional fields stay optional). */
-type ResolvedConfig = Required<Omit<Config, 'tenantId' | 'webUiUrl'>> & Pick<Config, 'tenantId' | 'webUiUrl'>
+/** The shape after schemastery applied the defaults (env-fallback fields stay optional). */
+type ResolvedConfig = Required<Pick<Config, 'requestTimeoutMs' | 'maxResponseBytes'>> & Omit<Config, 'requestTimeoutMs' | 'maxResponseBytes'>
 
 /** One request rejected by the transport or the WeKnora response contract. The message never carries the credential. */
 export class WeknoraKnowledgeBaseError extends Error {
@@ -89,8 +95,8 @@ export default class WeknoraKnowledgeBase extends KnowledgeBase {
   static inject = ['credentials']
 
   static Config: z<Config> = z.object({
-    baseUrl: z.string().default(DEFAULT_BASE_URL),
-    apiKeyEnv: z.string().role('credential-ref').default('WEKNORA_API_KEY'),
+    baseUrl: z.string(),
+    apiKeyEnv: z.string().role('credential-ref'),
     tenantId: z.string(),
     requestTimeoutMs: z.number().step(1).min(1).default(15_000),
     maxResponseBytes: z.number().step(1).min(1).default(8 * 1024 * 1024),
@@ -109,17 +115,33 @@ export default class WeknoraKnowledgeBase extends KnowledgeBase {
     super(ctx)
     // Parse through the schema here so a direct construction receives the same
     // defaults the loader applies before construction; a loader-parsed config
-    // is idempotent under this second parse.
+    // is idempotent under this second parse. Connection fields absent from
+    // yml resolve through the trusted environment layer — the OEM file, an
+    // exported variable, or a .env layer may own them — before the local
+    // default, mirroring llm-deepseek's endpoint fallback.
     const resolved = WeknoraKnowledgeBase.Config(config) as ResolvedConfig
-    assertHttpUrl('baseUrl', resolved.baseUrl)
-    if (resolved.webUiUrl !== undefined && resolved.webUiUrl !== '') {
-      assertHttpUrl('webUiUrl', resolved.webUiUrl)
+    const env = launchEnvironmentOf(ctx)
+    const envValue = (name: string): string | undefined => {
+      const hit = env.get(name)
+      return hit !== undefined && hit.value !== '' ? hit.value : undefined
     }
-    this.baseUrl = resolved.baseUrl.replace(/\/+$/, '')
-    // An explicitly empty reference declares an unauthenticated deployment.
-    this.apiKeyEnv = resolved.apiKeyEnv === '' ? undefined : credentialRef(resolved.apiKeyEnv)
-    this.tenantId = resolved.tenantId
-    this.webUiUrl = resolved.webUiUrl === '' ? undefined : resolved.webUiUrl
+    const baseUrl = resolved.baseUrl ?? envValue('WEKNORA_BASE_URL') ?? DEFAULT_BASE_URL
+    assertHttpUrl('baseUrl', baseUrl)
+    const webUiUrl = resolved.webUiUrl !== undefined && resolved.webUiUrl !== ''
+      ? resolved.webUiUrl
+      : envValue('WEKNORA_WEB_UI_URL')
+    if (webUiUrl !== undefined) assertHttpUrl('webUiUrl', webUiUrl)
+    this.baseUrl = baseUrl.replace(/\/+$/, '')
+    // An explicitly empty reference declares an unauthenticated deployment;
+    // an absent one resolves the OEM layer's name, then the standard default.
+    const apiKeyEnv = resolved.apiKeyEnv !== undefined
+      ? resolved.apiKeyEnv
+      : (envValue('WEKNORA_API_KEY_ENV') ?? 'WEKNORA_API_KEY')
+    this.apiKeyEnv = apiKeyEnv === '' ? undefined : credentialRef(apiKeyEnv)
+    this.tenantId = resolved.tenantId !== undefined && resolved.tenantId !== ''
+      ? resolved.tenantId
+      : envValue('WEKNORA_TENANT_ID')
+    this.webUiUrl = webUiUrl
     this.timeoutMs = resolved.requestTimeoutMs
     this.maxResponseBytes = resolved.maxResponseBytes
     this.credentials = ctx.credentials

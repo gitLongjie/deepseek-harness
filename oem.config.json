@@ -3,6 +3,11 @@
   "brandIcon": "/favicon.ico",
   "loginUrl": "http://ciyuan.three-friend.com/api/user/deepagens-claw/login",
   "updateUrl": "https://github.com/gitLongjie/miaoWorker/releases/latest/download",
+  "knowledgeBase": {
+    "baseUrl": "http://localhost:8080/api/v1",
+    "apiKeyEnv": "WEKNORA_API_KEY",
+    "webUiUrl": "http://localhost:8080"
+  },
   "loginTagline": {
     "zh": "喵力加持，事事有着落",
     "en": "With a helping paw, everything lands."

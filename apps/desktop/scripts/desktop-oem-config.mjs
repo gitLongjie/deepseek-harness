@@ -27,7 +27,53 @@ export function readDesktopOemConfig(repoRoot, environment = process.env) {
   if (!isHttpsUrl(updateUrl) && !(localUpdateTest && isLoopbackHttpUrl(updateUrl))) {
     throw new Error('oem.config.json.updateUrl must be an HTTPS URL')
   }
-  return { productName, brandIcon, updateUrl }
+  const knowledgeBase = readOemKnowledgeBase(oemConfig.knowledgeBase)
+  return { productName, brandIcon, updateUrl, knowledgeBase }
+}
+
+/**
+ * Read the OEM knowledge-base section for packaging: validated here so a bad
+ * section fails the build, and baked into the packaged manifest so the
+ * packaged runtime resolves the same connection a source run reads from the
+ * repository file. The secret itself never enters the file — only the
+ * credential-reference name does.
+ */
+function readOemKnowledgeBase(value) {
+  if (value === undefined) return undefined
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new Error('oem.config.json.knowledgeBase must be an object')
+  }
+  const allowed = ['apiKeyEnv', 'baseUrl', 'tenantId', 'webUiUrl']
+  const extra = Object.keys(value).filter(key => !allowed.includes(key))
+  if (extra.length > 0) throw new Error(`oem.config.json.knowledgeBase has invalid fields: ${extra.join(', ')}`)
+  const baseUrl = nonEmptyString(value.baseUrl, 'oem.config.json.knowledgeBase.baseUrl')
+  assertHttpUrl(baseUrl, 'oem.config.json.knowledgeBase.baseUrl')
+  const apiKeyEnv = value.apiKeyEnv === undefined
+    ? 'WEKNORA_API_KEY'
+    : nonEmptyString(value.apiKeyEnv, 'oem.config.json.knowledgeBase.apiKeyEnv')
+  const section = { baseUrl, apiKeyEnv }
+  if (value.tenantId !== undefined) section.tenantId = nonEmptyString(value.tenantId, 'oem.config.json.knowledgeBase.tenantId')
+  const webUiUrl = value.webUiUrl === undefined ? undefined : nonEmptyString(value.webUiUrl, 'oem.config.json.knowledgeBase.webUiUrl')
+  if (webUiUrl !== undefined) {
+    assertHttpUrl(webUiUrl, 'oem.config.json.knowledgeBase.webUiUrl')
+    section.webUiUrl = webUiUrl
+  }
+  return section
+}
+
+function nonEmptyString(value, subject) {
+  if (typeof value !== 'string' || value.trim() === '') throw new Error(`${subject} must be a non-empty string`)
+  return value
+}
+
+function assertHttpUrl(value, subject) {
+  try {
+    const protocol = new URL(value).protocol
+    if (protocol === 'http:' || protocol === 'https:') return
+  } catch {
+    // The diagnostic below owns malformed values.
+  }
+  throw new Error(`${subject} must be an HTTP or HTTPS URL`)
 }
 
 /** Copy the configured Web icon into every native desktop icon slot. */
@@ -62,6 +108,7 @@ export function createElectronBuilderOemConfig(productName, updateUrl, options =
       dsh: {
         updateUrl,
         ...(options.localUpdateFeed ? { localUpdateTest: true } : {}),
+        ...(options.knowledgeBase === undefined ? {} : { knowledgeBase: options.knowledgeBase }),
       },
     },
   }

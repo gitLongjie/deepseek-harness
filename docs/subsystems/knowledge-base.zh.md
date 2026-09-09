@@ -20,7 +20,7 @@ interface KnowledgeBaseView {
 
 ## 提供者
 
-`dsh-kb-weknora` 通过每次读取一个有界请求调用 WeKnora 的 `GET /knowledge-bases`:墙钟时间上界、响应体大小上界,以及经[凭据](credentials.zh.md)接缝的逐次凭据解析,轮换后的密钥无需重启即可到达下一次调用。base URL 是部署自有配置且通常位于内网,因此与市场传输不同,本提供者不设公网地址守卫——配置的 URL 就是信任决策。非数组列表或缺少 id 的库是响亮的契约失败,绝不会静默清空侧边栏。
+`dsh-kb-weknora` 通过每次读取一个有界请求调用 WeKnora 的 `GET /knowledge-bases`:墙钟时间上界、响应体大小上界,以及经[凭据](credentials.zh.md)接缝的逐次凭据解析,轮换后的密钥无需重启即可到达下一次调用。base URL 是部署自有配置且通常位于内网,因此与市场传输不同,本提供者不设公网地址守卫——配置的 URL 就是信任决策。yml 缺席的连接字段先经信任环境层(`$WEKNORA_BASE_URL` 等)解析再到内置默认;桌面启动器把 OEM 文件的 `knowledgeBase` 段按这些名字注入。非数组列表或缺少 id 的库是响亮的契约失败,绝不会静默清空侧边栏。
 
 ## 文档
 

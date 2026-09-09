@@ -20,7 +20,7 @@ interface KnowledgeBaseView {
 
 ## Provider
 
-`dsh-kb-weknora` speaks WeKnora's `GET /knowledge-bases` through one bounded request per read: wall-time bound, body-size bound, and a per-operation credential resolution through the [credentials](credentials.md) seam, so a rotated key reaches the next call without a restart. The base URL is deployment-owned configuration and is commonly intranet, so unlike the market transport this provider runs no public-address guard — the configured URL is the trust decision. A non-array listing or a base without an id is a loud contract failure, never a silently emptied sidebar.
+`dsh-kb-weknora` speaks WeKnora's `GET /knowledge-bases` through one bounded request per read: wall-time bound, body-size bound, and a per-operation credential resolution through the [credentials](credentials.md) seam, so a rotated key reaches the next call without a restart. The base URL is deployment-owned configuration and is commonly intranet, so unlike the market transport this provider runs no public-address guard — the configured URL is the trust decision. Connection fields absent from yml resolve through the trusted environment layer (`$WEKNORA_BASE_URL` et al.) before the built-in defaults; the desktop launcher injects the OEM file's `knowledgeBase` section as those names. A non-array listing or a base without an id is a loud contract failure, never a silently emptied sidebar.
 
 ## Documents
 

@@ -966,26 +966,31 @@ Requires: `credentials`
 ```ts config-catalog
 /** Plugin config (all fields optional — `static Config` supplies the defaults). */
 export interface Config {
-  /** WeKnora API root including its version prefix, e.g. `http://weknora.internal:8080/api/v1`. */
+  /**
+   * WeKnora API root including its version prefix, e.g. `http://weknora.internal:8080/api/v1`.
+   * Falls back to $WEKNORA_BASE_URL from the trusted environment layer, then
+   * the local-deployment default.
+   */
   baseUrl?: string
   /**
    * Credential reference (environment-variable name) resolved per operation;
-   * default `WEKNORA_API_KEY`. Set the reference to the empty string in yml
-   * (`apiKeyEnv: ''`) to declare an unauthenticated deployment.
+   * falls back to $WEKNORA_API_KEY_ENV, then `WEKNORA_API_KEY`. Set the
+   * reference to the empty string in yml (`apiKeyEnv: ''`) to declare an
+   * unauthenticated deployment.
    */
   apiKeyEnv?: string
-  /** Workspace scope for a platform-level API key, sent as `X-Tenant-ID`. */
+  /** Workspace scope for a platform-level API key, sent as `X-Tenant-ID`; falls back to $WEKNORA_TENANT_ID. */
   tenantId?: string
   /** Per-request wall-time bound (ms, default 15,000). */
   requestTimeoutMs?: number
   /** Maximum accepted response body size (bytes, default 8 MiB). */
   maxResponseBytes?: number
-  /** Browser-openable deployment console the client section's manage action opens. */
+  /** Browser-openable deployment console the client page's manage action opens; falls back to $WEKNORA_WEB_UI_URL. */
   webUiUrl?: string
 }
 ```
 
-Source: [`packages/kb/kb-weknora/src/index.ts:30`](../packages/kb/kb-weknora/src/index.ts)
+Source: [`packages/kb/kb-weknora/src/index.ts:36`](../packages/kb/kb-weknora/src/index.ts)
 
 <a id="deepseek-aidsh-llm-deepseek"></a>
 

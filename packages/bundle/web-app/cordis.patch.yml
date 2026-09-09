@@ -95,14 +95,16 @@
 
     # Enterprise knowledge base: the WeKnora provider lists the bases the
     # configured credential can see, and the Remote gateway projects them for
-    # the client sidebar's knowledge section. Point `baseUrl` at the
-    # deployment and store its key under the WEKNORA_API_KEY credential
-    # reference; remove both rows (plus `ui-knowledge-base` below) to turn
+    # the client's knowledge page. The connection stays deliberately unset
+    # here: baseUrl/tenantId/webUiUrl resolve through the trusted
+    # environment layer ($WEKNORA_BASE_URL et al. — the desktop launcher
+    # injects the OEM file's knowledgeBase section there) before the local
+    # default, and the key always lives under the WEKNORA_API_KEY credential
+    # reference. Remove both rows (plus `ui-knowledge-base` below) to turn
     # the surface off.
     - id: kb-weknora
       name: '@deepseek-ai/dsh-kb-weknora'
       config:
-        baseUrl: http://localhost:8080/api/v1
         requestTimeoutMs: 15000
         maxResponseBytes: 8388608
 

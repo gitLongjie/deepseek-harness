@@ -18,7 +18,7 @@ import {
 const root = fileURLToPath(new URL('../', import.meta.url))
 const repoRoot = resolve(root, '../..')
 const dshImRoot = resolve(repoRoot, 'dsh-im', 'dsh-im-main')
-const { productName, updateUrl } = readDesktopOemConfig(repoRoot)
+const { productName, updateUrl, knowledgeBase } = readDesktopOemConfig(repoRoot)
 // pnpm 11's deps-status check aborts in a non-interactive shell unless CI is
 // set; stamp it so every pnpm invocation here inherits it.
 process.env.CI = process.env.CI ?? 'true'
@@ -76,6 +76,7 @@ mkdirSync(dirname(builderConfigPath), { recursive: true })
 writeFileSync(builderConfigPath, `${JSON.stringify(createElectronBuilderOemConfig(productName, updateUrl, {
   allowLoopbackHttp: localUpdateTest,
   localUpdateFeed: localUpdateTest,
+  knowledgeBase,
   output: process.env.DSH_DESKTOP_LOCAL_UPDATE_OUTPUT,
   version: process.env.DSH_DESKTOP_BUILD_VERSION,
   asarUnpack: ASAR_UNPACK_GLOBS,
