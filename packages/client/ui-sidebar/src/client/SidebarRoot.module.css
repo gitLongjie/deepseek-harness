@@ -180,21 +180,22 @@
   color: var(--dsw-alias-label-primary);
 }
 
-/* New Session: 38px bar, 12px radius (figma 133:7634 geometry, squared-off
-   corners); collapsed it renders as the rail's plain icon control. */
+/* New Session: a flat row matching the browsing-region rows (8px radius,
+   transparent fill, hover chrome); collapsed it renders as the rail's plain
+   icon control. */
 .newSession {
   flex: none;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 6px;
-  height: 38px;
-  padding: 8px 16px;
+  height: 36px;
+  padding: 0 8px;
   margin: 0 2px 8px;
   box-sizing: border-box;
-  border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 12px;
-  background: var(--dsw-alias-button-elevated-fill);
+  border: none;
+  border-radius: 8px;
+  background: transparent;
   color: var(--dsw-alias-label-primary);
   font-size: 14px;
   font-weight: 500;
@@ -204,17 +205,17 @@
 }
 
 .newSession:hover {
-  background: var(--dsw-alias-button-floating-hover);
+  background: var(--dsw-alias-interactive-bg-hover);
 }
 
 .collapsed .newSession {
   align-self: flex-start;
+  justify-content: center;
   width: 36px;
   height: 36px;
   padding: 0;
   margin: 0 0 12px;
   gap: 0;
-  border-color: transparent;
   background: transparent;
 }
 

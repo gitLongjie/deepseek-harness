@@ -1094,6 +1094,9 @@ importers:
       '@deepseek-ai/dsh-invariants':
         specifier: workspace:^
         version: link:../../runtime-diagnostics/invariants
+      '@deepseek-ai/dsh-kb-gateway':
+        specifier: workspace:^
+        version: link:../../kb/kb-gateway
       '@deepseek-ai/dsh-llm':
         specifier: workspace:^
         version: link:../../llm/llm
@@ -1872,6 +1875,9 @@ importers:
       '@deepseek-ai/dsh-client-ui-jobs':
         specifier: workspace:^
         version: link:../../client/ui-jobs
+      '@deepseek-ai/dsh-client-ui-knowledge-base':
+        specifier: workspace:^
+        version: link:../../client/ui-knowledge-base
       '@deepseek-ai/dsh-client-ui-layout':
         specifier: workspace:^
         version: link:../../client/ui-layout
@@ -1980,6 +1986,12 @@ importers:
       '@deepseek-ai/dsh-host-webserver':
         specifier: workspace:^
         version: link:../../host/webserver
+      '@deepseek-ai/dsh-kb-gateway':
+        specifier: workspace:^
+        version: link:../../kb/kb-gateway
+      '@deepseek-ai/dsh-kb-weknora':
+        specifier: workspace:^
+        version: link:../../kb/kb-weknora
       '@deepseek-ai/dsh-launch-environment':
         specifier: workspace:^
         version: link:../../util/launch-environment
@@ -2927,6 +2939,58 @@ importers:
       '@deepseek-ai/dsh-client-ui-session':
         specifier: workspace:^
         version: link:../ui-session
+      '@deepseek-ai/dsh-client-ui-slots':
+        specifier: workspace:^
+        version: link:../ui-slots
+      '@deepseek-ai/dsh-invariants':
+        specifier: workspace:^
+        version: link:../../runtime-diagnostics/invariants
+      '@types/react':
+        specifier: ~18.3.1
+        version: 18.3.31
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+
+  packages/client/ui-knowledge-base:
+    dependencies:
+      clsx:
+        specifier: ^2.0.0
+        version: 2.1.1
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-api-remotes':
+        specifier: workspace:^
+        version: link:../../api/remotes
+      '@deepseek-ai/dsh-api-session-controller':
+        specifier: workspace:^
+        version: link:../../api/session-controller
+      '@deepseek-ai/dsh-client-locale':
+        specifier: workspace:^
+        version: link:../locale
+      '@deepseek-ai/dsh-client-store':
+        specifier: workspace:^
+        version: link:../store
+      '@deepseek-ai/dsh-client-test-runtime':
+        specifier: workspace:^
+        version: link:../../test-support/client-runtime
+      '@deepseek-ai/dsh-client-ui-conversation':
+        specifier: workspace:^
+        version: link:../ui-conversation
+      '@deepseek-ai/dsh-client-ui-primitives':
+        specifier: workspace:^
+        version: link:../ui-primitives
+      '@deepseek-ai/dsh-client-ui-renderer':
+        specifier: workspace:^
+        version: link:../ui-renderer
+      '@deepseek-ai/dsh-client-ui-session':
+        specifier: workspace:^
+        version: link:../ui-session
+      '@deepseek-ai/dsh-client-ui-sidebar':
+        specifier: workspace:^
+        version: link:../ui-sidebar
       '@deepseek-ai/dsh-client-ui-slots':
         specifier: workspace:^
         version: link:../ui-slots
@@ -6690,6 +6754,59 @@ importers:
       '@deepseek-ai/dsh-tools':
         specifier: workspace:^
         version: link:../../core/tools
+
+  packages/kb/kb:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-brand':
+        specifier: workspace:^
+        version: link:../../util/brand
+      '@deepseek-ai/dsh-invariants':
+        specifier: workspace:^
+        version: link:../../runtime-diagnostics/invariants
+
+  packages/kb/kb-gateway:
+    dependencies:
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-brand':
+        specifier: workspace:^
+        version: link:../../util/brand
+      '@deepseek-ai/dsh-invariants':
+        specifier: workspace:^
+        version: link:../../runtime-diagnostics/invariants
+      '@deepseek-ai/dsh-kb':
+        specifier: workspace:^
+        version: link:../kb
+      '@deepseek-ai/dsh-typert-protocol':
+        specifier: workspace:^
+        version: link:../../typert/protocol
+
+  packages/kb/kb-weknora:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-credentials':
+        specifier: workspace:^
+        version: link:../../credentials/credentials
+      '@deepseek-ai/dsh-invariants':
+        specifier: workspace:^
+        version: link:../../runtime-diagnostics/invariants
+      '@deepseek-ai/dsh-kb':
+        specifier: workspace:^
+        version: link:../kb
 
   packages/llm/deepseek-llm-api-extensions:
     devDependencies:

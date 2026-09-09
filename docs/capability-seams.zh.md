@@ -190,6 +190,10 @@ flowchart LR
   svc_market["ctx.market<br/>Plugin market"]
   pkg_market_local["market-local"]
   pkg_market_gateway["market-gateway"]
+  pkg_kb["kb"]
+  svc_knowledgeBase["ctx.knowledgeBase<br/>Knowledge base"]
+  pkg_kb_weknora["kb-weknora"]
+  pkg_kb_gateway["kb-gateway"]
   pkg_web["web"]
   svc_web["ctx.web<br/>Web access provider registry"]
   pkg_web_search_exa["web-search-exa"]
@@ -269,6 +273,8 @@ flowchart LR
   pkg_invariants --> svc_invariants
   pkg_jobs --> svc_jobs
   pkg_jobs_local --> svc_jobs
+  pkg_kb --> svc_knowledgeBase
+  pkg_kb_weknora --> svc_knowledgeBase
   pkg_llm --> svc_llm
   pkg_llm_deepseek --> svc_llm
   pkg_llm_pi_ai --> svc_llm
@@ -379,6 +385,7 @@ flowchart LR
   svc_jobs --> pkg_tool_jobs
   svc_jobs --> pkg_tool_subagent
   svc_jobs --> pkg_tool_terminal
+  svc_knowledgeBase --> pkg_kb_gateway
   svc_llm --> pkg_agent_loop
   svc_llm --> pkg_compaction_basic
   svc_lsp --> pkg_tool_lsp
@@ -532,6 +539,7 @@ flowchart LR
 | `ctx.inspector` | `core` | `inspector` | - | - | - | 负责 Worker 托管的 CDP target，以及独立于传输的 Host 和 Client observation 与 Cordis tree query API。 |
 | `ctx.jobs` | `seam` | [`jobs`](../packages/jobs/jobs) | [`jobs-local`](../packages/jobs/jobs-local) | [`tool-bash`](../packages/shell/tool-bash), [`tool-terminal`](../packages/terminal/tool-terminal), [`tool-subagent`](../packages/subagent/tool-subagent), [`tool-jobs`](../packages/jobs/tool-jobs) | - | 生产方（后台 bash、PTY 发送和 subagent 委派）登记正在运行的工作；tool-jobs 是面向模型的控制器，用于读取、列出和终止这些工作；jobs-local 是进程本地注册表。 |
 | `ctx.market` | `seam` | [`market`](../packages/market/market) | [`market-local`](../packages/market/market-local) | [`market-gateway`](../packages/market/market-gateway) | - | market-local 提供方读取已配置的目录源，对候选包执行 npm 注册表校验，并将确切版本安装进受管 profile；market-gateway 把该 seam 投影到 Typert 线路供 Web 设置页使用，`dsh market` CLI 则在进程内直接读取它。 |
+| `ctx.knowledgeBase` | `seam` | [`kb`](../packages/kb/kb) | [`kb-weknora`](../packages/kb/kb-weknora) | [`kb-gateway`](../packages/kb/kb-gateway) | - | kb-weknora 提供者列出自主托管 WeKnora 部署向所配置凭据暴露的库；kb-gateway 将该接缝投影到 Typert wire，供 Web 侧边栏知识分区使用。 |
 | `ctx.web` | `seam` | [`web`](../packages/web/web) | [`web-search-exa`](../packages/web/web-search-exa), [`web-search-perplexity`](../packages/web/web-search-perplexity), [`web-search-deepseek`](../packages/web/web-search-deepseek), [`web-fetch-http`](../packages/web/web-fetch-http) | [`tool-web`](../packages/web/tool-web) | - | 搜索和抓取提供方注册到同一个 ctx.web seam；tool-web 负责稳定的面向模型名称。 |
 | `ctx.spillStore` | `seam` | [`spill`](../packages/spill/spill) | [`spill-local`](../packages/spill/spill-local) | [`spill-policy`](../packages/spill/spill-policy) | - | 后端保存过大的工具文本，并返回面向模型的定位信息和取回提示；spill-policy 是 tools/post-execute 消费方，负责决定何时 spill。 |
 | `ctx.directoryPicker` | `seam` | [`host-directory-picker`](../packages/host/directory-picker) | [`host-directory-picker-native`](../packages/host/directory-picker-native), [`host-directory-picker-browse`](../packages/host/directory-picker-browse) | [`api-workspace-controller`](../packages/api/workspace-controller) | - | 带判别标记的交互能力：原生后端在 Host 显示设备上打开一个操作系统选择器，浏览后端为应用内浏览器提供列表与创建原语；双端后端通过其浏览器侧填充 ui-workspace 目录流程的 slot（不通过协议发布）。 |

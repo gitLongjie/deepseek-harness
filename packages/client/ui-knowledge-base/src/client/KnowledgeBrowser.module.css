@@ -1,0 +1,285 @@
+/* The knowledge-base document browser: the conversation-area view that
+   replaces the session surface while a base is under browse. Fills the
+   center column with the ima-style page: header over a three-column table. */
+
+.root {
+  --dsh-kb-table-columns: minmax(0, 1fr) 96px 88px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  padding: 16px 24px 0;
+}
+
+.browserHeader {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  margin-bottom: 12px;
+}
+
+.backButton {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.backButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.browserTitle {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.searchSlot {
+  flex: 1;
+  max-width: 28px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-left: auto;
+  box-sizing: border-box;
+  transition: max-width 180ms var(--ds-ease-in-out);
+}
+
+.searchSlotExpanded {
+  max-width: 260px;
+}
+
+.search {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  width: 100%;
+  height: 28px;
+  padding: 0;
+  box-sizing: border-box;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  cursor: text;
+  color: var(--dsw-alias-label-secondary);
+  overflow: hidden;
+  transition:
+    width 180ms var(--ds-ease-in-out),
+    padding 180ms var(--ds-ease-in-out),
+    border-color 180ms var(--ds-ease-in-out),
+    background-color 180ms var(--ds-ease-in-out);
+}
+
+.searchExpanded {
+  height: 30px;
+  padding: 0 4px 0 0;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--dsw-alias-label-caption);
+}
+
+.searchButton {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  color: inherit;
+}
+
+.searchExpanded .searchButton {
+  width: 28px;
+  height: 30px;
+}
+
+.searchButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.searchExpanded .searchButton:hover {
+  background: transparent;
+}
+
+.searchInput {
+  flex: 1;
+  width: 0;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  opacity: 0;
+  pointer-events: none;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-primary);
+  transition: opacity 120ms var(--ds-ease-in-out);
+}
+
+.searchExpanded .searchInput {
+  margin-left: -2px;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.searchInput::placeholder {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.askButton {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  border: none;
+  border-radius: 8px;
+  padding: 0 10px;
+  background: transparent;
+  cursor: pointer;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.askButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* Column header and rows share one grid so the columns stay aligned. */
+.tableHead,
+.docRow {
+  display: grid;
+  grid-template-columns: var(--dsh-kb-table-columns);
+  gap: 12px;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.tableHead {
+  flex: none;
+  height: 36px;
+  padding: 0 12px 0 4px;
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.columnUpdated {
+  text-align: right;
+}
+
+.tableBody {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 4px 16px;
+  scrollbar-gutter: stable;
+}
+
+.statusRow {
+  padding: 12px 8px;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.retryButton {
+  border: none;
+  padding: 0;
+  margin-left: 8px;
+  background: transparent;
+  cursor: pointer;
+  font-size: inherit;
+  line-height: inherit;
+  color: var(--dsw-alias-state-business-primary);
+}
+
+.retryButton:hover {
+  text-decoration: underline;
+}
+
+.docRow {
+  min-height: 40px;
+  border-radius: 8px;
+  padding: 4px 12px 4px 4px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.docRow:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.docRow + .docRow {
+  margin-top: 2px;
+}
+
+.docName {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.docIcon {
+  flex: none;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.docTitle {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.docType {
+  font-size: 12px;
+  line-height: 18px;
+  letter-spacing: 0.02em;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.docUpdated {
+  font-size: 12px;
+  line-height: 18px;
+  text-align: right;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .search,
+  .searchSlot,
+  .searchInput {
+    transition: none;
+  }
+}

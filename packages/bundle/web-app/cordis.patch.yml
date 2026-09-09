@@ -93,6 +93,24 @@
     - id: market-gateway
       name: '@deepseek-ai/dsh-market-gateway'
 
+    # Enterprise knowledge base: the WeKnora provider lists the bases the
+    # configured credential can see, and the Remote gateway projects them for
+    # the client sidebar's knowledge section. Point `baseUrl` at the
+    # deployment and store its key under the WEKNORA_API_KEY credential
+    # reference; remove both rows (plus `ui-knowledge-base` below) to turn
+    # the surface off.
+    - id: kb-weknora
+      name: '@deepseek-ai/dsh-kb-weknora'
+      config:
+        baseUrl: http://localhost:8080/api/v1
+        requestTimeoutMs: 15000
+        maxResponseBytes: 8388608
+
+    # The knowledge-base Remote surface over Typert (the `knowledgeBase`
+    # namespace).
+    - id: kb-gateway
+      name: '@deepseek-ai/dsh-kb-gateway'
+
     # Session commands, cold reads, and live control over Typert Remote.
     - id: session-controller
       name: '@deepseek-ai/dsh-api-session-controller'
@@ -256,6 +274,12 @@
     - id: ui-deliverables
       name: '@deepseek-ai/dsh-client-ui-deliverables'
 
+
+    # The sidebar's knowledge-base section (above the workspace region);
+    # `kb-weknora` / `kb-gateway` above feed it. Remove this entry to turn
+    # the surface off; the region renders without the section.
+    - id: ui-knowledge-base
+      name: '@deepseek-ai/dsh-client-ui-knowledge-base'
 
     - id: ui-workspace
       name: '@deepseek-ai/dsh-client-ui-workspace'

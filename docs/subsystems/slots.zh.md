@@ -82,6 +82,8 @@ Slot 声明固定两个相互独立的维度。
 |---|---|---|
 | 所有 scope | `useSessions`、`useSessionPendingInteraction` | `ui-session` |
 | 所有 scope | `useWorkspaces` | `ui-workspace` |
+| 所有 scope | (slot 洞) `sidebar.knowledge` | 由 `ui-sidebar` 声明，`ui-knowledge-base` 占用 |
+| 所有 scope | (slot 洞) `conversation.knowledge.browser` | 由 `ui-conversation` 声明，`ui-knowledge-base` 占用 |
 | `session` | `sessionId`、`useSession`、`useProjection` | `ui-session` |
 | `session-maybe` | 结果可选的 `sessionId`、`useSession`、`useProjection` | `ui-session` |
 | `session` | `useConversation`、`useInput`、`inputActions` | `ui-conversation` |

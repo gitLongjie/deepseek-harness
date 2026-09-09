@@ -1,9 +1,9 @@
 /**
  * Sidebar slot contract: the registrant-side props composition for the
  * layout-owned `sidebar` slot, plus the holes this shell declares. The shell
- * owns column geometry (fold state machine, brand row, New Session);
- * everything between the section header and the list bottom is the
- * `sidebar.workspaces` registrant's (ui-workspace), and the foot is the
+ * owns column geometry (fold state machine, brand row, New Session row);
+ * the browsing region is the `sidebar.knowledge` registrant's section above
+ * the `sidebar.workspaces` registrant's (ui-workspace), and the foot is the
  * `sidebar.settings` registrant's (ui-settings), followed by optional footer
  * actions in `sidebar.footer.action`.
  */
@@ -26,6 +26,13 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      * package's `sidebar` entry; the shell supplies a generic text fallback.
      */
     'sidebar.brand.name': { kind: 'single'; scope: 'root'; owner: SidebarBrandNameOwnerProps }
+    /**
+     * The knowledge-base browsing section rendered above the workspace
+     * section. Declared by this package's 'sidebar' entry; optional — a
+     * deployment without a knowledge provider registers no occupant and the
+     * region renders without the section.
+     */
+    'sidebar.knowledge': { kind: 'single'; scope: 'root'; owner: SidebarSectionOwnerProps }
     /**
      * The workspace/session browsing region: section header, search, the
      * grouped/flat session list, and every workspace dialog. Declared by this
@@ -111,6 +118,7 @@ export type SidebarRootComponentProps =
   & PropsRenderSlots<
     | 'sidebar.brand.mark'
     | 'sidebar.brand.name'
+    | 'sidebar.knowledge'
     | 'sidebar.workspaces'
     | 'sidebar.settings'
     | 'sidebar.footer.action'

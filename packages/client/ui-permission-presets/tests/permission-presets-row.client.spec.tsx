@@ -55,6 +55,7 @@ const runtime = {
   useSessions: (() => { throw new Error('unused') }) as never,
   useSessionPendingInteraction,
   useWorkspaces: (() => { throw new Error('unused') }) as never,
+  useKnowledgeView: (() => { throw new Error('unused') }) as never,
 }
 
 function mount(controller: PermissionPresetSettingsController, dictionary: Record<string, string> = en) {

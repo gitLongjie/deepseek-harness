@@ -129,6 +129,10 @@ function mount(
     viewTabs?: ViewTab[]
     /** Pending user interaction shown while a takeover owns the composer. */
     pendingInteraction?: SessionPendingInteraction
+    /** A knowledge base under browse: the browser view replaces the session area. */
+    browsedBase?: { id: string; name: string }
+    /** Mount without a current Session (the browser branch requires it). */
+    noSession?: boolean
   } = {},
 ) {
   const root = sid('root')
@@ -293,13 +297,14 @@ function mount(
       : (opts?.fallback ?? null)
   )) as ConversationRootProps['renderSlotChain']
   const props: ConversationRootProps = {
-    sessionId: SID,
+    sessionId: options.noSession === true ? undefined : SID,
     SessionProvider: ({ children }) => children,
     useSession,
     useConversation,
     useSessions: bindSnapshotSelector(sessions),
     useSessionPendingInteraction,
     useWorkspaces: bindSnapshotSelector(workspaces),
+    useKnowledgeView: bindSnapshotSelector(createSnapshotStore<{ open: boolean }>({ open: options.browsedBase !== undefined })),
     useProjection: (() => undefined),
     useComposerBlock: select => select(options.composerBlock),
     useInput,
@@ -352,6 +357,19 @@ describe('ConversationRoot resident composer', () => {
     })
     expect(b.view.getByRole('status').textContent).toBe('等待回答')
     expect(b.view.getByTestId('composer-takeover')).toBeTruthy()
+  })
+
+  it('replaces the session area with the knowledge browser while a base is under browse', () => {
+    // Strongest form: a CURRENT session is on screen, and the browser still
+    // takes the area over (the ui-knowledge-base watcher closes it on the
+    // next Session navigation).
+    const b = mount(sessionSnapshotOf(), undefined, undefined, {
+      browsedBase: { id: 'kb-1', name: '产品文档' },
+    })
+    expect(b.view.getByTestId('view-conversation.knowledge.browser')).toBeTruthy()
+    expect(b.view.container.querySelector('[data-conversation-scroll]')).toBeNull()
+    expect(b.view.queryByRole('textbox')).toBeNull()
+    expect(b.view.queryByTestId('composer-takeover')).toBeNull()
   })
 
   it('renders the composer inert with the blocker\u2019s own reason', () => {

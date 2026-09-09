@@ -1,0 +1,84 @@
+/* The knowledge entry row: one flat row in the shell's browsing region,
+   styled like the region's rows; the rail variant matches the 56px rhythm. */
+
+.root {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  padding-right: var(--dsh-sidebar-inline-padding);
+  margin-bottom: 8px;
+}
+
+.navRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  border: none;
+  border-radius: 8px;
+  padding: 0 8px;
+  height: 36px;
+  background: transparent;
+  cursor: pointer;
+  user-select: none;
+  text-align: left;
+  color: var(--dsw-alias-label-primary);
+}
+
+.navRow:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.navRowActive {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-state-business-primary);
+}
+
+.navIcon {
+  flex: none;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.navRowActive .navIcon {
+  color: var(--dsw-alias-state-business-primary);
+}
+
+.navLabel {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 14px;
+  line-height: 22px;
+  font-weight: 500;
+}
+
+/* Rail variant: one 36px control matching the shell's rail rhythm. */
+.rail {
+  flex: none;
+  margin-bottom: 0;
+}
+
+.railButton {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  padding: 0;
+  margin: 0 0 12px;
+  background: transparent;
+  cursor: pointer;
+  color: var(--dsw-alias-label-primary);
+}
+
+.railButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.railButtonActive {
+  color: var(--dsw-alias-state-business-primary);
+}

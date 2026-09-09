@@ -119,6 +119,9 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
     'conversation.composer': { kind: 'chain'; scope: 'session'; owner: ComposerChainProps }
     /** Workspace picker shown by the blank-session Hero. */
     'conversation.hero.workspace': { kind: 'single'; scope: 'root'; owner: EmptyWorkspaceOwnerProps }
+    /** The knowledge page (base list beside the document browser), replacing
+        the session/hero content while open. */
+    'conversation.knowledge.browser': { kind: 'single'; scope: 'root' }
     /** Brand mark shown before the blank-session headline. */
     'conversation.hero.brand.mark': { kind: 'single'; scope: 'root'; owner: HeroBrandMarkOwnerProps }
     /** Agent-preset control staged for a New Session. */
@@ -217,7 +220,12 @@ export interface ConversationInjected {
   /** Connect and open a blank Session in the selected Workspace. */
   selectWorkspace: (workspaceId: WorkspaceId) => Promise<void>
   /** Session-addressed composer block source, or the stable absent source. */
-  hooks: { composerBlock: ObservableSnapshot<ComposerBlock | undefined> }
+  hooks: {
+    composerBlock: ObservableSnapshot<ComposerBlock | undefined>
+    /** The knowledge base under browse, absent when no browser is mounted (the
+        ui-knowledge-base plugin is an optional mount). */
+    knowledgeView: ObservableSnapshot<{ open: boolean }>
+  }
 }
 
 /** Business callbacks injected into the strict Session body. */
@@ -327,6 +335,7 @@ export type ConversationSlotProps =
     | 'conversation.hero.brand.mark'
     | 'conversation.hero.workspace'
     | 'conversation.hero.agentPreset'
+    | 'conversation.knowledge.browser'
   >
   & InjectFace<ConversationInjected>
   & PropsLocale<'conversation'>
@@ -358,6 +367,12 @@ export type ComposerAttachmentsProps =
   PropsRuntime<'conversation.input.attachments'> & PropsLocale<'conversation'>
 
 /** Owner share common to blank-session Workspace pickers. */
+/** Owner share of the knowledge-base browser view: the base being browsed. */
+export interface KnowledgeBrowserOwnerProps {
+  /** Structural base identity; the browser's own registration owns domain typing. */
+  base: { id: string; name: string }
+}
+
 export interface EmptyWorkspaceOwnerProps {
   open: boolean
   anchorRef?: RefObject<HTMLElement>

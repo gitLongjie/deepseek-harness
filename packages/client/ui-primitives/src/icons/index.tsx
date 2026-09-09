@@ -17,6 +17,18 @@ export const IconNewChatOutline16 = ({ size = 16, className }: IconProps) => (
   </svg>
 )
 
+/** ic_ds_library_outline_16 — books on a shelf (harness-only glyph). */
+export const IconLibraryOutline16 = ({ size = 16, className }: IconProps) => (
+  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path
+      fillRule="evenodd"
+      clipRule="evenodd"
+      d="M2.7 1.5c.663 0 1.2.537 1.2 1.2v8.5H1.5V2.7c0-.663.537-1.2 1.2-1.2Zm4.05 0c.663 0 1.2.537 1.2 1.2v8.5H5.55V2.7c0-.663.537-1.2 1.2-1.2Zm4.19.795a1.2 1.2 0 0 1 1.466.848l1.604 5.985-2.318.621-1.603-5.985a1.2 1.2 0 0 1 .851-1.469ZM1.5 12.7h13v1.8h-13v-1.8Z"
+      fill="currentColor"
+    />
+  </svg>
+)
+
 /** ic_ds_search_outline_16 */
 export const IconSearchOutline16 = ({ size = 16, className }: IconProps) => (
   <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">

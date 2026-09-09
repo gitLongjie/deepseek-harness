@@ -1,7 +1,7 @@
 /** Registers the target-neutral Conversation assembly, shell, input, and docks. */
 import type { Context } from '@deepseek-ai/cordis'
 import type { ISessions } from '@deepseek-ai/dsh-api-session-controller/client'
-import { createSnapshotStore, type BoundActions } from '@deepseek-ai/dsh-client-store'
+import { createSnapshotStore, type BoundActions, type ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 // Type-only service and declaration merges used by this assembly.
@@ -54,6 +54,13 @@ const ABSENT_NOTICES = {
 }
 const ABSENT_BLOCK = {
   getSnapshot: (): ComposerBlock | undefined => undefined,
+  subscribe: () => () => {},
+}
+
+// Stable absent source for the optional knowledge-browser view: no base under
+// browse, and no subscription side (the state can never change).
+const ABSENT_KNOWLEDGE_VIEW: ObservableSnapshot<{ open: boolean }> = {
+  getSnapshot: () => ({ open: false }),
   subscribe: () => () => {},
 }
 const EMPTY_LEXICON: ReadonlyMap<'/' | '@', readonly string[]> = new Map()
@@ -159,6 +166,17 @@ export function apply(ctx: Context): void {
   const inputHub = new InputHub(ctx, t)
   const composerBlocks = new ComposerBlockRegistry()
 
+  // The knowledge-base browser's view source, resolved per bind: the
+  // ui-knowledge-base plugin is an optional mount whose apply may run after
+  // this one (roster order is unconstrained), so the service is looked up at
+  // bind time, never captured here — an eager capture would freeze the absent
+  // source and the browser would never react to a base being opened. Once the
+  // service exists its store identity is stable, so rebinding is a no-op.
+  const knowledgeView = (): ObservableSnapshot<{ open: boolean }> =>
+    (ctx.get('uiKnowledge') as unknown as {
+      view: ObservableSnapshot<{ open: boolean }>
+    } | undefined)?.view ?? ABSENT_KNOWLEDGE_VIEW
+
   // Conversation assembly and input share the Session binding lifecycle. The
   // source roster is installed before any consuming Slot entry.
   ctx.uiSession.provide({
@@ -192,10 +210,12 @@ export function apply(ctx: Context): void {
       'conversation.hero.brand.mark': { kind: 'single', scope: 'root' },
       'conversation.hero.workspace': { kind: 'single', scope: 'root' },
       'conversation.hero.agentPreset': { kind: 'single', scope: 'root' },
+      'conversation.knowledge.browser': { kind: 'single', scope: 'root' },
     },
     inject: (sessionId: SessionId | undefined): ConversationInjected => ({
       hooks: {
         composerBlock: sessionId === undefined ? ABSENT_BLOCK : composerBlocks.storeFor(sessionId),
+        knowledgeView: knowledgeView(),
       },
       selectWorkspace: async (workspaceId) => {
         const nextId = await workspaceNavigation.connectWorkspace(workspaceId)

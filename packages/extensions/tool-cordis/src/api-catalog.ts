@@ -1095,6 +1095,31 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'knowledgeBase',
+    summary: 'The knowledge-base capability.',
+    description: 'The knowledge-base capability. Base ids are backend-assigned and opaque to consumers; visibility follows the credential the provider resolves, so the listed bases are exactly what the configured deployment may read.',
+    methods: [
+      {
+        signature: 'abstract list(): Promise<readonly KnowledgeBaseView[]>',
+        description: 'List the knowledge bases the configured credential can see.',
+        parameters: [],
+        returns: 'the bases in the backend\'s own order.',
+      },
+      {
+        signature: 'abstract webUi(): string | null',
+        description: 'The deployment\'s browser-openable console for client manage actions, or null when the deployment exposes none.',
+        parameters: [],
+        returns: 'the console URL, or null.',
+      },
+      {
+        signature: 'abstract listDocuments(baseId: KnowledgeBaseId, query?: { keyword?: string }): Promise<KnowledgeDocumentPage>',
+        description: 'List one knowledge base\'s documents, newest-backend-order first page.',
+        parameters: [{ name: 'baseId', description: 'the opaque base identity from a previous {@link list} read.' }, { name: 'query', description: 'optional keyword filter matched by the backend against document titles and content.' }],
+        returns: 'one page of documents with the backend\'s total count.',
+      },
+    ],
+  },
+  {
     key: 'llm',
     summary: 'The abstract `llm` service: an adapter registry plus a streaming model-call API, interceptable via the `llm/stream` waterfall.',
     description: 'The abstract `llm` service: an adapter registry plus a streaming model-call API, interceptable via the `llm/stream` waterfall.',

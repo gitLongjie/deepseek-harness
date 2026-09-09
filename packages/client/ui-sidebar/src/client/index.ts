@@ -56,6 +56,7 @@ export function apply(ctx: ClientContext): void {
       children: {
         'sidebar.brand.mark': { kind: 'single', scope: 'root' },
         'sidebar.brand.name': { kind: 'single', scope: 'root' },
+        'sidebar.knowledge': { kind: 'single', scope: 'root' },
         'sidebar.workspaces': { kind: 'single', scope: 'root' },
         'sidebar.settings': { kind: 'single', scope: 'root' },
         'sidebar.footer.action': { kind: 'list', scope: 'root' },

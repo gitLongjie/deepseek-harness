@@ -172,8 +172,7 @@ function emptySessions() {
 
 function emptyWorkspaces() {
   const store = createSnapshotStore<WorkspaceSnapshot>({
-    items: [], archivedSessionIds: [], state: 'idle', phase: 'ready', error: null,
-  })
+    items: [], archivedSessionIds: [], state: 'idle', phase: 'ready', error: null  })
   return bindSnapshotSelector(store)
 }
 
@@ -321,6 +320,9 @@ function mount(fixture: Awaited<ReturnType<typeof bench>>) {
     createSnapshotStore<SessionPendingInteractionSnapshot>(new Map()),
   )
   const useWorkspaces = emptyWorkspaces()
+  const useKnowledgeView = bindSnapshotSelector(
+    createSnapshotStore<{ base: { id: string; name: string } | undefined }>({ base: undefined }),
+  )
   const conversation = createConversationStore().create()
   const useConversationViews = bindSnapshotSelector(
     createSnapshotStore<readonly ViewTab[]>(tabsOf(slots)),
@@ -345,6 +347,7 @@ function mount(fixture: Awaited<ReturnType<typeof bench>>) {
     useSessions,
     useSessionPendingInteraction,
     useWorkspaces,
+    useKnowledgeView,
     useProjection,
     useInput,
     inputActions,

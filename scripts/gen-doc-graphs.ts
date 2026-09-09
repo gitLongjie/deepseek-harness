@@ -589,6 +589,15 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'The market-local provider reads configured catalog sources, validates candidates against the npm registry, and installs exact versions into the managed profile; market-gateway projects the seam onto the Typert wire for the web settings tab and the dsh market CLI reads it in-process.',
   },
   {
+    key: 'knowledgeBase',
+    pkg: 'kb',
+    title: 'Knowledge base',
+    mode: 'seam',
+    implementations: ['kb-weknora'],
+    consumers: ['kb-gateway'],
+    note: 'The kb-weknora provider lists the bases a self-hosted WeKnora deployment exposes to the configured credential; kb-gateway projects the seam onto the Typert wire for the web sidebar knowledge section.',
+  },
+  {
     key: 'web',
     pkg: 'web',
     title: 'Web access provider registry',

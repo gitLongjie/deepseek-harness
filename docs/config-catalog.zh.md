@@ -959,6 +959,37 @@ export interface Config {
 
 来源：[`packages/jobs/jobs-local/src/index.ts:31`](../packages/jobs/jobs-local/src/index.ts)
 
+<a id="deepseek-aidsh-kb-weknora"></a>
+
+## `@deepseek-ai/dsh-kb-weknora`
+
+需要：`credentials`
+
+```ts config-catalog
+/** Plugin config (all fields optional — `static Config` supplies the defaults). */
+export interface Config {
+  /** WeKnora API root including its version prefix, e.g. `http://weknora.internal:8080/api/v1`. */
+  baseUrl?: string
+  /**
+   * Credential reference (environment-variable name) resolved per operation;
+   * default `WEKNORA_API_KEY`. Set the reference to the empty string in yml
+   * (`apiKeyEnv: ''`) to declare an unauthenticated deployment.
+   */
+  apiKeyEnv?: string
+  /** Workspace scope for a platform-level API key, sent as `X-Tenant-ID`. */
+  tenantId?: string
+  /** Per-request wall-time bound (ms, default 15,000). */
+  requestTimeoutMs?: number
+  /** Maximum accepted response body size (bytes, default 8 MiB). */
+  maxResponseBytes?: number
+  /** Browser-openable deployment console the client section's manage action opens. */
+  webUiUrl?: string
+}
+```
+
+Source: [`packages/kb/kb-weknora/src/index.ts:30`](../packages/kb/kb-weknora/src/index.ts)
+
+
 <a id="deepseek-aidsh-llm-deepseek"></a>
 
 ## `@deepseek-ai/dsh-llm-deepseek`
@@ -1447,6 +1478,12 @@ export interface LspLocalServerConfig {
 export interface Config {
   /** Profile the market manages; default: the launcher's profile fact. */
   profile?: string
+  /**
+   * Path of the running installation's package.json. Default: search-path
+   * probe for the app package. Hosts whose app package sits off every search
+   * path (the packaged desktop shell's asar root) pass it explicitly.
+   */
+  installAnchor?: string
   /** npm registry base URL used as the install-version authority. */
   npmRegistryUrl?: string
   /** Per-request wall-time bound for catalog and registry fetches (ms). */
@@ -3454,6 +3491,7 @@ export interface Config {
 - `@deepseek-ai/dsh-client-ui-goal`（[`packages/client/ui-goal/src/index.ts`](../packages/client/ui-goal/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-input-trigger`（[`packages/client/ui-input-trigger/src/index.ts`](../packages/client/ui-input-trigger/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-jobs`（[`packages/client/ui-jobs/src/index.ts`](../packages/client/ui-jobs/src/index.ts)）
+- `@deepseek-ai/dsh-client-ui-knowledge-base`（[`packages/client/ui-knowledge-base/src/index.ts`](../packages/client/ui-knowledge-base/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-layout`（[`packages/client/ui-layout/src/index.ts`](../packages/client/ui-layout/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-login`（[`packages/client/ui-login/src/index.ts`](../packages/client/ui-login/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-message-feedback`（[`packages/client/ui-message-feedback/src/index.ts`](../packages/client/ui-message-feedback/src/index.ts)）
@@ -3491,6 +3529,7 @@ export interface Config {
 - `@deepseek-ai/dsh-host-directory-picker-auto` — 需要 `webServer` · `loader`（[`packages/host/directory-picker-auto/src/index.ts`](../packages/host/directory-picker-auto/src/index.ts)）
 - `@deepseek-ai/dsh-host-directory-picker-native`（[`packages/host/directory-picker-native/src/index.ts`](../packages/host/directory-picker-native/src/index.ts)）
 - `@deepseek-ai/dsh-host-plugin-inventory` — 需要 `loader`（[`packages/host/plugin-inventory/src/index.ts`](../packages/host/plugin-inventory/src/index.ts)）
+- `@deepseek-ai/dsh-kb-gateway` — 需要 `knowledgeBase`（[`packages/kb/kb-gateway/src/index.ts`](../packages/kb/kb-gateway/src/index.ts)）
 - `@deepseek-ai/dsh-llm`（[`packages/llm/llm/src/index.ts`](../packages/llm/llm/src/index.ts)）
 - `@deepseek-ai/dsh-lsp`（[`packages/lsp/lsp/src/index.ts`](../packages/lsp/lsp/src/index.ts)）
 - `@deepseek-ai/dsh-market-gateway` — 需要 `market`（[`packages/market/market-gateway/src/index.ts`](../packages/market/market-gateway/src/index.ts)）
@@ -3524,6 +3563,7 @@ export interface Config {
 - `@deepseek-ai/dsh-fs` — 抽象 `FileSystem`（[`packages/fs/fs/src/index.ts`](../packages/fs/fs/src/index.ts)）
 - `@deepseek-ai/dsh-host-directory-picker` — 抽象 `DirectoryPicker`（[`packages/host/directory-picker/src/index.ts`](../packages/host/directory-picker/src/index.ts)）
 - `@deepseek-ai/dsh-jobs` — 抽象 `JobRegistry`（[`packages/jobs/jobs/src/index.ts`](../packages/jobs/jobs/src/index.ts)）
+- `@deepseek-ai/dsh-kb` — 抽象 `KnowledgeBase`（[`packages/kb/kb/src/index.ts`](../packages/kb/kb/src/index.ts)）
 - `@deepseek-ai/dsh-market` — 抽象 `Market`（[`packages/market/market/src/index.ts`](../packages/market/market/src/index.ts)）
 - `@deepseek-ai/dsh-sandbox` — 抽象 `SandboxProvider`（[`packages/sandbox/sandbox/src/index.ts`](../packages/sandbox/sandbox/src/index.ts)）
 - `@deepseek-ai/dsh-session-persistence` — 抽象 `SessionPersistence`（[`packages/session/session-persistence/src/index.ts`](../packages/session/session-persistence/src/index.ts)）

@@ -34,7 +34,7 @@ exports[`sidebar shell snapshots > renders the collapsed rail after the crossfad
       type="button"
     >
       <svg
-        data-content="c0ce4dcc"
+        data-content="31127fcc"
         fill="none"
         height="18"
         viewBox="0 0 16 16"
@@ -45,6 +45,10 @@ exports[`sidebar shell snapshots > renders the collapsed rail after the crossfad
     <div
       class="regionArea"
     >
+      <div
+        data-slot="sidebar.knowledge"
+        style="display: contents;"
+      />
       <div
         data-slot="sidebar.workspaces"
         style="display: contents;"
@@ -133,7 +137,7 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
       type="button"
     >
       <svg
-        data-content="c0ce4dcc"
+        data-content="31127fcc"
         fill="none"
         height="14"
         viewBox="0 0 16 16"
@@ -149,6 +153,10 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
     <div
       class="regionArea"
     >
+      <div
+        data-slot="sidebar.knowledge"
+        style="display: contents;"
+      />
       <div
         data-slot="sidebar.workspaces"
         style="display: contents;"
@@ -237,7 +245,7 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
       type="button"
     >
       <svg
-        data-content="c0ce4dcc"
+        data-content="31127fcc"
         fill="none"
         height="14"
         viewBox="0 0 16 16"
@@ -253,6 +261,10 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
     <div
       class="regionArea"
     >
+      <div
+        data-slot="sidebar.knowledge"
+        style="display: contents;"
+      />
       <div
         data-slot="sidebar.workspaces"
         style="display: contents;"

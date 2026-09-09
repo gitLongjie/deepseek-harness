@@ -5,10 +5,11 @@
  * mid-slide. At settle the wide-only content unmounts and the four upper
  * controls enter the 56px rail from the same horizontal offset (one icon each,
  * same top-down order) on one fade that ends with the slide. The bottom-pinned
- * settings control only fades. The workspace/session browsing region between
- * the New Session button and the foot is the `sidebar.workspaces` registrant's,
- * and the foot holds `sidebar.settings` plus `sidebar.footer.action`; the shell
- * hands them the wide flag (plus an expand request callback for the browser).
+ * settings control only fades. The browsing region between the New Session
+ * row and the foot holds the `sidebar.knowledge` and `sidebar.workspaces`
+ * registrants (knowledge above workspaces; both optional), and the foot holds
+ * `sidebar.settings` plus `sidebar.footer.action`; the shell hands them the
+ * wide flag (plus an expand request callback for the browsers).
  *
  * The column also owns whether the scroll regions nested in it draw a
  * scrollbar at all: the shell tracks the pointer and rebinds ui-theme's
@@ -18,7 +19,7 @@
 import { useEffect, useRef, useState } from 'react'
 import clsx from 'clsx'
 import {
-  IconNewChatOutline16, IconPanelLeftOutline16, Tooltip,
+  IconPanelLeftOutline16, IconPlusOutline16, Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SidebarRootComponentProps } from './contract/slots.ts'
 import css from './SidebarRoot.module.css'
@@ -166,14 +167,20 @@ export function SidebarRoot({
           aria-label={t('session.new.label')}
           onClick={() => { startSession() }}
         >
-          <IconNewChatOutline16 size={wide ? 14 : 18} />
+          <IconPlusOutline16 size={wide ? 14 : 18} />
           {wide && <span className={clsx(css.newSessionLabel, css.wide)}>{t('session.new')}</span>}
         </button>
       </Tooltip>
 
       {/* The browsing region fills the column between the controls and the
-          foot in both states; its rail icon column rides the same slot. */}
+          foot in both states; its rail icon column rides the same slot. The
+          knowledge section renders above the workspace browser; an unoccupied
+          slot contributes no DOM. */}
       <div className={css.regionArea}>
+        {renderSlot('sidebar.knowledge', {
+          wide,
+          expandSidebar: () => { if (collapsed) toggleSidebar() },
+        })}
         {renderSlot('sidebar.workspaces', {
           wide,
           expandSidebar: () => { if (collapsed) toggleSidebar() },

@@ -82,6 +82,8 @@ The shipped adapters add these standard props. They are available according to t
 |---|---|---|
 | every scope | `useSessions`, `useSessionPendingInteraction` | `ui-session` |
 | every scope | `useWorkspaces` | `ui-workspace` |
+| every scope | (slot hole) `sidebar.knowledge` | declared by `ui-sidebar`, occupied by `ui-knowledge-base` |
+| every scope | (slot hole) `conversation.knowledge.browser` | declared by `ui-conversation`, occupied by `ui-knowledge-base` |
 | `session` | `sessionId`, `useSession`, `useProjection` | `ui-session` |
 | `session-maybe` | optional `sessionId`, `useSession`, `useProjection` results | `ui-session` |
 | `session` | `useConversation`, `useInput`, `inputActions` | `ui-conversation` |

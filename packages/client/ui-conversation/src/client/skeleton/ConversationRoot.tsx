@@ -43,6 +43,13 @@ function resolveContentWidth(columnWidth: number, preference: number | null): nu
   return Math.max(680, Math.min(columnWidth * 0.64, 920))
 }
 
+/** Selector stand-in while the optional ui-knowledge-base plugin is absent:
+ * the knowledge page never stands. Hook-free by design, so mounting the page
+ * never flips this component's hook order. */
+function absentKnowledgeSelector(s: { open: boolean }): boolean {
+  return s.open
+}
+
 /** One transcript width handle: pointer capture + rAF-throttled symmetric
  * resize (both sides write the one centered width, so outward travel widens
  * by 2× the pointer distance). pointermove publishes the pointer's Y as a CSS
@@ -130,7 +137,7 @@ function WidthHandle(props: {
 
 export function ConversationRoot({
   sessionId, useSession, useSessions, useSessionPendingInteraction,
-  useWorkspaces, useConversation, useInput, useComposerBlock,
+  useWorkspaces, useKnowledgeView, useConversation, useInput, useComposerBlock,
   renderSlot, renderSlotChain, selectWorkspace, t,
 }: ConversationRootProps) {
   const session = useSession(s => s)
@@ -145,6 +152,13 @@ export function ConversationRoot({
   const cwd = useSessions(s => sessionId === undefined ? undefined : s.byId[sessionId]?.cwd)
   const summaryBlank = useSessions(s => sessionId === undefined ? undefined : s.byId[sessionId]?.blank)
   const workspaces = useWorkspaces(s => s)
+  // A knowledge base under browse replaces the whole center content (see the
+  // render tail); any Session navigation closes it (ui-knowledge-base's own
+  // watcher), so this flag is only ever live without a current Session. The
+  // hook is optional because the ui-knowledge-base plugin is an optional
+  // mount; the stand-in selector is hook-free, so the fallback never flips
+  // the component's hook order.
+  const knowledgePageOpen = (useKnowledgeView ?? absentKnowledgeSelector)(s => s.open)
   // A plugin this package cannot import (ui-model-selection) says this session cannot
   // send; its reason is already localized by whoever raised it.
   const composerBlock = useComposerBlock(block => block)
@@ -380,16 +394,25 @@ export function ConversationRoot({
     </div>
   )
 
+  const browserActive = knowledgePageOpen
   return (
     <div ref={rootResizeRef} className={css.root} data-phase={phase}>
-      {sessionId === undefined ? null : renderSlot('conversation.session.header', {})}
-      <div className={css.scrollBody} data-conversation-scroll="">
-        {sessionId === undefined ? null : renderSlot('conversation.session', {})}
-        {composerSeat}
-      </div>
-      {/* Width handles only while a transcript is on screen; the hero has no
-          content column to size. */}
-      {phase === 'active' && (['left', 'right'] as const).map(side => (
+      {/* The browser replaces whatever the session surface shows — hero or a
+          live session. It owns its own lifetime: the ui-knowledge-base
+          watcher closes it on any Session navigation, so a session click
+          always lands back on the session surface. */}
+      {knowledgePageOpen ? (
+        renderSlot('conversation.knowledge.browser', {})
+      ) : (<>
+        {sessionId === undefined ? null : renderSlot('conversation.session.header', {})}
+        <div className={css.scrollBody} data-conversation-scroll="">
+          {sessionId === undefined ? null : renderSlot('conversation.session', {})}
+          {composerSeat}
+        </div>
+      </>)}
+      {/* Width handles only while a transcript is on screen; the hero and the
+          knowledge browser have no content column to size. */}
+      {!browserActive && phase === 'active' && (['left', 'right'] as const).map(side => (
         <WidthHandle
           key={side}
           side={side}

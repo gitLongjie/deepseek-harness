@@ -31,6 +31,7 @@ const useSessionPendingInteraction: SidebarRootComponentProps['useSessionPending
 function mountShell({ collapsed = false, width = 300 }: { collapsed?: boolean; width?: number } = {}) {
   const startSession = vi.fn()
   const toggleSidebar = vi.fn()
+  let knowledgeOwner: SidebarSectionOwnerProps | undefined
   let regionOwner: SidebarSectionOwnerProps | undefined
   let settingsOwner: SidebarSettingsOwnerProps | undefined
   let footerActionOwner: SidebarFooterActionOwnerProps | undefined
@@ -48,6 +49,10 @@ function mountShell({ collapsed = false, width = 300 }: { collapsed?: boolean; w
       ) => {
         if (key === 'sidebar.brand.mark') return brandMark
         if (key === 'sidebar.brand.name') return brandName
+        if (key === 'sidebar.knowledge') {
+          knowledgeOwner = owner as SidebarSectionOwnerProps
+          return <div data-testid="knowledge-seat" data-wide={owner.wide} />
+        }
         if (key === 'sidebar.settings') {
           settingsOwner = owner
           return <div data-testid="settings-seat" data-wide={owner.wide} />
@@ -65,6 +70,10 @@ function mountShell({ collapsed = false, width = 300 }: { collapsed?: boolean; w
   return {
     startSession,
     toggleSidebar,
+    knowledgeOwner: () => {
+      if (knowledgeOwner === undefined) throw new Error('knowledge owner not rendered')
+      return knowledgeOwner
+    },
     regionOwner: () => {
       if (regionOwner === undefined) throw new Error('region owner not rendered')
       return regionOwner
@@ -124,13 +133,15 @@ describe('SidebarRoot shell', () => {
     expect(screen.getByText('深度Works')).toBeTruthy()
   })
 
-  it('hands the region its wide flag and clamps expandSidebar to the collapsed state', () => {
+  it('hands the region seats their wide flag and clamps expandSidebar to the collapsed state', () => {
     const b = mountShell()
+    expect(b.knowledgeOwner().wide).toBe(true)
     expect(b.regionOwner().wide).toBe(true)
     // The settings seat rides the same wide flag (ui-settings renders the row).
     expect(b.settingsOwner().wide).toBe(true)
     expect(b.footerActionOwner().wide).toBe(true)
     // Expanded: the request is a no-op (no accidental collapse).
+    b.knowledgeOwner().expandSidebar()
     b.regionOwner().expandSidebar()
     expect(b.toggleSidebar).not.toHaveBeenCalled()
   })

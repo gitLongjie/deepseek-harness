@@ -8,6 +8,7 @@ import goalsRemote from '@deepseek-ai/dsh-goal/remote'
 import llmRemote from '@deepseek-ai/dsh-llm/remote'
 import dynamicRemote from '@deepseek-ai/dsh-cordis-host-runner/remote'
 import pluginInventoryRemote from '@deepseek-ai/dsh-host-plugin-inventory/remote'
+import kbGatewayRemote from '@deepseek-ai/dsh-kb-gateway/remote'
 import marketRemote from '@deepseek-ai/dsh-market-gateway/remote'
 import messageFeedbackRemote from '@deepseek-ai/dsh-message-feedback/remote'
 import sessionReferencesRemote from '@deepseek-ai/dsh-session-reference/remote'
@@ -24,6 +25,8 @@ export type {} from '@deepseek-ai/dsh-api-settings-controller/remote'
 export type {} from '@deepseek-ai/dsh-goal/remote'
 export type {} from '@deepseek-ai/dsh-llm/remote'
 export type {} from '@deepseek-ai/dsh-host-plugin-inventory/remote'
+export type {} from '@deepseek-ai/dsh-kb-gateway/remote'
+export type * from '@deepseek-ai/dsh-kb-gateway/types'
 export type {} from '@deepseek-ai/dsh-market-gateway/remote'
 export type * from '@deepseek-ai/dsh-market-gateway/types'
 export type {} from '@deepseek-ai/dsh-message-feedback/remote'
@@ -159,7 +162,7 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
   try {
     for (const contribution of [
       agentPresetsRemote, commandsRemote, settingsControllerRemote, goalsRemote, llmRemote, dynamicRemote,
-      pluginInventoryRemote, marketRemote, messageFeedbackRemote, sessionReferencesRemote,
+      pluginInventoryRemote, kbGatewayRemote, marketRemote, messageFeedbackRemote, sessionReferencesRemote,
       subagentsRemote, sessionRemote, workspaceRemote,
     ]) {
       disposers.push(await ctx.remote.$mount(contribution))

@@ -12,6 +12,7 @@ The Web Client is a browser-side Cordis application assembled from independently
 | Transport and API assembly | `client/connection`, `api/gateway`, `api/remotes` | Establish a Client generation, expose generated `ctx.remote` methods and streams, forward selected Cordis events, and carry cancellation and results. |
 | Client models | `api/session-controller/client`, `api/workspace-controller/client` | Maintain React-free mirrors of Host state, resolve stream/unary races, own object identities and subscriptions, and expose narrow command services. |
 | UI adapters | `client/ui-session`, `client/ui-workspace` | Convert model observables into root or Session-scoped standard Slot sources without taking ownership of business state. |
+| Sidebar sections | `client/ui-knowledge-base` | Renders the deployment's knowledge-base listing above the workspace region; a base row starts a session. |
 | Conversation data | `client/ui-conversation`, target packages such as `ui-chat` and `ui-trajectory` | Assemble standard events and compact historical Assistant runs into independent target snapshots and own the shared conversation shell and input flow. |
 | Composition and rendering | `client/ui-slots`, `client/ui-renderer`, `client/ui-layout`, feature UI packages | Declare extension locations, derive component props, bind observables to React hooks, and mount the final tree. |
 
