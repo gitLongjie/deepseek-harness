@@ -1986,6 +1986,9 @@ importers:
       '@deepseek-ai/dsh-host-webserver':
         specifier: workspace:^
         version: link:../../host/webserver
+      '@deepseek-ai/dsh-kb':
+        specifier: workspace:^
+        version: link:../../kb/kb
       '@deepseek-ai/dsh-kb-gateway':
         specifier: workspace:^
         version: link:../../kb/kb-gateway

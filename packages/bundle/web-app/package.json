@@ -101,6 +101,7 @@
     "@deepseek-ai/dsh-host-directory-picker-native": "workspace:^",
     "@deepseek-ai/dsh-host-plugin-inventory": "workspace:^",
     "@deepseek-ai/dsh-client-ui-knowledge-base": "workspace:^",
+    "@deepseek-ai/dsh-kb": "workspace:^",
     "@deepseek-ai/dsh-kb-gateway": "workspace:^",
     "@deepseek-ai/dsh-kb-weknora": "workspace:^",
     "@deepseek-ai/dsh-market-local": "workspace:^",
