@@ -379,6 +379,15 @@ function createWindow(): BrowserWindow {
     },
   })
   pinWindowTitle(win)
+  // Native fullscreen hides the system chrome, so the renderer bar must follow:
+  // render/title-bar.ts listens on this channel and hides the bar (with the
+  // body's top shift) while the window is fullscreen.
+  win.on('enter-full-screen', () => {
+    if (!win.isDestroyed()) win.webContents.send('dsh:window:fullscreen-change', true)
+  })
+  win.on('leave-full-screen', () => {
+    if (!win.isDestroyed()) win.webContents.send('dsh:window:fullscreen-change', false)
+  })
   win.once('ready-to-show', () => { win.show() })
   return win
 }

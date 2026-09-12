@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  FULLSCREEN_CHANGE_CHANNEL,
   installTitleBar,
   MACOS_TRAFFIC_LIGHTS_INSET_PX,
   MENU_POPUP_CHANNEL,
@@ -51,16 +52,39 @@ describe('desktop title bar', () => {
     expect(bar.querySelector('.dsh-titlebar-update-slot + .dsh-titlebar-controls')).not.toBeNull()
   })
 
-  it('renders the macOS chrome: brand past the traffic-light inset, no menus, no controls', () => {
+  it('renders the macOS chrome: drag-only bar past the traffic-light inset, no brand, menus, or controls', () => {
     const bar = installedBar('darwin')
 
     expect(bar.querySelector('.dsh-titlebar-menu-btn')).toBeNull()
     expect(bar.querySelector('.dsh-titlebar-controls')).toBeNull()
-    expect(bar.querySelector('.dsh-titlebar-brand img')?.getAttribute('src')).toBe('./favicon.ico')
+    expect(bar.querySelector('.dsh-titlebar-brand')).toBeNull()
+    expect(bar.querySelector('.dsh-titlebar-spacer + .dsh-titlebar-update-slot')).not.toBeNull()
 
     const style = document.getElementById('dsh-desktop-titlebar-style')
     expect(style?.textContent).toContain(`padding-left: ${MACOS_TRAFFIC_LIGHTS_INSET_PX}px`)
     expect(style?.textContent).not.toContain('#e81123')
+  })
+
+  it('hides the bar and the body top shift while the window is fullscreen', () => {
+    const listeners = new Map<string, (payload: unknown) => void>()
+    const ipc = {
+      platform: 'darwin',
+      send: vi.fn(),
+      on: (channel: string, listener: (payload: unknown) => void) => {
+        listeners.set(channel, listener)
+        return () => {}
+      },
+    }
+    installTitleBar(document, ipc, './favicon.ico')
+
+    const style = document.getElementById('dsh-desktop-titlebar-style')
+    expect(style?.textContent).toContain("body[data-dsh-fullscreen='true'] #dsh-desktop-titlebar")
+    expect(style?.textContent).toContain('--dsh-shell-top-inset: 0px')
+
+    listeners.get(FULLSCREEN_CHANGE_CHANNEL)!(true)
+    expect(document.body.getAttribute('data-dsh-fullscreen')).toBe('true')
+    listeners.get(FULLSCREEN_CHANGE_CHANNEL)!(false)
+    expect(document.body.hasAttribute('data-dsh-fullscreen')).toBe(false)
   })
 
   it('renders the Linux chrome: menus kept and circular controls without the red close fill', () => {

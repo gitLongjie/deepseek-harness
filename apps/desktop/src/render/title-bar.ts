@@ -1,17 +1,22 @@
 /**
  * Desktop-only custom title bar, installed by the render entry before the web
- * app boots. The window runs frameless on Windows and Linux; this module draws
+ * app boots. The window runs frameless on Windows and Linux; there this module draws
  * the branded bar (the brand mark alone — the sidebar owns the product name and
  * the native window title stays pinned to it), the 编辑/视图/窗口/帮助 menu buttons,
- * the drag region, and the window controls; shifts the app below it through a body
+ * the drag region, and the window controls; macOS draws only the bare drag bar
+ * (see the platform branch below); it shifts the app below it through a body
  * top padding and publishes that inset for fixed client overlays; routes menu clicks to the main-process
  * application menu over IPC and drives the window controls over the existing
  * generic bridge. The chrome branches on the preload bridge's platform:
- * macOS draws none of that — the native traffic lights (main/desktop/window-chrome.ts
- * hiddenInset) own minimize/maximize/close and the system menu bar owns the
- * menus — so the bar is the brand, the drag region, and the update slot past
- * the lights inset; Linux keeps the menu buttons and swaps the Windows control
- * stack for Adwaita-style circular controls without the red close fill.
+ * macOS draws none of that — no brand, no menus, no window controls: the
+ * native traffic lights (main/desktop/window-chrome.ts hiddenInset) own
+ * minimize/maximize/close, the system menu bar owns the menus, and the bar is
+ * the drag region and the update slot past the lights inset; Linux keeps the
+ * menu buttons and swaps the Windows control stack for Adwaita-style circular
+ * controls without the red close fill. The main process pushes native
+ * fullscreen state over dsh:window:fullscreen-change and the bar hides itself,
+ * with the body shift and the published top inset, while the window is
+ * fullscreen.
  * @module @deepseek-ai/dsh-desktop/render/title-bar
  */
 
@@ -53,6 +58,15 @@ export const MENU_POPUP_CHANNEL = 'dsh:menu:popup'
 
 /** The IPC channel the main process pushes a locale change over. */
 export const LOCALE_CHANGE_CHANNEL = 'dsh:locale:change'
+
+/**
+ * The IPC channel the main process pushes native fullscreen state over: `true`
+ * on enter-full-screen, `false` on leave-full-screen (wired in
+ * main/index.ts createWindow). While fullscreen, the bar and the body's top
+ * shift hide so the web app fills the window and the published top inset
+ * reads 0.
+ */
+export const FULLSCREEN_CHANGE_CHANNEL = 'dsh:window:fullscreen-change'
 
 /** Renderer title-bar copy: menu buttons and window-control accessible labels. */
 const TITLE_BAR_LOCALES = {
@@ -237,6 +251,13 @@ body {
   outline: 1px solid var(--dsw-alias-interactive-focus, #6187d8);
   outline-offset: -2px;
 }
+body[data-dsh-fullscreen='true'] {
+  padding-top: 0;
+  --dsh-shell-top-inset: 0px;
+}
+body[data-dsh-fullscreen='true'] #dsh-desktop-titlebar {
+  display: none;
+}
 `
 
 /** Windows control geometry: full-height rectangles and the red close fill. */
@@ -297,7 +318,8 @@ function titleBarStyleText(platform: TitleBarPlatform): string {
  * @param doc - the live document.
  * @param ipc - the preload bridge used for the platform, the menu channel, and
  *   the control channels.
- * @param markSrc - the brand mark image source, or a resolver for head-phase installs.
+ * @param markSrc - the brand mark image source, or a resolver for head-phase
+ *   installs; unused on macOS, which mounts no brand mark.
  */
 export function installTitleBar(doc: Document, ipc: IpcSender, markSrc: string | (() => string)): void {
   const platform = normalizeTitleBarPlatform(ipc.platform)
@@ -309,12 +331,17 @@ export function installTitleBar(doc: Document, ipc: IpcSender, markSrc: string |
   const bar = doc.createElement('div')
   bar.id = 'dsh-desktop-titlebar'
 
-  const brand = doc.createElement('span')
-  brand.className = 'dsh-titlebar-brand'
-  const mark = doc.createElement('img')
-  mark.alt = ''
-  brand.append(mark)
-  bar.append(brand)
+  // macOS additionally renders no brand mark: with hiddenInset the lights plus
+  // a drag region are the whole bar, per the macOS app convention.
+  let mark: HTMLImageElement | undefined
+  if (platform !== 'darwin') {
+    const brand = doc.createElement('span')
+    brand.className = 'dsh-titlebar-brand'
+    mark = doc.createElement('img')
+    mark.alt = ''
+    brand.append(mark)
+    bar.append(brand)
+  }
 
   // macOS renders neither the menu buttons (the system menu bar owns them) nor
   // the window controls (the native traffic lights own them).
@@ -371,7 +398,8 @@ export function installTitleBar(doc: Document, ipc: IpcSender, markSrc: string |
   // deferral honest to both the runtime and the type pass.
   const docView = doc as Omit<Document, 'body'> & { body?: HTMLElement | null }
   const mount = (): void => {
-    mark.src = typeof markSrc === 'function' ? markSrc() : markSrc
+    // macOS mounts no mark, so the OEM favicon resolver never runs there.
+    if (mark !== undefined) mark.src = typeof markSrc === 'function' ? markSrc() : markSrc
     ;(docView.body as HTMLElement).prepend(bar)
   }
   if (docView.body === undefined || docView.body === null) {
@@ -385,5 +413,13 @@ export function installTitleBar(doc: Document, ipc: IpcSender, markSrc: string |
   // application menu. The main process seeds the current locale after load.
   ipc.on?.(LOCALE_CHANGE_CHANNEL, (payload: unknown) => {
     applyTitleBarLocale(payload === 'en' ? 'en' : 'zh', doc)
+  })
+
+  // Native fullscreen covers the system chrome, so the bar goes with it; the
+  // body shift and the published top inset follow so client overlays fill the
+  // full height. Read at event time: the head-phase install precedes <body>.
+  ipc.on?.(FULLSCREEN_CHANGE_CHANNEL, (payload: unknown) => {
+    if (payload === true) doc.body.dataset.dshFullscreen = 'true'
+    else delete doc.body.dataset.dshFullscreen
   })
 }
