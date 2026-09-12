@@ -8,8 +8,9 @@
  * @module @deepseek-ai/dsh-desktop/boot
  */
 
-import { existsSync, mkdirSync, readdirSync, readlinkSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
-import { basename, join } from 'node:path'
+import { existsSync, mkdirSync, readdirSync, readFileSync, readlinkSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
+import { basename, dirname, join } from 'node:path'
+import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { FiberState, type Context } from '@deepseek-ai/cordis'
 import type { PatchOptions } from '@deepseek-ai/cordis-plugin-include'
@@ -136,6 +137,32 @@ function homePatchPath(): string {
 }
 
 /**
+ * Resolve an optional bundle's cordis patch from the installation anchor.
+ * Returns the patch entries when the package resolves and declares a
+ * `dsh.bundle.patch`; `undefined` when the package is not installed, which is
+ * the optional case this probe exists for. A package that resolves but fails
+ * to parse fails boot loudly like every other patch layer.
+ * @param installAnchor - absolute path of the app's package.json.
+ * @param packageName - the bundle's package name to probe.
+ * @returns the patch entries, or `undefined` when the package is not installed.
+ */
+export function resolveOptionalBundlePatch(installAnchor: string, packageName: string): PatchOptions[] | undefined {
+  let packageJsonPath: string
+  try {
+    packageJsonPath = createRequire(installAnchor).resolve(`${packageName}/package.json`)
+  } catch {
+    // Not installed — the optional case this probe exists for; the boot
+    // proceeds without the bundle.
+    return undefined
+  }
+  const packageDir = dirname(packageJsonPath)
+  const manifest = JSON.parse(readFileSync(packageJsonPath, 'utf8')) as { dsh?: { bundle?: { patch?: string } } }
+  const declared = manifest.dsh?.bundle?.patch
+  if (declared === undefined) return undefined
+  return loadOverlayPatches(NAME, join(packageDir, declared))
+}
+
+/**
  * Resolve the telemetry opt-out switch into its boot patch. ANY non-empty
  * value (including `'0'`/`'false'`) disables. A composition without the row
  * exports nothing, so the switch is then trivially satisfied and no patch is
@@ -238,6 +265,13 @@ export async function runDesktopBoot(options: DesktopBootOptions): Promise<Deskt
   }
   const telemetryPatch = resolveTelemetryPatch(process.env.DSH_TELEMETRY_DISABLED, rows.has(TELEMETRY_ROW_ID))
   if (telemetryPatch !== undefined) overlays.push(telemetryPatch)
+
+  // The business-entry sidebar plugin ships inside app.asar but is not part of
+  // the web profile template's bundles list. If its package is resolvable from
+  // the installation anchor, inject its cordis patch so the Loader mounts it
+  // without requiring the user to edit the profile manifest.
+  const businessEntryPatch = resolveOptionalBundlePatch(INSTALL_ANCHOR, '@xmanrui/dsh-business-entry')
+  if (businessEntryPatch !== undefined) overlays.push(...businessEntryPatch)
 
   const app: { current?: Context } = {}
   const shutdown = createProcessShutdown(

@@ -48,6 +48,14 @@ files:
       - lib/**
       - cordis.patch.yml
       - package.json
+  # The business-entry sidebar plugin is a standalone local plugin; stage it
+  # the same way as dsh-im so the loader can resolve it from app.asar.
+  - from: dist/business-entry-package
+    to: node_modules/@xmanrui/dsh-business-entry
+    filter:
+      - lib/**
+      - cordis.patch.yml
+      - package.json
   # Drop the app's own sources/tests/sourcemaps to keep the bundle slim. Keep
   # the globs app-relative (!src/**) so dependency sources that their package
   # main points at (e.g. debug -> src/index.js) are NOT excluded from node_modules.

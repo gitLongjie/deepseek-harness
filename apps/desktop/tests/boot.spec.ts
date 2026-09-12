@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { resolveInstallationModuleLinks } from '@deepseek-ai/dsh-app-boot'
-import { ensureRootPluginLinks, resolveMarketAnchorPatch, resolveTelemetryPatch } from '../src/main/boot.ts'
+import { ensureRootPluginLinks, resolveMarketAnchorPatch, resolveOptionalBundlePatch, resolveTelemetryPatch } from '../src/main/boot.ts'
 
 describe('resolveTelemetryPatch', () => {
   it('returns undefined when the switch is unset or the row is absent', () => {
@@ -29,6 +29,45 @@ describe('resolveMarketAnchorPatch', () => {
   it('hands the boot anchor to the market-local row', () => {
     expect(resolveMarketAnchorPatch(true, 'C:/app/package.json'))
       .toEqual({ id: 'market-local', config: { installAnchor: 'C:/app/package.json' } })
+  })
+})
+
+describe('resolveOptionalBundlePatch', () => {
+  /** Create an install anchor directory with an optional bundle package inside it. */
+  function installAnchorWith(bundle: { manifest: object; patch?: string }): string {
+    const anchorDir = mkdtempSync(join(tmpdir(), 'dsh-desktop-bundle-'))
+    writeFileSync(join(anchorDir, 'package.json'), '{}')
+    const packageDir = join(anchorDir, 'node_modules', '@xmanrui', 'dsh-business-entry')
+    mkdirSync(packageDir, { recursive: true })
+    writeFileSync(join(packageDir, 'package.json'), JSON.stringify(bundle.manifest))
+    if (bundle.patch !== undefined) writeFileSync(join(packageDir, 'cordis.patch.yml'), bundle.patch)
+    return join(anchorDir, 'package.json')
+  }
+
+  const DECLARED = { name: '@xmanrui/dsh-business-entry', dsh: { bundle: { patch: './cordis.patch.yml' } } }
+  const PATCH = '- insert:\n    - id: xmanrui-dsh-business-entry\n      name: \'@xmanrui/dsh-business-entry\'\n'
+
+  it('loads the declared patch of an installed bundle', () => {
+    const anchor = installAnchorWith({ manifest: DECLARED, patch: PATCH })
+    expect(resolveOptionalBundlePatch(anchor, '@xmanrui/dsh-business-entry'))
+      .toEqual([{ insert: [{ id: 'xmanrui-dsh-business-entry', name: '@xmanrui/dsh-business-entry' }] }])
+  })
+
+  it('returns undefined when the bundle is not installed', () => {
+    const anchorDir = mkdtempSync(join(tmpdir(), 'dsh-desktop-bundle-'))
+    const anchor = join(anchorDir, 'package.json')
+    writeFileSync(anchor, '{}')
+    expect(resolveOptionalBundlePatch(anchor, '@xmanrui/dsh-business-entry')).toBeUndefined()
+  })
+
+  it('returns undefined when the installed bundle declares no patch layer', () => {
+    const anchor = installAnchorWith({ manifest: { name: '@xmanrui/dsh-business-entry' } })
+    expect(resolveOptionalBundlePatch(anchor, '@xmanrui/dsh-business-entry')).toBeUndefined()
+  })
+
+  it('fails loudly when an installed bundle declares a broken patch layer', () => {
+    const anchor = installAnchorWith({ manifest: DECLARED, patch: 'not: an array\n' })
+    expect(() => resolveOptionalBundlePatch(anchor, '@xmanrui/dsh-business-entry')).toThrow(/must be a top-level YAML array/)
   })
 })
 

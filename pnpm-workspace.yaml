@@ -9,6 +9,9 @@ packages:
   - apps/*
   # Bundled OEM plugin built as part of the desktop release.
   - dsh-im/dsh-im-main
+  # Bundled business-entry sidebar plugin, staged into the desktop release the
+  # same way; the workspace install supplies the esbuild its build script needs.
+  - business-entry
   - website
   # Deploy root of the single-exe build: a pure dependency manifest whose
   # closure is what the exe bundles and what the Python runtime distributes.
