@@ -49,25 +49,45 @@ describe('resolveOptionalBundlePatch', () => {
 
   it('loads the declared patch of an installed bundle', () => {
     const anchor = installAnchorWith({ manifest: DECLARED, patch: PATCH })
-    expect(resolveOptionalBundlePatch(anchor, '@xmanrui/dsh-business-entry'))
+    expect(resolveOptionalBundlePatch(anchor, '@xmanrui/dsh-business-entry', []))
       .toEqual([{ insert: [{ id: 'xmanrui-dsh-business-entry', name: '@xmanrui/dsh-business-entry' }] }])
   })
 
-  it('returns undefined when the bundle is not installed', () => {
+  it('returns undefined when the bundle name resolves nowhere', () => {
+    // A name that exists in no node_modules along any resolution path; under
+    // vitest the workspace resolver would find a real bundle's name.
     const anchorDir = mkdtempSync(join(tmpdir(), 'dsh-desktop-bundle-'))
     const anchor = join(anchorDir, 'package.json')
     writeFileSync(anchor, '{}')
-    expect(resolveOptionalBundlePatch(anchor, '@xmanrui/dsh-business-entry')).toBeUndefined()
+    expect(resolveOptionalBundlePatch(anchor, '@xmanrui/dsh-no-such-bundle', [])).toBeUndefined()
   })
 
   it('returns undefined when the installed bundle declares no patch layer', () => {
     const anchor = installAnchorWith({ manifest: { name: '@xmanrui/dsh-business-entry' } })
-    expect(resolveOptionalBundlePatch(anchor, '@xmanrui/dsh-business-entry')).toBeUndefined()
+    expect(resolveOptionalBundlePatch(anchor, '@xmanrui/dsh-business-entry', [])).toBeUndefined()
   })
 
   it('fails loudly when an installed bundle declares a broken patch layer', () => {
     const anchor = installAnchorWith({ manifest: DECLARED, patch: 'not: an array\n' })
-    expect(() => resolveOptionalBundlePatch(anchor, '@xmanrui/dsh-business-entry')).toThrow(/must be a top-level YAML array/)
+    expect(() => resolveOptionalBundlePatch(anchor, '@xmanrui/dsh-business-entry', [])).toThrow(/must be a top-level YAML array/)
+  })
+
+  it('skips the injection when an existing layer disables the same plugin id', () => {
+    const anchor = installAnchorWith({ manifest: DECLARED, patch: PATCH })
+    expect(resolveOptionalBundlePatch(anchor, '@xmanrui/dsh-business-entry', [{ id: 'xmanrui-dsh-business-entry', disabled: true }]))
+      .toBeUndefined()
+  })
+
+  it('skips the injection when an existing layer already inserts the same plugin id', () => {
+    const anchor = installAnchorWith({ manifest: DECLARED, patch: PATCH })
+    const existing = [{ insert: [{ id: 'xmanrui-dsh-business-entry', name: '@xmanrui/dsh-business-entry' }] }]
+    expect(resolveOptionalBundlePatch(anchor, '@xmanrui/dsh-business-entry', existing)).toBeUndefined()
+  })
+
+  it('injects when existing layers only configure unrelated ids', () => {
+    const anchor = installAnchorWith({ manifest: DECLARED, patch: PATCH })
+    expect(resolveOptionalBundlePatch(anchor, '@xmanrui/dsh-business-entry', [{ id: 'session-telemetry-otel', disabled: true }]))
+      .toEqual([{ insert: [{ id: 'xmanrui-dsh-business-entry', name: '@xmanrui/dsh-business-entry' }] }])
   })
 })
 

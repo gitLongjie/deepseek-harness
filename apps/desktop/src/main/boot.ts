@@ -138,15 +138,25 @@ function homePatchPath(): string {
 
 /**
  * Resolve an optional bundle's cordis patch from the installation anchor.
- * Returns the patch entries when the package resolves and declares a
- * `dsh.bundle.patch`; `undefined` when the package is not installed, which is
- * the optional case this probe exists for. A package that resolves but fails
- * to parse fails boot loudly like every other patch layer.
+ * Returns the patch entries when the package resolves, declares a
+ * `dsh.bundle.patch`, and no existing patch layer already configures a plugin
+ * id the bundle would insert — the injected rows are defaults, and an explicit
+ * profile or home patch row (including a `disabled: true` row left by a
+ * previous deployment) always wins. `undefined` otherwise: the package not
+ * being installed is the optional case this probe exists for, and injecting
+ * over an existing id would fail the loader with a duplicate id. A package
+ * that resolves but fails to parse fails boot loudly like every other patch
+ * layer.
  * @param installAnchor - absolute path of the app's package.json.
  * @param packageName - the bundle's package name to probe.
- * @returns the patch entries, or `undefined` when the package is not installed.
+ * @param existingPatches - the bundle, profile, and home patch lists already composed for this boot.
+ * @returns the patch entries, or `undefined` when the injection must not run.
  */
-export function resolveOptionalBundlePatch(installAnchor: string, packageName: string): PatchOptions[] | undefined {
+export function resolveOptionalBundlePatch(
+  installAnchor: string,
+  packageName: string,
+  existingPatches: ReadonlyArray<PatchOptions>,
+): PatchOptions[] | undefined {
   let packageJsonPath: string
   try {
     packageJsonPath = createRequire(installAnchor).resolve(`${packageName}/package.json`)
@@ -159,7 +169,13 @@ export function resolveOptionalBundlePatch(installAnchor: string, packageName: s
   const manifest = JSON.parse(readFileSync(packageJsonPath, 'utf8')) as { dsh?: { bundle?: { patch?: string } } }
   const declared = manifest.dsh?.bundle?.patch
   if (declared === undefined) return undefined
-  return loadOverlayPatches(NAME, join(packageDir, declared))
+  const patches = loadOverlayPatches(NAME, join(packageDir, declared))
+  const introduced = new Set(patches.flatMap(patch => patch.insert?.map(row => row.id) ?? []))
+  const alreadyConfigured = existingPatches.some(patch =>
+    (patch.id !== undefined && introduced.has(patch.id))
+    || (patch.insert?.some(row => introduced.has(row.id)) ?? false))
+  if (alreadyConfigured) return undefined
+  return patches
 }
 
 /**
@@ -269,8 +285,15 @@ export async function runDesktopBoot(options: DesktopBootOptions): Promise<Deskt
   // The business-entry sidebar plugin ships inside app.asar but is not part of
   // the web profile template's bundles list. If its package is resolvable from
   // the installation anchor, inject its cordis patch so the Loader mounts it
-  // without requiring the user to edit the profile manifest.
-  const businessEntryPatch = resolveOptionalBundlePatch(INSTALL_ANCHOR, '@xmanrui/dsh-business-entry')
+  // without requiring the user to edit the profile manifest — unless a patch
+  // layer composed above already configures the same plugin id (a machine that
+  // deployed the plugin before this injection shipped, or disabled it in the
+  // home patch); then the existing configuration wins.
+  const businessEntryPatch = resolveOptionalBundlePatch(
+    INSTALL_ANCHOR,
+    '@xmanrui/dsh-business-entry',
+    [...bundlePatches, ...profile.patches, ...homePatches],
+  )
   if (businessEntryPatch !== undefined) overlays.push(...businessEntryPatch)
 
   const app: { current?: Context } = {}

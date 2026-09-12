@@ -10,7 +10,7 @@ Status: implemented
 
 ## 决策
 
-安装包完全按照 dsh-im 的方式暂存该插件。`business-entry` 加入 pnpm workspace（其 esbuild devDependency 随根锁文件安装；多余的 npm `package-lock.json` 已删除），`deploy-app.mjs` 通过 workspace 安装构建它，并把 `lib/`、`package.json`、`cordis.patch.yml` 暂存到 `dist/business-entry-package`，builder 配置再把暂存包拷入 `app.asar/node_modules/@xmanrui/dsh-business-entry`。启动时 `resolveOptionalBundlePatch` 从安装锚点探测该包，只要能解析且声明了 `dsh.bundle.patch`，就把它的补丁列表作为启动 overlay 注入——用户无须改 profile 清单。包不存在是可选情形，返回 `undefined`；包存在但解析失败则像其他补丁层一样让启动响亮失败。
+安装包完全按照 dsh-im 的方式暂存该插件。`business-entry` 加入 pnpm workspace（其 esbuild devDependency 随根锁文件安装；多余的 npm `package-lock.json` 已删除），`deploy-app.mjs` 通过 workspace 安装构建它，并把 `lib/`、`package.json`、`cordis.patch.yml` 暂存到 `dist/business-entry-package`，builder 配置再把暂存包拷入 `app.asar/node_modules/@xmanrui/dsh-business-entry`。启动时 `resolveOptionalBundlePatch` 从安装锚点探测该包，只要能解析且声明了 `dsh.bundle.patch`，就把它的补丁列表作为启动 overlay 注入——用户无须改 profile 清单。注入的行只是默认值：只要任何 bundle、profile 或家目录补丁行已经配置了该包会插入的插件 id，注入就返回 `undefined`——同一 id 的第二次 insert 会让 loader 因重复 id 报错，v1.2.1 正是把这个崩溃带给了携带开发期 profile 注册的机器。包不存在是可选情形，返回 `undefined`；包存在但解析失败则像其他补丁层一样让启动响亮失败。
 
 ## 考虑过的替代方案
 
