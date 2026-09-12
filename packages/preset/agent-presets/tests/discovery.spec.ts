@@ -83,6 +83,28 @@ describe('preset discovery', () => {
     })
   })
 
+  it('surfaces the expert-card metadata a preset publishes', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-expert-'))
+    await mkdir(join(root, 'geo-optimizer'), { recursive: true })
+    await writeFile(join(root, 'geo-optimizer', COMPOSITION_FILE), '[]\n')
+    await writeFile(
+      join(root, 'geo-optimizer', 'preset.yml'),
+      'name: GEO 优化专家\ncategory: marketing\ntags: [GEO, 报价]\nquickPrompts: [先诊断可见度]\nicon: 🔍\n',
+    )
+
+    const found = await scanRoot({ path: root, trust: 'system' }, HARNESS)
+
+    // Discovery spreads the parsed metadata onto the row, so the expert-card
+    // fields ride the same path name and description always have.
+    expect(found[0]).toMatchObject({
+      name: 'GEO 优化专家',
+      category: 'marketing',
+      tags: ['GEO', '报价'],
+      quickPrompts: ['先诊断可见度'],
+      icon: '🔍',
+    })
+  })
+
   it('reports a directory with no composition as a broken preset slot', async () => {
     const found = await scanRoot(USER, HARNESS)
 

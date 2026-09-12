@@ -68,6 +68,10 @@ agent-presets:
 
 The value is read when a session is created, so a changed default affects only sessions created afterwards; running sessions stay on the preset they were composed from. Clearing the user field re-inherits the composition default.
 
+### Display metadata
+
+A preset directory may carry a `preset.yml` beside the composition, holding display text only: `name`, `description`, and `order` for every picker, plus the expert-card fields a market-style picker groups and filters by — a deployment-owned `category` id, up to eight `tags`, up to three `quickPrompts` suggested first messages, and a short `icon` glyph. The file never carries identity or trust (`id` is the directory, `trust` comes from the root), and every absent or malformed field degrades to no metadata rather than to a preset that cannot start.
+
 ### Authoring presets
 
 Authoring is copy-only: creating a preset copies an existing preset's whole directory — composition, display metadata, skill directories, assets — into the first `user` root. The copy keeps the source's description but gets its own id and an optional display name, so no caller supplies composition text and a copy grants nothing the roster did not already carry. After creation, everything happens in the preset's own files.
@@ -123,7 +127,7 @@ A directly-plugged subtree is absent from `ctx.loader.entries()`, so no boot aud
 
 ### Authoring mechanics
 
-A copy dereferences symlinks so it is self-contained, re-tightens the tree to owner-only (`0o600` files keeping their owner-execute bit, `0o700` directories), and creates the root on first copy. The copied `preset.yml` is rewritten: the source's description is kept for the author to edit, its name and roster `order` dropped, so the roster keeps distinguishing the copy from its source. Removal refuses presets that ship with the deployment and clears a user default that named the preset just deleted.
+A copy dereferences symlinks so it is self-contained, re-tightens the tree to owner-only (`0o600` files keeping their owner-execute bit, `0o700` directories), and creates the root on first copy. The copied `preset.yml` is rewritten: the source's description is kept for the author to edit, its name and roster `order` dropped, so the roster keeps distinguishing the copy from its source; the expert-card fields (`category`, `tags`, `quickPrompts`, `icon`) travel unchanged, because they say what the expertise is, not which copy this is. Removal refuses presets that ship with the deployment and clears a user default that named the preset just deleted.
 
 ### The session record
 

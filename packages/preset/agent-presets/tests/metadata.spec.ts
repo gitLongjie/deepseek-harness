@@ -85,6 +85,34 @@ describe('reading display metadata', () => {
     // shipped one; identity comes from the directory and the root it sits in.
     expect(await readPresetMetadata(dir)).toEqual({ name: 'mine' })
   })
+
+  it('reads the expert-card fields', async () => {
+    const dir = await presetDir(
+      'category: marketing\ntags: [GEO, "AI 搜索"]\nquickPrompts:\n  - 先诊断可见度\n  - 再出报价\nicon: 🔍\n',
+    )
+
+    expect(await readPresetMetadata(dir)).toEqual({
+      category: 'marketing',
+      tags: ['GEO', 'AI 搜索'],
+      quickPrompts: ['先诊断可见度', '再出报价'],
+      icon: '🔍',
+    })
+  })
+
+  it('degrades wrongly-typed expert-card fields rather than failing the read', async () => {
+    const dir = await presetDir('category: 7\ntags: GEO\nquickPrompts: [3, "  ", ok]\nicon: []\n')
+
+    // A non-array tags stays unread, non-text entries drop out, and one
+    // surviving prompt is still worth showing — display text never fails.
+    expect(await readPresetMetadata(dir)).toEqual({ quickPrompts: ['ok'] })
+  })
+
+  it('caps the expert-card arrays at their display sizes', async () => {
+    const nine = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i']
+    const dir = await presetDir(`tags: [${nine.map(tag => JSON.stringify(tag)).join(', ')}]\n`)
+
+    expect((await readPresetMetadata(dir))?.tags).toHaveLength(8)
+  })
 })
 
 describe('rendering display metadata', () => {
@@ -93,6 +121,18 @@ describe('rendering display metadata', () => {
     const dir = await presetDir(rendered)
 
     expect(await readPresetMetadata(dir)).toEqual({ name: '创造模式', description: '可以改自己的组装。' })
+  })
+
+  it('round-trips the expert-card fields through a read', async () => {
+    const metadata = {
+      category: 'marketing',
+      tags: ['GEO', 'AI 搜索'],
+      quickPrompts: ['先诊断可见度', '再出报价'],
+      icon: '🔍',
+    }
+    const dir = await presetDir(renderPresetMetadata(metadata))
+
+    expect(await readPresetMetadata(dir)).toEqual(metadata)
   })
 
   it('stores a declared order', () => {

@@ -123,8 +123,11 @@ async function tightenModes(dir: string): Promise<void> {
  * (the file is the author's to edit afterwards), but its name and roster
  * `order` are not — a copy presenting itself identically to its source, or
  * sorted into the shipped set's declared order, would make the roster stop
- * distinguishing them. With no name given and no description to keep, the
- * file is removed so the copy publishes nothing rather than a blank.
+ * distinguishing them. The expert-card fields travel unchanged: a forked
+ * expert presents the same category, tags, suggested prompts, and glyph as
+ * its source, because those say what the expertise is, not which copy this
+ * is. With no name given and no field to keep, the file is removed so the
+ * copy publishes nothing rather than a blank.
  * @param roots - the configured roots; the first `user` one receives the copy.
  * @param source - the resolved preset the copy starts from.
  * @param id - the new preset's id, which becomes its directory name.
@@ -153,6 +156,10 @@ export async function copyComposition(
     const rendered = renderPresetMetadata({
       ...name === undefined ? {} : { name },
       ...source.description === undefined ? {} : { description: source.description },
+      ...source.category === undefined ? {} : { category: source.category },
+      ...source.tags === undefined ? {} : { tags: source.tags },
+      ...source.quickPrompts === undefined ? {} : { quickPrompts: source.quickPrompts },
+      ...source.icon === undefined ? {} : { icon: source.icon },
     })
     const metadataPath = join(dir, METADATA_FILE)
     if (rendered === undefined) {

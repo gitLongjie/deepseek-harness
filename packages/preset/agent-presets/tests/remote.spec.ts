@@ -97,7 +97,10 @@ describe('the roster a client reads', () => {
     const userRoot = await mkdtemp(join(tmpdir(), 'dsh-preset-remote-'))
     await mkdir(join(userRoot, 'documented'), { recursive: true })
     await writeFile(join(userRoot, 'documented', COMPOSITION_FILE), VALID)
-    await writeFile(join(userRoot, 'documented', METADATA_FILE), 'name: 我的模式\ndescription: 只做检索。\n')
+    await writeFile(
+      join(userRoot, 'documented', METADATA_FILE),
+      'name: 我的模式\ndescription: 只做检索。\ncategory: marketing\ntags: [GEO, 报价]\nquickPrompts: [先诊断可见度]\nicon: 🔍\n',
+    )
     const ctx = await harness({
       default: 'minimal',
       roots: [{ path: join(FIXTURES, 'system'), trust: 'system' }, { path: userRoot, trust: 'user' }],
@@ -111,7 +114,17 @@ describe('the roster a client reads', () => {
     expect(roster.presets).toEqual([
       { id: 'minimal', trust: 'system', isDefault: true },
       { id: 'standard', trust: 'system', isDefault: false },
-      { id: 'documented', trust: 'user', isDefault: false, name: '我的模式', description: '只做检索。' },
+      {
+        id: 'documented',
+        trust: 'user',
+        isDefault: false,
+        name: '我的模式',
+        description: '只做检索。',
+        category: 'marketing',
+        tags: ['GEO', '报价'],
+        quickPrompts: ['先诊断可见度'],
+        icon: '🔍',
+      },
     ])
     // No row carries the composition's location: a preset is addressed by id
     // everywhere off the Host.

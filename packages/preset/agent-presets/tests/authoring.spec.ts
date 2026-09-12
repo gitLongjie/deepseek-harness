@@ -105,6 +105,23 @@ describe('copying a preset', () => {
       .toMatchObject({ description: '只做检索。' })
   })
 
+  it('travels the expert-card fields into the copy', async () => {
+    await seedPreset(userRoot, 'source', {
+      metadata: 'category: marketing\ntags: [GEO, 报价]\nquickPrompts: [先诊断可见度]\nicon: 🔍\n',
+    })
+
+    await ctx.agentPresets.copy('source', 'mine')
+
+    // The card fields say what the expertise is, not which copy this is, so
+    // a forked expert presents in the market exactly like its source.
+    expect((await ctx.agentPresets.list()).find(preset => preset.id === 'mine')).toMatchObject({
+      category: 'marketing',
+      tags: ['GEO', '报价'],
+      quickPrompts: ['先诊断可见度'],
+      icon: '🔍',
+    })
+  })
+
   it('stores the display name the author supplied', async () => {
     await ctx.agentPresets.copy('standard', 'mine', '我的模式')
 

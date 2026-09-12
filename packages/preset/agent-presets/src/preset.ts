@@ -33,6 +33,14 @@ export interface AgentPreset {
   readonly description?: string
   /** Declared position within its group; absent sorts after those that declare one. */
   readonly order?: number
+  /** Deployment-owned category id for expert-style cards, when published. */
+  readonly category?: string
+  /** Retrieval tags for expert-style cards, when published. */
+  readonly tags?: readonly string[]
+  /** Suggested first messages for expert-style cards, when published. */
+  readonly quickPrompts?: readonly string[]
+  /** Short display glyph for expert-style cards, when published. */
+  readonly icon?: string
   /**
    * Why this preset cannot compose a session, absent when it can. A broken
    * preset stays on the roster — hiding it would leave its directory blocking

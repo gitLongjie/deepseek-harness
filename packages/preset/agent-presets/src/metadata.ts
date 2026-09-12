@@ -36,13 +36,51 @@ export interface PresetMetadata {
    * can read in capability order while authored ones stay alphabetical.
    */
   readonly order?: number
+  /**
+   * Expert-style card grouping. A deployment-owned category id, not free
+   * prose: the picker's filter bar owns the vocabulary, and a preset naming
+   * an id its picker never registered simply matches no filter.
+   */
+  readonly category?: string
+  /** Retrieval tags for an expert-style card, at most {@link TAG_CAP}. */
+  readonly tags?: readonly string[]
+  /** Suggested first messages for an expert-style card, at most {@link QUICK_PROMPT_CAP}. */
+  readonly quickPrompts?: readonly string[]
+  /**
+   * Short display glyph for an expert-style card, typically one emoji. A
+   * preset-relative asset path would need a Host file channel the path-free
+   * roster does not offer; that, and data URIs, ride the marketplace install
+   * work instead.
+   */
+  readonly icon?: string
 }
+
+/** Display cap on published tags; the excess degrades silently. */
+export const TAG_CAP = 8
+
+/** Display cap on published suggested first messages; the excess degrades silently. */
+export const QUICK_PROMPT_CAP = 3
+
+/** Display cap, in UTF-16 code units, on the published glyph. */
+export const ICON_CAP = 16
 
 /** A non-empty trimmed string, or undefined for anything else. */
 function text(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined
   const trimmed = value.trim()
   return trimmed === '' ? undefined : trimmed
+}
+
+/**
+ * The non-empty trimmed strings from an array-like value, capped.
+ * @param value - the parsed YAML value.
+ * @param cap - how many entries display may carry; the excess degrades.
+ * @returns the usable entries, or undefined when there are none.
+ */
+function strings(value: unknown, cap: number): readonly string[] | undefined {
+  if (!Array.isArray(value)) return undefined
+  const kept = value.map(text).filter((entry): entry is string => entry !== undefined)
+  return kept.length === 0 ? undefined : kept.slice(0, cap)
 }
 
 /**
@@ -77,10 +115,18 @@ export async function readPresetMetadata(directory: string): Promise<PresetMetad
   const order = typeof record.order === 'number' && Number.isFinite(record.order)
     ? record.order
     : undefined
+  const category = text(record.category)
+  const tags = strings(record.tags, TAG_CAP)
+  const quickPrompts = strings(record.quickPrompts, QUICK_PROMPT_CAP)
+  const icon = text(record.icon)
   return {
     ...name === undefined ? {} : { name },
     ...description === undefined ? {} : { description },
     ...order === undefined ? {} : { order },
+    ...category === undefined ? {} : { category },
+    ...tags === undefined ? {} : { tags },
+    ...quickPrompts === undefined ? {} : { quickPrompts },
+    ...icon === undefined ? {} : { icon },
   }
 }
 
@@ -96,10 +142,19 @@ export function renderPresetMetadata(metadata: PresetMetadata): string | undefin
   const name = text(metadata.name)
   const description = text(metadata.description)
   const { order } = metadata
-  if (name === undefined && description === undefined && order === undefined) return undefined
-  return yaml.dump({
+  const category = text(metadata.category)
+  const tags = strings(metadata.tags, TAG_CAP)
+  const quickPrompts = strings(metadata.quickPrompts, QUICK_PROMPT_CAP)
+  const icon = text(metadata.icon)
+  const document = {
     ...name === undefined ? {} : { name },
     ...description === undefined ? {} : { description },
     ...order === undefined ? {} : { order },
-  }, { lineWidth: -1 })
+    ...category === undefined ? {} : { category },
+    ...tags === undefined ? {} : { tags: [...tags] },
+    ...quickPrompts === undefined ? {} : { quickPrompts: [...quickPrompts] },
+    ...icon === undefined ? {} : { icon },
+  }
+  if (Object.keys(document).length === 0) return undefined
+  return yaml.dump(document, { lineWidth: -1 })
 }

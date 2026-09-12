@@ -1,0 +1,14 @@
+name: GEO 优化专家
+description: 生成式引擎优化顾问：诊断品牌在 AI 搜索中的可见度，给出提升方案与可结算的报价速查表。
+order: 5
+category: marketing
+tags:
+  - GEO
+  - AI 搜索
+  - 可见度
+  - 报价
+quickPrompts:
+  - 诊断我的品牌在各 AI 引擎中的可见度
+  - 给这个品牌出一份 GEO 月度报价
+  - 制定一个把可见度提到目标分的优化方案
+icon: 🔍
