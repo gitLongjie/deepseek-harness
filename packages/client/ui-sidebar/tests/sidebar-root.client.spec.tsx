@@ -33,6 +33,7 @@ function mountShell({ collapsed = false, width = 300 }: { collapsed?: boolean; w
   const toggleSidebar = vi.fn()
   let knowledgeOwner: SidebarSectionOwnerProps | undefined
   let regionOwner: SidebarSectionOwnerProps | undefined
+  let businessOwner: SidebarSectionOwnerProps | undefined
   let settingsOwner: SidebarSettingsOwnerProps | undefined
   let footerActionOwner: SidebarFooterActionOwnerProps | undefined
   const brandMark = <span data-testid="custom-brand-mark">M</span>
@@ -52,6 +53,10 @@ function mountShell({ collapsed = false, width = 300 }: { collapsed?: boolean; w
         if (key === 'sidebar.knowledge') {
           knowledgeOwner = owner as SidebarSectionOwnerProps
           return <div data-testid="knowledge-seat" data-wide={owner.wide} />
+        }
+        if (key === 'sidebar.business') {
+          businessOwner = owner as SidebarSectionOwnerProps
+          return <div data-testid="business-seat" data-wide={owner.wide} />
         }
         if (key === 'sidebar.settings') {
           settingsOwner = owner
@@ -77,6 +82,10 @@ function mountShell({ collapsed = false, width = 300 }: { collapsed?: boolean; w
     regionOwner: () => {
       if (regionOwner === undefined) throw new Error('region owner not rendered')
       return regionOwner
+    },
+    businessOwner: () => {
+      if (businessOwner === undefined) throw new Error('business owner not rendered')
+      return businessOwner
     },
     settingsOwner: () => {
       if (settingsOwner === undefined) throw new Error('settings owner not rendered')
@@ -163,10 +172,13 @@ describe('SidebarRoot shell', () => {
     vi.advanceTimersByTime(200)
     b.rerender({})
     expect(b.regionOwner().wide).toBe(false)
+    expect(b.businessOwner().wide).toBe(false)
     expect(b.footerActionOwner().wide).toBe(false)
     expect(screen.getByTestId('region')).toBeTruthy()
     b.regionOwner().expandSidebar()
     expect(b.toggleSidebar).toHaveBeenCalledOnce()
+    b.businessOwner().expandSidebar()
+    expect(b.toggleSidebar).toHaveBeenCalledTimes(2)
   })
 
   it('renders statically collapsed on a cold start (no crossfade classes)', () => {

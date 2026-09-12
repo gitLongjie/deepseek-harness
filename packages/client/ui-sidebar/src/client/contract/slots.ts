@@ -3,7 +3,8 @@
  * layout-owned `sidebar` slot, plus the holes this shell declares. The shell
  * owns column geometry (fold state machine, brand row, New Session row);
  * the browsing region is the `sidebar.knowledge` registrant's section above
- * the `sidebar.workspaces` registrant's (ui-workspace), and the foot is the
+ * the `sidebar.business` registrant's, in turn above the
+ * `sidebar.workspaces` registrant's (ui-workspace), and the foot is the
  * `sidebar.settings` registrant's (ui-settings), followed by optional footer
  * actions in `sidebar.footer.action`.
  */
@@ -40,6 +41,14 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      * registers the browser.
      */
     'sidebar.workspaces': { kind: 'single'; scope: 'root'; owner: SidebarSectionOwnerProps }
+    /**
+     * The business-entry section rendered below the workspace region: the
+     * deployment's own task entries as one collapsible group. Declared by this
+     * package's 'sidebar' entry; optional — a deployment without business
+     * entries registers no occupant and the region renders without the
+     * section.
+     */
+    'sidebar.business': { kind: 'single'; scope: 'root'; owner: SidebarSectionOwnerProps }
     /**
      * The settings seat at the sidebar foot. Declared by this package's
      * 'sidebar' entry; ui-settings registers its trigger row + modal panel.
@@ -120,6 +129,7 @@ export type SidebarRootComponentProps =
     | 'sidebar.brand.name'
     | 'sidebar.knowledge'
     | 'sidebar.workspaces'
+    | 'sidebar.business'
     | 'sidebar.settings'
     | 'sidebar.footer.action'
   >

@@ -6,10 +6,10 @@
  * controls enter the 56px rail from the same horizontal offset (one icon each,
  * same top-down order) on one fade that ends with the slide. The bottom-pinned
  * settings control only fades. The browsing region between the New Session
- * row and the foot holds the `sidebar.knowledge` and `sidebar.workspaces`
- * registrants (knowledge above workspaces; both optional), and the foot holds
- * `sidebar.settings` plus `sidebar.footer.action`; the shell hands them the
- * wide flag (plus an expand request callback for the browsers).
+ * row and the foot holds the `sidebar.knowledge`, `sidebar.business`, and
+ * `sidebar.workspaces` registrants in that top-down order (all optional), and
+ * the foot holds `sidebar.settings` plus `sidebar.footer.action`; the shell
+ * hands them the wide flag (plus an expand request callback for the browsers).
  *
  * The column also owns whether the scroll regions nested in it draw a
  * scrollbar at all: the shell tracks the pointer and rebinds ui-theme's
@@ -174,10 +174,15 @@ export function SidebarRoot({
 
       {/* The browsing region fills the column between the controls and the
           foot in both states; its rail icon column rides the same slot. The
-          knowledge section renders above the workspace browser; an unoccupied
-          slot contributes no DOM. */}
+          knowledge section renders above the business-entry section, which
+          renders above the workspace browser; an unoccupied slot contributes
+          no DOM. */}
       <div className={css.regionArea}>
         {renderSlot('sidebar.knowledge', {
+          wide,
+          expandSidebar: () => { if (collapsed) toggleSidebar() },
+        })}
+        {renderSlot('sidebar.business', {
           wide,
           expandSidebar: () => { if (collapsed) toggleSidebar() },
         })}

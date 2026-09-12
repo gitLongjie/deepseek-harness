@@ -48,12 +48,27 @@ function refreshLocalImPlugin(): void {
   for (const file of ['client.js', 'index.js']) copyFileSync(resolve(source, 'lib', file), resolve(target, file))
 }
 
+/** Build the checked-out business-entry plugin and refresh the active Web profile copy. */
+function refreshLocalBusinessEntryPlugin(): void {
+  const source = resolve(root, '..', '..', 'business-entry')
+  run('node', ['build.mjs'], { cwd: source })
+  const target = resolve(process.env.DSH_HOME ?? `${process.env.USERPROFILE ?? ''}\\.dsh`, 'profiles', 'web', 'node_modules', '@xmanrui', 'dsh-business-entry', 'lib')
+  mkdirSync(target, { recursive: true })
+  for (const file of ['client.js', 'index.js']) copyFileSync(resolve(source, 'lib', file), resolve(target, file))
+  // Also copy cordis.patch.yml so the profile can discover the plugin's patch layer.
+  const patchTarget = resolve(process.env.DSH_HOME ?? `${process.env.USERPROFILE ?? ''}\\.dsh`, 'profiles', 'web', 'node_modules', '@xmanrui', 'dsh-business-entry')
+  copyFileSync(resolve(source, 'cordis.patch.yml'), resolve(patchTarget, 'cordis.patch.yml'))
+  // Copy package.json so the Loader can read dsh.bundle.patch and dsh.client metadata.
+  copyFileSync(resolve(source, 'package.json'), resolve(patchTarget, 'package.json'))
+}
+
 // The web dist must use a relative asset base so the app scheme can serve it;
 // build directly into apps/desktop/web to keep apps/web/dist (the served build)
 // untouched.
 // --emptyOutDir: the outDir is outside the web app's root, so vite would keep
 // old hashed chunks otherwise; stale assets linger and confuse diagnosis.
 refreshLocalImPlugin()
+refreshLocalBusinessEntryPlugin()
 run('pnpm', [
   'exec',
   'tsc',
