@@ -6,10 +6,10 @@
  * store, which outlives the shell unmounting the browsing region's wide
  * content at collapse.
  *
- * Hot-toggle: the settings section can enable/disable the sidebar group
- * without restarting. Toggling writes the home patch (persisted) and fires
- * a CustomEvent that the apply closure listens for to dispose or re-create
- * the sidebar.business slot registration immediately.
+ * Hot-toggle: the Settings page carries a resident enable/disable switch for
+ * the group (shell-owned, always visible). Toggling writes the home patch
+ * (persisted) and fires a CustomEvent that the apply closure listens for to
+ * dispose or re-create the sidebar.business slot registration immediately.
  */
 import React from 'react'
 import { BUSINESS_ENTRIES } from './entries.js'
@@ -122,93 +122,7 @@ function BusinessNav({ wide, expandSidebar, useStore, actions, t }) {
 /** CustomEvent detail: `{ enabled: boolean }`. */
 const TOGGLE_EVENT = 'dsh-business-entry:toggle'
 
-/* ------------------------------------------------------------------ */
-/*  Settings section component                                        */
-/* ------------------------------------------------------------------ */
-
 const PLUGIN_ID = 'xmanrui-dsh-business-entry'
-
-const settingsCss = {
-  section: 'be_settings_section',
-  heading: 'be_settings_heading',
-  row: 'be_settings_row',
-  label: 'be_settings_label',
-  desc: 'be_settings_desc',
-  switch: 'be_settings_switch',
-  switchOn: 'be_settings_switch_on',
-  knob: 'be_settings_knob',
-  status: 'be_settings_status',
-}
-
-const settingsStylesheet = `
-.${settingsCss.section}{display:flex;flex-direction:column;gap:16px;padding:8px 0}
-.${settingsCss.heading}{font-size:16px;font-weight:600;color:var(--dsw-alias-label-primary,#1a1a1a);margin:0 0 4px}
-.${settingsCss.row}{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 12px;border-radius:8px;background:var(--dsw-alias-interactive-bg-hover,rgba(0,0,0,.04))}
-.${settingsCss.label}{font-size:14px;font-weight:500;color:var(--dsw-alias-label-primary,#1a1a1a)}
-.${settingsCss.desc}{font-size:12px;color:var(--dsw-alias-label-tertiary,#999);margin-top:2px}
-.${settingsCss.switch}{position:relative;width:40px;height:22px;border-radius:11px;border:none;cursor:pointer;background:var(--dsw-alias-label-quaternary,#ccc);transition:background .2s;flex:none;padding:0}
-.${settingsCss.switchOn}{background:var(--dsw-alias-state-business-primary,#6366f1)}
-.${settingsCss.knob}{position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.15)}
-.${settingsCss.switchOn} .${settingsCss.knob}{transform:translateX(18px)}
-.${settingsCss.status}{font-size:12px;color:var(--dsw-alias-label-secondary,#666);margin-top:4px}
-`
-
-function BusinessEntrySettingsSection({ t }) {
-  const [enabled, setEnabled] = React.useState(true)
-  const [loading, setLoading] = React.useState(true)
-  const [saving, setSaving] = React.useState(false)
-
-  const ipc = typeof window !== 'undefined' ? window.__DSH_IPC__ : undefined
-
-  React.useEffect(() => {
-    if (!ipc) { setLoading(false); return }
-    ipc.invoke('dsh:plugin:isEnabled', PLUGIN_ID).then(val => {
-      setEnabled(val)
-      setLoading(false)
-    }).catch(() => { setLoading(false) })
-  }, [])
-
-  const toggle = () => {
-    if (!ipc || saving) return
-    const next = !enabled
-    setSaving(true)
-    // Write home patch (persisted) then fire hot-toggle event (immediate).
-    ipc.invoke('dsh:plugin:setEnabled', PLUGIN_ID, next).then(() => {
-      setEnabled(next)
-      setSaving(false)
-      // Fire the custom event so the apply closure disposes/re-registers
-      // the sidebar slot immediately — no restart needed.
-      window.dispatchEvent(new CustomEvent(TOGGLE_EVENT, { detail: { enabled: next } }))
-    }).catch(() => { setSaving(false) })
-  }
-
-  if (loading) {
-    return React.createElement('div', { className: settingsCss.section },
-      React.createElement('p', null, t('settings.loading')),
-    )
-  }
-
-  return React.createElement('div', { className: settingsCss.section },
-    React.createElement('h3', { className: settingsCss.heading }, t('settings.sectionLabel')),
-    React.createElement('div', { className: settingsCss.row },
-      React.createElement('div', null,
-        React.createElement('div', { className: settingsCss.label }, t('settings.toggleLabel')),
-        React.createElement('div', { className: settingsCss.desc }, t('settings.toggleDesc')),
-      ),
-      React.createElement('button', {
-        type: 'button',
-        className: clsx(settingsCss.switch, enabled && settingsCss.switchOn),
-        onClick: toggle,
-        disabled: saving,
-        role: 'switch',
-        'aria-checked': enabled,
-        'aria-label': t('settings.toggleLabel'),
-      },
-        React.createElement('span', { className: settingsCss.knob }),
-      ),
-    ),
-  )
-}
 
 /* ------------------------------------------------------------------ */
 /*  Plugin contract                                                   */
@@ -224,7 +138,7 @@ export function apply(ctx) {
     if (!document.querySelector('style[data-plugin="dsh-business-entry"]')) {
       const tag = document.createElement('style')
       tag.dataset.plugin = 'dsh-business-entry'
-      tag.textContent = stylesheet + settingsStylesheet
+      tag.textContent = stylesheet
       document.head.appendChild(tag)
     }
   }
@@ -272,7 +186,7 @@ export function apply(ctx) {
     registerSidebar()
   }
 
-  // Listen for hot-toggle events from the settings section.
+  // Listen for hot-toggle events from the resident Settings toggle.
   function onToggle(event) {
     if (event.detail?.enabled) {
       registerSidebar()
@@ -293,16 +207,4 @@ export function apply(ctx) {
       }
     }
   }, 'dsh-business-entry: hot-toggle lifecycle')
-
-  // Register an independent settings section for business-entry configuration.
-  ctx.slots.inject('settings.section', () => ctx.slots.register(
-    {
-      name: 'settings.section',
-      id: 'business-entry',
-      order: 50,
-      label: () => ctx.locale.bind(NS)('settings.sectionLabel'),
-      locale: NS,
-    },
-    BusinessEntrySettingsSection,
-  ))
 }

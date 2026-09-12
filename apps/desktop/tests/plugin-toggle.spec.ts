@@ -1,14 +1,14 @@
 /**
- * Unit tests for the home-patch plugin toggle. The serialized patch layer must
- * stay a top-level YAML array in every state: the app-boot patch loader
- * rejects any other shape, and that rejection fails desktop startup. The
- * disabled-entry form is validated with the same js-yaml parser app-boot uses.
+ * Unit tests for the plugin-toggle state store. The state lives in
+ * `$DSH_HOME/plugin-settings.json` — deliberately NOT the home patch layer:
+ * a loader patch row would unmount the plugin at boot, killing the live
+ * toggle. These tests pin the JSON contract the Settings row and the plugin
+ * client both ride on.
  */
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import yaml from 'js-yaml'
 
 const state = vi.hoisted(() => ({
   handlers: new Map<string, (...args: never[]) => unknown>(),
@@ -27,7 +27,7 @@ vi.mock('electron', () => ({
 
 import { registerPluginToggleIpc } from '../src/main/ipc/plugin-toggle.ts'
 
-const HOME_PATCH_FILENAME = 'cordis.patch.yml'
+const STATE_FILENAME = 'plugin-settings.json'
 const PLUGIN_ID = 'xmanrui-dsh-business-entry'
 
 let home: string
@@ -39,8 +39,8 @@ function callHandler(channel: string, ...args: unknown[]): unknown {
   return handler(undefined, ...args)
 }
 
-function readHomePatch(): string {
-  return readFileSync(join(home, HOME_PATCH_FILENAME), 'utf8')
+function readStateFile(): { plugins: Record<string, { disabled?: boolean }> } {
+  return JSON.parse(readFileSync(join(home, STATE_FILENAME), 'utf8'))
 }
 
 beforeEach(() => {
@@ -57,24 +57,23 @@ afterEach(() => {
   state.handlers.clear()
 })
 
-describe('plugin toggle home patch', () => {
-  it('reports plugins enabled when no patch file exists', () => {
+describe('plugin toggle state store', () => {
+  it('reports plugins enabled when no state file exists', () => {
     expect(callHandler('dsh:plugin:isEnabled', PLUGIN_ID)).toBe(true)
   })
 
-  it('serializes a disable toggle as a top-level YAML array', () => {
+  it('persists a disable toggle and reads it back', () => {
     callHandler('dsh:plugin:setEnabled', PLUGIN_ID, false)
 
-    expect(yaml.load(readHomePatch())).toEqual([{ id: PLUGIN_ID, disabled: true }])
+    expect(readStateFile()).toEqual({ plugins: { [PLUGIN_ID]: { disabled: true } } })
     expect(callHandler('dsh:plugin:isEnabled', PLUGIN_ID)).toBe(false)
   })
 
-  it('serializes the re-enabled empty state as a top-level YAML array', () => {
+  it('drops the entry on re-enable so the plugin mounts enabled next boot', () => {
     callHandler('dsh:plugin:setEnabled', PLUGIN_ID, false)
     callHandler('dsh:plugin:setEnabled', PLUGIN_ID, true)
 
-    const content = readHomePatch()
-    expect(yaml.load(content)).toEqual([])
+    expect(readStateFile()).toEqual({ plugins: {} })
     expect(callHandler('dsh:plugin:isEnabled', PLUGIN_ID)).toBe(true)
   })
 
@@ -83,9 +82,18 @@ describe('plugin toggle home patch', () => {
     callHandler('dsh:plugin:setEnabled', PLUGIN_ID, false)
     callHandler('dsh:plugin:setEnabled', PLUGIN_ID, true)
 
-    expect(yaml.load(readHomePatch())).toEqual([{ id: 'other-plugin', disabled: true }])
+    expect(readStateFile()).toEqual({ plugins: { 'other-plugin': { disabled: true } } })
     expect(callHandler('dsh:plugin:isEnabled', 'other-plugin')).toBe(false)
     expect(callHandler('dsh:plugin:isEnabled', PLUGIN_ID)).toBe(true)
+  })
+
+  it('treats a mangled state file as empty instead of failing the toggle', () => {
+    writeFileSync(join(home, STATE_FILENAME), '{ not json', 'utf8')
+
+    expect(callHandler('dsh:plugin:isEnabled', PLUGIN_ID)).toBe(true)
+
+    callHandler('dsh:plugin:setEnabled', PLUGIN_ID, false)
+    expect(readStateFile()).toEqual({ plugins: { [PLUGIN_ID]: { disabled: true } } })
   })
 
   it('creates the home directory when missing', () => {
@@ -93,6 +101,6 @@ describe('plugin toggle home patch', () => {
 
     callHandler('dsh:plugin:setEnabled', PLUGIN_ID, false)
 
-    expect(existsSync(join(home, HOME_PATCH_FILENAME))).toBe(true)
+    expect(existsSync(join(home, STATE_FILENAME))).toBe(true)
   })
 })

@@ -19,14 +19,9 @@ node build.mjs
 
 ## 开关
 
-编辑 `~/.dsh/cordis.patch.yml`，取消注释以下行即可禁用：
+设置面板左侧导航里有常驻的「业务入口」分区（仅桌面端）：它写入 `~/.dsh/plugin-settings.json` 并热重载侧边栏分组，无需重启。分区由壳层拥有，插件被隐藏时也始终可见。
 
-```yaml
-- id: xmanrui-dsh-business-entry
-  disabled: true
-```
-
-删除该行或注释掉即可重新启用。
+该状态文件只控制侧边栏注册——插件本身始终挂载，这正是开关能实时生效的原因。手工编辑这个 JSON 与使用开关效果相同。
 
 ## 文件结构
 

@@ -14,6 +14,7 @@ const SID = 'session-1' as SessionId
 
 async function bench(options: { declareConversation?: boolean } = {}) {
   const runtime = await SlotTestRuntime.create()
+  ;(window as { __DSH_IPC__?: unknown }).__DSH_IPC__ = { invoke: vi.fn(async () => undefined) }
   runtime.ctx.provide('uiWorkspace', { connectWorkspace: vi.fn(async () => SID) } as never)
   runtime.ctx.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
   const locale = new LocaleRuntime(runtime.ctx)
@@ -23,6 +24,7 @@ async function bench(options: { declareConversation?: boolean } = {}) {
     await runtime.root.declare({
       'conversation': { kind: 'single', scope: 'session-maybe' },
       'settings.general.item': { kind: 'list', scope: 'root' },
+      'settings.section': { kind: 'list', scope: 'root' },
     }, (_props: { renderSlot?: unknown }) => null)
   }
   const feature = await runtime.mount({ inject: [...inject], apply })
@@ -44,6 +46,7 @@ describe('target-neutral Conversation apply wiring', () => {
     await b.runtime.root.declare({
       'conversation': { kind: 'single', scope: 'session-maybe' },
       'settings.general.item': { kind: 'list', scope: 'root' },
+      'settings.section': { kind: 'list', scope: 'root' },
     }, (_props: { renderSlot?: unknown }) => null)
 
     expect(b.runtime.slots.entries('conversation')).toHaveLength(1)
@@ -72,6 +75,8 @@ describe('target-neutral Conversation apply wiring', () => {
       .toEqual({ kind: 'chain', scope: 'session' })
     expect(b.runtime.slots.entries('settings.general.item').map(row => row.options.id))
       .toEqual(['composer-enter'])
+    expect(b.runtime.slots.entries('settings.section').map(row => row.options.id))
+      .toEqual(['business-entries'])
     await b.runtime.dispose()
   })
 

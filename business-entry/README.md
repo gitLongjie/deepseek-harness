@@ -19,14 +19,9 @@ After changing sources under `src/`, rebuild and restart the desktop app for the
 
 ## Toggle
 
-Edit `~/.dsh/cordis.patch.yml` and uncomment the following lines to disable:
+The settings panel carries a resident 业务入口 section in its nav (desktop only): it writes `~/.dsh/plugin-settings.json` and hot-reloads the sidebar group without a restart. The section is shell-owned, so it stays visible even while the plugin is hidden.
 
-```yaml
-- id: xmanrui-dsh-business-entry
-  disabled: true
-```
-
-Delete or comment out the lines to re-enable.
+The state file only gates the sidebar registration — the plugin itself always mounts, which is what keeps the toggle working live. Hand-editing that JSON has the same effect as using the switch.
 
 ## File layout
 

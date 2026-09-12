@@ -15,10 +15,6 @@ export const zh = {
   'item.report': '报告与汇报',
   'item.multiFormat': '一稿多形态',
   'item.rumor': '谣言识别与辟谣',
-  'settings.sectionLabel': '业务入口',
-  'settings.toggleLabel': '启用业务入口',
-  'settings.toggleDesc': '在侧边栏显示业务入口分组（日报、选题、速览等）',
-  'settings.loading': '加载中…',
 }
 
 /** English dictionary, checked complete against the zh key set. */
@@ -33,8 +29,4 @@ export const en = {
   'item.report': 'Reports and Briefings',
   'item.multiFormat': 'One Draft, Many Formats',
   'item.rumor': 'Rumor Detection and Debunking',
-  'settings.sectionLabel': 'Business Entry',
-  'settings.toggleLabel': 'Enable Business Entry',
-  'settings.toggleDesc': 'Show the business entry group in the sidebar (daily report, topics, briefing, etc.)',
-  'settings.loading': 'Loading…',
 }
