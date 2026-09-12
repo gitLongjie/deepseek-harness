@@ -1,31 +1,31 @@
 {
-  "productName": "MeowWork",
+  "productName": "深度Work",
   "brandIcon": "/favicon.ico",
-  "loginUrl": "http://ciyuan.three-friend.com/api/user/deepagens-claw/login",
-  "updateUrl": "https://github.com/gitLongjie/miaoWorker/releases/latest/download",
+  "loginUrl": "https://claw.deepagens.com/api/user/deepagens-claw/login",
+  "updateUrl": "https://github.com/gitLongjie/deepseek-harness/releases/latest/download",
   "knowledgeBase": {
     "baseUrl": "http://localhost:8080/api/v1",
     "apiKeyEnv": "WEKNORA_API_KEY",
     "webUiUrl": "http://localhost:8080"
   },
   "loginTagline": {
-    "zh": "喵力加持，事事有着落",
-    "en": "With a helping paw, everything lands."
+    "zh": "云海扬帆，事事有着落",
+    "en": "Set sail on the sea of clouds, and everything lands."
   },
   "greetings": {
     "zh": {
-      "morning": "早起的喵，有鱼吃",
-      "noon": "午间小憩，蓄满喵力",
-      "afternoon": "午后时光，喵力正盛",
-      "evening": "暮色渐浓，收获入袋",
-      "night": "夜深了，剩下的交给喵"
+      "morning": "晨光初起，扬帆正好",
+      "noon": "午间小泊，蓄满风力",
+      "afternoon": "午后风起，云海正阔",
+      "evening": "暮色渐浓，归帆满载",
+      "night": "夜深了，剩下的交给星光"
     },
     "en": {
-      "morning": "The early cat gets the fish.",
-      "noon": "A short nap recharges the pounce.",
-      "afternoon": "Afternoon glow, paws at full stretch.",
-      "evening": "Dusk settles in — today's wins are in the bag.",
-      "night": "Leave the rest to me. Rest well."
+      "morning": "The early sail catches the wind.",
+      "noon": "A short nap at anchor recharges the sails.",
+      "afternoon": "Afternoon wind rises — sails at full stretch.",
+      "evening": "Dusk settles in — the sails come home full.",
+      "night": "Leave the rest to the stars. Rest well."
     }
   }
 }

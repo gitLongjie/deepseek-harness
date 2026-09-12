@@ -39,15 +39,22 @@ describe('desktop builder identity', () => {
 
   it('gives Windows and macOS release assets stable architecture-specific names', () => {
     expect(config).toMatch(
-      /^nsis:\s*$[\s\S]*?^\s+artifactName:\s+MeowWork-\$\{version\}-win-\$\{arch\}\.\$\{ext\}\s*$/m,
+      /^nsis:\s*$[\s\S]*?^\s+artifactName:\s+深度Work-\$\{version\}-win-\$\{arch\}\.\$\{ext\}\s*$/m,
     )
     expect(config).toMatch(
-      /^mac:\s*$[\s\S]*?^\s+artifactName:\s+MeowWork-\$\{version\}-mac-\$\{arch\}\.\$\{ext\}\s*$/m,
+      /^mac:\s*$[\s\S]*?^\s+artifactName:\s+深度Work-\$\{version\}-mac-\$\{arch\}\.\$\{ext\}\s*$/m,
     )
     expect(config).toMatch(
-      /^linux:\s*$[\s\S]*?^\s+artifactName:\s+MeowWork-\$\{version\}-linux-\$\{arch\}\.\$\{ext\}\s*$/m,
+      /^linux:\s*$[\s\S]*?^\s+artifactName:\s+深度Work-\$\{version\}-linux-\$\{arch\}\.\$\{ext\}\s*$/m,
     )
     expect(config).not.toContain('${productName}-${version}')
+  })
+
+  it('installs per-machine under the stable ASCII DeepagensWork directory', () => {
+    expect(config).toMatch(/^  perMachine: true\s*$/m)
+    expect(config).toMatch(/^  include: build\/installer\.nsh\s*$/m)
+    const installer = readFileSync(fileURLToPath(new URL('../build/installer.nsh', import.meta.url)), 'utf8')
+    expect(installer).toContain('StrCpy $INSTDIR "$PROGRAMFILES64\\DeepagensWork"')
   })
 
   it('brands the Windows development executable used by Task Manager', () => {
@@ -85,9 +92,9 @@ describe('desktop builder identity', () => {
       'https://updates.example.test/desktop',
     )).toEqual({
       extends: 'electron-builder.yml',
-      productName: 'MeowWork',
+      productName: '深度Worker',
       extraMetadata: {
-        name: 'meowwork',
+        name: 'DeepagensWork',
         productName: '深度Worker',
         dsh: { updateUrl: 'https://updates.example.test/desktop' },
       },
@@ -111,7 +118,7 @@ describe('desktop builder identity', () => {
     })).toMatchObject({
       directories: { output: 'C:/local-update/feed' },
       extraMetadata: {
-        name: 'meowwork',
+        name: 'DeepagensWork',
         productName: 'Worker',
         version: '1.2.4',
         dsh: { updateUrl: 'http://127.0.0.1:43119', localUpdateTest: true },

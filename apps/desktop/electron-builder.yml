@@ -67,7 +67,7 @@ win:
   # Windows Explorer, the taskbar, and Task Manager read the executable's
   # embedded icon rather than BrowserWindow's runtime icon.
   icon: build/icon.ico
-  executableName: MeowWork
+  executableName: 深度Work
   target:
     - target: nsis
       arch:
@@ -75,17 +75,23 @@ win:
 nsis:
   # Release asset URLs stay ASCII so electron-publish can upload an OEM name
   # containing non-ASCII characters without putting it in the request path.
-  artifactName: MeowWork-${version}-win-${arch}.${ext}
+  artifactName: 深度Work-${version}-win-${arch}.${ext}
+  # Per-machine install so the assisted wizard defaults to Program Files, and
+  # installer.nsh pins that default to the ASCII DeepagensWork directory: the
+  # display name stays 深度Work while the on-disk path stays stable across OEM
+  # renames.
+  perMachine: true
+  include: build/installer.nsh
   oneClick: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  shortcutName: MeowWork
-  uninstallDisplayName: MeowWork
+  shortcutName: 深度Work
+  uninstallDisplayName: 深度Work
 mac:
   # Both architectures are built in one job. The architecture suffix prevents
   # the Intel and Apple Silicon assets from colliding in the GitHub release.
-  artifactName: MeowWork-${version}-mac-${arch}.${ext}
+  artifactName: 深度Work-${version}-mac-${arch}.${ext}
   target:
     - target: dmg
       arch:
@@ -101,7 +107,7 @@ mac:
   identity: null
   notarize: false
 dmg:
-  artifactName: MeowWork-${version}-mac-${arch}.${ext}
+  artifactName: 深度Work-${version}-mac-${arch}.${ext}
 linux:
   target:
     - AppImage
@@ -109,12 +115,12 @@ linux:
   category: Development
   # Without an explicit name, AppImage/deb infer executableName from the
   # package.json name (which contains @ and /) and the build fails.
-  executableName: meowwork
+  executableName: deepwork
   # The scoped package name (@deepseek-ai/dsh-desktop) would put the .deb under
   # a missing dist-electron/@deepseek-ai/ directory (fpm: parent directory does
   # not exist). Pin a flat artifact name so both Linux targets write directly
   # under dist-electron/.
-  artifactName: MeowWork-${version}-linux-${arch}.${ext}
+  artifactName: 深度Work-${version}-linux-${arch}.${ext}
 publish:
   provider: github
   owner: gitLongjie

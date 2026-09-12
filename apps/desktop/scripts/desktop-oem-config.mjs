@@ -99,11 +99,14 @@ export function createElectronBuilderOemConfig(productName, updateUrl, options =
   }
   const config = {
     extends: 'electron-builder.yml',
-    // Keep the Chinese runtime display name separate from the ASCII installer
-    // identity used by Windows paths, shortcuts, and release assets.
-    productName: 'MeowWork',
+    // The installer identity (install dir, shortcuts, uninstall entry) carries
+    // the configured OEM display name. The package `name` stays the ASCII
+    // DeepagensWork identity: electron-builder derives APP_FILENAME from it to
+    // sanitize the install directory, and an ASCII name keeps that check stable
+    // while the display name is non-ASCII (深度Work).
+    productName,
     extraMetadata: {
-      name: 'meowwork',
+      name: 'DeepagensWork',
       productName,
       dsh: {
         updateUrl,

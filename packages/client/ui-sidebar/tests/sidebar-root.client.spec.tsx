@@ -126,7 +126,7 @@ describe('SidebarRoot shell', () => {
         options?.fallback ?? null) as SidebarRootComponentProps['renderSlot']}
     />)
 
-    expect(screen.getByText('MeowWork')).toBeTruthy()
+    expect(screen.getByText('深度Work')).toBeTruthy()
     expect(container.querySelector('img')).toBeNull()
   })
 
@@ -139,7 +139,7 @@ describe('SidebarRoot shell', () => {
         options?.fallback ?? null) as SidebarRootComponentProps['renderSlot']}
     />)
 
-    expect(screen.getByText('MeowWork')).toBeTruthy()
+    expect(screen.getByText('深度Work')).toBeTruthy()
   })
 
   it('hands the region seats their wide flag and clamps expandSidebar to the collapsed state', () => {
