@@ -324,7 +324,8 @@ function anchorInsertedPluginNames(patches: PatchOptions[], file: string): Patch
 /**
  * Parse one loader patch list: a top-level YAML array of
  * `@deepseek-ai/cordis-plugin-include` `PatchOptions` (id-targeted config overrides and
- * `insert` lists, `!!js` expressions allowed). Every invalid field or value throws,
+ * `insert` lists, `!!js` expressions allowed). An empty or comments-only
+ * document parses as no patches. Every invalid field or value throws,
  * because a patch file that cannot be applied at all is a misconfiguration; a
  * single patch whose target row is absent stays a per-entry Loader warning, so
  * one overlay shared across surfaces does not have to match every tree.
@@ -343,6 +344,7 @@ function parsePatchList(
   } catch (error) {
     throw new Error(`${binName}: failed to parse ${label} ${file}: ${String(error)}`)
   }
+  if (parsed === null || parsed === undefined) return []
   if (!Array.isArray(parsed)) {
     throw new Error(`${binName}: ${label} ${file} must be a top-level YAML array of loader patch entries`)
   }

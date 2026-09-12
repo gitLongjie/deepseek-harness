@@ -18,6 +18,7 @@ import { runDesktopBoot } from './boot.ts'
 import type { ProcessShutdown } from './process-shutdown.ts'
 import { dispatchTransportFetch, registerTransportIpc, type TransportFetchRequest } from './ipc/transport.ts'
 import { registerBundleIpc } from './ipc/bundle.ts'
+import { registerPluginToggleIpc } from './ipc/plugin-toggle.ts'
 import { renderDesktopIndex } from './ipc/index-html.ts'
 import { installSingleInstanceLock } from './desktop/single-instance.ts'
 import { installTray, type TrayHandle } from './desktop/tray.ts'
@@ -194,6 +195,7 @@ async function main(): Promise<void> {
       connection: host.ctx?.get('connection'),
     }))
     registerBundleIpc(() => host.ctx?.get('clientModules'))
+    registerPluginToggleIpc()
 
     // Protocol handlers and the menu must register after the app is ready.
     await app.whenReady()

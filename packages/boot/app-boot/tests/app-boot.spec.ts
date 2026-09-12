@@ -8,7 +8,7 @@ import SystemPrompt, { renderPrompt } from '@deepseek-ai/dsh-system-prompt'
 import {
   addHarnessSourceSection, assertEntriesActivated, assertEntriesLoaded, boot,
   FAIL_LOUD_RELEASE_TIMEOUT_MS, HARNESS_SOURCE_SECTION,
-  installFailLoud, loadEnv, loadLayeredEnv, loadOverlayPatches, resolveConfigPath, type FailLoudProcess,
+  installFailLoud, loadEnv, loadLayeredEnv, loadOptionalPatches, loadOverlayPatches, resolveConfigPath, type FailLoudProcess,
 } from '../src/index.ts'
 
 const NAME = 'dsh-test-bin'
@@ -543,6 +543,23 @@ describe('loadOverlayPatches', () => {
     writeFileSync(scalar, '- scalar\n')
     expect(() => loadOverlayPatches(NAME, scalar)).toThrow('entry 1')
   })
+
+  it('treats an empty or comments-only document as an empty patch list', () => {
+    const dir = tmp()
+    const empty = join(dir, 'empty.yml')
+    writeFileSync(empty, '')
+    expect(loadOverlayPatches(NAME, empty)).toEqual([])
+    // The user patch layer is a toggle file: all-instructions-commented is a
+    // normal state, and desktop instances keep rewriting it in that shape.
+    const comments = join(dir, 'comments.yml')
+    writeFileSync(comments, '# User-level patch layer.\n# - id: target\n#   disabled: true\n')
+    expect(loadOverlayPatches(NAME, comments)).toEqual([])
+    expect(loadOptionalPatches(NAME, comments)).toEqual([])
+    // A non-null non-array document is still a misconfiguration.
+    const mapping = join(dir, 'mapping.yml')
+    writeFileSync(mapping, 'id: target\n')
+    expect(() => loadOptionalPatches(NAME, mapping)).toThrow('must be a top-level YAML array')
+  })
 })
 
 describe('boot', () => {
@@ -797,7 +814,7 @@ describe('addHarnessSourceSection', () => {
       expect(rendered).toContain(EXPECTED)
       // Harness-owned opener (-100) → source (-99) → persona (0). The >= 0 guards
       // keep a drifted opener/persona string from a false pass through `-1 < n`.
-      const identityAt = rendered.indexOf('You are an AI agent powered by 深度Work.')
+      const identityAt = rendered.indexOf('You are an AI agent powered by MeowWork. Unless explicitly instructed otherwise, respond in the same language the user uses.')
       const sourceAt = rendered.indexOf(EXPECTED)
       const personaAt = rendered.indexOf('You are a coding agent.')
       expect(identityAt).toBeGreaterThanOrEqual(0)
