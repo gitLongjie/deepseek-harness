@@ -1,0 +1,72 @@
+/**
+ * Expert-page navigation: the page state for the expert browser shown in the
+ * conversation area, and the policy that closes it. The page is ephemeral —
+ * it never survives a reload, and any Session navigation (open,
+ * archive-clear, New Session) closes it, because the Session surface always
+ * wins the conversation area. Mirrors the knowledge page's navigation
+ * service; the two pages are independent, and ui-conversation renders the
+ * expert page ahead of the knowledge one should both ever stand.
+ * @module @deepseek-ai/dsh-client-ui-expert/client/navigation
+ */
+import { Service } from '@deepseek-ai/cordis';
+import { defineStore } from '@deepseek-ai/dsh-client-store';
+/**
+ * Create the expert-page store handle.
+ * @returns the store handle (spec + type + identity + factory in one).
+ */
+export function createExpertPageStore() {
+    const handle = defineStore({
+        init: () => ({ open: false }),
+        actions: {
+            setOpen: (d, open) => { d.open = open; },
+        },
+    });
+    return { create: () => handle.create() };
+}
+/** Implements expert-page navigation and its session policy. */
+export class UiExpertService extends Service {
+    sessions;
+    page;
+    /**
+     * @param ctx - Client root Context.
+     * @param sessions - pure Session Controller, for the close-on-navigation policy.
+     */
+    constructor(ctx, sessions) {
+        super(ctx, 'uiExpert');
+        this.sessions = sessions;
+        this.page = createExpertPageStore().create();
+        ctx.effect(() => this.watchSessionNavigation(), 'ui-expert: page session policy');
+    }
+    /** The page-state observable bound as the conversation area's `useExpertView` hook. */
+    get view() {
+        return this.page;
+    }
+    openPage() {
+        this.page.actions.setOpen(true);
+    }
+    closePage() {
+        this.page.actions.setOpen(false);
+    }
+    /**
+     * Any current-Session change — open, archive-clear, or New Session — closes
+     * the page, so the Session surface is never found hidden under it. The body
+     * deliberately mirrors the knowledge page's policy (ui-knowledge-base
+     * navigation.ts): the two pages close for the same reason, under the same
+     * session-list fact, and sharing a helper across feature plugins would
+     * couple them for fifteen lines.
+     * @returns the subscription disposer.
+     */
+    /* jscpd:ignore-start */
+    watchSessionNavigation() {
+        let last = this.sessions.list.getSnapshot().current;
+        const dispose = this.sessions.list.subscribe(() => {
+            const current = this.sessions.list.getSnapshot().current;
+            if (current === last)
+                return;
+            last = current;
+            this.closePage();
+        });
+        return dispose;
+    }
+}
+//# sourceMappingURL=navigation.js.map

@@ -1,0 +1,181 @@
+/**
+ * The expert page: the conversation-area view that stands in for the session
+ * surface while the page is open — the deployment's preset roster presented
+ * as hireable expert cards, with a search box and the category filter bar the
+ * published metadata feeds. Any Session navigation closes the page
+ * (UiExpertService watches the Session list); hiring stages the card's preset
+ * for the next session and starts it.
+ */
+import { useEffect, useMemo, useState } from 'react'
+import clsx from 'clsx'
+import type { ExpertBrowserProps, ExpertRow } from './contract/slots.ts'
+import css from './ExpertBrowser.module.css'
+
+/** Human text for a rejected wire call, read by the page's error state. */
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+/** The card face renders healthy presets only: a broken preset cannot compose
+ * the session a hire would start, so it never appears as hireable. */
+function hireable(presets: readonly ExpertRow[]): ExpertRow[] {
+  return presets.filter(preset => preset.broken === undefined)
+}
+
+/** The category ids the roster publishes, in first-seen roster order. */
+function categoriesOf(presets: readonly ExpertRow[]): string[] {
+  const seen: string[] = []
+  for (const preset of presets) {
+    if (preset.category !== undefined && !seen.includes(preset.category)) seen.push(preset.category)
+  }
+  return seen
+}
+
+/** The roster rows the current search text and category filter admit. */
+function visibleOf(
+  presets: readonly ExpertRow[],
+  search: string,
+  category: string | null,
+): ExpertRow[] {
+  const needle = search.trim().toLowerCase()
+  return hireable(presets).filter((preset) => {
+    if (category !== null && preset.category !== category) return false
+    if (needle === '') return true
+    const haystack = [
+      preset.name ?? preset.id, preset.description ?? '', ...(preset.tags ?? []),
+    ].join('\n').toLowerCase()
+    return haystack.includes(needle)
+  })
+}
+
+/**
+ * Render the expert page.
+ * @param props - composed slot props (owner share + injected actions + locale seat).
+ * @returns the page element tree.
+ */
+export function ExpertBrowser({
+  load,
+  hire,
+  t,
+}: ExpertBrowserProps) {
+  // undefined = the roster read is in flight; error switches the grid for a
+  // retry row until a read succeeds.
+  const [presets, setPresets] = useState<readonly ExpertRow[] | undefined>(undefined)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [reloadToken, setReloadToken] = useState(0)
+  const [search, setSearch] = useState('')
+  const [category, setCategory] = useState<string | null>(null)
+
+  useEffect(() => {
+    const reader = new AbortController()
+    load()
+      .then((result) => {
+        if (reader.signal.aborted) return
+        setPresets(result.presets)
+        setLoadError(null)
+      })
+      .catch((error: unknown) => {
+        if (reader.signal.aborted) return
+        setLoadError(messageOf(error))
+      })
+    return () => { reader.abort() }
+  }, [load, reloadToken])
+
+  const categories = useMemo(() => categoriesOf(presets ?? []), [presets])
+  const visible = useMemo(
+    () => visibleOf(presets ?? [], search, category),
+    [presets, search, category],
+  )
+  // A filter row only earns its place when the metadata actually classifies.
+  const showFilters = categories.length > 0
+
+  return (
+    <div className={css.root}>
+      <header className={css.head}>
+        <h2 className={css.title}>{t('page.title')}</h2>
+        <input
+          type="search"
+          className={css.search}
+          aria-label={t('search.aria')}
+          placeholder={t('search.placeholder')}
+          value={search}
+          onChange={(event) => { setSearch(event.target.value) }}
+        />
+      </header>
+      {showFilters && (
+        <nav className={css.filters} aria-label={t('page.title')}>
+          <button
+            type="button"
+            className={category === null ? clsx(css.chip, css.chipActive) : css.chip}
+            onClick={() => { setCategory(null) }}
+          >
+            {t('filter.all')}
+          </button>
+          {categories.map(id => (
+            <button
+              key={id}
+              type="button"
+              className={category === id ? clsx(css.chip, css.chipActive) : css.chip}
+              onClick={() => { setCategory(category === id ? null : id) }}
+            >
+              {id}
+            </button>
+          ))}
+        </nav>
+      )}
+      <div className={css.body}>
+        {loadError !== null ? (
+          <div className={css.state} role="alert">
+            <p className={css.stateText}>{loadError}</p>
+            <button type="button" className={css.retry} onClick={() => { setReloadToken(token => token + 1) }}>
+              {t('error.retry')}
+            </button>
+          </div>
+        ) : presets === undefined ? (
+          <div className={css.state}><p className={css.stateText}>{t('loading')}</p></div>
+        ) : hireable(presets).length === 0 ? (
+          <div className={css.state}><p className={css.stateText}>{t('empty.none')}</p></div>
+        ) : visible.length === 0 ? (
+          <div className={css.state}><p className={css.stateText}>{t('empty.noMatches')}</p></div>
+        ) : (
+          <ul className={css.grid}>
+            {visible.map(preset => (
+              <li key={preset.id} className={css.card}>
+                <header className={css.cardHead}>
+                  <span className={css.avatar} aria-hidden="true">
+                    {preset.icon ?? (preset.name ?? preset.id).charAt(0)}
+                  </span>
+                  <div className={css.cardTitles}>
+                    <h3 className={css.cardName}>{preset.name ?? preset.id}</h3>
+                    <p className={css.cardMeta}>
+                      <span className={css.badge}>{t(preset.trust === 'system' ? 'trust.system' : 'trust.user')}</span>
+                      {preset.isDefault && <span className={css.badgeDefault}>{t('card.default')}</span>}
+                    </p>
+                  </div>
+                </header>
+                {preset.description !== undefined && (
+                  <p className={css.cardDescription}>{preset.description}</p>
+                )}
+                {(preset.tags?.length ?? 0) > 0 && (
+                  <ul className={css.tags}>
+                    {preset.tags?.map(tag => <li key={tag} className={css.tag}>{tag}</li>)}
+                  </ul>
+                )}
+                {(preset.quickPrompts?.length ?? 0) > 0 && (
+                  <ul className={css.prompts} aria-label={t('quickPrompts.label')}>
+                    {preset.quickPrompts?.map(prompt => (
+                      <li key={prompt} className={css.prompt}>{prompt}</li>
+                    ))}
+                  </ul>
+                )}
+                <button type="button" className={css.hire} onClick={() => { hire(preset.id) }}>
+                  {t('card.hire')}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  )
+}

@@ -1,0 +1,80 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+/**
+ * The expert page: the conversation-area view that stands in for the session
+ * surface while the page is open — the deployment's preset roster presented
+ * as hireable expert cards, with a search box and the category filter bar the
+ * published metadata feeds. Any Session navigation closes the page
+ * (UiExpertService watches the Session list); hiring stages the card's preset
+ * for the next session and starts it.
+ */
+import { useEffect, useMemo, useState } from 'react';
+import clsx from 'clsx';
+import css from './ExpertBrowser.module.css';
+/** Human text for a rejected wire call, read by the page's error state. */
+function messageOf(error) {
+    return error instanceof Error ? error.message : String(error);
+}
+/** The card face renders healthy presets only: a broken preset cannot compose
+ * the session a hire would start, so it never appears as hireable. */
+function hireable(presets) {
+    return presets.filter(preset => preset.broken === undefined);
+}
+/** The category ids the roster publishes, in first-seen roster order. */
+function categoriesOf(presets) {
+    const seen = [];
+    for (const preset of presets) {
+        if (preset.category !== undefined && !seen.includes(preset.category))
+            seen.push(preset.category);
+    }
+    return seen;
+}
+/** The roster rows the current search text and category filter admit. */
+function visibleOf(presets, search, category) {
+    const needle = search.trim().toLowerCase();
+    return hireable(presets).filter((preset) => {
+        if (category !== null && preset.category !== category)
+            return false;
+        if (needle === '')
+            return true;
+        const haystack = [
+            preset.name ?? preset.id, preset.description ?? '', ...(preset.tags ?? []),
+        ].join('\n').toLowerCase();
+        return haystack.includes(needle);
+    });
+}
+/**
+ * Render the expert page.
+ * @param props - composed slot props (owner share + injected actions + locale seat).
+ * @returns the page element tree.
+ */
+export function ExpertBrowser({ load, hire, t, }) {
+    // undefined = the roster read is in flight; error switches the grid for a
+    // retry row until a read succeeds.
+    const [presets, setPresets] = useState(undefined);
+    const [loadError, setLoadError] = useState(null);
+    const [reloadToken, setReloadToken] = useState(0);
+    const [search, setSearch] = useState('');
+    const [category, setCategory] = useState(null);
+    useEffect(() => {
+        const reader = new AbortController();
+        load()
+            .then((result) => {
+            if (reader.signal.aborted)
+                return;
+            setPresets(result.presets);
+            setLoadError(null);
+        })
+            .catch((error) => {
+            if (reader.signal.aborted)
+                return;
+            setLoadError(messageOf(error));
+        });
+        return () => { reader.abort(); };
+    }, [load, reloadToken]);
+    const categories = useMemo(() => categoriesOf(presets ?? []), [presets]);
+    const visible = useMemo(() => visibleOf(presets ?? [], search, category), [presets, search, category]);
+    // A filter row only earns its place when the metadata actually classifies.
+    const showFilters = categories.length > 0;
+    return (_jsxs("div", { className: css.root, children: [_jsxs("header", { className: css.head, children: [_jsx("h2", { className: css.title, children: t('page.title') }), _jsx("input", { type: "search", className: css.search, "aria-label": t('search.aria'), placeholder: t('search.placeholder'), value: search, onChange: (event) => { setSearch(event.target.value); } })] }), showFilters && (_jsxs("nav", { className: css.filters, "aria-label": t('page.title'), children: [_jsx("button", { type: "button", className: category === null ? clsx(css.chip, css.chipActive) : css.chip, onClick: () => { setCategory(null); }, children: t('filter.all') }), categories.map(id => (_jsx("button", { type: "button", className: category === id ? clsx(css.chip, css.chipActive) : css.chip, onClick: () => { setCategory(category === id ? null : id); }, children: id }, id)))] })), _jsx("div", { className: css.body, children: loadError !== null ? (_jsxs("div", { className: css.state, role: "alert", children: [_jsx("p", { className: css.stateText, children: loadError }), _jsx("button", { type: "button", className: css.retry, onClick: () => { setReloadToken(token => token + 1); }, children: t('error.retry') })] })) : presets === undefined ? (_jsx("div", { className: css.state, children: _jsx("p", { className: css.stateText, children: t('loading') }) })) : hireable(presets).length === 0 ? (_jsx("div", { className: css.state, children: _jsx("p", { className: css.stateText, children: t('empty.none') }) })) : visible.length === 0 ? (_jsx("div", { className: css.state, children: _jsx("p", { className: css.stateText, children: t('empty.noMatches') }) })) : (_jsx("ul", { className: css.grid, children: visible.map(preset => (_jsxs("li", { className: css.card, children: [_jsxs("header", { className: css.cardHead, children: [_jsx("span", { className: css.avatar, "aria-hidden": "true", children: preset.icon ?? (preset.name ?? preset.id).charAt(0) }), _jsxs("div", { className: css.cardTitles, children: [_jsx("h3", { className: css.cardName, children: preset.name ?? preset.id }), _jsxs("p", { className: css.cardMeta, children: [_jsx("span", { className: css.badge, children: t(preset.trust === 'system' ? 'trust.system' : 'trust.user') }), preset.isDefault && _jsx("span", { className: css.badgeDefault, children: t('card.default') })] })] })] }), preset.description !== undefined && (_jsx("p", { className: css.cardDescription, children: preset.description })), (preset.tags?.length ?? 0) > 0 && (_jsx("ul", { className: css.tags, children: preset.tags?.map(tag => _jsx("li", { className: css.tag, children: tag }, tag)) })), (preset.quickPrompts?.length ?? 0) > 0 && (_jsx("ul", { className: css.prompts, "aria-label": t('quickPrompts.label'), children: preset.quickPrompts?.map(prompt => (_jsx("li", { className: css.prompt, children: prompt }, prompt))) })), _jsx("button", { type: "button", className: css.hire, onClick: () => { hire(preset.id); }, children: t('card.hire') })] }, preset.id))) })) })] }));
+}
+//# sourceMappingURL=ExpertBrowser.js.map

@@ -3,7 +3,8 @@
  * layout-owned `sidebar` slot, plus the holes this shell declares. The shell
  * owns column geometry (fold state machine, brand row, New Session row);
  * the browsing region is the `sidebar.knowledge` registrant's section above
- * the `sidebar.business` registrant's, in turn above the
+ * the `sidebar.experts` registrant's, in turn above the
+ * `sidebar.business` registrant's, then the
  * `sidebar.workspaces` registrant's (ui-workspace), and the foot is the
  * `sidebar.settings` registrant's (ui-settings), followed by optional footer
  * actions in `sidebar.footer.action`.
@@ -34,6 +35,14 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      * region renders without the section.
      */
     'sidebar.knowledge': { kind: 'single'; scope: 'root'; owner: SidebarSectionOwnerProps }
+    /**
+     * The expert browsing section rendered between the knowledge and
+     * business-entry sections: the expert center's entry row. Declared by
+     * this package's 'sidebar' entry; optional — a deployment without the
+     * expert plugin registers no occupant and the region renders without
+     * the section.
+     */
+    'sidebar.experts': { kind: 'single'; scope: 'root'; owner: SidebarSectionOwnerProps }
     /**
      * The workspace/session browsing region: section header, search, the
      * grouped/flat session list, and every workspace dialog. Declared by this
@@ -128,6 +137,7 @@ export type SidebarRootComponentProps =
     | 'sidebar.brand.mark'
     | 'sidebar.brand.name'
     | 'sidebar.knowledge'
+    | 'sidebar.experts'
     | 'sidebar.workspaces'
     | 'sidebar.business'
     | 'sidebar.settings'

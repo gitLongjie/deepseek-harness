@@ -283,6 +283,13 @@
     - id: ui-knowledge-base
       name: '@deepseek-ai/dsh-client-ui-knowledge-base'
 
+    # The sidebar's expert section and the expert page over the agent-preset
+    # roster (the `agent-presets` row at the tail of this patch feeds it).
+    # Hiring stages the picked preset through the ui-agent-preset seat flow
+    # and starts the next session. Remove this entry to turn the surface off.
+    - id: ui-expert
+      name: '@deepseek-ai/dsh-client-ui-expert'
+
     - id: ui-workspace
       name: '@deepseek-ai/dsh-client-ui-workspace'
 

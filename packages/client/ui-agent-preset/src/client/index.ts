@@ -34,6 +34,7 @@ import { AgentPresetSection } from './AgentPresetSection.tsx'
 import type { AgentPresetSectionInjected } from './AgentPresetSection.tsx'
 import { AgentPresetSeatController } from './seat-store.ts'
 import { AgentPresetSectionController } from './section-store.ts'
+import { UiAgentPresetService } from './navigation.ts'
 import { en, zh } from './locales.ts'
 import { AGENT_PRESET_SETTINGS_NS, AgentPresetSettingsController } from './settings-store.ts'
 
@@ -67,6 +68,9 @@ export function apply(ctx: ClientContext): void {
     void controller.load()
     for (const read of rosterReaders) read()
   })
+  // The staging service other surfaces hire through: stable at the root, so
+  // a caller never chases the binding that currently owns the seat flow.
+  const uiAgentPreset = new UiAgentPresetService(ctx)
 
   ctx.effect(() => ctx.locale.register('settings.agentPreset', { zh, en }), 'ui-agent-preset: settings row dictionaries')
 
@@ -109,6 +113,14 @@ export function apply(ctx: ClientContext): void {
       const state = scope.sessions.list.getSnapshot()
       return state.current === undefined ? undefined : state.byId[state.current]
     })
+
+    // Other surfaces hire presets through the shared root service: forward a
+    // stage into THIS binding's seat while it lives, announce it on the chip,
+    // and unbind with the binding.
+    scope.effect(
+      () => uiAgentPreset.bindStage((id: string) => { seat.stage(id, true) }),
+      'ui-agent-preset: cross-surface staging',
+    )
 
     const seatInjected = (): AgentPresetSeatInjected => ({
       hooks: { agentPresetSeat: seat.store },

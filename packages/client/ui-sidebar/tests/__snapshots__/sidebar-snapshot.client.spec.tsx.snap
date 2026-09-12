@@ -50,6 +50,10 @@ exports[`sidebar shell snapshots > renders the collapsed rail after the crossfad
         style="display: contents;"
       />
       <div
+        data-slot="sidebar.experts"
+        style="display: contents;"
+      />
+      <div
         data-slot="sidebar.business"
         style="display: contents;"
       />
@@ -162,6 +166,10 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
         style="display: contents;"
       />
       <div
+        data-slot="sidebar.experts"
+        style="display: contents;"
+      />
+      <div
         data-slot="sidebar.business"
         style="display: contents;"
       />
@@ -271,6 +279,10 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
     >
       <div
         data-slot="sidebar.knowledge"
+        style="display: contents;"
+      />
+      <div
+        data-slot="sidebar.experts"
         style="display: contents;"
       />
       <div

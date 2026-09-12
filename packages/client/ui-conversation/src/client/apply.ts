@@ -64,6 +64,13 @@ const ABSENT_KNOWLEDGE_VIEW: ObservableSnapshot<{ open: boolean }> = {
   getSnapshot: () => ({ open: false }),
   subscribe: () => () => {},
 }
+
+// Stable absent source for the optional expert-browser view: the page never
+// stands, and no subscription side (the state can never change).
+const ABSENT_EXPERT_VIEW: ObservableSnapshot<{ open: boolean }> = {
+  getSnapshot: () => ({ open: false }),
+  subscribe: () => () => {},
+}
 const EMPTY_LEXICON: ReadonlyMap<'/' | '@', readonly string[]> = new Map()
 const ABSENT_LEXICON = {
   getSnapshot: () => EMPTY_LEXICON,
@@ -194,6 +201,14 @@ export function apply(ctx: Context): void {
       view: ObservableSnapshot<{ open: boolean }>
     } | undefined)?.view ?? ABSENT_KNOWLEDGE_VIEW
 
+  // The expert browser's view source, resolved per bind under the same rule
+  // as `knowledgeView` above: the ui-expert plugin is an optional mount whose
+  // apply may run after this one, so the service is looked up at bind time.
+  const expertView = (): ObservableSnapshot<{ open: boolean }> =>
+    (ctx.get('uiExpert') as unknown as {
+      view: ObservableSnapshot<{ open: boolean }>
+    } | undefined)?.view ?? ABSENT_EXPERT_VIEW
+
   // Conversation assembly and input share the Session binding lifecycle. The
   // source roster is installed before any consuming Slot entry.
   ctx.uiSession.provide({
@@ -228,11 +243,13 @@ export function apply(ctx: Context): void {
       'conversation.hero.workspace': { kind: 'single', scope: 'root' },
       'conversation.hero.agentPreset': { kind: 'single', scope: 'root' },
       'conversation.knowledge.browser': { kind: 'single', scope: 'root' },
+      'conversation.expert.browser': { kind: 'single', scope: 'root' },
     },
     inject: (sessionId: SessionId | undefined): ConversationInjected => ({
       hooks: {
         composerBlock: sessionId === undefined ? ABSENT_BLOCK : composerBlocks.storeFor(sessionId),
         knowledgeView: knowledgeView(),
+        expertView: expertView(),
       },
       selectWorkspace: async (workspaceId) => {
         const nextId = await workspaceNavigation.connectWorkspace(workspaceId)

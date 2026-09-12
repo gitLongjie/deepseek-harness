@@ -122,6 +122,9 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
     /** The knowledge page (base list beside the document browser), replacing
         the session/hero content while open. */
     'conversation.knowledge.browser': { kind: 'single'; scope: 'root' }
+    /** The expert page (market cards beside hire affordances), replacing the
+        session/hero content while open. */
+    'conversation.expert.browser': { kind: 'single'; scope: 'root' }
     /** Brand mark shown before the blank-session headline. */
     'conversation.hero.brand.mark': { kind: 'single'; scope: 'root'; owner: HeroBrandMarkOwnerProps }
     /** Agent-preset control staged for a New Session. */
@@ -225,6 +228,9 @@ export interface ConversationInjected {
     /** The knowledge base under browse, absent when no browser is mounted (the
         ui-knowledge-base plugin is an optional mount). */
     knowledgeView: ObservableSnapshot<{ open: boolean }>
+    /** The expert page state, absent when no expert plugin is mounted (the
+        ui-expert plugin is an optional mount). */
+    expertView: ObservableSnapshot<{ open: boolean }>
   }
 }
 
@@ -336,6 +342,7 @@ export type ConversationSlotProps =
     | 'conversation.hero.workspace'
     | 'conversation.hero.agentPreset'
     | 'conversation.knowledge.browser'
+    | 'conversation.expert.browser'
   >
   & InjectFace<ConversationInjected>
   & PropsLocale<'conversation'>

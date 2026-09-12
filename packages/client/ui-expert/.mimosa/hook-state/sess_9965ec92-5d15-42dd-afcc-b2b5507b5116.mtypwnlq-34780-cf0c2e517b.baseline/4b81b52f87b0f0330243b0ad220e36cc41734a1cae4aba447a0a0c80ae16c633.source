@@ -1,0 +1,44 @@
+/**
+ * `expert` namespace dictionaries: the sidebar expert section (entry row) and
+ * the expert page (search, filters, cards, hire, states). Runtime failure
+ * messages (wire error strings) pass through untranslated by policy.
+ */
+/** Simplified Chinese dictionary (the key-set source of truth). */
+export declare const zh: {
+    'section.experts': string;
+    'page.title': string;
+    'search.aria': string;
+    'search.placeholder': string;
+    'filter.all': string;
+    'card.hire': string;
+    'card.default': string;
+    'trust.system': string;
+    'trust.user': string;
+    'quickPrompts.label': string;
+    loading: string;
+    'error.message': string;
+    'error.retry': string;
+    'empty.none': string;
+    'empty.noMatches': string;
+};
+/** The expert namespace key union. */
+export type ExpertKey = keyof typeof zh;
+/** English dictionary, checked complete against the zh key set. */
+export declare const en: {
+    'section.experts': string;
+    'page.title': string;
+    'search.aria': string;
+    'search.placeholder': string;
+    'filter.all': string;
+    'card.hire': string;
+    'card.default': string;
+    'trust.system': string;
+    'trust.user': string;
+    'quickPrompts.label': string;
+    loading: string;
+    'error.message': string;
+    'error.retry': string;
+    'empty.none': string;
+    'empty.noMatches': string;
+};
+//# sourceMappingURL=locales.d.ts.map

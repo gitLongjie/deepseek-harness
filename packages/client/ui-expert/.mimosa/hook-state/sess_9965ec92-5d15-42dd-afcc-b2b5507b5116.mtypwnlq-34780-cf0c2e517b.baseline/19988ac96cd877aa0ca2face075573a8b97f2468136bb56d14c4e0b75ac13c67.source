@@ -1,0 +1,8 @@
+import type { ExpertBrowserProps } from './contract/slots.ts';
+/**
+ * Render the expert page.
+ * @param props - composed slot props (owner share + injected actions + locale seat).
+ * @returns the page element tree.
+ */
+export declare function ExpertBrowser({ load, hire, t, }: ExpertBrowserProps): import("react").JSX.Element;
+//# sourceMappingURL=ExpertBrowser.d.ts.map

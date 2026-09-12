@@ -50,6 +50,13 @@ function absentKnowledgeSelector(s: { open: boolean }): boolean {
   return s.open
 }
 
+/** Selector stand-in while the optional ui-expert plugin is absent: the
+ * expert page never stands. Hook-free by design, for the same hook-order
+ * reason as the knowledge stand-in above. */
+function absentExpertSelector(s: { open: boolean }): boolean {
+  return s.open
+}
+
 /** One transcript width handle: pointer capture + rAF-throttled symmetric
  * resize (both sides write the one centered width, so outward travel widens
  * by 2× the pointer distance). pointermove publishes the pointer's Y as a CSS
@@ -137,7 +144,7 @@ function WidthHandle(props: {
 
 export function ConversationRoot({
   sessionId, useSession, useSessions, useSessionPendingInteraction,
-  useWorkspaces, useKnowledgeView, useConversation, useInput, useComposerBlock,
+  useWorkspaces, useKnowledgeView, useExpertView, useConversation, useInput, useComposerBlock,
   renderSlot, renderSlotChain, selectWorkspace, t,
 }: ConversationRootProps) {
   const session = useSession(s => s)
@@ -159,6 +166,7 @@ export function ConversationRoot({
   // mount; the stand-in selector is hook-free, so the fallback never flips
   // the component's hook order.
   const knowledgePageOpen = (useKnowledgeView ?? absentKnowledgeSelector)(s => s.open)
+  const expertPageOpen = (useExpertView ?? absentExpertSelector)(s => s.open)
   // A plugin this package cannot import (ui-model-selection) says this session cannot
   // send; its reason is already localized by whoever raised it.
   const composerBlock = useComposerBlock(block => block)
@@ -394,14 +402,17 @@ export function ConversationRoot({
     </div>
   )
 
-  const browserActive = knowledgePageOpen
+  const browserActive = knowledgePageOpen || expertPageOpen
   return (
     <div ref={rootResizeRef} className={css.root} data-phase={phase}>
-      {/* The browser replaces whatever the session surface shows — hero or a
-          live session. It owns its own lifetime: the ui-knowledge-base
-          watcher closes it on any Session navigation, so a session click
-          always lands back on the session surface. */}
-      {knowledgePageOpen ? (
+      {/* A browser replaces whatever the session surface shows — hero or a
+          live session. Each owns its own lifetime: the ui-knowledge-base and
+          ui-expert watchers close their page on any Session navigation, so a
+          session click always lands back on the session surface. The expert
+          page wins should both stand at once. */}
+      {expertPageOpen ? (
+        renderSlot('conversation.expert.browser', {})
+      ) : knowledgePageOpen ? (
         renderSlot('conversation.knowledge.browser', {})
       ) : (<>
         {sessionId === undefined ? null : renderSlot('conversation.session.header', {})}

@@ -1,0 +1,33 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+/**
+ * The sidebar's expert entry row: one expert-icon row between the knowledge
+ * and business-entry sections. Clicking it opens the expert page in the
+ * conversation area; the row highlights while the page stands. Conventions
+ * mirror the knowledge entry row's rail and hover chrome.
+ */
+import clsx from 'clsx';
+import { IconSparkle16 } from '@deepseek-ai/dsh-client-ui-primitives';
+import css from './ExpertNav.module.css';
+/**
+ * Render the expert entry row.
+ * @param props - composed slot props (shell owner share + page-state hook + injected action).
+ * @returns the nav row element tree.
+ */
+export function ExpertNav({ wide, useView, openPage, closePage, t, }) {
+    const open = useView(s => s.open);
+    if (!wide) {
+        return (_jsx("div", { className: css.rail, children: _jsx("button", { type: "button", className: clsx(css.railButton, open && css.railButtonActive), "aria-label": t('section.experts'), onClick: () => { if (open) {
+                    closePage();
+                }
+                else {
+                    openPage();
+                } }, children: _jsx(IconSparkle16, { size: 18 }) }) }));
+    }
+    return (_jsx("div", { className: css.root, children: _jsxs("button", { type: "button", className: clsx(css.navRow, open && css.navRowActive), "aria-label": t('section.experts'), onClick: () => { if (open) {
+                closePage();
+            }
+            else {
+                openPage();
+            } }, children: [_jsx(IconSparkle16, { size: 14, className: css.navIcon }), _jsx("span", { className: css.navLabel, children: t('section.experts') })] }) }));
+}
+//# sourceMappingURL=ExpertNav.js.map

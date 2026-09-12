@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "mimosa-hook-status/v1",
+  "recordedAt": "2026-09-09T00:54:36.828Z",
+  "sessionId": "sess_aafb1307-845d-44e6-95f2-a17a9a7a54db",
+  "event": "PostToolUse",
+  "toolName": "Write",
+  "file": "E:\\deepseek-harness\\packages\\client\\ui-knowledge-base\\src\\client\\KnowledgeBrowser.tsx",
+  "outcome": "inconclusive",
+  "coverage": "partial",
+  "findingCount": 0,
+  "durationMs": 8,
+  "hostState": "hook_complete",
+  "reportHint": ".mimosa/reports/"
+}

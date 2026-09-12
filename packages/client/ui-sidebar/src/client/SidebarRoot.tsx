@@ -174,11 +174,15 @@ export function SidebarRoot({
 
       {/* The browsing region fills the column between the controls and the
           foot in both states; its rail icon column rides the same slot. The
-          knowledge section renders above the business-entry section, which
-          renders above the workspace browser; an unoccupied slot contributes
-          no DOM. */}
+          knowledge section renders above the experts section, which renders
+          above the business-entry section, which renders above the workspace
+          browser; an unoccupied slot contributes no DOM. */}
       <div className={css.regionArea}>
         {renderSlot('sidebar.knowledge', {
+          wide,
+          expandSidebar: () => { if (collapsed) toggleSidebar() },
+        })}
+        {renderSlot('sidebar.experts', {
           wide,
           expandSidebar: () => { if (collapsed) toggleSidebar() },
         })}

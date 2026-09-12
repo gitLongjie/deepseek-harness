@@ -44,6 +44,7 @@ The kernel packages boot and serve the page; the UI feature packages present it.
 | [`ui-brand-official/`](ui-brand-official/README.md) | Fills the generic browser-brand slots with the official name and marks | — |
 | [`ui-workspace/`](ui-workspace/README.md) | Provides workspace selection and creation surfaces | — |
 | [`ui-knowledge-base/`](ui-knowledge-base/README.md) | Provides the sidebar knowledge-base section over the deployment's listing | — |
+| [`ui-expert/`](ui-expert/README.md) | Presents the deployment's agent-preset roster as hireable expert cards | — |
 | [`ui-conversation/`](ui-conversation/README.md) | Presents the active conversation and its input surface | — |
 | [`ui-chat/`](ui-chat/README.md) | Projects and renders the Chat conversation target | — |
 | [`ui-approval/`](ui-approval/README.md) | Presents approval requests and returns user decisions | — |

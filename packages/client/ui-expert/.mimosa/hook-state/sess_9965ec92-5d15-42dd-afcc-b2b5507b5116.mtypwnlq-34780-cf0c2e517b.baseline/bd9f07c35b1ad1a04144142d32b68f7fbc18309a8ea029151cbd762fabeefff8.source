@@ -1,0 +1,8 @@
+import type { ExpertNavProps } from './contract/slots.ts';
+/**
+ * Render the expert entry row.
+ * @param props - composed slot props (shell owner share + page-state hook + injected action).
+ * @returns the nav row element tree.
+ */
+export declare function ExpertNav({ wide, useView, openPage, closePage, t, }: ExpertNavProps): import("react").JSX.Element;
+//# sourceMappingURL=ExpertNav.d.ts.map

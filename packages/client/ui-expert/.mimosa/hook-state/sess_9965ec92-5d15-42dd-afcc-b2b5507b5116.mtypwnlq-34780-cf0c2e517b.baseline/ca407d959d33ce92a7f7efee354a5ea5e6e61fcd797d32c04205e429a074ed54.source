@@ -1,0 +1,527 @@
+window.__ModuleLoader__.load({
+	id: "@deepseek-ai/dsh-client-ui-expert",
+	factory: (require) => {
+		var module = { exports: {} };
+		var exports = module.exports;
+		Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
+		let _deepseek_ai_cordis = require("@deepseek-ai/cordis");
+		let _deepseek_ai_dsh_client_store = require("@deepseek-ai/dsh-client-store");
+		let react_jsx_runtime = require("react/jsx-runtime");
+		let react = require("react");
+		let _deepseek_ai_dsh_client_ui_primitives = require("@deepseek-ai/dsh-client-ui-primitives");
+		//#region lib/types/client/navigation.js
+		/**
+		* Expert-page navigation: the page state for the expert browser shown in the
+		* conversation area, and the policy that closes it. The page is ephemeral —
+		* it never survives a reload, and any Session navigation (open,
+		* archive-clear, New Session) closes it, because the Session surface always
+		* wins the conversation area. Mirrors the knowledge page's navigation
+		* service; the two pages are independent, and ui-conversation renders the
+		* expert page ahead of the knowledge one should both ever stand.
+		* @module @deepseek-ai/dsh-client-ui-expert/client/navigation
+		*/
+		/**
+		* Create the expert-page store handle.
+		* @returns the store handle (spec + type + identity + factory in one).
+		*/
+		function createExpertPageStore() {
+			const handle = (0, _deepseek_ai_dsh_client_store.defineStore)({
+				init: () => ({ open: false }),
+				actions: { setOpen: (d, open) => {
+					d.open = open;
+				} }
+			});
+			return { create: () => handle.create() };
+		}
+		/** Implements expert-page navigation and its session policy. */
+		var UiExpertService = class extends _deepseek_ai_cordis.Service {
+			sessions;
+			page;
+			/**
+			* @param ctx - Client root Context.
+			* @param sessions - pure Session Controller, for the close-on-navigation policy.
+			*/
+			constructor(ctx, sessions) {
+				super(ctx, "uiExpert");
+				this.sessions = sessions;
+				this.page = createExpertPageStore().create();
+				ctx.effect(() => this.watchSessionNavigation(), "ui-expert: page session policy");
+			}
+			/** The page-state observable bound as the conversation area's `useExpertView` hook. */
+			get view() {
+				return this.page;
+			}
+			openPage() {
+				this.page.actions.setOpen(true);
+			}
+			closePage() {
+				this.page.actions.setOpen(false);
+			}
+			/**
+			* Any current-Session change — open, archive-clear, or New Session — closes
+			* the page, so the Session surface is never found hidden under it. The body
+			* deliberately mirrors the knowledge page's policy (ui-knowledge-base
+			* navigation.ts): the two pages close for the same reason, under the same
+			* session-list fact, and sharing a helper across feature plugins would
+			* couple them for fifteen lines.
+			* @returns the subscription disposer.
+			*/
+			watchSessionNavigation() {
+				let last = this.sessions.list.getSnapshot().current;
+				return this.sessions.list.subscribe(() => {
+					const current = this.sessions.list.getSnapshot().current;
+					if (current === last) return;
+					last = current;
+					this.closePage();
+				});
+			}
+		};
+		//#endregion
+		//#region ../../../node_modules/.pnpm/clsx@2.1.1/node_modules/clsx/dist/clsx.mjs
+		function r(e) {
+			var t, f, n = "";
+			if ("string" == typeof e || "number" == typeof e) n += e;
+			else if ("object" == typeof e) if (Array.isArray(e)) {
+				var o = e.length;
+				for (t = 0; t < o; t++) e[t] && (f = r(e[t])) && (n && (n += " "), n += f);
+			} else for (f in e) e[f] && (n && (n += " "), n += f);
+			return n;
+		}
+		function clsx() {
+			for (var e, t, f = 0, n = "", o = arguments.length; f < o; f++) (e = arguments[f]) && (t = r(e)) && (n && (n += " "), n += t);
+			return n;
+		}
+		//#endregion
+		//#region \0dsh-css:E:\deepseek-harness\packages\client\ui-expert\src\client\ExpertBrowser.module.css.mjs
+		const css$1 = ".Art5QW_root{box-sizing:border-box;flex-direction:column;width:100%;max-width:1080px;height:100%;min-height:0;margin:0 auto;padding:20px 24px 0;display:flex}.Art5QW_head{flex:none;align-items:center;gap:16px;margin-bottom:12px;display:flex}.Art5QW_title{color:var(--dsw-alias-label-primary);flex:none;margin:0;font-size:18px;font-weight:600;line-height:26px}.Art5QW_search{border:1px solid var(--dsw-alias-border-secondary);min-width:0;max-width:360px;color:var(--dsw-alias-label-primary);background:0 0;border-radius:8px;flex:1;margin-left:auto;padding:6px 12px;font-size:14px;line-height:22px}.Art5QW_search:focus-visible{border-color:var(--dsw-alias-state-business-primary);outline:none}.Art5QW_filters{flex-wrap:wrap;flex:none;gap:8px;margin-bottom:16px;display:flex}.Art5QW_chip{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary);cursor:pointer;border:none;border-radius:999px;padding:4px 12px;font-size:13px;line-height:20px}.Art5QW_chipActive{background:var(--dsw-alias-state-business-primary);color:var(--dsw-alias-label-invert-primary,#fff)}.Art5QW_body{flex:1;min-height:0;padding-bottom:24px;overflow-y:auto}.Art5QW_state{flex-direction:column;align-items:center;gap:12px;padding:48px 0;display:flex}.Art5QW_stateText{color:var(--dsw-alias-label-secondary);margin:0;font-size:14px}.Art5QW_retry{border:1px solid var(--dsw-alias-border-secondary);color:var(--dsw-alias-label-primary);cursor:pointer;background:0 0;border-radius:8px;padding:6px 16px;font-size:14px}.Art5QW_grid{grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin:0;padding:0;list-style:none;display:grid}.Art5QW_card{box-sizing:border-box;border:1px solid var(--dsw-alias-border-secondary);border-radius:12px;flex-direction:column;gap:10px;padding:16px;display:flex}.Art5QW_cardHead{align-items:center;gap:10px;display:flex}.Art5QW_avatar{background:var(--dsw-alias-interactive-bg-hover);width:40px;height:40px;color:var(--dsw-alias-label-primary);border-radius:10px;flex:none;justify-content:center;align-items:center;font-size:22px;line-height:40px;display:inline-flex}.Art5QW_cardTitles{min-width:0}.Art5QW_cardName{color:var(--dsw-alias-label-primary);white-space:nowrap;text-overflow:ellipsis;margin:0;font-size:15px;font-weight:600;line-height:22px;overflow:hidden}.Art5QW_cardMeta{gap:6px;margin:2px 0 0;display:flex}.Art5QW_badge{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px}.Art5QW_badgeDefault{color:var(--dsw-alias-state-business-primary);font-size:12px;line-height:18px}.Art5QW_cardDescription{color:var(--dsw-alias-label-secondary);-webkit-line-clamp:2;-webkit-box-orient:vertical;margin:0;font-size:13px;line-height:20px;display:-webkit-box;overflow:hidden}.Art5QW_tags{flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none;display:flex}.Art5QW_tag{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-secondary);border-radius:6px;padding:2px 8px;font-size:12px;line-height:18px}.Art5QW_prompts{flex-direction:column;gap:4px;margin:0;padding:0;list-style:none;display:flex}.Art5QW_prompt{color:var(--dsw-alias-label-secondary);white-space:nowrap;text-overflow:ellipsis;font-size:13px;line-height:20px;overflow:hidden}.Art5QW_hire{background:var(--dsw-alias-state-business-primary);color:var(--dsw-alias-label-invert-primary,#fff);cursor:pointer;border:none;border-radius:8px;margin-top:auto;padding:8px 16px;font-size:14px;line-height:20px}.Art5QW_hire:hover{opacity:.9}";
+		const tagId$1 = "@deepseek-ai/dsh-client-ui-expert/ExpertBrowser.module.css";
+		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId$1) + "]") === null) {
+			const tag = document.createElement("style");
+			tag.dataset.plugin = "@deepseek-ai/dsh-client-ui-expert";
+			tag.dataset.pluginCss = tagId$1;
+			tag.textContent = css$1;
+			document.head.appendChild(tag);
+		}
+		var ExpertBrowser_module_css_default = {
+			"avatar": "Art5QW_avatar",
+			"badge": "Art5QW_badge",
+			"badgeDefault": "Art5QW_badgeDefault",
+			"body": "Art5QW_body",
+			"card": "Art5QW_card",
+			"cardDescription": "Art5QW_cardDescription",
+			"cardHead": "Art5QW_cardHead",
+			"cardMeta": "Art5QW_cardMeta",
+			"cardName": "Art5QW_cardName",
+			"cardTitles": "Art5QW_cardTitles",
+			"chip": "Art5QW_chip",
+			"chipActive": "Art5QW_chipActive",
+			"filters": "Art5QW_filters",
+			"grid": "Art5QW_grid",
+			"head": "Art5QW_head",
+			"hire": "Art5QW_hire",
+			"prompt": "Art5QW_prompt",
+			"prompts": "Art5QW_prompts",
+			"retry": "Art5QW_retry",
+			"root": "Art5QW_root",
+			"search": "Art5QW_search",
+			"state": "Art5QW_state",
+			"stateText": "Art5QW_stateText",
+			"tag": "Art5QW_tag",
+			"tags": "Art5QW_tags",
+			"title": "Art5QW_title"
+		};
+		//#endregion
+		//#region lib/types/client/ExpertBrowser.js
+		/**
+		* The expert page: the conversation-area view that stands in for the session
+		* surface while the page is open — the deployment's preset roster presented
+		* as hireable expert cards, with a search box and the category filter bar the
+		* published metadata feeds. Any Session navigation closes the page
+		* (UiExpertService watches the Session list); hiring stages the card's preset
+		* for the next session and starts it.
+		*/
+		/** Human text for a rejected wire call, read by the page's error state. */
+		function messageOf(error) {
+			return error instanceof Error ? error.message : String(error);
+		}
+		/** The card face renders healthy presets only: a broken preset cannot compose
+		* the session a hire would start, so it never appears as hireable. */
+		function hireable(presets) {
+			return presets.filter((preset) => preset.broken === void 0);
+		}
+		/** The category ids the roster publishes, in first-seen roster order. */
+		function categoriesOf(presets) {
+			const seen = [];
+			for (const preset of presets) if (preset.category !== void 0 && !seen.includes(preset.category)) seen.push(preset.category);
+			return seen;
+		}
+		/** The roster rows the current search text and category filter admit. */
+		function visibleOf(presets, search, category) {
+			const needle = search.trim().toLowerCase();
+			return hireable(presets).filter((preset) => {
+				if (category !== null && preset.category !== category) return false;
+				if (needle === "") return true;
+				return [
+					preset.name ?? preset.id,
+					preset.description ?? "",
+					...preset.tags ?? []
+				].join("\n").toLowerCase().includes(needle);
+			});
+		}
+		/**
+		* Render the expert page.
+		* @param props - composed slot props (owner share + injected actions + locale seat).
+		* @returns the page element tree.
+		*/
+		function ExpertBrowser({ load, hire, t }) {
+			const [presets, setPresets] = (0, react.useState)(void 0);
+			const [loadError, setLoadError] = (0, react.useState)(null);
+			const [reloadToken, setReloadToken] = (0, react.useState)(0);
+			const [search, setSearch] = (0, react.useState)("");
+			const [category, setCategory] = (0, react.useState)(null);
+			(0, react.useEffect)(() => {
+				const reader = new AbortController();
+				load().then((result) => {
+					if (reader.signal.aborted) return;
+					setPresets(result.presets);
+					setLoadError(null);
+				}).catch((error) => {
+					if (reader.signal.aborted) return;
+					setLoadError(messageOf(error));
+				});
+				return () => {
+					reader.abort();
+				};
+			}, [load, reloadToken]);
+			const categories = (0, react.useMemo)(() => categoriesOf(presets ?? []), [presets]);
+			const visible = (0, react.useMemo)(() => visibleOf(presets ?? [], search, category), [
+				presets,
+				search,
+				category
+			]);
+			const showFilters = categories.length > 0;
+			return (0, react_jsx_runtime.jsxs)("div", {
+				className: ExpertBrowser_module_css_default.root,
+				children: [
+					(0, react_jsx_runtime.jsxs)("header", {
+						className: ExpertBrowser_module_css_default.head,
+						children: [(0, react_jsx_runtime.jsx)("h2", {
+							className: ExpertBrowser_module_css_default.title,
+							children: t("page.title")
+						}), (0, react_jsx_runtime.jsx)("input", {
+							type: "search",
+							className: ExpertBrowser_module_css_default.search,
+							"aria-label": t("search.aria"),
+							placeholder: t("search.placeholder"),
+							value: search,
+							onChange: (event) => {
+								setSearch(event.target.value);
+							}
+						})]
+					}),
+					showFilters && (0, react_jsx_runtime.jsxs)("nav", {
+						className: ExpertBrowser_module_css_default.filters,
+						"aria-label": t("page.title"),
+						children: [(0, react_jsx_runtime.jsx)("button", {
+							type: "button",
+							className: category === null ? clsx(ExpertBrowser_module_css_default.chip, ExpertBrowser_module_css_default.chipActive) : ExpertBrowser_module_css_default.chip,
+							onClick: () => {
+								setCategory(null);
+							},
+							children: t("filter.all")
+						}), categories.map((id) => (0, react_jsx_runtime.jsx)("button", {
+							type: "button",
+							className: category === id ? clsx(ExpertBrowser_module_css_default.chip, ExpertBrowser_module_css_default.chipActive) : ExpertBrowser_module_css_default.chip,
+							onClick: () => {
+								setCategory(category === id ? null : id);
+							},
+							children: id
+						}, id))]
+					}),
+					(0, react_jsx_runtime.jsx)("div", {
+						className: ExpertBrowser_module_css_default.body,
+						children: loadError !== null ? (0, react_jsx_runtime.jsxs)("div", {
+							className: ExpertBrowser_module_css_default.state,
+							role: "alert",
+							children: [(0, react_jsx_runtime.jsx)("p", {
+								className: ExpertBrowser_module_css_default.stateText,
+								children: loadError
+							}), (0, react_jsx_runtime.jsx)("button", {
+								type: "button",
+								className: ExpertBrowser_module_css_default.retry,
+								onClick: () => {
+									setReloadToken((token) => token + 1);
+								},
+								children: t("error.retry")
+							})]
+						}) : presets === void 0 ? (0, react_jsx_runtime.jsx)("div", {
+							className: ExpertBrowser_module_css_default.state,
+							children: (0, react_jsx_runtime.jsx)("p", {
+								className: ExpertBrowser_module_css_default.stateText,
+								children: t("loading")
+							})
+						}) : hireable(presets).length === 0 ? (0, react_jsx_runtime.jsx)("div", {
+							className: ExpertBrowser_module_css_default.state,
+							children: (0, react_jsx_runtime.jsx)("p", {
+								className: ExpertBrowser_module_css_default.stateText,
+								children: t("empty.none")
+							})
+						}) : visible.length === 0 ? (0, react_jsx_runtime.jsx)("div", {
+							className: ExpertBrowser_module_css_default.state,
+							children: (0, react_jsx_runtime.jsx)("p", {
+								className: ExpertBrowser_module_css_default.stateText,
+								children: t("empty.noMatches")
+							})
+						}) : (0, react_jsx_runtime.jsx)("ul", {
+							className: ExpertBrowser_module_css_default.grid,
+							children: visible.map((preset) => (0, react_jsx_runtime.jsxs)("li", {
+								className: ExpertBrowser_module_css_default.card,
+								children: [
+									(0, react_jsx_runtime.jsxs)("header", {
+										className: ExpertBrowser_module_css_default.cardHead,
+										children: [(0, react_jsx_runtime.jsx)("span", {
+											className: ExpertBrowser_module_css_default.avatar,
+											"aria-hidden": "true",
+											children: preset.icon ?? (preset.name ?? preset.id).charAt(0)
+										}), (0, react_jsx_runtime.jsxs)("div", {
+											className: ExpertBrowser_module_css_default.cardTitles,
+											children: [(0, react_jsx_runtime.jsx)("h3", {
+												className: ExpertBrowser_module_css_default.cardName,
+												children: preset.name ?? preset.id
+											}), (0, react_jsx_runtime.jsxs)("p", {
+												className: ExpertBrowser_module_css_default.cardMeta,
+												children: [(0, react_jsx_runtime.jsx)("span", {
+													className: ExpertBrowser_module_css_default.badge,
+													children: t(preset.trust === "system" ? "trust.system" : "trust.user")
+												}), preset.isDefault && (0, react_jsx_runtime.jsx)("span", {
+													className: ExpertBrowser_module_css_default.badgeDefault,
+													children: t("card.default")
+												})]
+											})]
+										})]
+									}),
+									preset.description !== void 0 && (0, react_jsx_runtime.jsx)("p", {
+										className: ExpertBrowser_module_css_default.cardDescription,
+										children: preset.description
+									}),
+									(preset.tags?.length ?? 0) > 0 && (0, react_jsx_runtime.jsx)("ul", {
+										className: ExpertBrowser_module_css_default.tags,
+										children: preset.tags?.map((tag) => (0, react_jsx_runtime.jsx)("li", {
+											className: ExpertBrowser_module_css_default.tag,
+											children: tag
+										}, tag))
+									}),
+									(preset.quickPrompts?.length ?? 0) > 0 && (0, react_jsx_runtime.jsx)("ul", {
+										className: ExpertBrowser_module_css_default.prompts,
+										"aria-label": t("quickPrompts.label"),
+										children: preset.quickPrompts?.map((prompt) => (0, react_jsx_runtime.jsx)("li", {
+											className: ExpertBrowser_module_css_default.prompt,
+											children: prompt
+										}, prompt))
+									}),
+									(0, react_jsx_runtime.jsx)("button", {
+										type: "button",
+										className: ExpertBrowser_module_css_default.hire,
+										onClick: () => {
+											hire(preset.id);
+										},
+										children: t("card.hire")
+									})
+								]
+							}, preset.id))
+						})
+					})
+				]
+			});
+		}
+		//#endregion
+		//#region \0dsh-css:E:\deepseek-harness\packages\client\ui-expert\src\client\ExpertNav.module.css.mjs
+		const css = ".A07MmW_root{box-sizing:border-box;padding-right:var(--dsh-sidebar-inline-padding);flex-direction:column;flex:none;margin-bottom:8px;display:flex}.A07MmW_navRow{cursor:pointer;user-select:none;text-align:left;width:100%;height:36px;color:var(--dsw-alias-label-primary);background:0 0;border:none;border-radius:8px;align-items:center;gap:6px;padding:0 8px;display:flex}.A07MmW_navRow:hover{background:var(--dsw-alias-interactive-bg-hover)}.A07MmW_navRowActive{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-state-business-primary)}.A07MmW_navIcon{color:var(--dsw-alias-label-secondary);flex:none}.A07MmW_navRowActive .A07MmW_navIcon{color:var(--dsw-alias-state-business-primary)}.A07MmW_navLabel{white-space:nowrap;min-width:0;font-size:14px;font-weight:500;line-height:22px;overflow:hidden}.A07MmW_rail{flex:none;margin-bottom:0}.A07MmW_railButton{cursor:pointer;width:36px;height:36px;color:var(--dsw-alias-label-primary);background:0 0;border:none;border-radius:50%;flex:none;justify-content:center;align-items:center;margin:0 0 12px;padding:0;display:inline-flex}.A07MmW_railButton:hover{background:var(--dsw-alias-interactive-bg-hover)}.A07MmW_railButtonActive{color:var(--dsw-alias-state-business-primary)}";
+		const tagId = "@deepseek-ai/dsh-client-ui-expert/ExpertNav.module.css";
+		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId) + "]") === null) {
+			const tag = document.createElement("style");
+			tag.dataset.plugin = "@deepseek-ai/dsh-client-ui-expert";
+			tag.dataset.pluginCss = tagId;
+			tag.textContent = css;
+			document.head.appendChild(tag);
+		}
+		var ExpertNav_module_css_default = {
+			"navIcon": "A07MmW_navIcon",
+			"navLabel": "A07MmW_navLabel",
+			"navRow": "A07MmW_navRow",
+			"navRowActive": "A07MmW_navRowActive",
+			"rail": "A07MmW_rail",
+			"railButton": "A07MmW_railButton",
+			"railButtonActive": "A07MmW_railButtonActive",
+			"root": "A07MmW_root"
+		};
+		//#endregion
+		//#region lib/types/client/ExpertNav.js
+		/**
+		* The sidebar's expert entry row: one expert-icon row between the knowledge
+		* and business-entry sections. Clicking it opens the expert page in the
+		* conversation area; the row highlights while the page stands. Conventions
+		* mirror the knowledge entry row's rail and hover chrome.
+		*/
+		/**
+		* Render the expert entry row.
+		* @param props - composed slot props (shell owner share + page-state hook + injected action).
+		* @returns the nav row element tree.
+		*/
+		function ExpertNav({ wide, useView, openPage, closePage, t }) {
+			const open = useView((s) => s.open);
+			if (!wide) return (0, react_jsx_runtime.jsx)("div", {
+				className: ExpertNav_module_css_default.rail,
+				children: (0, react_jsx_runtime.jsx)("button", {
+					type: "button",
+					className: clsx(ExpertNav_module_css_default.railButton, open && ExpertNav_module_css_default.railButtonActive),
+					"aria-label": t("section.experts"),
+					onClick: () => {
+						if (open) closePage();
+						else openPage();
+					},
+					children: (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconSparkle16, { size: 18 })
+				})
+			});
+			return (0, react_jsx_runtime.jsx)("div", {
+				className: ExpertNav_module_css_default.root,
+				children: (0, react_jsx_runtime.jsxs)("button", {
+					type: "button",
+					className: clsx(ExpertNav_module_css_default.navRow, open && ExpertNav_module_css_default.navRowActive),
+					"aria-label": t("section.experts"),
+					onClick: () => {
+						if (open) closePage();
+						else openPage();
+					},
+					children: [(0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconSparkle16, {
+						size: 14,
+						className: ExpertNav_module_css_default.navIcon
+					}), (0, react_jsx_runtime.jsx)("span", {
+						className: ExpertNav_module_css_default.navLabel,
+						children: t("section.experts")
+					})]
+				})
+			});
+		}
+		//#endregion
+		//#region lib/types/client/locales.js
+		/**
+		* `expert` namespace dictionaries: the sidebar expert section (entry row) and
+		* the expert page (search, filters, cards, hire, states). Runtime failure
+		* messages (wire error strings) pass through untranslated by policy.
+		*/
+		/** Simplified Chinese dictionary (the key-set source of truth). */
+		const zh = {
+			"section.experts": "专家",
+			"page.title": "专家",
+			"search.aria": "搜索专家",
+			"search.placeholder": "搜索专家职称或描述…",
+			"filter.all": "全部",
+			"card.hire": "聘用到新对话",
+			"card.default": "默认",
+			"trust.system": "内置",
+			"trust.user": "自定义",
+			"quickPrompts.label": "推荐提问",
+			"loading": "正在加载专家…",
+			"error.message": "专家列表暂时无法访问",
+			"error.retry": "重试",
+			"empty.none": "部署未提供任何专家",
+			"empty.noMatches": "无匹配专家"
+		};
+		/** English dictionary, checked complete against the zh key set. */
+		const en = {
+			"section.experts": "Experts",
+			"page.title": "Experts",
+			"search.aria": "Search experts",
+			"search.placeholder": "Search experts by title or description…",
+			"filter.all": "All",
+			"card.hire": "Hire in a new chat",
+			"card.default": "Default",
+			"trust.system": "Built-in",
+			"trust.user": "Custom",
+			"quickPrompts.label": "Suggested prompts",
+			"loading": "Loading experts…",
+			"error.message": "The expert list is temporarily unavailable",
+			"error.retry": "Retry",
+			"empty.none": "This deployment ships no experts",
+			"empty.noMatches": "No matching experts"
+		};
+		//#endregion
+		//#region lib/types/client/index.js
+		/** Dictionary namespace owned by this plugin. */
+		const NS = "expert";
+		/**
+		* Required services (cordis fiber inject). The target slots are declared by
+		* the ui-sidebar and ui-conversation applies, whose activation order relative
+		* to this one is NOT constrained: apply therefore depends on each declaration
+		* through `slots.inject()` instead of assuming order. `uiAgentPreset` and
+		* `uiWorkspace` are the cross-package staging and session-start services the
+		* hire action forwards to.
+		*/
+		const inject = [
+			"slots",
+			"locale",
+			"remote",
+			"sessions",
+			"uiWorkspace",
+			"uiAgentPreset"
+		];
+		/**
+		* Register the nav row and the page once their slot declarations are on the
+		* ledger. The inject factories return plain callbacks; wire failures surface
+		* as thrown errors the components render as their retry states.
+		* @param ctx - client root context.
+		*/
+		function apply(ctx) {
+			const sessions = ctx.get("sessions");
+			const uiWorkspace = ctx.get("uiWorkspace");
+			const uiAgentPreset = ctx.get("uiAgentPreset");
+			const uiExpert = new UiExpertService(ctx, sessions);
+			ctx.effect(() => ctx.locale.register(NS, {
+				zh,
+				en
+			}), "ui-expert: dictionaries");
+			const navInjected = () => ({
+				openPage: () => {
+					uiExpert.openPage();
+				},
+				closePage: () => {
+					uiExpert.closePage();
+				},
+				hooks: { view: uiExpert.view }
+			});
+			const pageInjected = () => ({
+				load: async () => {
+					const result = await ctx.remote.agentPresets.list();
+					if (!result.ok) {
+						if (result.error.code === "invocation-unavailable") return { presets: [] };
+						throw new Error(`agentPresets.list failed: ${result.error.code}: ${result.error.message}`);
+					}
+					return { presets: result.value.presets };
+				},
+				hire: (id) => {
+					uiExpert.closePage();
+					uiAgentPreset.stageNextSessionPreset(id);
+					uiWorkspace.startSession();
+				}
+			});
+			ctx.slots.inject("sidebar.experts", () => ctx.slots.register({
+				name: "sidebar.experts",
+				inject: navInjected,
+				locale: NS
+			}, ExpertNav));
+			ctx.slots.inject("conversation.expert.browser", () => ctx.slots.register({
+				name: "conversation.expert.browser",
+				inject: pageInjected,
+				locale: NS
+			}, ExpertBrowser));
+		}
+		//#endregion
+		exports.NS = NS;
+		exports.apply = apply;
+		exports.inject = inject;
+		return module.exports;
+	}
+});
+
+//# sourceMappingURL=client.js.map

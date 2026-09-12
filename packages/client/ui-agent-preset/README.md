@@ -33,7 +33,7 @@ The settings section shows the roster as cards: a copy dialog is the only way a 
 
 ### The conversational entry
 
-When the roster carries the self-referential `cordis` preset, a dashed add-card stages it and starts a new session — the section closes the settings panel and the new-session chip's own applier composes the blank session the workspace flow produces.
+When the roster carries the self-referential `cordis` preset, a dashed add-card stages it and starts a new session — the section closes the settings panel and the new-session chip's own applier composes the blank session the workspace flow produces. The same staging move is published as the `uiAgentPreset` root service (`stageNextSessionPreset`), so another surface — the expert center's hire action — can stage a pick for the next session without reaching into this package's slots; the service forwards to whichever conversation binding currently owns the seat flow and no-ops while none does.
 
 -----
 

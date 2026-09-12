@@ -32,6 +32,7 @@ function mountShell({ collapsed = false, width = 300 }: { collapsed?: boolean; w
   const startSession = vi.fn()
   const toggleSidebar = vi.fn()
   let knowledgeOwner: SidebarSectionOwnerProps | undefined
+  let expertsOwner: SidebarSectionOwnerProps | undefined
   let regionOwner: SidebarSectionOwnerProps | undefined
   let businessOwner: SidebarSectionOwnerProps | undefined
   let settingsOwner: SidebarSettingsOwnerProps | undefined
@@ -53,6 +54,10 @@ function mountShell({ collapsed = false, width = 300 }: { collapsed?: boolean; w
         if (key === 'sidebar.knowledge') {
           knowledgeOwner = owner as SidebarSectionOwnerProps
           return <div data-testid="knowledge-seat" data-wide={owner.wide} />
+        }
+        if (key === 'sidebar.experts') {
+          expertsOwner = owner as SidebarSectionOwnerProps
+          return <div data-testid="experts-seat" data-wide={owner.wide} />
         }
         if (key === 'sidebar.business') {
           businessOwner = owner as SidebarSectionOwnerProps
@@ -78,6 +83,10 @@ function mountShell({ collapsed = false, width = 300 }: { collapsed?: boolean; w
     knowledgeOwner: () => {
       if (knowledgeOwner === undefined) throw new Error('knowledge owner not rendered')
       return knowledgeOwner
+    },
+    expertsOwner: () => {
+      if (expertsOwner === undefined) throw new Error('experts owner not rendered')
+      return expertsOwner
     },
     regionOwner: () => {
       if (regionOwner === undefined) throw new Error('region owner not rendered')
@@ -145,6 +154,7 @@ describe('SidebarRoot shell', () => {
   it('hands the region seats their wide flag and clamps expandSidebar to the collapsed state', () => {
     const b = mountShell()
     expect(b.knowledgeOwner().wide).toBe(true)
+    expect(b.expertsOwner().wide).toBe(true)
     expect(b.regionOwner().wide).toBe(true)
     expect(b.businessOwner().wide).toBe(true)
     // The settings seat rides the same wide flag (ui-settings renders the row).
@@ -152,15 +162,17 @@ describe('SidebarRoot shell', () => {
     expect(b.footerActionOwner().wide).toBe(true)
     // Expanded: the request is a no-op (no accidental collapse).
     b.knowledgeOwner().expandSidebar()
+    b.expertsOwner().expandSidebar()
     b.regionOwner().expandSidebar()
     b.businessOwner().expandSidebar()
     expect(b.toggleSidebar).not.toHaveBeenCalled()
   })
 
-  it('stacks the browsing seats knowledge, business, then workspaces', () => {
+  it('stacks the browsing seats knowledge, experts, business, then workspaces', () => {
     mountShell()
-    const seats = screen.getAllByTestId(/knowledge-seat|business-seat|region/)
-    expect(seats.map(seat => seat.dataset.testid)).toEqual(['knowledge-seat', 'business-seat', 'region'])
+    const seats = screen.getAllByTestId(/knowledge-seat|experts-seat|business-seat|region/)
+    expect(seats.map(seat => seat.dataset.testid))
+      .toEqual(['knowledge-seat', 'experts-seat', 'business-seat', 'region'])
   })
 
   it('keeps the region mounted through collapse and expands on its request', () => {

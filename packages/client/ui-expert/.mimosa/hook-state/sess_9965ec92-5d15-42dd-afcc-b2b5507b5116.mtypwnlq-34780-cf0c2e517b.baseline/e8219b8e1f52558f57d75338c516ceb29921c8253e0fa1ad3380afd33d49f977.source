@@ -1,0 +1,68 @@
+import { UiExpertService } from "./navigation.js";
+import { ExpertBrowser } from "./ExpertBrowser.js";
+import { ExpertNav } from "./ExpertNav.js";
+import { en, zh } from "./locales.js";
+/** Dictionary namespace owned by this plugin. */
+export const NS = 'expert';
+/**
+ * Required services (cordis fiber inject). The target slots are declared by
+ * the ui-sidebar and ui-conversation applies, whose activation order relative
+ * to this one is NOT constrained: apply therefore depends on each declaration
+ * through `slots.inject()` instead of assuming order. `uiAgentPreset` and
+ * `uiWorkspace` are the cross-package staging and session-start services the
+ * hire action forwards to.
+ */
+export const inject = ['slots', 'locale', 'remote', 'sessions', 'uiWorkspace', 'uiAgentPreset'];
+/**
+ * Register the nav row and the page once their slot declarations are on the
+ * ledger. The inject factories return plain callbacks; wire failures surface
+ * as thrown errors the components render as their retry states.
+ * @param ctx - client root context.
+ */
+export function apply(ctx) {
+    const sessions = ctx.get('sessions');
+    const uiWorkspace = ctx.get('uiWorkspace');
+    const uiAgentPreset = ctx.get('uiAgentPreset');
+    const uiExpert = new UiExpertService(ctx, sessions);
+    ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-expert: dictionaries');
+    const navInjected = () => ({
+        openPage: () => { uiExpert.openPage(); },
+        closePage: () => { uiExpert.closePage(); },
+        hooks: { view: uiExpert.view },
+    });
+    const pageInjected = () => ({
+        load: async () => {
+            const result = await ctx.remote.agentPresets.list();
+            // A deployment composing no presets is a valid empty market, not an
+            // error: the invocation-unavailable refusal and an empty roster render
+            // the same empty state.
+            if (!result.ok) {
+                if (result.error.code === 'invocation-unavailable')
+                    return { presets: [] };
+                throw new Error(`agentPresets.list failed: ${result.error.code}: ${result.error.message}`);
+            }
+            return { presets: result.value.presets };
+        },
+        hire: (id) => {
+            // The explicit close keeps the intent local; the service's own session
+            // watcher would close the page on the resulting navigation anyway.
+            uiExpert.closePage();
+            // Stage BEFORE starting, mirroring the settings section's conversational
+            // authoring entry: the still-current session would refuse a swap, so the
+            // pick must be waiting when the flow creates or reuses the blank one.
+            uiAgentPreset.stageNextSessionPreset(id);
+            uiWorkspace.startSession();
+        },
+    });
+    ctx.slots.inject('sidebar.experts', () => ctx.slots.register({
+        name: 'sidebar.experts',
+        inject: navInjected,
+        locale: NS,
+    }, ExpertNav));
+    ctx.slots.inject('conversation.expert.browser', () => ctx.slots.register({
+        name: 'conversation.expert.browser',
+        inject: pageInjected,
+        locale: NS,
+    }, ExpertBrowser));
+}
+//# sourceMappingURL=index.js.map

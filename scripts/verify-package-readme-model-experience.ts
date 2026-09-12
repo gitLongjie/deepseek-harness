@@ -176,6 +176,7 @@ const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
   'packages/kb/kb-weknora': { kind: 'indirect', reason: 'The provider delegates listing rendering to the gateway and the web sidebar section.' },
   'packages/kb/kb-gateway': { kind: 'indirect', reason: 'The wire projection forwards read calls verbatim; served clients own any model-facing effect.' },
   'packages/client/ui-knowledge-base': { kind: 'indirect', reason: 'The browser section renders listings read-only; the model-facing knowledge tools are the separately mounted dsh-weknora plugin.' },
+  'packages/client/ui-expert': { kind: 'indirect', reason: 'The browser page renders the roster read-only; a hire stages a preset choice the host records as its own agent-preset/selected session event.' },
   'packages/client/ui-settings-market': { kind: 'indirect', reason: 'Browser-side settings row; the host-side market service owns every model-facing effect.' },
   'packages/boot/app-boot': { kind: 'indirect', reason: 'Only the loaded plugin tree contributes model context.' },
   'packages/boot/cmdline': { kind: 'none', reason: 'Resolves the process command line before any session exists; configured rows own every model-visible consequence.' },
