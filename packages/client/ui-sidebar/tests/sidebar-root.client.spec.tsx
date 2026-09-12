@@ -117,7 +117,7 @@ describe('SidebarRoot shell', () => {
         options?.fallback ?? null) as SidebarRootComponentProps['renderSlot']}
     />)
 
-    expect(screen.getByText('深度Works')).toBeTruthy()
+    expect(screen.getByText('MeowWork')).toBeTruthy()
     expect(container.querySelector('img')).toBeNull()
   })
 
@@ -130,20 +130,28 @@ describe('SidebarRoot shell', () => {
         options?.fallback ?? null) as SidebarRootComponentProps['renderSlot']}
     />)
 
-    expect(screen.getByText('深度Works')).toBeTruthy()
+    expect(screen.getByText('MeowWork')).toBeTruthy()
   })
 
   it('hands the region seats their wide flag and clamps expandSidebar to the collapsed state', () => {
     const b = mountShell()
     expect(b.knowledgeOwner().wide).toBe(true)
     expect(b.regionOwner().wide).toBe(true)
+    expect(b.businessOwner().wide).toBe(true)
     // The settings seat rides the same wide flag (ui-settings renders the row).
     expect(b.settingsOwner().wide).toBe(true)
     expect(b.footerActionOwner().wide).toBe(true)
     // Expanded: the request is a no-op (no accidental collapse).
     b.knowledgeOwner().expandSidebar()
     b.regionOwner().expandSidebar()
+    b.businessOwner().expandSidebar()
     expect(b.toggleSidebar).not.toHaveBeenCalled()
+  })
+
+  it('stacks the browsing seats knowledge, business, then workspaces', () => {
+    mountShell()
+    const seats = screen.getAllByTestId(/knowledge-seat|business-seat|region/)
+    expect(seats.map(seat => seat.dataset.testid)).toEqual(['knowledge-seat', 'business-seat', 'region'])
   })
 
   it('keeps the region mounted through collapse and expands on its request', () => {

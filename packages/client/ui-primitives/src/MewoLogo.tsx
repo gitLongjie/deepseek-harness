@@ -1,4 +1,4 @@
-// 深度Works brand mark — the product app icon rendered inline as a data URI, so
+// MeowWork brand mark — the product app icon rendered inline as a data URI, so
 // every consumer ships the same art without asset plumbing. Native 72x72; the
 // height tracks `size` while the width keeps the source ratio.
 
@@ -11,7 +11,7 @@ const MARK_SOURCE_WIDTH = 72
 const MARK_SOURCE_HEIGHT = 72
 
 /**
- * Render the 深度Works brand mark.
+ * Render the MeowWork brand mark.
  * @param props.size - height in px (default 24; the icon is square).
  * @param props.className - extra class for layout placement.
  * @returns the mark image (aria-hidden decorative brand art).

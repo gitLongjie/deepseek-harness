@@ -67,7 +67,7 @@ describe('official browser-brand plugin', () => {
 
   it('renders the official name independently from both requested mark sizes', () => {
     const name = render(<OfficialBrandName />)
-    expect(name.container.textContent).toBe('深度Works')
+    expect(name.container.textContent).toBe('MeowWork')
     expect(name.container.querySelector('img')).toBeNull()
     name.unmount()
 

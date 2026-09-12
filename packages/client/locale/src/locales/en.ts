@@ -30,7 +30,7 @@ export const en = {
   'collapse': 'Collapse',
   'expand': 'Expand',
   'back': 'Back',
-  'brand.localBuild': '深度Works',
+  'brand.localBuild': 'MeowWork',
   'unknown': 'Unknown',
   'none': 'None',
   'truncated': 'Truncated',

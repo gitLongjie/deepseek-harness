@@ -75,7 +75,7 @@ export function apply(ctx: ClientContext): void {
   const authUrl = override === '' ? '' : override ?? DEFAULT_LOGIN_URL
   if (authUrl === '') return
   console.warn(`[ui-login] applying login gate against ${authUrl}`)
-  const brandName = process.env.DSH_CLIENT_BRAND_NAME ?? '深度Works'
+  const brandName = process.env.DSH_CLIENT_BRAND_NAME ?? 'MeowWork'
   ctx.effect(() => ctx.locale.register(NS, {
     zh: {
       ...zh,

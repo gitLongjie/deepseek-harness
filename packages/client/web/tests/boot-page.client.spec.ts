@@ -17,7 +17,7 @@ describe('BootPage', () => {
   it('draws the loading skeleton before any plugin state arrives', () => {
     const { el } = mount()
     expect(el.firstElementChild?.getAttribute('data-dsh-boot')).toBe('')
-    expect(el.textContent).toContain('深度Works')
+    expect(el.textContent).toContain('MeowWork')
     expect(el.textContent).toContain('加载插件中…')
   })
 

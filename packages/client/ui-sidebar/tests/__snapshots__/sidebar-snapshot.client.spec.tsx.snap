@@ -109,7 +109,7 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
               <span
                 class="fallbackBrandName"
               >
-                深度Works
+                MeowWork
               </span>
             </div>
           </span>
@@ -217,7 +217,7 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
               <span
                 class="fallbackBrandName"
               >
-                深度Works
+                MeowWork
               </span>
             </div>
           </span>
