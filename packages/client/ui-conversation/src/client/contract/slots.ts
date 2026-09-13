@@ -373,18 +373,22 @@ export type ConversationSessionHeaderSlotProps =
 export type ComposerAttachmentsProps =
   PropsRuntime<'conversation.input.attachments'> & PropsLocale<'conversation'>
 
-/** Owner share common to blank-session Workspace pickers. */
 /** Owner share of the knowledge-base browser view: the base being browsed. */
 export interface KnowledgeBrowserOwnerProps {
   /** Structural base identity; the browser's own registration owns domain typing. */
   base: { id: string; name: string }
 }
 
+/** Owner share common to blank-session Workspace pickers. */
 export interface EmptyWorkspaceOwnerProps {
+  /** Whether the picker is currently open. */
   open: boolean
+  /** Anchor element the picker positions against. */
   anchorRef?: RefObject<HTMLElement>
   /** Currently selected Workspace, when available. */
   selectedId?: WorkspaceId | undefined
+  /** Pick one Workspace and close the picker. */
   onPick: (workspaceId: WorkspaceId) => void
+  /** Close the picker without picking. */
   onClose: () => void
 }
