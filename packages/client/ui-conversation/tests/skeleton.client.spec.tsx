@@ -305,6 +305,7 @@ function mount(
     useSessionPendingInteraction,
     useWorkspaces: bindSnapshotSelector(workspaces),
     useKnowledgeView: bindSnapshotSelector(createSnapshotStore<{ open: boolean }>({ open: options.browsedBase !== undefined })),
+    useExpertView: bindSnapshotSelector(createSnapshotStore<{ open: boolean }>({ open: false })),
     useProjection: (() => undefined),
     useComposerBlock: select => select(options.composerBlock),
     useInput,

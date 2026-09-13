@@ -24,12 +24,14 @@ const ROWS: readonly ExpertRow[] = [
 ]
 
 function mount(overrides: Partial<ExpertBrowserProps> = {}) {
-  const props: ExpertBrowserProps = {
+  // The spec stubs the GlobalStandardProps members the page never reads; the
+  // cast mirrors the sibling component specs' seat stubs.
+  const props = {
     load: vi.fn(async () => ({ presets: ROWS })),
     hire: vi.fn(),
     t,
     ...overrides,
-  }
+  } as unknown as ExpertBrowserProps
   render(<ExpertBrowser {...props} />)
   return { props, hire: props.hire as ReturnType<typeof vi.fn>, load: props.load as ReturnType<typeof vi.fn> }
 }

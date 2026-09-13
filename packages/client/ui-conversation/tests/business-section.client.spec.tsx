@@ -8,11 +8,7 @@ import { en } from '../src/client/locales.ts'
 
 const PLUGIN_ID = 'xmanrui-dsh-business-entry'
 
-type IpcStub = {
-  invoke: ReturnType<typeof vi.fn>
-}
-
-function stubIpc(enabled: boolean): IpcStub {
+function stubIpc(enabled: boolean) {
   const invoke = vi.fn((channel: string, ..._args: unknown[]) => {
     if (channel === 'dsh:plugin:isEnabled') return Promise.resolve(enabled)
     return Promise.resolve()
