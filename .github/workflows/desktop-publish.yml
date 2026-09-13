@@ -1,15 +1,17 @@
 name: Desktop publish
 
 # Builds the desktop shell on Windows and macOS and publishes the installers
-# and update metadata to GitHub Releases via electron-builder --publish always
-# (provider: github, owner gitLongjie / repo miaoWorker — the distribution repo
-# the installed app's electron-updater polls). The repo-scoped GITHUB_TOKEN
-# cannot write another repository, so every release write goes through the
-# DESKTOP_PUBLISH_TOKEN secret on the desktop-release environment; it needs
-# contents:write on gitLongjie/miaoWorker. Triggered by a v* tag or manually.
-# Signing/notarization secrets are provisioned on the same environment but left
-# empty for now (CSC_IDENTITY_AUTO_DISCOVERY false), so builds are unsigned
-# until certificates are configured.
+# and update metadata to two GitHub Releases. The distribution repo
+# (provider: github, owner gitLongjie / repo miaoWorker — the repo the
+# installed app's electron-updater polls) carries the updater feed, so those
+# writes go through the DESKTOP_PUBLISH_TOKEN secret on the desktop-release
+# environment (the repo-scoped GITHUB_TOKEN cannot write another repository;
+# it needs contents:write on gitLongjie/miaoWorker). This repository carries
+# its own release with the same assets, writable by the built-in GITHUB_TOKEN.
+# Triggered by a v* tag or manually. Signing/notarization secrets are
+# provisioned on the same environment but left empty for now
+# (CSC_IDENTITY_AUTO_DISCOVERY false), so builds are unsigned until
+# certificates are configured.
 on:
   workflow_dispatch:
   push:
@@ -64,6 +66,30 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.DESKTOP_PUBLISH_TOKEN }}
 
+      # Same reset-and-create for this repository's own release. The tag
+      # already exists for tag-push runs (the trigger), and target_commitish
+      # anchors it to this commit for manual dispatches; GitHub ignores
+      # target_commitish when the tag exists. The built-in token suffices
+      # because the release stays inside this repository.
+      - name: Reset and create this repository's release
+        shell: bash
+        run: |
+          TAG="v$(node -p "require('./apps/desktop/package.json').version")"
+          echo "TAG=$TAG"
+          curl -s -X DELETE -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/$TAG" -o /dev/null || true
+          for i in $(seq 1 8); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+              -H "Authorization: Bearer $GH_TOKEN" -H "Content-Type: application/json" \
+              -d "{\"tag_name\":\"$TAG\",\"name\":\"$TAG\",\"body\":\"Release $TAG\",\"target_commitish\":\"$GITHUB_SHA\"}" \
+              "https://api.github.com/repos/$GITHUB_REPOSITORY/releases")
+            echo "create attempt $i: HTTP $code"
+            [ "$code" = "201" ] && { echo "release created"; break; }
+            sleep 5
+          done
+        env:
+          GH_TOKEN: ${{ github.token }}
+
   build:
     name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -105,6 +131,28 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
           GH_TOKEN: ${{ secrets.DESKTOP_PUBLISH_TOKEN }}
+
+      # Attach this platform's installers and update metadata to this
+      # repository's own release (created by the create-release job). The
+      # distribution repo's assets were already uploaded by electron-builder
+      # inside the previous step.
+      - name: Upload installers to this repository's release
+        shell: bash
+        working-directory: apps/desktop
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="v$(node -p "require('./package.json').version")"
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            gh release upload "$TAG" \
+              dist-electron/*.dmg dist-electron/*.zip \
+              dist-electron/*.dmg.blockmap dist-electron/*.zip.blockmap \
+              dist-electron/latest-mac.yml --clobber
+          else
+            gh release upload "$TAG" \
+              dist-electron/*.exe dist-electron/*.exe.blockmap \
+              dist-electron/latest.yml --clobber
+          fi
 
       - uses: actions/upload-artifact@v7
         with:
