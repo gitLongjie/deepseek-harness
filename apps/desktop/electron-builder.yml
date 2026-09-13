@@ -128,8 +128,11 @@ linux:
 publish:
   provider: github
   owner: gitLongjie
-  repo: miaoWorker
+  repo: deepseek-harness
   releaseType: release
-  # GitHub release tag defaults to v${version}. electron-updater's GitHub
-  # provider parses tags as semver, so a non-semver prefix (e.g. desktop-v)
-  # breaks in-app update detection; keep the default v prefix.
+  # Serves only manual release runs (`pnpm release` / deploy-app.mjs --publish
+  # always); CI publishes through gh release upload instead. The packaged
+  # app's updater feed is the generic provider baked from oem.config.json's
+  # updateUrl, not this block. GitHub release tags default to v${version} and
+  # electron-updater parses tags as semver, so a non-semver prefix (e.g.
+  # desktop-v) breaks update detection; keep the default v prefix.
