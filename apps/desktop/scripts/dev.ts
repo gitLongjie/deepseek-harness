@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url'
 import { dirname, resolve, basename } from 'node:path'
 import { Data, NtExecutable, NtExecutableResource, Resource } from 'resedit'
 import { readDesktopOemConfig, syncDesktopOemIcons } from './desktop-oem-config.mjs'
+import { discoverLibraryDirs, discoverPluginDirs } from '../../../scripts/dev-web.ts'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 const repoRoot = resolve(root, '../..')
@@ -69,14 +70,16 @@ function refreshLocalBusinessEntryPlugin(): void {
 // old hashed chunks otherwise; stale assets linger and confuse diagnosis.
 refreshLocalImPlugin()
 refreshLocalBusinessEntryPlugin()
+// The Client-face tsdown bundles every plugin from its tsc emit under
+// lib/types, not its sources, so the emit must be refreshed for all client
+// packages before bundling: a stale emit ships the previous logic with no
+// error — an edit just never appears in the app.
 run('pnpm', [
   'exec',
   'tsc',
   '-b',
-  'packages/client/ui-login',
-  'packages/client/ui-conversation',
-  'packages/client/ui-brand-official',
-  'packages/client/ui-layout',
+  ...discoverPluginDirs(repoRoot),
+  ...discoverLibraryDirs(repoRoot),
 ], { cwd: repoRoot })
 run('pnpm', ['exec', 'tsdown', '--env.DSH_BUILD_FACE', 'client'], { cwd: repoRoot })
 run('pnpm', ['--filter', '@deepseek-ai/dsh-web-frontend', 'exec', 'vite', 'build', '--outDir', resolve(root, 'web'), '--emptyOutDir'], {

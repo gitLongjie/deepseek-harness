@@ -16,14 +16,16 @@ describe('desktop OEM development build', () => {
   })
 
   it('rebuilds client bundles before Vite consumes their compiled output', () => {
-    const clientTypeBuild = launcher.indexOf("'packages/client/ui-login'")
+    // The emit refresh must cover every client package: tsdown bundles from
+    // the lib/types emit, so a package the tsc step misses silently ships its
+    // previous bundle.
+    const clientTypeBuild = launcher.indexOf('...discoverPluginDirs(repoRoot)')
     const clientBundleBuild = launcher.indexOf("'--env.DSH_BUILD_FACE', 'client'")
     const viteBuild = launcher.indexOf("'@deepseek-ai/dsh-web-frontend', 'exec', 'vite', 'build'")
     const iconSync = launcher.indexOf('syncDesktopOemIcons(repoRoot, root)')
     expect(clientTypeBuild).toBeGreaterThan(-1)
-    expect(launcher).toContain("'packages/client/ui-conversation'")
-    expect(launcher).toContain("'packages/client/ui-brand-official'")
-    expect(launcher).toContain("'packages/client/ui-layout'")
+    expect(launcher).toContain('...discoverLibraryDirs(repoRoot)')
+    expect(launcher).toContain("from '../../../scripts/dev-web.ts'")
     expect(clientBundleBuild).toBeGreaterThan(clientTypeBuild)
     expect(viteBuild).toBeGreaterThan(clientBundleBuild)
     expect(iconSync).toBeGreaterThan(viteBuild)
