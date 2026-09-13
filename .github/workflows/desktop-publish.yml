@@ -5,9 +5,8 @@ name: Desktop publish
 # distribution target. The installed app's updater polls
 # releases/latest/download on this repository (the generic updateUrl baked
 # from oem.config.json), so this release is the live update feed.
-# electron-builder runs without --publish (its electron-builder.yml publish
-# block only serves manual release runs); each platform job attaches its
-# assets with gh release upload using the built-in GITHUB_TOKEN.
+# electron-builder --publish always targets the deepseek-harness repo declared
+# in electron-builder.yml and writes with the built-in GITHUB_TOKEN.
 # Triggered by a v* tag or manually. Signing/notarization secrets are left
 # empty for now (CSC_IDENTITY_AUTO_DISCOVERY false), so builds are unsigned
 # until certificates are configured.
@@ -90,35 +89,24 @@ jobs:
       - name: Build host libs
         run: pnpm build:lib
 
-      # Package the --dir artifact and boot it under the smoke harness. A
-      # packaged artifact that cannot boot never reaches users; the passing
-      # smoke is what gates the release upload below.
-      - name: Package and smoke
+      # Package the --dir artifact and boot it under the smoke harness, and
+      # only after the smoke passes run the full release build with
+      # --publish always (same rev), which attaches the installers, blockmaps,
+      # and latest*.yml to the release created above. latest.yml /
+      # latest-mac.yml on that release are the electron-updater feed the
+      # installed apps poll. A packaged artifact that cannot boot never
+      # reaches users.
+      - name: Package, smoke, and publish to GitHub Releases
         shell: bash
-        run: pnpm --filter @deepseek-ai/dsh-desktop run smoke
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            xvfb-run --auto-servernum pnpm --filter @deepseek-ai/dsh-desktop run smoke -- --publish
+          else
+            pnpm --filter @deepseek-ai/dsh-desktop run smoke -- --publish
+          fi
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-
-      # Attach this platform's installers and update metadata to the release
-      # created by the create-release job. latest.yml / latest-mac.yml on that
-      # release are the electron-updater feed the installed apps poll.
-      - name: Upload installers to the release
-        shell: bash
-        working-directory: apps/desktop
-        env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          TAG="v$(node -p "require('./package.json').version")"
-          if [ "$RUNNER_OS" = "macOS" ]; then
-            gh release upload "$TAG" \
-              dist-electron/*.dmg dist-electron/*.zip \
-              dist-electron/*.dmg.blockmap dist-electron/*.zip.blockmap \
-              dist-electron/latest-mac.yml --clobber
-          else
-            gh release upload "$TAG" \
-              dist-electron/*.exe dist-electron/*.exe.blockmap \
-              dist-electron/latest.yml --clobber
-          fi
 
       - uses: actions/upload-artifact@v7
         with:
