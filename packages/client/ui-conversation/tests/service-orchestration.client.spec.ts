@@ -3,10 +3,11 @@
 // TestSessions mints tagged scopes through the production createScope, so the
 // service's scopeOf/binding path runs against production resolution (no local
 // tag probe).
-import { Context } from '@deepseek-ai/cordis'
+import { Context, Service } from '@deepseek-ai/cordis'
 import { describe, expect, it, vi } from 'vitest'
 import { makeTranslate, SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
 import type { QueuedMessage } from '@deepseek-ai/dsh-api-session-controller/client'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { ComposerBlockRegistry } from '../src/client/input/blocks.ts'
 import { InputHub } from '../src/client/input/hub.ts'
 import { ConversationController, UnsupportedImageMediaTypeError } from '../src/client/service.ts'
@@ -150,6 +151,75 @@ describe('ConversationController', () => {
     }).await()
     const orphan = bare.get('conversation') as ConversationController
     await expect(orphan.send('x')).rejects.toThrow(/sessions service unavailable/)
+  })
+
+  it('fails every file when the file-import namespace is not mounted', async () => {
+    const b = await bench()
+    const outcomes = await b.scoped.importFiles([
+      new File([Uint8Array.of(1)], 'a.txt', { type: 'text/plain' }),
+      new File([Uint8Array.of(2)], 'b.txt', { type: 'text/plain' }),
+    ])
+    expect(outcomes).toEqual([
+      { file: expect.any(File), error: 'file import is not mounted in this deployment' },
+      { file: expect.any(File), error: 'file import is not mounted in this deployment' },
+    ])
+    await b.runtime.dispose()
+  })
+
+  it('resolves the file-import namespace through the root context from a session scope', async () => {
+    const b = await bench()
+    // Production shape: the gateway mounts the remote and every namespace as
+    // tracker-bearing Services on the root, so the dotted associate key only
+    // resolves from the root isolate — never from a session scope.
+    const importFace = vi.fn((_id: SessionId, request: { name: string; data: string }) =>
+      Promise.resolve({ ok: true, value: { path: `uploads/${request.name}` } }))
+    class FakeNamespaceService extends Service {
+      constructor(ctx: Context) {
+        super(ctx, 'remote.fileReferences')
+        Object.assign(this, { import: importFace })
+      }
+    }
+    class FakeRemoteService extends Service {
+      readonly fileReferences: unknown
+      constructor(ctx: Context) {
+        super(ctx, 'remote')
+        this.fileReferences = new FakeNamespaceService(ctx)
+      }
+    }
+    new FakeRemoteService(b.runtime.ctx)
+    const outcomes = await b.scoped.importFiles([
+      new File([Uint8Array.of(1)], 'ok.txt', { type: 'text/plain' }),
+    ])
+    expect(outcomes).toEqual([{ file: expect.any(File), path: 'uploads/ok.txt' }])
+    expect(importFace).toHaveBeenCalledTimes(1)
+    await b.runtime.dispose()
+  })
+
+  it('imports each file independently and answers with per-file outcomes', async () => {
+    const b = await bench()
+    const importFace = vi.fn((_id: SessionId, request: { name: string; data: string }) => {
+      if (request.name === 'broken.txt') return Promise.reject(new Error('disk full'))
+      if (request.name === 'refused.txt') {
+        return Promise.resolve({ ok: false, error: { code: 'bad-request', message: 'bare name required', details: {} } })
+      }
+      return Promise.resolve({ ok: true, value: { path: `uploads/${request.name}` } })
+    })
+    b.runtime.ctx.provide('remote', { fileReferences: { import: importFace } } as never)
+    b.runtime.ctx.provide('remote.fileReferences', { import: importFace } as never)
+    const outcomes = await b.scoped.importFiles([
+      new File([Uint8Array.of(1)], 'ok.txt', { type: 'text/plain' }),
+      new File([Uint8Array.of(2)], 'refused.txt', { type: 'text/plain' }),
+      new File([Uint8Array.of(3)], 'broken.txt', { type: 'text/plain' }),
+    ])
+    expect(outcomes).toEqual([
+      { file: expect.any(File), path: 'uploads/ok.txt' },
+      { file: expect.any(File), error: 'bare name required' },
+      { file: expect.any(File), error: 'disk full' },
+    ])
+    // The calls carried the scoped session identity.
+    expect(importFace).toHaveBeenCalledTimes(3)
+    expect(importFace.mock.calls[0]?.[0]).toBe('s1')
+    await b.runtime.dispose()
   })
 })
 

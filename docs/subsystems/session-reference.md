@@ -119,6 +119,18 @@ Host capability for cancellable file-reference discovery.
  * @returns deterministic path-only candidates.
  */
 abstract list( agent: Agent, query: string, signal: AbortSignal, ): Promise<FileReferenceCandidate[]>
+
+/**
+ * Store one externally sourced file inside the target agent's workspace so
+ * `@` mentions and the filesystem tools can address it. Implementations
+ * never overwrite an existing file and answer with a workspace-relative
+ * path regardless of host platform.
+ * @param agent - target agent whose session cwd receives the copy.
+ * @param request - proposed bare file name and canonical base64 bytes.
+ * @param signal - caller cancellation; aborting removes the partial copy.
+ * @returns the stored copy's workspace-relative forward-slash path.
+ */
+abstract import( agent: Agent, request: FileImportRequest, signal: AbortSignal, ): Promise<FileImportValue>
 ```
 
 Types: [Agent](core.md)
@@ -140,6 +152,16 @@ Host Remote adapter over the composed file-reference provider.
  * @returns deterministic path-only candidates from the composed provider.
  */
 @Remote list( agent: Agent, query: string, signal: AbortSignal, ): Promise<FileReferenceCandidate[]>
+
+/**
+ * Store one externally sourced file inside the Agent's workspace so `@`
+ * mentions and the filesystem tools can address it.
+ * @param agent - target Agent resolved from the Session identity on the wire.
+ * @param request - proposed bare file name and canonical base64 bytes.
+ * @param signal - caller cancellation; aborting removes the partial copy.
+ * @returns the stored copy's workspace-relative forward-slash path.
+ */
+@Remote import( agent: Agent, request: FileImportRequest, signal: AbortSignal, ): Promise<FileImportValue>
 ```
 
 Types: [Agent](core.md)

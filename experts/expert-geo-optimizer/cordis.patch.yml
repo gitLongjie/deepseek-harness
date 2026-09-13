@@ -1,0 +1,16 @@
+# Installs the packaged GEO expert into the harness home's user preset root.
+#
+# The mount plugin (plugin.mjs) syncs experts/geo-optimizer into
+# dshHome(.agent-presets) at every host start, where the agent-presets
+# roster's user root discovers it on its next read (trust: user). Both
+# directories anchor to the running composition through `!!js` — the archify
+# skill-root precedent — so this package carries no dependency on the harness
+# itself. Nothing is ever deleted by the sync; removing the expert happens in
+# the preset authoring UI.
+
+- insert:
+    - id: xmanrui-expert-geo-optimizer
+      name: '@xmanrui/expert-geo-optimizer'
+      config:
+        expertDir: !!js process.getBuiltinModule('node:path').join(process.getBuiltinModule('node:path').dirname(process.getBuiltinModule('node:module').createRequire(baseUrl).resolve('@xmanrui/expert-geo-optimizer/package.json')), 'experts')
+        targetDir: !!js process.getBuiltinModule('node:module').createRequire(baseUrl)('@deepseek-ai/dsh-home-paths').dshHomePath(process.getBuiltinModule('node:module').createRequire(baseUrl)('@deepseek-ai/dsh-agent-presets').USER_PRESET_DIR)

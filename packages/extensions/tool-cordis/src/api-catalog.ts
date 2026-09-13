@@ -848,6 +848,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'agent', description: 'target agent whose session cwd bounds discovery.' }, { name: 'query', description: 'path text following `@` or `@"`.' }, { name: 'signal', description: 'caller cancellation.' }],
         returns: 'deterministic path-only candidates.',
       },
+      {
+        signature: 'abstract import( agent: Agent, request: FileImportRequest, signal: AbortSignal, ): Promise<FileImportValue>',
+        description: 'Store one externally sourced file inside the target agent\'s workspace so `@` mentions and the filesystem tools can address it. Implementations never overwrite an existing file and answer with a workspace-relative path regardless of host platform.',
+        parameters: [{ name: 'agent', description: 'target agent whose session cwd receives the copy.' }, { name: 'request', description: 'proposed bare file name and canonical base64 bytes.' }, { name: 'signal', description: 'caller cancellation; aborting removes the partial copy.' }],
+        returns: 'the stored copy\'s workspace-relative forward-slash path.',
+      },
     ],
   },
   {
@@ -1116,6 +1122,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'List one knowledge base\'s documents, newest-backend-order first page.',
         parameters: [{ name: 'baseId', description: 'the opaque base identity from a previous {@link list} read.' }, { name: 'query', description: 'optional keyword filter matched by the backend against document titles and content.' }],
         returns: 'one page of documents with the backend\'s total count.',
+      },
+      {
+        signature: 'abstract readDocument(documentId: KnowledgeDocumentId, query?: { page?: number }): Promise<KnowledgeDocumentContent>',
+        description: 'Read one document\'s assembled content, one page of blocks at a time.',
+        parameters: [{ name: 'documentId', description: 'the opaque document identity from a previous {@link listDocuments} read.' }, { name: 'query', description: 'optional 1-based page number; omission reads the first page.' }],
+        returns: 'the page\'s blocks with the document\'s identity facts and totals.',
       },
     ],
   },
@@ -1551,6 +1563,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'List file and directory candidates for one Agent\'s working directory.',
         parameters: [{ name: 'agent', description: 'target Agent resolved from the Session identity on the wire.' }, { name: 'query', description: 'path text following `@` or `@"`.' }, { name: 'signal', description: 'caller cancellation.' }],
         returns: 'deterministic path-only candidates from the composed provider.',
+      },
+      {
+        signature: '@Remote import( agent: Agent, request: FileImportRequest, signal: AbortSignal, ): Promise<FileImportValue>',
+        description: 'Store one externally sourced file inside the Agent\'s workspace so `@` mentions and the filesystem tools can address it.',
+        parameters: [{ name: 'agent', description: 'target Agent resolved from the Session identity on the wire.' }, { name: 'request', description: 'proposed bare file name and canonical base64 bytes.' }, { name: 'signal', description: 'caller cancellation; aborting removes the partial copy.' }],
+        returns: 'the stored copy\'s workspace-relative forward-slash path.',
       },
     ],
   },
@@ -3510,7 +3528,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'AgentPreset',
-    declaration: 'export interface AgentPreset {\n    readonly id: string;\n    readonly trust: PresetTrust;\n    readonly path: string;\n    readonly name?: string;\n    readonly description?: string;\n    readonly order?: number;\n    readonly broken?: string;\n}',
+    declaration: 'export interface AgentPreset {\n    readonly id: string;\n    readonly trust: PresetTrust;\n    readonly path: string;\n    readonly name?: string;\n    readonly description?: string;\n    readonly order?: number;\n    readonly category?: string;\n    readonly tags?: readonly string[];\n    readonly quickPrompts?: readonly string[];\n    readonly icon?: string;\n    readonly broken?: string;\n}',
   },
   {
     name: 'AgentPresetDirectoryOpenValue',
@@ -3526,7 +3544,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'AgentPresetRow',
-    declaration: 'export interface AgentPresetRow {\n    readonly id: string;\n    readonly trust: PresetTrust;\n    readonly isDefault: boolean;\n    readonly name?: string;\n    readonly description?: string;\n    readonly broken?: string;\n}',
+    declaration: 'export interface AgentPresetRow {\n    readonly id: string;\n    readonly trust: PresetTrust;\n    readonly isDefault: boolean;\n    readonly name?: string;\n    readonly description?: string;\n    readonly category?: string;\n    readonly tags?: readonly string[];\n    readonly quickPrompts?: readonly string[];\n    readonly icon?: string;\n    readonly broken?: string;\n}',
   },
   {
     name: 'AgentSetup',
@@ -4071,6 +4089,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'FileDiff',
     declaration: 'export interface FileDiff {\n    path: string;\n    oldText: string | null;\n    newText: string;\n}',
+  },
+  {
+    name: 'FileImportRequest',
+    declaration: 'export interface FileImportRequest {\n    readonly name: string;\n    readonly data: string;\n}',
+  },
+  {
+    name: 'FileImportValue',
+    declaration: 'export interface FileImportValue {\n    readonly path: string;\n}',
   },
   {
     name: 'FileLocation',

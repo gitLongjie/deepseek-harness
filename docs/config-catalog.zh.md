@@ -723,7 +723,7 @@ export interface Config {
 需要：`agents`
 
 ```ts config-catalog
-/** Local file-reference discovery configuration. */
+/** Local file-reference discovery and workspace-import configuration. */
 export interface Config {
   /** Maximum ranked candidates returned for one query. */
   maxResults?: number
@@ -731,10 +731,14 @@ export interface Config {
   maxEntries?: number
   /** Directory basenames never traversed or offered. */
   excludedDirectories?: string[]
+  /** Maximum decoded byte size accepted for one imported file. */
+  maxImportBytes?: number
+  /** Workspace-relative single-segment directory receiving imported files. */
+  importsDirectory?: string
 }
 ```
 
-来源：[`packages/context/file-reference-local/src/index.ts:35`](../packages/context/file-reference-local/src/index.ts)
+来源：[`packages/context/file-reference-local/src/index.ts:45`](../packages/context/file-reference-local/src/index.ts)
 
 <a id="deepseek-aidsh-fs-local"></a>
 
@@ -3493,6 +3497,7 @@ export interface Config {
 - `@deepseek-ai/dsh-client-ui-deliverables` — 需要 `systemPrompt`（[`packages/client/ui-deliverables/src/index.ts`](../packages/client/ui-deliverables/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-directory-picker-browse`（[`packages/client/ui-directory-picker-browse/src/index.ts`](../packages/client/ui-directory-picker-browse/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-directory-picker-native`（[`packages/client/ui-directory-picker-native/src/index.ts`](../packages/client/ui-directory-picker-native/src/index.ts)）
+- `@deepseek-ai/dsh-client-ui-expert`（[`packages/client/ui-expert/src/index.ts`](../packages/client/ui-expert/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-goal`（[`packages/client/ui-goal/src/index.ts`](../packages/client/ui-goal/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-input-trigger`（[`packages/client/ui-input-trigger/src/index.ts`](../packages/client/ui-input-trigger/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-jobs`（[`packages/client/ui-jobs/src/index.ts`](../packages/client/ui-jobs/src/index.ts)）

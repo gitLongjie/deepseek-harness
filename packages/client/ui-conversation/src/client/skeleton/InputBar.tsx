@@ -17,8 +17,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, MouseEvent, ReactNode } from 'react'
 import clsx from 'clsx'
 import {
-  IconPlusOutline16, IconWarningOutline16, Toast, Tooltip,
+  IconCodeOutline16, IconPaperclipOutline16, IconPlusOutline16, IconWarningOutline16,
+  Menu, Toast, Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
+import type { MenuEntry } from '@deepseek-ai/dsh-client-ui-primitives'
 // Type-only: the `plan` projection key merge (the TodoDock posture — the
 // composer reads a host-computed value; the domain owns the key).
 import type {} from '@deepseek-ai/dsh-plan-mode/client'
@@ -40,7 +42,7 @@ import css from './InputBar.module.css'
 export type InputBarProps = ComposerBarProps
 
 export function InputBar({
-  useSession, useInput, inputActions, keyboard, addImages, removeImage, draftImages,
+  useSession, useInput, inputActions, keyboard, addImages, addFiles, removeImage, draftImages,
   resolveSubmitMode, toggleCommandMenu, stop, command, t,
   renderSlot, useNotices, useLexicon, useMenuLauncher,
   useProjection, sessionId, variant, disabled: inert = false, blocked,
@@ -242,14 +244,64 @@ export function InputBar({
     if (rejected !== null) showToast(rejected)
   }, [addImages, attachments, imageLimits, showToast, t])
 
-  const canAcceptDrop = !locked && !machineBusy && addImages !== undefined
+  // General intake for picked, dropped, and pasted files: images ride the
+  // draft rail, everything else imports into the workspace and stages its `@`
+  // mention chip. The split follows the browser-declared MIME type, so an
+  // unsupported image format still reaches addImages for its authoritative
+  // format rejection instead of a workspace import.
+  const intakeFiles = useCallback((files: readonly File[]): void => {
+    if (files.length === 0) return
+    const images = files.filter(file => file.type.startsWith('image/'))
+    const documents = files.filter(file => !file.type.startsWith('image/'))
+    if (images.length > 0) intakeImages(images)
+    if (documents.length === 0) return
+    if (addFiles === undefined) {
+      showToast(t('file.importUnavailable'))
+      return
+    }
+    // A session closing mid-import throws synchronously (scope resolution) or
+    // rejects the promise; either way the failure must surface as a toast,
+    // never as a silent drop.
+    try {
+      void addFiles(documents).then(
+        (rejected) => { if (rejected !== null) showToast(rejected) },
+        (error: unknown) => { showToast(error instanceof Error ? error.message : String(error)) },
+      )
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : String(error))
+    }
+  }, [addFiles, intakeImages, showToast, t])
+
+  const canAcceptDrop = !locked && !machineBusy && (addImages !== undefined || addFiles !== undefined)
+
+  // The "+" launcher: the command menu and the file picker share one menu so
+  // the plus stays the single "add something" affordance. Entries follow
+  // capability presence: without a command pipeline or the import Remote the
+  // launcher locks instead of offering a dead row.
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const [addMenuOpen, setAddMenuOpen] = useState(false)
+  const addMenuItems = useMemo<readonly MenuEntry[]>(() => [
+    ...(toggleCommandMenu === undefined ? [] : [{ id: 'commands', label: t('input.commands'), icon: <IconCodeOutline16 /> }]),
+    ...(addFiles === undefined ? [] : [{ id: 'files', label: t('input.addFile'), icon: <IconPaperclipOutline16 /> }]),
+  ], [addFiles, t, toggleCommandMenu])
+  // Stable indirection: the pick handler reads the live toggle without
+  // re-arming per render (the caret span must be pick-time).
+  const onToggleCommandMenuRef = useRef<() => void>(() => {})
+  const onAddMenuPick = useCallback((id: string): void => {
+    setAddMenuOpen(false)
+    if (id === 'commands') {
+      onToggleCommandMenuRef.current()
+      return
+    }
+    if (id === 'files') fileInputRef.current?.click()
+  }, [])
 
   // The keymap handlers read live bar state through this ref so the editor
   // registration survives re-renders without re-arming per keystroke.
   const gate = useRef({
-    locked, machineBusy, canSteerQueue, running, subagent, resolveSubmitMode, intakeImages, stop,
+    locked, machineBusy, canSteerQueue, running, subagent, resolveSubmitMode, intakeImages, intakeFiles, stop,
   })
-  gate.current = { locked, machineBusy, canSteerQueue, running, subagent, resolveSubmitMode, intakeImages, stop }
+  gate.current = { locked, machineBusy, canSteerQueue, running, subagent, resolveSubmitMode, intakeImages, intakeFiles, stop }
 
   useEffect(() => {
     if (editor === null || keyboard === undefined) return
@@ -282,7 +334,7 @@ export function InputBar({
           g.subagent === null,
         ))
       },
-      intakeFiles: (files) => { gate.current.intakeImages(files) },
+      intakeFiles: (files) => { gate.current.intakeFiles(files) },
       pasteText: (text) => {
         if (gate.current.machineBusy || gate.current.locked) return
         keyboard.paste(text)
@@ -326,6 +378,7 @@ export function InputBar({
   const onToggleCommandMenu = (): void => {
     if (keyboard !== undefined) toggleCommandMenu?.(keyboard.caretSpan())
   }
+  onToggleCommandMenuRef.current = onToggleCommandMenu
 
   // The no-session Workspace trigger: the resident editable div acts as the
   // picker trigger for keyboard users (no editor is bound in this state).
@@ -424,7 +477,7 @@ export function InputBar({
         {renderSlot('conversation.input.attachments', {
           attachments,
           canAcceptDrop,
-          onAddImages: intakeImages,
+          onAddFiles: intakeFiles,
           onRemoveImage: (id) => { removeImage?.(id) },
           dropLimits: imageLimits === undefined ? undefined : {
             count: imageLimits.maxImagesPerMessage,
@@ -464,20 +517,43 @@ export function InputBar({
         </div>
         <div className={css.row}>
           <div className={css.tools}>
-            <Tooltip label={t('input.commands')} side="top" delayMs={500}>
-              <button
-                type="button"
-                className={css.add}
-                aria-label={t('input.commands')}
-                aria-haspopup="listbox"
-                aria-expanded={commandMenuOpen}
-                disabled={locked || toggleCommandMenu === undefined}
-                onMouseDown={keepFocus}
-                onClick={onToggleCommandMenu}
-              >
-                <IconPlusOutline16 size={14} />
-              </button>
-            </Tooltip>
+            <Menu
+              open={addMenuOpen}
+              items={[...addMenuItems]}
+              onSelect={onAddMenuPick}
+              onClose={() => { setAddMenuOpen(false) }}
+              side="top"
+              anchor={
+                <Tooltip label={t('input.add')} side="top" delayMs={500}>
+                  <button
+                    type="button"
+                    className={css.add}
+                    aria-label={t('input.add')}
+                    aria-haspopup="menu"
+                    aria-expanded={addMenuOpen}
+                    disabled={locked || addMenuItems.length === 0}
+                    onMouseDown={keepFocus}
+                    onClick={() => { setAddMenuOpen(!addMenuOpen) }}
+                  >
+                    <IconPlusOutline16 size={14} />
+                  </button>
+                </Tooltip>
+              }
+            />
+            {/* The picker lives outside the card click surface; resetting the
+                value lets the same file re-open and re-import after a removal. */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              hidden
+              aria-hidden
+              onChange={(e) => {
+                const files = [...e.currentTarget.files ?? []]
+                e.currentTarget.value = ''
+                intakeFiles(files)
+              }}
+            />
             <div className={css.modes}>
               {accessSelect}
               {sessionId === undefined ? null : renderSlot('conversation.input.plan', { locked })}

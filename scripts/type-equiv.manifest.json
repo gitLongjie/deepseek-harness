@@ -1042,6 +1042,11 @@
       "source": "packages/market/market/src/types.ts"
     },
     {
+      "doc": "docs/subsystems/knowledge-base.md",
+      "symbol": "KnowledgeBaseView",
+      "source": "packages/kb/kb/src/types.ts"
+    },
+    {
       "doc": "docs/subsystems/jobs.md",
       "symbol": "JobRead",
       "source": "packages/jobs/jobs/src/types.ts"

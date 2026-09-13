@@ -3,7 +3,9 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-file-reference'
-import type { FileReferenceCandidate } from '@deepseek-ai/dsh-file-reference/types'
+import type {
+  FileImportRequest, FileImportValue, FileReferenceCandidate,
+} from '@deepseek-ai/dsh-file-reference/types'
 import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 
 declare module '@deepseek-ai/cordis' {
@@ -36,6 +38,23 @@ export class SessionFileReferences extends TypertRemoteService {
     signal: AbortSignal,
   ): Promise<FileReferenceCandidate[]> {
     return this.ctx.fileReferences.list(agent, query, signal)
+  }
+
+  /**
+   * Store one externally sourced file inside the Agent's workspace so `@`
+   * mentions and the filesystem tools can address it.
+   * @param agent - target Agent resolved from the Session identity on the wire.
+   * @param request - proposed bare file name and canonical base64 bytes.
+   * @param signal - caller cancellation; aborting removes the partial copy.
+   * @returns the stored copy's workspace-relative forward-slash path.
+   */
+  @Remote
+  import(
+    agent: Agent,
+    request: FileImportRequest,
+    signal: AbortSignal,
+  ): Promise<FileImportValue> {
+    return this.ctx.fileReferences.import(agent, request, signal)
   }
 }
 

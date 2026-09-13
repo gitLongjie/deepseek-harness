@@ -1,0 +1,52 @@
+{
+  "name": "@xmanrui/expert-geo-optimizer",
+  "version": "0.1.0",
+  "description": "深度Work 专家包：GEO 优化专家——诊断品牌在 AI 搜索中的可见度，给出提升方案与可结算的报价速查表。 Expert package: a GEO (generative-engine-optimization) consultant card for the dsh expert market.",
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "dsh-expert",
+    "expert",
+    "geo",
+    "seo",
+    "ai-search"
+  ],
+  "author": {
+    "name": "xmanrui",
+    "url": "https://github.com/xmanrui"
+  },
+  "license": "MIT",
+  "type": "module",
+  "main": "./plugin.mjs",
+  "files": [
+    "plugin.mjs",
+    "cordis.patch.yml",
+    "experts/",
+    "store-entry.json",
+    "README.md",
+    "README.zh.md"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test test/*.test.mjs",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "engines": {
+    "node": ">=22.19"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xmanrui/expert-geo-optimizer.git"
+  },
+  "dsh": {
+    "expert": {
+      "roots": [
+        "experts"
+      ]
+    },
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

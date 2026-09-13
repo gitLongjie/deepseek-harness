@@ -48,8 +48,10 @@ Typing `@` in a host UI returns up to `maxResults` ranked path candidates for th
 | `maxResults` | `20` | Maximum ranked candidates returned for one query |
 | `maxEntries` | `50000` | Maximum files and directories indexed per agent workspace |
 | `excludedDirectories` | `['.git', 'node_modules', 'dist', 'build', 'out', 'coverage', 'target', '.next', '.nuxt', '.turbo', '.venv', '__pycache__', '.pytest_cache', '.mypy_cache', '.gradle']` | Directory basenames omitted from traversal and candidates |
+| `maxImportBytes` | `26214400` | Maximum decoded byte size accepted for one imported file |
+| `importsDirectory` | `uploads` | Workspace-relative single-segment directory receiving imported files |
 
-Every numeric value must be a positive safe integer, and every excluded name must be a non-empty basename without `/` or `\`.
+Every numeric value must be a positive safe integer, and every excluded name must be a non-empty basename without `/` or `\`. An import stores an externally sourced file under `importsDirectory`, suffixing `-1`, `-2`, … on a name collision, and answers with the workspace-relative forward-slash path the matching `@` mention addresses.
 
 -----
 

@@ -10,6 +10,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import { UiConversation } from './conversation/assembly.ts'
+import { formatFileMention } from '@deepseek-ai/dsh-file-reference/grammar'
 import type { ViewTab } from './contract/views.ts'
 import type {
   ComposerBarInjected, ConversationInjected, ConversationSessionHeaderInjected,
@@ -18,7 +19,7 @@ import type {
 import type { InputNotice } from './contract/input.ts'
 import { createConversationStore } from './stores.ts'
 import { ConversationController, UnsupportedImageMediaTypeError } from './service.ts'
-import type { IConversation } from './service.ts'
+import type { IConversation, ImportedFile } from './service.ts'
 import { ComposerBlockRegistry } from './input/blocks.ts'
 import type { ComposerBlock } from './contract/composer-blocks.ts'
 import { InputHub } from './input/hub.ts'
@@ -313,6 +314,7 @@ export function apply(ctx: Context): void {
         return {
           keyboard: undefined,
           addImages: undefined,
+          addFiles: undefined,
           removeImage: undefined,
           draftImages: undefined,
           resolveSubmitMode: (running, gesture, steeringAvailable) =>
@@ -343,6 +345,29 @@ export function apply(ctx: Context): void {
             if (error instanceof UnsupportedImageMediaTypeError) return t('image.unsupportedType')
             return error instanceof Error ? error.message : String(error)
           }
+        },
+        addFiles: (files) => {
+          const stageChip = (outcome: ImportedFile): string | null => {
+            if (outcome.path === undefined) {
+              return t('file.importFailed', { name: outcome.file.name, reason: outcome.error ?? '' })
+            }
+            const mention = formatFileMention({ path: outcome.path, kind: 'file' }, false)
+            const label = outcome.file.name !== '' ? outcome.file.name : outcome.path.slice(outcome.path.lastIndexOf('/') + 1)
+            /* v8 ignore next 2 -- the refusal arm needs the machine frozen, which only a
+               command claim's submit holds; this composition drives no command source. */
+            const applied = mention !== undefined && shell.insertReference(
+              { source: 'reference', ref: mention, label, appearance: 'file', clipboardText: mention },
+              { ...shell.caretSpan(), draftRev: shell.snapshot.draftRev },
+            )
+            return applied ? null : t('file.insertFailed', { name: label })
+          }
+          return scopedConversation(sessions, sessionId).importFiles(files).then((outcomes) => {
+            let failure: string | null = null
+            for (const outcome of outcomes) {
+              failure ??= stageChip(outcome)
+            }
+            return failure
+          })
         },
         removeImage: (id) => {
           conversation.releaseDraftImage(id)

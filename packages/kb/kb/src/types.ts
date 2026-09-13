@@ -13,6 +13,7 @@ export type KnowledgeBaseId = Branded<'KnowledgeBaseId'>
 /** One knowledge base as consumers present it. */
 export interface KnowledgeBaseView {
   readonly id: KnowledgeBaseId
+  /** Display name; falls back to the id when the deployment names no base. */
   readonly name: string
   readonly description?: string
 }

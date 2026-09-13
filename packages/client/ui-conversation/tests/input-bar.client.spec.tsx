@@ -86,9 +86,11 @@ interface BenchOptions {
   rightItems?: React.ReactNode
   attachments?: readonly ComposerAttachment[]
   addImages?: (files: readonly File[]) => string | null
+  /** The workspace-import face (documents); resolves to the first failure message or null. */
+  addFiles?: ((files: readonly File[]) => Promise<string | null>) | undefined
   commandMenuOpen?: boolean
   busyEnter?: 'queue' | 'steer'
-  toggleCommandMenu?: (selection: { start: number; end: number }) => void
+  toggleCommandMenu?: ((selection: { start: number; end: number }) => void) | undefined
 }
 
 /** One pending queue row (the runtime snapshot shape, as the dock tests build it). */
@@ -170,6 +172,9 @@ function bench(over?: BenchOptions) {
     inputActions: shell.actions,
     keyboard: shell,
     addImages: over?.addImages ?? (() => null),
+    ...(over !== undefined && 'addFiles' in over
+      ? { addFiles: over.addFiles }
+      : { addFiles: (): Promise<string | null> => Promise.resolve(null) }),
     removeImage,
     draftImages: ids => ids.flatMap((id) => {
       const attachment = over?.attachments?.find(candidate => candidate.id === id)
@@ -180,7 +185,9 @@ function bench(over?: BenchOptions) {
       const preferred = over?.busyEnter ?? 'queue'
       return gesture === 'enter' ? preferred : preferred === 'queue' ? 'steer' : 'queue'
     },
-    toggleCommandMenu: over?.toggleCommandMenu ?? vi.fn(),
+    ...(over !== undefined && 'toggleCommandMenu' in over
+      ? { toggleCommandMenu: over.toggleCommandMenu }
+      : { toggleCommandMenu: (_selection: { start: number; end: number }) => undefined }),
     useNotices: bindSnapshotSelector(shell.notices),
     useLexicon: bindSnapshotSelector(shell.lexicon),
     useMenuLauncher: bindSnapshotSelector(menuLauncher),
@@ -271,7 +278,7 @@ describe('image draft rail', () => {
     }
     const png = (bytes: number, name: string) => new File([new ArrayBuffer(bytes)], name, { type: 'image/png' })
     const intake = (result: ReturnType<typeof bench>, files: File[]) => {
-      act(() => { attachmentOwner(result.slotCalls).onAddImages(files) })
+      act(() => { attachmentOwner(result.slotCalls).onAddFiles(files) })
     }
     // Count: three at once over a two-image limit → the whole batch refused.
     const overCount = bench({ addImages: vi.fn(() => null), imageLimits: limits })
@@ -301,10 +308,11 @@ describe('image draft rail', () => {
     expect(within.view.queryByRole('alert')).toBeNull()
   })
 
-  it('announces the format problem before any limit when the batch holds a non-image', () => {
+  it('announces the format problem before any limit when the batch holds an unsupported image', () => {
     const addImages = vi.fn(() => '仅支持 PNG、JPG、WebP、GIF 格式的图片')
     const result = bench({
       addImages,
+      addFiles: () => Promise.resolve(null),
       imageLimits: {
         maxImageBytes: 8,
         maxImagesPerMessage: 1,
@@ -314,14 +322,73 @@ describe('image draft rail', () => {
         mediaTypes: ['image/png'] as const,
       },
     })
-    // Oversized AND over-count AND wrong type: the format rejection wins.
+    // Oversized AND over-count AND wrong image type: the format rejection wins.
     const files = [
-      new File([new ArrayBuffer(64)], 'a.pdf', { type: 'application/pdf' }),
-      new File([new ArrayBuffer(64)], 'b.pdf', { type: 'application/pdf' }),
+      new File([new ArrayBuffer(64)], 'a.heic', { type: 'image/heic' }),
+      new File([new ArrayBuffer(64)], 'b.heic', { type: 'image/heic' }),
     ]
-    act(() => { attachmentOwner(result.slotCalls).onAddImages(files) })
+    act(() => { attachmentOwner(result.slotCalls).onAddFiles(files) })
     expect(addImages).toHaveBeenCalledWith(files)
     expect(result.view.getByRole('alert').textContent).toContain('仅支持 PNG、JPG、WebP、GIF 格式的图片')
+  })
+
+  it('splits a mixed intake between the image rail and the workspace-import face', () => {
+    const addImages = vi.fn(() => null)
+    const addFiles = vi.fn(() => Promise.resolve(null))
+    const result = bench({ addImages, addFiles })
+    const png = new File([Uint8Array.of(1)], 'a.png', { type: 'image/png' })
+    const pdf = new File([Uint8Array.of(2)], 'b.pdf', { type: 'application/pdf' })
+    const txt = new File([Uint8Array.of(3)], 'c.txt', { type: 'text/plain' })
+    act(() => { attachmentOwner(result.slotCalls).onAddFiles([png, pdf, txt]) })
+    expect(addImages).toHaveBeenCalledExactlyOnceWith([png])
+    expect(addFiles).toHaveBeenCalledExactlyOnceWith([pdf, txt])
+  })
+
+  it('announces the unavailable import face instead of silently dropping documents', () => {
+    const result = bench({ addImages: vi.fn(() => null), addFiles: undefined })
+    act(() => {
+      attachmentOwner(result.slotCalls).onAddFiles([
+        new File([Uint8Array.of(2)], 'b.pdf', { type: 'application/pdf' }),
+      ])
+    })
+    expect(result.view.getByRole('alert').textContent).toContain('当前环境不支持添加文件')
+  })
+
+  it('toasts the first import failure the addFiles face reports', async () => {
+    const addFiles = vi.fn(() => Promise.resolve('b.pdf 导入失败：too large'))
+    const result = bench({ addFiles })
+    act(() => {
+      attachmentOwner(result.slotCalls).onAddFiles([
+        new File([Uint8Array.of(2)], 'b.pdf', { type: 'application/pdf' }),
+      ])
+    })
+    await vi.waitFor(() => {
+      expect(result.view.getByRole('alert').textContent).toContain('b.pdf 导入失败：too large')
+    })
+  })
+
+  it('toasts a rejected import promise instead of dropping it silently', async () => {
+    const addFiles = vi.fn(() => Promise.reject(new Error('session scope vanished')))
+    const result = bench({ addFiles })
+    act(() => {
+      attachmentOwner(result.slotCalls).onAddFiles([
+        new File([Uint8Array.of(2)], 'b.pdf', { type: 'application/pdf' }),
+      ])
+    })
+    await vi.waitFor(() => {
+      expect(result.view.getByRole('alert').textContent).toContain('session scope vanished')
+    })
+  })
+
+  it('toasts a synchronous import-face failure instead of crashing the intake', () => {
+    const addFiles = vi.fn(() => { throw new Error('scope resolution failed') })
+    const result = bench({ addFiles })
+    act(() => {
+      attachmentOwner(result.slotCalls).onAddFiles([
+        new File([Uint8Array.of(2)], 'b.pdf', { type: 'application/pdf' }),
+      ])
+    })
+    expect(result.view.getByRole('alert').textContent).toContain('scope resolution failed')
   })
 
   it('projects display-ready limits into the attachment slot', () => {
@@ -410,7 +477,7 @@ describe('image draft rail', () => {
       const paste = () => {
         fireEvent.paste(textarea, {
           clipboardData: {
-            items: [{ kind: 'file', type: 'text/plain', getAsFile: () => new File(['x'], 'note.txt', { type: 'text/plain' }) }],
+            items: [{ kind: 'file', type: 'image/heic', getAsFile: () => new File(['x'], 'p.heic', { type: 'image/heic' }) }],
             getData: () => '',
           },
         })
@@ -431,7 +498,7 @@ describe('image draft rail', () => {
     const addImages = vi.fn(() => '图片读取服务不可用')
     const result = bench({ addImages })
     act(() => {
-      attachmentOwner(result.slotCalls).onAddImages([
+      attachmentOwner(result.slotCalls).onAddFiles([
         new File([Uint8Array.of(1)], 'x.png', { type: 'image/png' }),
       ])
     })
@@ -818,7 +885,7 @@ describe('running and lock semantics', () => {
     })
     expect(textarea.getAttribute('aria-disabled')).toBe('true')
     expect(placeholderOf(view.container)).toBe('父会话已离线，无法继续发送；仍可停止当前运行')
-    expect((view.getByLabelText('指令') as HTMLButtonElement).disabled).toBe(true)
+    expect((view.getByLabelText('添加') as HTMLButtonElement).disabled).toBe(true)
     expect(button.getAttribute('aria-label')).toBe('发送消息')
     expect(button.disabled).toBe(true)
     expect(interruptButton?.disabled).toBe(false)
@@ -866,7 +933,7 @@ describe('running and lock semantics', () => {
     const { textarea, view } = bench({ disabled: true })
     expect(textarea.getAttribute('aria-disabled')).toBe('true')
     expect(placeholderOf(view.container)).toBe('会话不可用')
-    expect((view.getByLabelText('指令') as HTMLButtonElement).disabled).toBe(true)
+    expect((view.getByLabelText('添加') as HTMLButtonElement).disabled).toBe(true)
   })
 
   it('idle primary sends and disables on empty draft', () => {
@@ -999,7 +1066,7 @@ describe('running and lock semantics', () => {
     expect(editableOf(textarea)).toBe(false)
     expect(textarea.getAttribute('aria-haspopup')).toBe('menu')
     expect(textarea.getAttribute('aria-expanded')).toBe('false')
-    expect((view.getByLabelText('指令') as HTMLButtonElement).disabled).toBe(true)
+    expect((view.getByLabelText('添加') as HTMLButtonElement).disabled).toBe(true)
 
     fireEvent.click(textarea)
     fireEvent.keyDown(textarea, { key: 'Enter' })
@@ -1303,7 +1370,7 @@ describe('strips and variants', () => {
 describe('command launcher chrome and control seats', () => {
   it('renders the command launcher; the Access chip is absent without the permissions projection; the control seats render EMPTY without entries', () => {
     const { view, slotCalls } = bench()
-    expect(view.getByLabelText('指令')).toBeTruthy()
+    expect(view.getByLabelText('添加')).toBeTruthy()
     // Capability absent (no projection value): the chip renders nothing.
     expect(view.queryByLabelText(/^访问模式/)).toBeNull()
     // Every seat dispatched, nothing rendered (render passes may repeat; the
@@ -1315,16 +1382,54 @@ describe('command launcher chrome and control seats', () => {
     expect(view.queryByLabelText('Model')).toBeNull()
   })
 
-  it('passes the textarea selection to the command menu launcher and reflects its expanded state', () => {
+  it('the plus launcher opens the add menu; the 指令 pick hands the pick-time caret span to the command face', () => {
     const toggleCommandMenu = vi.fn()
-    const { view, shell, menuLauncher } = bench({ draft: 'draft text', toggleCommandMenu })
+    const { view, shell } = bench({ draft: 'draft text', toggleCommandMenu })
     act(() => { shell.editor.update(() => { $selectDetectSpan({ start: 2, end: 7 }) }, { discrete: true }) })
-    const launcher = view.getByLabelText('指令')
+    const launcher = view.getByLabelText('添加')
     expect(launcher.getAttribute('aria-expanded')).toBe('false')
     fireEvent.click(launcher)
-    expect(toggleCommandMenu).toHaveBeenCalledExactlyOnceWith({ start: 2, end: 7 })
-    act(() => { menuLauncher.set('command') })
     expect(launcher.getAttribute('aria-expanded')).toBe('true')
+    fireEvent.click(view.getByRole('menuitem', { name: '指令' }))
+    expect(toggleCommandMenu).toHaveBeenCalledExactlyOnceWith({ start: 2, end: 7 })
+    expect(launcher.getAttribute('aria-expanded')).toBe('false')
+  })
+
+  it('the 添加文件 pick drives the hidden picker; chosen files split at the MIME boundary', () => {
+    const addImages = vi.fn(() => null)
+    const addFiles = vi.fn(() => Promise.resolve(null))
+    const { view } = bench({ addImages, addFiles })
+    fireEvent.click(view.getByLabelText('添加'))
+    fireEvent.click(view.getByRole('menuitem', { name: '添加文件' }))
+    const input = view.container.querySelector<HTMLInputElement>('input[type="file"]')!
+    expect(input.multiple).toBe(true)
+    const png = new File([Uint8Array.of(1)], 'a.png', { type: 'image/png' })
+    const pdf = new File([Uint8Array.of(2)], 'b.pdf', { type: 'application/pdf' })
+    Object.defineProperty(input, 'files', { value: [png, pdf], configurable: true })
+    fireEvent.change(input)
+    expect(addImages).toHaveBeenCalledExactlyOnceWith([png])
+    expect(addFiles).toHaveBeenCalledExactlyOnceWith([pdf])
+    // The reset lets the same file re-open and re-import after a removal.
+    expect(input.value).toBe('')
+  })
+
+  it('the add menu only offers rows for mounted capabilities and locks the launcher without any', () => {
+    // Without the command face and without the import face: launcher locks.
+    const bare = bench({ toggleCommandMenu: undefined, addFiles: undefined })
+    expect((bare.view.getByLabelText('添加') as HTMLButtonElement).disabled).toBe(true)
+    expect(bare.view.queryByRole('menuitem')).toBeNull()
+    cleanup()
+    // Import face alone: only the file row renders.
+    const importOnly = bench({ toggleCommandMenu: undefined, addFiles: () => Promise.resolve(null) })
+    fireEvent.click(importOnly.view.getByLabelText('添加'))
+    expect(importOnly.view.getByRole('menuitem', { name: '添加文件' })).toBeTruthy()
+    expect(importOnly.view.queryByRole('menuitem', { name: '指令' })).toBeNull()
+    cleanup()
+    // Command face alone: only the command row renders.
+    const commandOnly = bench({ toggleCommandMenu: vi.fn(), addFiles: undefined })
+    fireEvent.click(commandOnly.view.getByLabelText('添加'))
+    expect(commandOnly.view.getByRole('menuitem', { name: '指令' })).toBeTruthy()
+    expect(commandOnly.view.queryByRole('menuitem', { name: '添加文件' })).toBeNull()
   })
 
   it('the Access chip renders the projection value and submits a non-Full-access pick directly', async () => {
@@ -1469,7 +1574,7 @@ describe('command launcher chrome and control seats', () => {
   it('disabled locks the Access chip and command launcher (running does not)', () => {
     const permissions = { options: [{ value: 'workspace-write', name: 'workspace-write' }], currentValue: 'workspace-write' }
     const { view } = bench({ disabled: true, permissions })
-    expect((view.getByLabelText('指令') as HTMLButtonElement).disabled).toBe(true)
+    expect((view.getByLabelText('添加') as HTMLButtonElement).disabled).toBe(true)
     expect((view.getByLabelText(/^访问模式/) as HTMLButtonElement).disabled).toBe(true)
     cleanup()
     const live = bench({ running: true, permissions })

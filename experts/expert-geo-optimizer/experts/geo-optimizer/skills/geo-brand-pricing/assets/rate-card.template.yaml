@@ -1,0 +1,26 @@
+# GEO 报价 rate card 模板
+# 用法：复制本文件为 rate-card.yaml，替换所有「默认假设」数值后交给报价流程使用。
+# 报价流程的取值优先级：操作者 rate card > 本模板默认值；报价表中须注明实际用了哪一档。
+# 币种与口径
+currency: CNY
+
+writing:                      # 首发写作（元/篇）
+  short_1000: 400             # 默认假设：短文 ≤1000 字
+  long_2500: 800              # 默认假设：长文 1000–2500 字
+  deep_plus: 1500             # 默认假设：深度 ≥2500 字，含调研
+
+geo_optimization_factor:      # GEO 优化费 = 写作费 × 系数
+  standard: 0.3               # 默认假设：9 法标准包（引用/统计/引言/FAQ schema/answer-first）
+  deep: 0.5                   # 默认假设：含原创数据或测评
+
+publish:                      # 发布分发（元/篇）
+  owned_channel: 50           # 默认假设：官网/公众号/知乎机构号
+  media_price_list: {}        # 外部媒体渠道价目：渠道名 -> 元/篇，按实际填
+
+revision_monthly_factor: 0.15 # 复稿维护 = 写作费 × 系数/月；高竞争行业用 0.25
+alpha: 0.8                    # 可见度系数斜率；有成功案例可上调至 1.0–1.2
+monitor_monthly: 2000         # 月度 AIVO 监测费（元/月）
+settlement:                   # 结算规则
+  default: 月结
+  annual_prepay_discount: 0.85
+  kpi_refund_available: true  # 是否接受 KPI 对赌；true 时报价需给退款比例算式

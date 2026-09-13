@@ -38,13 +38,14 @@ export interface ComposerAttachment {
 export interface ComposerAttachmentsOwnerProps {
   /** Browser-owned draft images in input order. */
   attachments: readonly ComposerAttachment[]
-  /** Whether a document-level file drop may add images now. */
+  /** Whether a document-level file drop may add attachments now. */
   canAcceptDrop: boolean
-  /** Add one dropped batch through the composer's validation path. */
-  onAddImages: (files: readonly File[]) => void
+  /** Add one dropped or picked batch through the composer's intake path
+      (images ride the draft rail, other files import into the workspace). */
+  onAddFiles: (files: readonly File[]) => void
   /** Remove one draft image through the Conversation service. */
   onRemoveImage: (id: DraftAttachmentId) => void
-  /** Display-ready limits for the drop invitation. */
+  /** Display-ready image limits for the drop invitation. */
   dropLimits?: { readonly count: number; readonly size: string } | undefined
 }
 
@@ -279,6 +280,13 @@ export interface ComposerBarOwnerProps {
 export interface ComposerBarInjected {
   keyboard: ComposerKeyboard | undefined
   addImages: ((files: readonly File[]) => string | null) | undefined
+  /**
+   * Import non-image files into the session workspace and stage their `@`
+   * mention chips in the draft; resolves to null on full success, otherwise
+   * the first failure's user-facing message. Undefined when the file-import
+   * Remote is not mounted.
+   */
+  addFiles: ((files: readonly File[]) => Promise<string | null>) | undefined
   removeImage: ((id: DraftAttachmentId) => void) | undefined
   draftImages: ((ids: readonly DraftAttachmentId[]) => readonly ComposerAttachment[]) | undefined
   resolveSubmitMode: (

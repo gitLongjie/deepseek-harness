@@ -721,7 +721,7 @@ Source: [`packages/experimental/tool-agent-team/src/index.ts:18`](../packages/ex
 Requires: `agents`
 
 ```ts config-catalog
-/** Local file-reference discovery configuration. */
+/** Local file-reference discovery and workspace-import configuration. */
 export interface Config {
   /** Maximum ranked candidates returned for one query. */
   maxResults?: number
@@ -729,10 +729,14 @@ export interface Config {
   maxEntries?: number
   /** Directory basenames never traversed or offered. */
   excludedDirectories?: string[]
+  /** Maximum decoded byte size accepted for one imported file. */
+  maxImportBytes?: number
+  /** Workspace-relative single-segment directory receiving imported files. */
+  importsDirectory?: string
 }
 ```
 
-Source: [`packages/context/file-reference-local/src/index.ts:35`](../packages/context/file-reference-local/src/index.ts)
+Source: [`packages/context/file-reference-local/src/index.ts:45`](../packages/context/file-reference-local/src/index.ts)
 
 <a id="deepseek-aidsh-fs-local"></a>
 

@@ -66,6 +66,15 @@ abstract webUi(): string | null
  * @returns one page of documents with the backend's total count.
  */
 abstract listDocuments(baseId: KnowledgeBaseId, query?: { keyword?: string }): Promise<KnowledgeDocumentPage>
+
+/**
+ * Read one document's assembled content, one page of blocks at a time.
+ * @param documentId - the opaque document identity from a previous
+ *   {@link listDocuments} read.
+ * @param query - optional 1-based page number; omission reads the first page.
+ * @returns the page's blocks with the document's identity facts and totals.
+ */
+abstract readDocument(documentId: KnowledgeDocumentId, query?: { page?: number }): Promise<KnowledgeDocumentContent>
 ```
 
 Source: [`packages/kb/kb/src/index.ts`](../../packages/kb/kb/src/index.ts)

@@ -8,7 +8,7 @@
  */
 import { useEffect, useMemo, useState } from 'react'
 import clsx from 'clsx'
-import type { ExpertBrowserProps, ExpertRow } from './contract/slots.ts'
+import type { ExpertBrowserProps, ExpertRecord } from './contract/slots.ts'
 import { MOCK_FEATURED_SCENARIOS } from './mock-data.ts'
 import css from './ExpertBrowser.module.css'
 
@@ -17,36 +17,50 @@ function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
-/** The card face renders healthy presets only: a broken preset cannot compose
- * the session a hire would start, so it never appears as hireable. */
-function hireable(presets: readonly ExpertRow[]): ExpertRow[] {
-  return presets.filter(preset => preset.broken === undefined)
-}
-
 /** The category ids the roster publishes, in first-seen roster order. */
-function categoriesOf(presets: readonly ExpertRow[]): string[] {
+function categoriesOf(experts: readonly ExpertRecord[]): string[] {
   const seen: string[] = []
-  for (const preset of presets) {
-    if (preset.category !== undefined && !seen.includes(preset.category)) seen.push(preset.category)
+  for (const expert of experts) {
+    if (expert.category !== undefined && !seen.includes(expert.category)) seen.push(expert.category)
   }
   return seen
 }
 
 /** The roster rows the current search text and category filter admit. */
 function visibleOf(
-  presets: readonly ExpertRow[],
+  experts: readonly ExpertRecord[],
   search: string,
   category: string | null,
-): ExpertRow[] {
+): ExpertRecord[] {
   const needle = search.trim().toLowerCase()
-  return hireable(presets).filter((preset) => {
-    if (category !== null && preset.category !== category) return false
+  return experts.filter((expert) => {
+    if (category !== null && expert.category !== category) return false
     if (needle === '') return true
     const haystack = [
-      preset.name ?? preset.id, preset.description ?? '', ...(preset.tags ?? []),
+      expert.name, expert.subtitle ?? '', expert.description ?? '', ...(expert.tags ?? []),
     ].join('\n').toLowerCase()
     return haystack.includes(needle)
   })
+}
+
+/** Avatar tile gradients, cycled deterministically by expert id: a row keeps
+ * its tone across filtering without the roster carrying presentation data. */
+const AVATAR_TONES: readonly string[] = [
+  'linear-gradient(135deg, #6a8dff 0%, #7f5bff 100%)',
+  'linear-gradient(135deg, #ff9a62 0%, #ff5b8d 100%)',
+  'linear-gradient(135deg, #2fd8a8 0%, #18b3c7 100%)',
+  'linear-gradient(135deg, #f7b733 0%, #fc4a1a 100%)',
+  'linear-gradient(135deg, #5b86e5 0%, #36d1dc 100%)',
+  'linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)',
+  'linear-gradient(135deg, #30cfd0 0%, #330867 100%)',
+  'linear-gradient(135deg, #f6d365 0%, #fda085 100%)',
+]
+
+/** The avatar tile tone for one expert: a stable hash pick from the palette. */
+function avatarTone(id: string): string {
+  let hash = 0
+  for (let index = 0; index < id.length; index += 1) hash = (hash * 31 + id.charCodeAt(index)) >>> 0
+  return AVATAR_TONES[hash % AVATAR_TONES.length] ?? ''
 }
 
 /** Whether to show the featured-scenario banners (only when no search/filter is active). */
@@ -64,9 +78,9 @@ export function ExpertBrowser({
   hire,
   t,
 }: ExpertBrowserProps) {
-  // undefined = the roster read is in flight; error switches the grid for a
+  // undefined = the market read is in flight; error switches the grid for a
   // retry row until a read succeeds.
-  const [presets, setPresets] = useState<readonly ExpertRow[] | undefined>(undefined)
+  const [experts, setExperts] = useState<readonly ExpertRecord[] | undefined>(undefined)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [reloadToken, setReloadToken] = useState(0)
   const [search, setSearch] = useState('')
@@ -77,7 +91,7 @@ export function ExpertBrowser({
     load()
       .then((result) => {
         if (reader.signal.aborted) return
-        setPresets(result.presets)
+        setExperts(result.experts)
         setLoadError(null)
       })
       .catch((error: unknown) => {
@@ -87,10 +101,10 @@ export function ExpertBrowser({
     return () => { reader.abort() }
   }, [load, reloadToken])
 
-  const categories = useMemo(() => categoriesOf(presets ?? []), [presets])
+  const categories = useMemo(() => categoriesOf(experts ?? []), [experts])
   const visible = useMemo(
-    () => visibleOf(presets ?? [], search, category),
-    [presets, search, category],
+    () => visibleOf(experts ?? [], search, category),
+    [experts, search, category],
   )
   // A filter row only earns its place when the metadata actually classifies.
   const showFilters = categories.length > 0
@@ -118,9 +132,9 @@ export function ExpertBrowser({
               {t('error.retry')}
             </button>
           </div>
-        ) : presets === undefined ? (
+        ) : experts === undefined ? (
           <div className={css.state}><p className={css.stateText}>{t('loading')}</p></div>
-        ) : hireable(presets).length === 0 ? (
+        ) : experts.length === 0 ? (
           <div className={css.state}><p className={css.stateText}>{t('empty.none')}</p></div>
         ) : (
           <>
@@ -172,36 +186,40 @@ export function ExpertBrowser({
               <div className={css.state}><p className={css.stateText}>{t('empty.noMatches')}</p></div>
             ) : (
               <ul className={css.grid}>
-                {visible.map(preset => (
-                  <li key={preset.id} className={css.card}>
+                {visible.map(record => (
+                  <li key={record.id} className={css.card}>
                     <header className={css.cardHead}>
-                      <span className={css.avatar} aria-hidden="true">
-                        {preset.icon || (preset.name ?? preset.id).charAt(0)}
+                      <span className={css.avatar} style={{ background: avatarTone(record.id) }} aria-hidden="true">
+                        {record.avatar !== undefined
+                          ? <img className={css.avatarImage} src={record.avatar} alt="" loading="lazy" />
+                          : record.icon ?? record.name.charAt(0)}
                       </span>
                       <div className={css.cardTitles}>
-                        <h3 className={css.cardName}>{preset.name ?? preset.id}</h3>
-                        <p className={css.cardMeta}>
-                          <span className={css.badge}>{t(preset.trust === 'system' ? 'trust.system' : 'trust.user')}</span>
-                          {preset.isDefault && <span className={css.badgeDefault}>{t('card.default')}</span>}
-                        </p>
+                        <h3 className={css.cardName}>
+                          <span className={css.cardNameText}>{record.name}</span>
+                          {record.badge !== undefined && <span className={css.cardBadge}>{record.badge}</span>}
+                        </h3>
+                        {record.subtitle !== undefined && (
+                          <p className={css.cardSubtitle}>{record.subtitle}</p>
+                        )}
                       </div>
                     </header>
-                    {preset.description !== undefined && (
-                      <p className={css.cardDescription}>{preset.description}</p>
+                    {record.description !== undefined && (
+                      <p className={css.cardDescription}>{record.description}</p>
                     )}
-                    {(preset.tags?.length ?? 0) > 0 && (
+                    {(record.tags?.length ?? 0) > 0 && (
                       <ul className={css.tags}>
-                        {preset.tags?.map(tag => <li key={tag} className={css.tag}>{tag}</li>)}
+                        {record.tags?.map(tag => <li key={tag} className={css.tag}>{tag}</li>)}
                       </ul>
                     )}
-                    {(preset.quickPrompts?.length ?? 0) > 0 && (
+                    {(record.quickPrompts?.length ?? 0) > 0 && (
                       <ul className={css.prompts} aria-label={t('quickPrompts.label')}>
-                        {preset.quickPrompts?.map(prompt => (
+                        {record.quickPrompts?.map(prompt => (
                           <li key={prompt} className={css.prompt}>{prompt}</li>
                         ))}
                       </ul>
                     )}
-                    <button type="button" className={css.hire} onClick={() => { hire(preset.id) }}>
+                    <button type="button" className={css.hire} onClick={() => { hire(record.id) }}>
                       {t('card.hire')}
                     </button>
                   </li>

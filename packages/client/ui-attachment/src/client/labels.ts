@@ -33,7 +33,7 @@ export function messageImageLabels(t: TranslateNS<'conversation'>): MessageImage
  * Resolve the document-level drop invitation and its optional limits line.
  * @param t - conversation namespace translator.
  * @param accepting - whether the composer can accept dropped files.
- * @param limits - optional translated count and size values.
+ * @param limits - optional translated image count and size values.
  * @returns translated drop-overlay labels.
  */
 export function dropOverlayLabels(
@@ -41,10 +41,10 @@ export function dropOverlayLabels(
   accepting: boolean,
   limits?: { readonly count: number; readonly size: string },
 ): DropOverlayLabels {
-  if (!accepting) return { title: t('image.dropBlocked') }
+  if (!accepting) return { title: t('drop.blocked') }
   return {
-    title: t('image.dropTitle'),
-    desc: limits === undefined ? undefined : t('image.dropDesc', limits),
+    title: t('drop.title'),
+    desc: limits === undefined ? undefined : t('drop.desc', limits),
   }
 }
 

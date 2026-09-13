@@ -48,8 +48,10 @@ agent（智能体）及其宿主 UI 获得 `@file` mention 的排序路径候选
 | `maxResults` | `20` | 单次查询返回的排序候选最大数量 |
 | `maxEntries` | `50000` | 每个 agent 工作区建立索引的文件与目录最大数量 |
 | `excludedDirectories` | `['.git', 'node_modules', 'dist', 'build', 'out', 'coverage', 'target', '.next', '.nuxt', '.turbo', '.venv', '__pycache__', '.pytest_cache', '.mypy_cache', '.gradle']` | 遍历与候选中排除的目录基名 |
+| `maxImportBytes` | `26214400` | 单个导入文件允许的最大解码字节数 |
+| `importsDirectory` | `uploads` | 接收导入文件的工作区相对单段目录 |
 
-所有数值都必须是正的安全整数，所有排除名都必须是不含 `/` 或 `\` 的非空基名。
+所有数值都必须是正的安全整数，所有排除名都必须是不含 `/` 或 `\` 的非空基名。导入会把外部来源的文件存入 `importsDirectory`，名称冲突时依次追加 `-1`、`-2`… 后缀，并返回对应 `@` mention 所寻址的工作区相对正斜杠路径。
 
 -----
 

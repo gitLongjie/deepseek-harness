@@ -13,6 +13,9 @@ import { randomUUID } from '@deepseek-ai/dsh-util-crypto'
 // Type-only imports: a plugin-to-plugin value import is a bundle purity
 // error, so scope resolution goes through the sessions service (scopeOf
 // method) instead of the standalone helper.
+import type { ClientRemote } from '@deepseek-ai/dsh-api-remotes/client'
+// Type-only: pulls the ctx.remote merge the file-import namespace reads through.
+import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type {
   ISessions, PendingSubmissionRetirement, SessionFace,
 } from '@deepseek-ai/dsh-api-session-controller/client'
@@ -62,6 +65,14 @@ export interface IConversation {
    * @returns completion of the page pull.
    */
   loadOlder(): Promise<void>
+  /**
+   * Store externally sourced composer files inside the scoped session's
+   * workspace so `@` mentions can address them. One outcome per file; an
+   * unavailable file-import Remote fails every file instead of throwing.
+   * @param files - browser files in input order.
+   * @returns per-file stored paths or failure reasons.
+   */
+  importFiles(files: readonly File[]): Promise<readonly ImportedFile[]>
 }
 
 /** Create one browser-only draft descriptor; only its id enters input state. */
@@ -143,12 +154,28 @@ export class UnsupportedImageMediaTypeError extends Error {
   }
 }
 
+/** Per-file outcome of one composer import batch. */
+export interface ImportedFile {
+  /** The browser file the outcome belongs to (input order). */
+  readonly file: File
+  /** Workspace-relative path of the stored copy; absent on failure. */
+  readonly path?: string
+  /** Failure reason surfaced by the Host or the local read; absent on success. */
+  readonly error?: string
+}
+
 /** Scope-addressed conversation service (root singleton, provided as `conversation`). */
 export class ConversationController extends Service implements IConversation {
   /** The per-session input machine registry (SessionInputResolver face). */
   readonly input: SessionInputResolver
   /** The per-session composer-block registry. */
   readonly blocks: ComposerBlocks
+  /**
+   * The plugin-apply (root) context. The file-import namespace is root-provided,
+   * and its dotted `remote.fileReferences` associate key only resolves through
+   * the root isolate — a session-scoped `this.ctx` throws "without inject".
+   */
+  private readonly rootContext: Context
   private readonly draftAttachments = new Map<DraftAttachmentId, ComposerAttachment>()
 
   /**
@@ -160,6 +187,7 @@ export class ConversationController extends Service implements IConversation {
    */
   constructor(ctx: Context, config: { input: SessionInputResolver; blocks: ComposerBlocks }) {
     super(ctx, 'conversation')
+    this.rootContext = ctx
     this.input = config.input
     this.blocks = config.blocks
     ctx.effect(() => () => {
@@ -331,6 +359,49 @@ export class ConversationController extends Service implements IConversation {
   /** Pull one older history page for the scoped Session. */
   async loadOlder(): Promise<void> {
     await this.scopedSession('loadOlder').loadOlder()
+  }
+
+  /**
+   * Store externally sourced composer files inside the scoped session's
+   * workspace. Files encode and cross the wire independently, so one failure
+   * never withholds another file's stored path.
+   * @param files - browser files in input order.
+   * @returns per-file stored paths or failure reasons.
+   */
+  async importFiles(files: readonly File[]): Promise<readonly ImportedFile[]> {
+    const fileReferences = this.importNamespace()
+    if (fileReferences === undefined) {
+      return files.map(file => ({ file, error: 'file import is not mounted in this deployment' }))
+    }
+    const sessionId = this.scopeId('importFiles')
+    return Promise.all(files.map(async (file): Promise<ImportedFile> => {
+      try {
+        const data = await base64Of(file)
+        const result = await fileReferences.import(sessionId, { name: file.name, data })
+        return result.ok ? { file, path: result.value.path } : { file, error: result.error.message }
+      } catch (error: unknown) {
+        return { file, error: error instanceof Error ? error.message : String(error) }
+      }
+    }))
+  }
+
+  /**
+   * The composition-provided file-import namespace, or undefined when the
+   * remotes mount is absent (the composer hides the file affordance then).
+   * The gateway installs each namespace as a standalone Service under the
+   * dotted `remote.<namespace>` key on the root context, so read that key
+   * directly: reaching it as a property of the tracker-bearing `remote`
+   * service composes an associate lookup against the accessing context and
+   * throws "without inject" everywhere but the providing context.
+   */
+  private importNamespace(): ClientRemote['fileReferences'] | undefined {
+    const direct = this.rootContext.get('remote.fileReferences') as unknown as
+      | ClientRemote['fileReferences']
+      | undefined
+    if (direct !== undefined) return direct
+    // Plain-object remotes (test doubles, minimal compositions) keep the
+    // namespace as an ordinary property instead of a provided service.
+    return (this.rootContext.get('remote') as unknown as ClientRemote | undefined)?.fileReferences
   }
 
   /** Resolve the caller scope's session face or throw on root contexts. */

@@ -29,17 +29,17 @@ const t = ((key: string, params?: Readonly<Record<string, unknown>>): string => 
     'image.openOriginal': '查看原图',
     'image.scrollLeft': '向左滚动图片',
     'image.scrollRight': '向右滚动图片',
-    'image.dropBlocked': '当前无法添加图片',
-    'image.dropTitle': '图片拖动到此处即可添加',
+    'drop.blocked': '当前无法添加附件',
+    'drop.title': '拖动图片或文件到此处即可添加',
   }
   if (key === 'image.remove') {
     const name = params?.name
     return `移除图片 ${typeof name === 'string' ? name : ''}`
   }
-  if (key === 'image.dropDesc') {
+  if (key === 'drop.desc') {
     const count = params?.count
     const size = params?.size
-    return `最多 ${typeof count === 'number' ? String(count) : ''} 张，每张 ${typeof size === 'string' ? size : ''}`
+    return `图片最多 ${typeof count === 'number' ? String(count) : ''} 张，每张 ${typeof size === 'string' ? size : ''}`
   }
   return messages[key] ?? key
 }) as ComposerAttachmentsProps['t']
@@ -57,7 +57,7 @@ function props(overrides: Partial<ComposerAttachmentsOwnerProps> = {}): Composer
   return {
     attachments: [],
     canAcceptDrop: true,
-    onAddImages: () => {},
+    onAddFiles: () => {},
     onRemoveImage: () => {},
     t,
     ...overrides,
@@ -66,9 +66,9 @@ function props(overrides: Partial<ComposerAttachmentsOwnerProps> = {}): Composer
 
 describe('ComposerAttachments', () => {
   it('accepts file drops anywhere on the document and keeps non-file drags native', () => {
-    const onAddImages = vi.fn()
+    const onAddFiles = vi.fn()
     const view = render(<ComposerAttachments {...props({
-      onAddImages,
+      onAddFiles,
       dropLimits: { count: 20, size: '5MB' },
     })} />)
 
@@ -82,12 +82,12 @@ describe('ComposerAttachments', () => {
     const image = attachment('dropped').file
     const dataTransfer = { types: ['Files'], files: [image], dropEffect: 'none' }
     expect(fireEvent.dragEnter(document.body, { dataTransfer })).toBe(false)
-    expect(view.getByRole('status').textContent).toContain('图片拖动到此处即可添加')
-    expect(view.getByRole('status').textContent).toContain('最多 20 张，每张 5MB')
+    expect(view.getByRole('status').textContent).toContain('拖动图片或文件到此处即可添加')
+    expect(view.getByRole('status').textContent).toContain('图片最多 20 张，每张 5MB')
     expect(fireEvent.dragOver(document.body, { dataTransfer })).toBe(false)
     expect(dataTransfer.dropEffect).toBe('copy')
     expect(fireEvent.drop(document.body, { dataTransfer })).toBe(false)
-    expect(onAddImages).toHaveBeenCalledWith([image])
+    expect(onAddFiles).toHaveBeenCalledWith([image])
     expect(view.queryByRole('status')).toBeNull()
   })
 
@@ -118,16 +118,16 @@ describe('ComposerAttachments', () => {
   })
 
   it('shows a blocked drop without forwarding its files', () => {
-    const onAddImages = vi.fn()
-    const view = render(<ComposerAttachments {...props({ canAcceptDrop: false, onAddImages })} />)
+    const onAddFiles = vi.fn()
+    const view = render(<ComposerAttachments {...props({ canAcceptDrop: false, onAddFiles })} />)
     const image = attachment('blocked').file
     const dataTransfer = { types: ['Files'], files: [image], dropEffect: 'copy' }
     fireEvent.dragEnter(document.body, { dataTransfer })
-    expect(view.getByRole('status').textContent).toBe('当前无法添加图片')
+    expect(view.getByRole('status').textContent).toBe('当前无法添加附件')
     fireEvent.dragOver(document.body, { dataTransfer })
     expect(dataTransfer.dropEffect).toBe('none')
     fireEvent.drop(document.body, { dataTransfer })
-    expect(onAddImages).not.toHaveBeenCalled()
+    expect(onAddFiles).not.toHaveBeenCalled()
     expect(view.queryByRole('status')).toBeNull()
   })
 

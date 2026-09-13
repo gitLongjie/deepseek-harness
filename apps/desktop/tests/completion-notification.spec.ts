@@ -1,19 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { beep, isSupported, notification } = vi.hoisted(() => ({
+const { beep, isSupported, notification, handleActivation } = vi.hoisted(() => ({
   beep: vi.fn(),
   isSupported: vi.fn(() => true),
-  notification: vi.fn(function (this: object, _title: string, _options: object) {
+  notification: vi.fn(function (this: object, _options: object) {
     return Object.assign(this, { show: vi.fn(), on: vi.fn() })
   }),
+  handleActivation: vi.fn(),
 }))
 
 vi.mock('electron', () => ({
-  Notification: Object.assign(notification, { isSupported }),
+  Notification: Object.assign(notification, { isSupported, handleActivation }),
   shell: { beep },
 }))
 
-import { notifyTurnCompletion } from '../src/main/desktop/completion-notification.ts'
+import { installNotificationActivation, notifyTurnCompletion } from '../src/main/desktop/completion-notification.ts'
 import type { BrowserWindow } from 'electron'
 
 function event(reason: string): never {
@@ -28,6 +29,8 @@ function windowStub(focused = false): BrowserWindow {
   return {
     isDestroyed: () => false,
     isFocused: () => focused,
+    isMinimized: () => false,
+    restore: vi.fn(),
     show: vi.fn(),
     focus: vi.fn(),
     webContents: { send: vi.fn() },
@@ -58,14 +61,71 @@ describe('desktop completion notification', () => {
     expect(beep).toHaveBeenCalledOnce()
   })
 
-  it('opens the completed session when the notification is clicked', () => {
+  it('registers a centralized activation handler that shows and focuses the window', () => {
     const win = windowStub()
+    installNotificationActivation(() => win)
+    expect(handleActivation).toHaveBeenCalledOnce()
+    const callback = handleActivation.mock.calls[0]?.[0] as (() => void) | undefined
+    callback?.()
+    expect(win.show).toHaveBeenCalledOnce()
+    expect(win.focus).toHaveBeenCalledOnce()
+  })
+
+  it('sends the session id to the renderer when the activation handler fires after a notification', () => {
+    const win = windowStub()
+    installNotificationActivation(() => win)
     notifyTurnCompletion(win, 'zh', 'session-42', event('completed'))
-    const instance = notification.mock.results[0]?.value as { on: ReturnType<typeof vi.fn> }
-    const click = instance.on.mock.calls[0]?.[1] as (() => void) | undefined
-    click?.()
+    const callback = handleActivation.mock.calls[0]?.[0] as (() => void) | undefined
+    callback?.()
     expect(win.show).toHaveBeenCalledOnce()
     expect(win.focus).toHaveBeenCalledOnce()
     expect(win.webContents.send).toHaveBeenCalledWith('dsh:notification:open-session', 'session-42')
+  })
+
+  it('restores a minimized window on activation', () => {
+    const win = {
+      isDestroyed: () => false,
+      isFocused: () => false,
+      isMinimized: () => true,
+      restore: vi.fn(),
+      show: vi.fn(),
+      focus: vi.fn(),
+      webContents: { send: vi.fn() },
+    } as unknown as BrowserWindow
+    installNotificationActivation(() => win)
+    const callback = handleActivation.mock.calls[0]?.[0] as (() => void) | undefined
+    callback?.()
+    expect(win.restore).toHaveBeenCalledOnce()
+    expect(win.show).toHaveBeenCalledOnce()
+  })
+
+  it('skips activation when the window is destroyed', () => {
+    const win = {
+      isDestroyed: () => true,
+      isFocused: () => false,
+      isMinimized: () => false,
+      restore: vi.fn(),
+      show: vi.fn(),
+      focus: vi.fn(),
+      webContents: { send: vi.fn() },
+    } as unknown as BrowserWindow
+    installNotificationActivation(() => win)
+    const callback = handleActivation.mock.calls[0]?.[0] as (() => void) | undefined
+    callback?.()
+    expect(win.show).not.toHaveBeenCalled()
+  })
+
+  it('skips activation when no window is available', () => {
+    installNotificationActivation(() => undefined)
+    const callback = handleActivation.mock.calls[0]?.[0] as (() => void) | undefined
+    // Should not throw
+    callback?.()
+    expect(handleActivation).toHaveBeenCalledOnce()
+  })
+
+  it('does not register activation handler when notifications are unsupported', () => {
+    isSupported.mockReturnValue(false)
+    installNotificationActivation(() => windowStub())
+    expect(handleActivation).not.toHaveBeenCalled()
   })
 })

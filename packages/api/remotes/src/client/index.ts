@@ -121,8 +121,9 @@ export type {
   LlmConfigurableProvider, LlmDiscoveredModel, LlmModelDiscoveryError,
   LlmModelDiscoveryRequest, LlmProviderInfo,
 } from '@deepseek-ai/dsh-llm/types'
-// Reference-discovery result vocabulary for the fileReferences and
-// sessionReferenceResolver namespaces.
+// Reference-discovery and workspace-import vocabulary for the fileReferences
+// and sessionReferenceResolver namespaces.
+export type { FileImportRequest, FileImportValue } from '@deepseek-ai/dsh-file-reference/types'
 export type { FileReferenceCandidate } from '@deepseek-ai/dsh-file-reference/types'
 export type { SessionReferenceMentionCandidate } from '@deepseek-ai/dsh-session-reference/types'
 

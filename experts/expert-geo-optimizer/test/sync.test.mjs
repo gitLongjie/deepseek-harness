@@ -1,0 +1,92 @@
+/** Behavior tests for the expert mount plugin: node's built-in runner. */
+import assert from 'node:assert/strict'
+import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync, mkdirSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { test } from 'node:test'
+import { apply, syncExperts } from '../plugin.mjs'
+
+function scratch() {
+  return mkdtempSync(join(tmpdir(), 'expert-geo-'))
+}
+
+function writeTree(root) {
+  mkdirSync(join(root, 'geo-optimizer', 'skills', 'geo-brand-pricing'), { recursive: true })
+  writeFileSync(join(root, 'geo-optimizer', 'preset.yml'), 'name: GEO 优化专家\n')
+  writeFileSync(join(root, 'geo-optimizer', 'agent.cordis.yml'), '- id: persona\n')
+  writeFileSync(join(root, 'geo-optimizer', 'skills', 'geo-brand-pricing', 'SKILL.md'), '# pricing\n')
+}
+
+test('syncs a nested expert tree into the target root', () => {
+  const source = scratch()
+  const target = scratch()
+  writeTree(source)
+
+  syncExperts(source, target)
+
+  assert.equal(
+    readFileSync(join(target, 'geo-optimizer', 'preset.yml'), 'utf8'),
+    'name: GEO 优化专家\n',
+  )
+  assert.equal(
+    readFileSync(join(target, 'geo-optimizer', 'skills', 'geo-brand-pricing', 'SKILL.md'), 'utf8'),
+    '# pricing\n',
+  )
+  rmSync(source, { recursive: true, force: true })
+  rmSync(target, { recursive: true, force: true })
+})
+
+test('is idempotent: an unchanged rerun never rewrites file mtimes', () => {
+  const source = scratch()
+  const target = scratch()
+  writeTree(source)
+
+  syncExperts(source, target)
+  const installed = join(target, 'geo-optimizer', 'preset.yml')
+  const before = statSync(installed).mtimeMs
+  syncExperts(source, target)
+  const after = statSync(installed).mtimeMs
+
+  assert.equal(before, after)
+  rmSync(source, { recursive: true, force: true })
+  rmSync(target, { recursive: true, force: true })
+})
+
+test('overwrites a target file whose content drifted', () => {
+  const source = scratch()
+  const target = scratch()
+  writeTree(source)
+  syncExperts(source, target)
+
+  writeFileSync(join(source, 'geo-optimizer', 'preset.yml'), 'name: GEO 优化专家 v2\n')
+  syncExperts(source, target)
+
+  assert.equal(
+    readFileSync(join(target, 'geo-optimizer', 'preset.yml'), 'utf8'),
+    'name: GEO 优化专家 v2\n',
+  )
+  rmSync(source, { recursive: true, force: true })
+  rmSync(target, { recursive: true, force: true })
+})
+
+test('never deletes a target file the source no longer carries', () => {
+  const source = scratch()
+  const target = scratch()
+  writeTree(source)
+  syncExperts(source, target)
+  const userFile = join(target, 'geo-optimizer', 'my-notes.md')
+  writeFileSync(userFile, 'user edits stay\n')
+
+  rmSync(join(source, 'geo-optimizer', 'preset.yml'))
+  syncExperts(source, target)
+
+  assert.equal(readFileSync(userFile, 'utf8'), 'user edits stay\n')
+  assert.ok(readdirSync(join(target, 'geo-optimizer')).includes('agent.cordis.yml'))
+  rmSync(source, { recursive: true, force: true })
+  rmSync(target, { recursive: true, force: true })
+})
+
+test('apply fails loud when the patch config carries no directories', () => {
+  assert.throws(() => apply(undefined, {}), /`expertDir` and `targetDir`/)
+  assert.throws(() => apply(undefined, { expertDir: '/tmp/x' }), /`expertDir` and `targetDir`/)
+})

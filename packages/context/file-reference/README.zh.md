@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-宿主驱动 UI 使用 `dsh-file-reference` 提供 `@file` 补全：UI 为指定 agent 请求路径候选，模型输入 `@path` 或 `@"path with spaces"`，选中候选后，匹配的 mention 作为普通提示词文本插入。seam 本身不拥有文件系统访问——具体提供方（如 `@deepseek-ai/dsh-file-reference-local`）负责提供候选、排序、缓存与失效。选中候选绝不读取或附带文件内容；模型必须调用文件系统工具才能查看文件。Session Controller 通过 `fileReferences/list` Remote 向浏览器消费方暴露同一发现能力。
+宿主驱动 UI 使用 `dsh-file-reference` 提供 `@file` 补全：UI 为指定 agent 请求路径候选，模型输入 `@path` 或 `@"path with spaces"`，选中候选后，匹配的 mention 作为普通提示词文本插入。seam 本身不拥有文件系统访问——具体提供方（如 `@deepseek-ai/dsh-file-reference-local`）负责提供候选、排序、缓存与失效。选中候选绝不读取或附带文件内容；模型必须调用文件系统工具才能查看文件。Session Controller 通过 `fileReferences/list` Remote 向浏览器消费方暴露同一发现能力，并通过 `fileReferences/import` Remote 暴露工作区导入——把外部来源的文件存入工作区，使 `@` mention 可以引用它。
 
 ## 目录
 
@@ -34,6 +34,10 @@ kind: "package-reference"
 ### 获取候选
 
 `ctx.fileReferences.list(agent, query, signal)` 返回指定 agent 工作目录中仅含路径的文件与目录候选，由提供方确定性地排序。目录 mention 呈现时带尾随 `/`，使补全可以继续深入下一层。浏览器消费方通过 Session Controller adapter 的 `ctx.remote.fileReferences.list` 调用同一发现能力；末位 signal 参数可取消慢速自动补全。
+
+### 导入文件
+
+`ctx.fileReferences.import(agent, { name, data }, signal)` 把一个外部来源的文件（输入框的“添加文件”路径）存入指定 agent 的工作区，并返回存储副本的工作区相对路径，可直接渲染为 `@` mention。实现绝不覆盖已存在的文件：名称冲突时追加数字后缀。浏览器消费方通过 Session Controller adapter 的 `ctx.remote.fileReferences.import` 调用，字节以规范 base64 传入。
 
 ### 搭配提供方
 

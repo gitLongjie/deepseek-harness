@@ -9,10 +9,13 @@ import z from '@deepseek-ai/schemastery'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import FileReferenceService, {
   FILE_REFERENCE_PROMPT,
+  type FileImportRequest,
+  type FileImportValue,
   type FileReferenceCandidate,
 } from '@deepseek-ai/dsh-file-reference'
 import { FIRST_PARTY_SECTION_ORDER } from '@deepseek-ai/dsh-system-prompt'
 import type {} from '@deepseek-ai/dsh-tools'
+import type { ImportConfig } from './import.ts'
 import {
   DEFAULT_FILE_SEARCH_EXCLUDED_DIRECTORIES,
   DEFAULT_FILE_SEARCH_MAX_ENTRIES,
@@ -20,6 +23,12 @@ import {
   WorkspaceFileSearch,
   type FileSearchConfig,
 } from './search.ts'
+import {
+  DEFAULT_IMPORTS_DIRECTORY,
+  DEFAULT_MAX_IMPORT_BYTES,
+  importFile,
+  validateImportConfig,
+} from './import.ts'
 
 export {
   DEFAULT_FILE_SEARCH_EXCLUDED_DIRECTORIES,
@@ -28,10 +37,11 @@ export {
   WorkspaceFileSearch,
 } from './search.ts'
 export type { FileSearchConfig } from './search.ts'
+export { DEFAULT_IMPORTS_DIRECTORY, DEFAULT_MAX_IMPORT_BYTES, importFile, validateImportConfig } from './import.ts'
 export { FILE_REFERENCE_PROMPT } from '@deepseek-ai/dsh-file-reference'
 export { activeAtToken, formatFileMention } from '@deepseek-ai/dsh-file-reference/grammar'
 
-/** Local file-reference discovery configuration. */
+/** Local file-reference discovery and workspace-import configuration. */
 export interface Config {
   /** Maximum ranked candidates returned for one query. */
   maxResults?: number
@@ -39,6 +49,10 @@ export interface Config {
   maxEntries?: number
   /** Directory basenames never traversed or offered. */
   excludedDirectories?: string[]
+  /** Maximum decoded byte size accepted for one imported file. */
+  maxImportBytes?: number
+  /** Workspace-relative single-segment directory receiving imported files. */
+  importsDirectory?: string
 }
 
 /** Local-filesystem owner of the file-reference discovery service. */
@@ -48,9 +62,12 @@ export class LocalFileReferenceService extends FileReferenceService {
     maxResults: z.number().step(1).min(1).default(DEFAULT_FILE_SEARCH_MAX_RESULTS),
     maxEntries: z.number().step(1).min(1).default(DEFAULT_FILE_SEARCH_MAX_ENTRIES),
     excludedDirectories: z.array(z.string()).default([...DEFAULT_FILE_SEARCH_EXCLUDED_DIRECTORIES]),
+    maxImportBytes: z.number().step(1).min(1).default(DEFAULT_MAX_IMPORT_BYTES),
+    importsDirectory: z.string().default(DEFAULT_IMPORTS_DIRECTORY),
   })
 
   private readonly config: FileSearchConfig
+  private readonly importConfig: ImportConfig
   private readonly searches = new Map<Agent, WorkspaceFileSearch>()
   private readonly promptFibers = new Map<Agent, ReturnType<Context['inject']>>()
   private readonly promptDisposals = new Set<Promise<void>>()
@@ -62,7 +79,12 @@ export class LocalFileReferenceService extends FileReferenceService {
       maxEntries: config.maxEntries ?? DEFAULT_FILE_SEARCH_MAX_ENTRIES,
       excludedDirectories: config.excludedDirectories ?? DEFAULT_FILE_SEARCH_EXCLUDED_DIRECTORIES,
     }
+    this.importConfig = {
+      maxImportBytes: config.maxImportBytes ?? DEFAULT_MAX_IMPORT_BYTES,
+      importsDirectory: config.importsDirectory ?? DEFAULT_IMPORTS_DIRECTORY,
+    }
     validateConfig(this.config)
+    validateImportConfig(this.importConfig)
 
     const installPrompt = (agent: Agent): void => {
       if (this.promptFibers.has(agent)) return
@@ -122,6 +144,21 @@ export class LocalFileReferenceService extends FileReferenceService {
       this.searches.set(agent, search)
     }
     return search.list(query, signal)
+  }
+
+  override async import(
+    agent: Agent,
+    request: FileImportRequest,
+    signal: AbortSignal,
+  ): Promise<FileImportValue> {
+    const stored = await importFile(
+      agent.session.header.cwd ?? process.cwd(),
+      this.importConfig,
+      request,
+      signal,
+    )
+    this.searches.get(agent)?.invalidate()
+    return stored
   }
 }
 

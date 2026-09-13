@@ -27,7 +27,7 @@ import { pinWindowTitle, resolveDesktopWindowTitle } from './desktop/window-titl
 import { installApplicationMenu, registerMenuPopupIpc } from './desktop/menu.ts'
 import { resolveWindowChrome } from './desktop/window-chrome.ts'
 import { initUpdater, registerUpdateIpc, setUpdaterLocale } from './updater.ts'
-import { notifyTurnCompletion } from './desktop/completion-notification.ts'
+import { installNotificationActivation, notifyTurnCompletion } from './desktop/completion-notification.ts'
 import {
   resolveDesktopUpdateUrl,
   type DesktopUpdateManifest,
@@ -77,7 +77,12 @@ const PRELOAD_PATH = fileURLToPath(new URL('../preload/index.js', import.meta.ur
 
 const gotLock = installSingleInstanceLock()
 if (!gotLock) {
-  app.quit()
+  // app.exit bypasses the before-quit / window-close lifecycle and terminates
+  // immediately. On Windows a Toast-notification click can launch a second
+  // instance through the OS shell; app.quit() leaves the event loop alive long
+  // enough for Electron to flash a default BrowserWindow before the process
+  // settles, which is the blank "Electron" window users reported.
+  app.exit(0)
 } else {
   void main().catch((error: unknown) => {
     console.error('desktop: fatal startup failure:', error)
@@ -206,6 +211,11 @@ async function main(): Promise<void> {
     registerWindowControlsIpc()
 
     const win = createWindow()
+    // Centralized notification-activation handler: on Windows a Toast click can
+    // activate the app through the OS shell instead of firing the Notification
+    // instance's click event. handleActivation covers every path including cold
+    // starts, so register it before any notifications are shown.
+    installNotificationActivation(() => win.isDestroyed() ? undefined : win)
     let updateInstallPrepared = false
     initUpdater(shellT(currentLocale), win, DESKTOP_UPDATE_URL, log, async () => {
       await host.shutdown?.prepare()

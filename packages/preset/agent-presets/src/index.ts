@@ -123,7 +123,9 @@ export const AgentPresetSettingsSchema: z<AgentPresetSettings> = z.object({
   default: z.string(),
 })
 
-export { COMPOSITION_FILE, discoverPresets, installedHostBase, scanRoot, SHIPPED_PRESET_ROOT } from './discovery.ts'
+export {
+  COMPOSITION_FILE, discoverPresets, installedHostBase, scanRoot, SHIPPED_PRESET_ROOT, USER_PRESET_DIR,
+} from './discovery.ts'
 export {
   METADATA_FILE, readPresetMetadata, renderPresetMetadata, type PresetMetadata,
 } from './metadata.ts'

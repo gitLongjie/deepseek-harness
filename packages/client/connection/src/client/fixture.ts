@@ -1765,6 +1765,8 @@ function createFixtureWorld(options: FixtureOptions): FixtureWorld {
     { sessionId: sid('fx-gamma'), updatedAt: Date.now() - 120_000, running: false, blank: false, cwd: '/tmp/fixture' },
   ]
   const logs = new Map<SessionId, SessionEvent[]>([[sid('fx-alpha'), buildAlphaLog()]])
+  // Imported composer files, kept only so repeated imports can collide like the Host would.
+  const importedFiles: string[] = []
   const modelSelections = new Map<SessionId, ModelSelection>(sessions.map(session => [
     session.sessionId,
     { provider: 'deepseek-official', model: 'deepseek-v4-flash' },
@@ -2224,6 +2226,21 @@ function createFixtureWorld(options: FixtureOptions): FixtureWorld {
         { path: 'notes/demo.txt', kind: 'file' as const },
       ].filter(item => item.path.toLocaleLowerCase().includes(needle))
       return { ok: true, value: items }
+    },
+    importFile(id: SessionId, name: string): RpcResult<{ path: string }> {
+      const missing = requireGoalSession(id)
+      if (missing !== undefined) return missing
+      const bare = name.trim()
+      if (bare === '' || /[/\\]/.test(bare)) {
+        return { ok: false, error: { code: 'bad-request', message: 'file import requires a bare file name', details: {} } }
+      }
+      const dot = bare.lastIndexOf('.')
+      const stem = dot > 0 ? bare.slice(0, dot) : bare
+      const ext = dot > 0 ? bare.slice(dot) : ''
+      let candidate = `uploads/${bare}`
+      for (let n = 1; importedFiles.includes(candidate); n += 1) candidate = `uploads/${stem}-${n}${ext}`
+      importedFiles.push(candidate)
+      return { ok: true, value: { path: candidate } }
     },
     sessions(id: SessionId, query: string): RpcResult<{
       sessionId: SessionId
@@ -3424,6 +3441,10 @@ function createFixtureWorld(options: FixtureOptions): FixtureWorld {
         case 'commands/list': return Promise.resolve(commandRemotes.list(sessionId))
         case 'commands/execute': return Promise.resolve(commandRemotes.execute(sessionId, args.line as string, args.images ?? []))
         case 'fileReferences/list': return Promise.resolve(referenceRemotes.files(sessionId, args.query ?? ''))
+        case 'fileReferences/import': return Promise.resolve(referenceRemotes.importFile(
+          sessionId,
+          (request as { name?: string } | undefined)?.name ?? '',
+        ))
         case 'sessionReferenceResolver/candidates': return Promise.resolve(referenceRemotes.sessions(sessionId, args.query ?? ''))
         case 'directoryPicker/pick': return Promise.resolve(directoryPickerRemotes.pick())
         case 'directoryPicker/list': return Promise.resolve(directoryPickerRemotes.list(args.path))

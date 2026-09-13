@@ -8,8 +8,6 @@
  * staging services. Export discipline: packages/client/AGENTS.md.
  */
 import type { PropsHooks, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-// Type-only: the roster row shape this package renders.
-import type { AgentPresetRoster } from '@deepseek-ai/dsh-agent-presets/types'
 // Type-only: pull the owner SlotMap merges into programs that resolve the
 // runtime shares below (the browser hole is declared by ui-conversation).
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
@@ -18,8 +16,29 @@ import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type { ExpertPageState } from '../navigation.ts'
 
-/** One roster row exactly as the host reports it. */
-export type ExpertRow = AgentPresetRoster['presets'][number]
+/** One curated expert the market presents as a hireable card. */
+export interface ExpertRecord {
+  /** Stable identifier the card's hire action forwards. */
+  readonly id: string
+  /** Display name. */
+  readonly name: string
+  /** Attribution line under the name: author, publisher, or handle. */
+  readonly subtitle?: string
+  /** Avatar image (HTTPS URL or data URI); the avatar tile renders it over the glyph. */
+  readonly avatar?: string
+  /** Short glyph shown in the avatar tile when no image is set. */
+  readonly icon?: string
+  /** One sentence on what this expert is for. */
+  readonly description?: string
+  /** Market category id the filter chips group by. */
+  readonly category?: string
+  /** Retrieval tags shown on the card. */
+  readonly tags?: readonly string[]
+  /** Suggested first messages. */
+  readonly quickPrompts?: readonly string[]
+  /** Curator badge beside the name, e.g. an invited-expert mark. */
+  readonly badge?: string
+}
 
 /**
  * The page-state reactive source the nav row binds: the open flag only. The
@@ -56,10 +75,10 @@ export type ExpertNavProps =
 export type ExpertBrowserInjected = {
   /**
    * Read the expert market's rows.
-   * @returns the rows in display order; an empty list renders the page's
+   * @returns the experts in display order; an empty list renders the page's
    *   empty state.
    */
-  load: () => Promise<{ presets: readonly ExpertRow[] }>
+  load: () => Promise<{ experts: readonly ExpertRecord[] }>
   /**
    * Hire one expert: stage its preset for the NEXT session and start that
    * session. Closes the page; the session surface takes the conversation

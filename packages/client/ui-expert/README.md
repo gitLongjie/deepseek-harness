@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-client-ui-expert` is the expert center of the dsh web client: a sidebar entry row (between the knowledge and business regions) opens the page in the conversation area — the curated expert market presented as hireable expert cards, with text search over names, descriptions, and tags, the category filter bar the card metadata feeds, per-card suggested prompts, and a hire action per card. Hiring stages the card's preset id for the NEXT session through the ui-agent-preset staging service and starts that session. The market's content is this package's own curated roster; the deployment's agent-preset list stays in the preset surfaces, so mode presets never present here as hireable experts.
+`dsh-client-ui-expert` is the expert center of the dsh web client: a sidebar entry row (between the knowledge and business regions) opens the page in the conversation area — the expert market presented as hireable expert cards, each carrying its avatar, attribution subtitle, curator badge, description, and tags, with text search over those texts, the category filter bar the record metadata feeds, per-card suggested prompts, and a hire action per card. Hiring stages the card's preset id for the NEXT session through the ui-agent-preset staging service and starts that session. The market merges two sources: experts the deployment ships — roster rows that publish card metadata, delivered by the market's install channel — ahead of this package's curated roster, which owns the display record of the ids it stages; mode presets publish no card metadata and never present here.
 
 ## Table of Contents
 
