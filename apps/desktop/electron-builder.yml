@@ -73,9 +73,11 @@ win:
       arch:
         - x64
 nsis:
-  # Release asset URLs stay ASCII so electron-publish can upload an OEM name
-  # containing non-ASCII characters without putting it in the request path.
-  artifactName: 深度Work-${version}-win-${arch}.${ext}
+  # electron-publish uploads release assets under this name verbatim: a
+  # non-ASCII prefix puts unescaped characters in the GitHub request path and
+  # electron-builder's safe-name fallback drops the arch suffix. Keep the
+  # artifact prefix ASCII; the display name stays 深度Work.
+  artifactName: DeepagensWork-${version}-win-${arch}.${ext}
   # Per-machine install so the assisted wizard defaults to Program Files, and
   # installer.nsh pins that default to the ASCII DeepagensWork directory: the
   # display name stays 深度Work while the on-disk path stays stable across OEM
@@ -91,7 +93,8 @@ nsis:
 mac:
   # Both architectures are built in one job. The architecture suffix prevents
   # the Intel and Apple Silicon assets from colliding in the GitHub release.
-  artifactName: 深度Work-${version}-mac-${arch}.${ext}
+  # Keep the artifact prefix ASCII (see the nsis note).
+  artifactName: DeepagensWork-${version}-mac-${arch}.${ext}
   target:
     - target: dmg
       arch:
@@ -107,7 +110,7 @@ mac:
   identity: null
   notarize: false
 dmg:
-  artifactName: 深度Work-${version}-mac-${arch}.${ext}
+  artifactName: DeepagensWork-${version}-mac-${arch}.${ext}
 linux:
   target:
     - AppImage
@@ -120,7 +123,8 @@ linux:
   # a missing dist-electron/@deepseek-ai/ directory (fpm: parent directory does
   # not exist). Pin a flat artifact name so both Linux targets write directly
   # under dist-electron/.
-  artifactName: 深度Work-${version}-linux-${arch}.${ext}
+  # Keep the artifact prefix ASCII (see the nsis note).
+  artifactName: DeepagensWork-${version}-linux-${arch}.${ext}
 publish:
   provider: github
   owner: gitLongjie
