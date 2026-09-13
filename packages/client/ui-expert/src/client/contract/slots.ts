@@ -2,11 +2,10 @@
  * ui-expert contract: two occupants of host-declared holes plus the page's
  * reactive source. `ExpertNav` fills the sidebar shell's `sidebar.experts`
  * hole (the entry row); `ExpertBrowser` fills ui-conversation's
- * `conversation.expert.browser` hole (the full page: the deployment's presets
- * presented as hireable expert cards). Business data and actions arrive
- * through this package's own inject factories over the Host's agentPresets
- * Remote face and the navigation and staging services. Export discipline:
- * packages/client/AGENTS.md.
+ * `conversation.expert.browser` hole (the full page: the expert market
+ * presented as hireable expert cards). Market rows arrive through this
+ * package's own inject factory; actions arrive through the navigation and
+ * staging services. Export discipline: packages/client/AGENTS.md.
  */
 import type { PropsHooks, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 // Type-only: the roster row shape this package renders.
@@ -53,19 +52,19 @@ export type ExpertNavProps =
   & ExpertViewHooks
   & PropsLocale<'expert'>
 
-/** Page-private injected share: the roster read and the hire action. */
+/** Page-private injected share: the market read and the hire action. */
 export type ExpertBrowserInjected = {
   /**
-   * Read the deployment's preset roster.
-   * @returns the rows in roster order; a deployment composing no presets
-   *   answers an empty list, which the page renders as its empty state.
+   * Read the expert market's rows.
+   * @returns the rows in display order; an empty list renders the page's
+   *   empty state.
    */
   load: () => Promise<{ presets: readonly ExpertRow[] }>
   /**
    * Hire one expert: stage its preset for the NEXT session and start that
    * session. Closes the page; the session surface takes the conversation
    * area back.
-   * @param id - the preset id of the expert card's hire action.
+   * @param id - the preset id the card's hire action forwards.
    */
   hire: (id: string) => void
 }

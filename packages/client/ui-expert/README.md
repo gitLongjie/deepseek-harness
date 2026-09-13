@@ -1,5 +1,5 @@
 ---
-description: "Expert-center plugin for the dsh web client: a sidebar entry row opening the conversation-area page that presents the deployment's agent-preset roster as hireable expert cards."
+description: "Expert-center plugin for the dsh web client: a sidebar entry row opening the conversation-area page that presents the curated expert market as hireable expert cards."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-client-ui-expert` is the expert center of the dsh web client: a sidebar entry row (between the knowledge and business regions) opens the page in the conversation area — the deployment's agent-preset roster presented as hireable expert cards, with text search over names, descriptions, and tags, the category filter bar the published `preset.yml` metadata feeds, per-card suggested prompts, and a hire action per card. Hiring stages the card's preset for the NEXT session through the ui-agent-preset staging service and starts that session; the page itself is presentation-only over the `agentPresets` Remote roster.
+`dsh-client-ui-expert` is the expert center of the dsh web client: a sidebar entry row (between the knowledge and business regions) opens the page in the conversation area — the curated expert market presented as hireable expert cards, with text search over names, descriptions, and tags, the category filter bar the card metadata feeds, per-card suggested prompts, and a hire action per card. Hiring stages the card's preset id for the NEXT session through the ui-agent-preset staging service and starts that session. The market's content is this package's own curated roster; the deployment's agent-preset list stays in the preset surfaces, so mode presets never present here as hireable experts.
 
 ## Table of Contents
 
@@ -34,7 +34,7 @@ The web bundle mounts the plugin by default; remove the row to turn the surface 
 
 ### Minimal configuration
 
-No config of its own: the page reads the roster through `agentPresets.list`, and a deployment composing no presets renders the empty market rather than an error. Cards show healthy presets only — a broken roster row cannot compose the session a hire would start, so it never appears as hireable.
+No config of its own: the page renders the market roster this package ships, and the roster carries no broken rows, so every card is hireable.
 
 ### What can go wrong
 
@@ -65,7 +65,7 @@ Two slot registrations plus one navigation service: `ExpertNav` fills `sidebar.e
 <a id="further-exploration"></a>
 ## Further Exploration
 
-- [`dsh-agent-presets`](../../preset/agent-presets/README.md) — the roster this page renders and the `preset.yml` metadata fields the cards show.
+- [`dsh-agent-presets`](../../preset/agent-presets/README.md) — the `preset.yml` metadata fields expert cards are shaped after, and the preset surfaces the roster stays out of.
 - [`dsh-client-ui-agent-preset`](../ui-agent-preset/README.md) — the preset surfaces this package stages picks through.
 - [Slots subsystem](../../../docs/subsystems/slots.md) — the hole/occupant model this registration uses.
 
@@ -74,7 +74,7 @@ Two slot registrations plus one navigation service: `ExpertNav` fills `sidebar.e
 <a id="model-experience"></a>
 ## Model Experience
 
-Indirectly, through the agent-preset roster it renders: a hire stages which preset composes the next session, and the host records that choice as its own `agent-preset/selected` session event.
+Indirectly, through the preset each hire stages: a hire forwards the card's preset id to the staging service, the next session composes from it, and the host records the choice as its own `agent-preset/selected` session event.
 
 #### KV Cache effect
 
@@ -84,7 +84,7 @@ None; this package neither assembles nor sends a provider request.
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **Local roster only** — the page presents the deployment's installed presets; installing from a remote expert registry arrives with the marketplace install channel and its trust policy.
+- **Curated demo roster** — the market content ships with this package; wiring the market to a deployment-managed expert registry arrives with the marketplace install channel and its trust policy.
 - **Browse-and-hire only** — expert authoring, favorites, and per-card reviews are deferred until the registry exists to publish them.
 
 <a id="dev-note"></a>

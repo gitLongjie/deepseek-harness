@@ -1,9 +1,9 @@
 /**
- * Mock expert data for the expert page. Used as a fallback when the Host's
- * agentPresets Remote face is unavailable, so the page renders a populated
- * demo instead of an error state. The roster mirrors the WorkBuddy reference:
- * featured scenario banners plus a grid of hireable expert cards across
- * several categories.
+ * The expert market's curated roster: featured scenario banners plus a grid
+ * of hireable expert cards across several categories. This roster IS the
+ * page's content — the deployment's agent-preset list never mixes in, so
+ * mode presets cannot present here as hireable experts. The roster mirrors
+ * the WorkBuddy reference market.
  */
 import type { ExpertRow } from './contract/slots.ts'
 

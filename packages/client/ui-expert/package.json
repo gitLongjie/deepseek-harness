@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-expert",
-  "description": "Expert-center sidebar section plugin: the deployment's agent presets presented as hireable expert cards, listed between the knowledge and business regions",
+  "description": "Expert-center sidebar section plugin: the curated expert market presented as hireable expert cards, listed between the knowledge and business regions",
   "version": "0.1.0",
   "publishConfig": {
     "access": "public"
@@ -32,7 +32,6 @@
   "dsh": {
     "client": {
       "inject": [
-        "@deepseek-ai/dsh-api-remotes",
         "@deepseek-ai/dsh-api-session-controller",
         "@deepseek-ai/dsh-client-locale",
         "@deepseek-ai/dsh-client-ui-agent-preset",
@@ -55,7 +54,6 @@
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
     "@deepseek-ai/dsh-agent-presets": "workspace:^",
-    "@deepseek-ai/dsh-api-remotes": "workspace:^",
     "@deepseek-ai/dsh-api-session-controller": "workspace:^",
     "@deepseek-ai/dsh-client-locale": "workspace:^",
     "@deepseek-ai/dsh-client-ui-agent-preset": "workspace:^",
@@ -69,7 +67,6 @@
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
     "@deepseek-ai/dsh-agent-presets": "workspace:^",
-    "@deepseek-ai/dsh-api-remotes": "workspace:^",
     "@deepseek-ai/dsh-api-session-controller": "workspace:^",
     "@deepseek-ai/dsh-client-locale": "workspace:^",
     "@deepseek-ai/dsh-client-store": "workspace:^",

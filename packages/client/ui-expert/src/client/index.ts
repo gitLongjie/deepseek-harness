@@ -2,11 +2,13 @@
  * Expert-center plugin, browser half. Two registrations plus one navigation
  * service: ExpertNav fills the sidebar shell's `sidebar.experts` hole (the
  * entry row), ExpertBrowser fills ui-conversation's `conversation.expert.browser`
- * hole (the full page: the deployment's presets as hireable expert cards),
- * and `UiExpertService` owns the page state and its close-on-session policy.
- * Data arrives through the Host's agentPresets Remote face; hiring crosses
- * packages through the uiAgentPreset staging service and uiWorkspace's
- * startSession. Export discipline: packages/client/AGENTS.md.
+ * hole (the full page: the expert market as hireable expert cards), and
+ * `UiExpertService` owns the page state and its close-on-session policy.
+ * The market's content is this package's own curated roster — the deployment's
+ * agent-preset list stays in the preset surfaces, so mode presets never
+ * present here as hireable experts. Hiring crosses packages through the
+ * uiAgentPreset staging service and uiWorkspace's startSession. Export
+ * discipline: packages/client/AGENTS.md.
  */
 import type { Context } from '@deepseek-ai/cordis'
 import type { ISessions } from '@deepseek-ai/dsh-api-session-controller/client'
@@ -14,8 +16,6 @@ import type { ISessions } from '@deepseek-ai/dsh-api-session-controller/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 // Type-only: pulls the SlotRegistry service merge (ctx.slots).
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
-// Type-only: pulls the Remote namespaces (ctx.remote.agentPresets).
-import type {} from '@deepseek-ai/dsh-api-remotes/client'
 // Type-only: pulls the uiAgentPreset and uiWorkspace service merges.
 import type {} from '@deepseek-ai/dsh-client-ui-agent-preset/client'
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
@@ -46,14 +46,12 @@ export const NS = 'expert'
  * Required services (cordis fiber inject). The target slots are declared by
  * the ui-sidebar and ui-conversation applies, whose activation order relative
  * to this one is NOT constrained: apply therefore depends on each declaration
- * through `slots.inject()` instead of assuming order. A nested Remote
- * namespace is its own inject key — declaring `remote` alone does not
- * authorize reading `remote.agentPresets`. `uiAgentPreset` and `uiWorkspace`
- * are the cross-package staging and session-start services the hire action
- * forwards to.
+ * through `slots.inject()` instead of assuming order. `uiAgentPreset` and
+ * `uiWorkspace` are the cross-package staging and session-start services the
+ * hire action forwards to.
  */
 export const inject = [
-  'slots', 'locale', 'remote', 'remote.agentPresets', 'sessions', 'uiWorkspace', 'uiAgentPreset',
+  'slots', 'locale', 'sessions', 'uiWorkspace', 'uiAgentPreset',
 ]
 
 /**
@@ -76,24 +74,11 @@ export function apply(ctx: Context): void {
   })
 
   const pageInjected = () => ({
-    load: async (): Promise<{ presets: readonly ExpertRow[] }> => {
-      try {
-        const result = await ctx.remote.agentPresets.list()
-        // A deployment composing no presets is a valid empty market, not an
-        // error: the invocation-unavailable refusal and an empty roster render
-        // the same empty state.
-        if (!result.ok) {
-          if (result.error.code === 'invocation-unavailable') return { presets: MOCK_EXPERT_PRESETS }
-          throw new Error(`agentPresets.list failed: ${result.error.code}: ${result.error.message}`)
-        }
-        // When the real roster is empty, show mock data so the page looks populated.
-        if (result.value.presets.length === 0) return { presets: MOCK_EXPERT_PRESETS }
-        return { presets: result.value.presets }
-      } catch {
-        // Remote face unavailable (e.g. inject not wired): fall back to mock data.
-        return { presets: MOCK_EXPERT_PRESETS }
-      }
-    },
+    // The market's content is this package's curated demo roster, never the
+    // deployment's agent-preset list: mode presets (标准模式 and peers) belong
+    // to the preset surfaces, and this page must not present them as
+    // hireable experts.
+    load: async (): Promise<{ presets: readonly ExpertRow[] }> => ({ presets: MOCK_EXPERT_PRESETS }),
     hire: (id: string) => {
       // The explicit close keeps the intent local; the service's own session
       // watcher would close the page on the resulting navigation anyway.

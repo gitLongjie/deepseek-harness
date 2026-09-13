@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-13-expert-card-metadata-on-agent-presets.md
-2026-09-13-expert-card-metadata-on-agent-presets.md: cdd9f8a17f3884233e12344607458ea268c58ee5
-2026-09-13-expert-card-metadata-on-agent-presets.zh.md: 3679ba691e97ce201bffb90eb5a7bc65b4a8643e
+2026-09-13-expert-card-metadata-on-agent-presets.md: dc34a504556b42fbb94d97fd56aa586bb1e7d456
+2026-09-13-expert-card-metadata-on-agent-presets.zh.md: 010175934e3e1515896f1efe42aad0c5dcc3ef87

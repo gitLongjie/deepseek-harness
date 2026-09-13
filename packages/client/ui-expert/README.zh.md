@@ -1,5 +1,5 @@
 ---
-description: "dsh Web 客户端的专家中心插件：一条侧边栏入口行，打开把部署的 agent-preset 名单呈现为可聘用专家卡片的会话区页面。"
+description: "dsh Web 客户端的专家中心插件：一条侧边栏入口行，打开把精选专家市场呈现为可聘用专家卡片的会话区页面。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-client-ui-expert` 是 dsh Web 客户端的专家中心：一条侧边栏入口行（位于知识库与业务入口区域之间）打开会话区页面——把部署的 agent-preset 名单呈现为可聘用的专家卡片，支持按名称、描述与标签的文本搜索，按 `preset.yml` 已发布元数据生成的分类筛选栏，每张卡片的推荐提问，以及每张卡片的聘用动作。聘用通过 ui-agent-preset 的舞台服务为下一个会话暂存该 preset 并启动会话；页面本身只是 `agentPresets` Remote 名单之上的呈现层。
+`dsh-client-ui-expert` 是 dsh Web 客户端的专家中心：一条侧边栏入口行（位于知识库与业务入口区域之间）打开会话区页面——把精选专家市场呈现为可聘用的专家卡片，支持按名称、描述与标签的文本搜索，按卡片元数据生成的分类筛选栏，每张卡片的推荐提问，以及每张卡片的聘用动作。聘用通过 ui-agent-preset 的舞台服务为下一个会话暂存卡片对应的 preset id 并启动会话。市场内容是本包自带的精选名单；部署的 agent-preset 名单留在 preset 界面中，模式类 preset 绝不会在此以可聘用专家的形态出现。
 
 ## 目录
 
@@ -34,7 +34,7 @@ Web bundle 默认挂载本插件；移除该行即可关闭此界面。侧边栏
 
 ### Minimal configuration
 
-自身没有配置：页面通过 `agentPresets.list` 读取名单，不组装任何 preset 的部署会渲染空市场而非错误。卡片只显示健康的 preset——损坏的名单行无法组装聘用将启动的会话，因此绝不会以可聘用的形态出现。
+自身没有配置：页面渲染本包自带的市场名单，名单不含损坏行，因此每张卡片都可聘用。
 
 ### What can go wrong
 
@@ -65,7 +65,7 @@ Web bundle 默认挂载本插件；移除该行即可关闭此界面。侧边栏
 <a id="further-exploration"></a>
 ## 延伸阅读
 
-- [`dsh-agent-presets`](../../preset/agent-presets/README.zh.md)——本页面呈现的名单，以及卡片所展示 `preset.yml` 元数据字段。
+- [`dsh-agent-presets`](../../preset/agent-presets/README.zh.md)——专家卡片所参照的 `preset.yml` 元数据字段，以及该名单被排除在外的 preset 界面。
 - [`dsh-client-ui-agent-preset`](../ui-agent-preset/README.zh.md)——本包借以暂存选择的 preset 界面。
 - [Slots subsystem](../../../docs/subsystems/slots.zh.md)——本注册使用的洞/占用者模型。
 
@@ -74,7 +74,7 @@ Web bundle 默认挂载本插件；移除该行即可关闭此界面。侧边栏
 <a id="model-experience"></a>
 ## 模型体验
 
-间接地，经由它所呈现的 agent-preset 名单：一次聘用会暂存下一个会话由哪个 preset 组装，而宿主把这一选择记录为它自己的 `agent-preset/selected` 会话事件。
+间接地，通过每次聘用暂存的 preset 起作用：聘用把卡片的 preset id 转发给暂存服务，下一个会话由它组装，宿主把这一选择记录为它自己的 `agent-preset/selected` 会话事件。
 
 #### KV Cache effect
 
@@ -84,7 +84,7 @@ Web bundle 默认挂载本插件；移除该行即可关闭此界面。侧边栏
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **仅本地名单**——页面呈现部署已安装的 preset；从远程专家 registry 安装将随市场安装通道及其信任策略一起到来。
+- **精选演示名单**——市场内容随本包一起发布；把市场接到部署管理的专家 registry 将随市场安装通道及其信任策略一起到来。
 - **仅浏览与聘用**——专家创作、收藏与卡片评价延迟到存在可发布它们的 registry 之后再做。
 
 <a id="dev-note"></a>

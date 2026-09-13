@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-13-expert-market-ships-its-own-roster.md
+2026-09-13-expert-market-ships-its-own-roster.md: da1d3ca0dc27b4794219581e1dd5d32d5bfcf000
+2026-09-13-expert-market-ships-its-own-roster.zh.md: 4c1a2a96f6c2138b8e98957b2f9720392d1736a8

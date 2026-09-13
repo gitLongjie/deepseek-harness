@@ -24,4 +24,4 @@ An expert is an agent preset that publishes richer display metadata; this change
 
 ## Consequences
 
-A market-style picker can group, filter, and render hire affordances from roster rows alone. Install-from-registry stays the one future host-side addition, and it inherits the open trust question: a composition is executable (`!!js`), so an install channel must come with its trust tier and a `!!js` policy before it ships.
+A market-style picker can group, filter, and render hire affordances from roster rows alone. Install-from-registry stays the one future host-side addition, and it inherits the open trust question: a composition is executable (`!!js`), so an install channel must come with its trust tier and a `!!js` policy before it ships. The shipped market page stopped rendering roster rows — [the curated-market decision](2026-09-13-expert-market-ships-its-own-roster.md) owns where the page's content comes from; the metadata pipeline stays for the preset surfaces.

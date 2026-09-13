@@ -1,10 +1,10 @@
 /**
  * The expert page: the conversation-area view that stands in for the session
- * surface while the page is open — the deployment's preset roster presented
- * as hireable expert cards, with a search box and the category filter bar the
- * published metadata feeds. Any Session navigation closes the page
- * (UiExpertService watches the Session list); hiring stages the card's preset
- * for the next session and starts it.
+ * surface while the page is open — the expert market presented as hireable
+ * expert cards, with a search box and the category filter bar the card
+ * metadata feeds. Any Session navigation closes the page (UiExpertService
+ * watches the Session list); hiring stages the card's preset id for the next
+ * session and starts it.
  */
 import { useEffect, useMemo, useState } from 'react'
 import clsx from 'clsx'
