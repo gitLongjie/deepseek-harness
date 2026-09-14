@@ -1,11 +1,13 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { beep, isSupported, notification, handleActivation } = vi.hoisted(() => ({
+const { beep, isSupported, notification, on, show, handleActivation } = vi.hoisted(() => ({
   beep: vi.fn(),
   isSupported: vi.fn(() => true),
   notification: vi.fn(function (this: object, _options: object) {
-    return Object.assign(this, { show: vi.fn(), on: vi.fn() })
+    return Object.assign(this, { show, on })
   }),
+  on: vi.fn(),
+  show: vi.fn(),
   handleActivation: vi.fn(),
 }))
 
@@ -16,6 +18,13 @@ vi.mock('electron', () => ({
 
 import { installNotificationActivation, notifyTurnCompletion } from '../src/main/desktop/completion-notification.ts'
 import type { BrowserWindow } from 'electron'
+
+const realPlatform = process.platform
+
+/** Pin process.platform for the current test; restored in afterEach. */
+function stubPlatform(value: NodeJS.Platform): void {
+  Object.defineProperty(process, 'platform', { value })
+}
 
 function event(reason: string): never {
   return { type: 'turn/end', seq: 1, time: 1, data: { turn: 1, reason: { kind: reason } } } as never
@@ -38,7 +47,14 @@ function windowStub(focused = false): BrowserWindow {
 }
 
 describe('desktop completion notification', () => {
-  beforeEach(() => { vi.clearAllMocks(); isSupported.mockReturnValue(true) })
+  beforeEach(() => {
+    vi.clearAllMocks()
+    isSupported.mockReturnValue(true)
+  })
+
+  afterEach(() => {
+    Object.defineProperty(process, 'platform', { value: realPlatform })
+  })
 
   it('notifies and beeps only when an answer ends while the window is inactive', () => {
     notifyTurnCompletion(windowStub(), 'zh', 'session-1', event('completed'))
@@ -61,10 +77,19 @@ describe('desktop completion notification', () => {
     expect(beep).toHaveBeenCalledOnce()
   })
 
-  it('registers a centralized activation handler that shows and focuses the window', () => {
+  it('registers the win32 centralized activation handler without an instance click subscription', () => {
+    stubPlatform('win32')
     const win = windowStub()
     installNotificationActivation(() => win)
     expect(handleActivation).toHaveBeenCalledOnce()
+    notifyTurnCompletion(win, 'zh', 'session-1', event('completed'))
+    expect(on).not.toHaveBeenCalled()
+  })
+
+  it('shows and focuses the window when the centralized activation handler fires', () => {
+    stubPlatform('win32')
+    const win = windowStub()
+    installNotificationActivation(() => win)
     const callback = handleActivation.mock.calls[0]?.[0] as (() => void) | undefined
     callback?.()
     expect(win.show).toHaveBeenCalledOnce()
@@ -72,6 +97,7 @@ describe('desktop completion notification', () => {
   })
 
   it('sends the session id to the renderer when the activation handler fires after a notification', () => {
+    stubPlatform('win32')
     const win = windowStub()
     installNotificationActivation(() => win)
     notifyTurnCompletion(win, 'zh', 'session-42', event('completed'))
@@ -83,6 +109,7 @@ describe('desktop completion notification', () => {
   })
 
   it('restores a minimized window on activation', () => {
+    stubPlatform('win32')
     const win = {
       isDestroyed: () => false,
       isFocused: () => false,
@@ -100,6 +127,7 @@ describe('desktop completion notification', () => {
   })
 
   it('skips activation when the window is destroyed', () => {
+    stubPlatform('win32')
     const win = {
       isDestroyed: () => true,
       isFocused: () => false,
@@ -116,6 +144,7 @@ describe('desktop completion notification', () => {
   })
 
   it('skips activation when no window is available', () => {
+    stubPlatform('win32')
     installNotificationActivation(() => undefined)
     const callback = handleActivation.mock.calls[0]?.[0] as (() => void) | undefined
     // Should not throw
@@ -124,8 +153,52 @@ describe('desktop completion notification', () => {
   })
 
   it('does not register activation handler when notifications are unsupported', () => {
+    stubPlatform('win32')
     isSupported.mockReturnValue(false)
     installNotificationActivation(() => windowStub())
     expect(handleActivation).not.toHaveBeenCalled()
+  })
+
+  it('never touches the win32-only handleActivation on macOS', () => {
+    stubPlatform('darwin')
+    expect(() => installNotificationActivation(() => windowStub())).not.toThrow()
+    expect(handleActivation).not.toHaveBeenCalled()
+  })
+
+  it('focuses the window and opens the session through the instance click on macOS', () => {
+    stubPlatform('darwin')
+    const win = windowStub()
+    notifyTurnCompletion(win, 'zh', 'session-42', event('completed'))
+    expect(on).toHaveBeenCalledWith('click', expect.any(Function))
+    const callback = on.mock.calls[0]?.[1] as (() => void) | undefined
+    callback?.()
+    expect(win.show).toHaveBeenCalledOnce()
+    expect(win.focus).toHaveBeenCalledOnce()
+    expect(win.webContents.send).toHaveBeenCalledWith('dsh:notification:open-session', 'session-42')
+  })
+
+  it('uses the instance click path on Linux too', () => {
+    stubPlatform('linux')
+    const win = windowStub()
+    notifyTurnCompletion(win, 'zh', 'session-1', event('completed'))
+    expect(on).toHaveBeenCalledWith('click', expect.any(Function))
+    expect(handleActivation).not.toHaveBeenCalled()
+  })
+
+  it('ignores an instance click after the window was destroyed', () => {
+    stubPlatform('darwin')
+    const win = {
+      isDestroyed: () => true,
+      isFocused: () => false,
+      isMinimized: () => false,
+      restore: vi.fn(),
+      show: vi.fn(),
+      focus: vi.fn(),
+      webContents: { send: vi.fn() },
+    } as unknown as BrowserWindow
+    notifyTurnCompletion(win, 'zh', 'session-1', event('completed'))
+    const callback = on.mock.calls[0]?.[1] as (() => void) | undefined
+    callback?.()
+    expect(win.show).not.toHaveBeenCalled()
   })
 })
