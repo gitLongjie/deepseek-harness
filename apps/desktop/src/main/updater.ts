@@ -5,8 +5,8 @@
  * Availability and download-complete events are pushed to the renderer over
  * `dsh:update:status` so the in-app badge (render/update-badge.ts) shows them;
  * the control asks back over `dsh:update:action` to check, download, or restart
- * and apply. Startup checks stay silent; the Help-menu check reports available,
- * up-to-date, and failure outcomes through dialogs.
+ * and apply. Startup and periodic re-checks stay silent; the Help-menu check
+ * reports available, up-to-date, and failure outcomes through dialogs.
  * @module @deepseek-ai/dsh-desktop/updater
  */
 
@@ -18,11 +18,39 @@ import electronUpdater from 'electron-updater'
 import type { DesktopTextKey } from './desktop/locales.ts'
 const { autoUpdater } = electronUpdater
 
+/** One badge status published to the renderer; mirrors render/update-badge.ts states. */
+type UpdateStatus = 'idle' | 'checking' | 'available' | 'progressing' | 'downloaded' | 'installing' | 'error'
+
+/** Payload shapes for the `dsh:update:status` channel, keyed by {@link UpdateStatus}. */
+type UpdateStatusPayload =
+  | { status: 'idle' }
+  | { status: 'checking' }
+  | { status: 'available'; version: string }
+  | { status: 'progressing'; percent: number }
+  | { status: 'downloaded'; version: string }
+  | { status: 'installing' }
+  | { status: 'error' }
+
 /** Locale-bound copy resolver; updated when the shell language changes. */
 let currentT: (key: DesktopTextKey) => string = key => key
 
 /** True while an explicit Help-menu check is in flight (drives the no-update/error prompts). */
 let manualCheck = false
+
+/**
+ * Silent re-check cadence while the app stays open; the startup check covers
+ * the first look and a failed re-check simply waits for the next tick.
+ */
+export const UPDATE_RECHECK_INTERVAL_MS = 4 * 60 * 60 * 1000
+
+/** Handle of the periodic re-check timer so re-initialization replaces it. */
+let recheckTimer: NodeJS.Timeout | undefined
+
+/** True from `checkForUpdates` until a terminal updater event resolves it. */
+let checkInFlight = false
+
+/** Badge status most recently published to the renderer; drives re-check skipping. */
+let lastStatus: UpdateStatus | undefined
 
 /** Window currently receiving updater status events. */
 let updateWindow: BrowserWindow | undefined
@@ -47,15 +75,44 @@ function fillVersion(template: string, version: string): string {
 }
 
 /** Publish one status payload when the desktop window is still alive. */
-function sendStatus(payload: Record<string, unknown>): void {
+function sendStatus(payload: UpdateStatusPayload): void {
+  lastStatus = payload.status
   if (updateWindow !== undefined && !updateWindow.isDestroyed()) {
     updateWindow.webContents.send('dsh:update:status', payload)
   }
 }
 
+/** One silent check; terminal outcomes reach the renderer through the events below. */
+function silentUpdateCheck(): void {
+  checkInFlight = true
+  void autoUpdater.checkForUpdates()
+    .catch(() => {
+      // electron-updater also emits `error`; this covers rejected implementations.
+      // A failed check (offline, rate-limited) is not fatal; the next tick or
+      // launch retries.
+    })
+    .finally(() => { checkInFlight = false })
+}
+
 /**
- * Initialize the updater. Packaged runs check for updates on startup; the
- * result is pushed to the renderer badge instead of auto-showing dialogs.
+ * Re-check on a fixed cadence. Ticks wait while a check is in flight and skip
+ * whenever the badge is mid-flow: re-checking past `available` would reset a
+ * deferred `downloaded` state, and a `checking` flash belongs to manual checks.
+ */
+function scheduleUpdateRecheck(): void {
+  clearInterval(recheckTimer)
+  recheckTimer = setInterval(() => {
+    if (checkInFlight) return
+    if (lastStatus !== undefined && lastStatus !== 'idle' && lastStatus !== 'error') return
+    silentUpdateCheck()
+  }, UPDATE_RECHECK_INTERVAL_MS)
+  recheckTimer.unref()
+}
+
+/**
+ * Initialize the updater. Packaged runs check for updates on startup and then
+ * re-check silently every {@link UPDATE_RECHECK_INTERVAL_MS}; discovery lights
+ * up the renderer badge instead of auto-showing dialogs.
  * @param t - locale-bound copy resolver (desktop/locales.ts).
  * @param win - the main window whose renderer hosts the update badge.
  * @param updateUrl - generic electron-updater feed base URL.
@@ -73,6 +130,9 @@ export function initUpdater(
   updateWindow = win
   reportUpdateError = log
   installStarted = false
+  manualCheck = false
+  checkInFlight = false
+  lastStatus = undefined
   prepareInstall = prepare
   autoUpdater.setFeedURL({
     provider: 'generic',
@@ -88,6 +148,7 @@ export function initUpdater(
   autoUpdater.autoInstallOnAppQuit = true
 
   autoUpdater.on('update-available', (info) => {
+    checkInFlight = false
     const showManualResult = manualCheck
     manualCheck = false
     // electron-updater already compares semver, but guard against an equal
@@ -114,12 +175,14 @@ export function initUpdater(
   // Startup checks stay silent when there is nothing new; only an explicit
   // Help-menu check reports the all-clear or a failure.
   autoUpdater.on('update-not-available', () => {
+    checkInFlight = false
     sendStatus({ status: 'idle' })
     if (manualCheck) void showDialog('info', currentT('update.upToDate'))
     manualCheck = false
   })
 
   autoUpdater.on('error', (error) => {
+    checkInFlight = false
     reportUpdateError?.(`desktop: update error: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`)
     // Startup checks are opportunistic. An offline or slow update host must
     // not create a retry control while the user is working with the product.
@@ -131,9 +194,8 @@ export function initUpdater(
     manualCheck = false
   })
 
-  void autoUpdater.checkForUpdates().catch(() => {
-    // A failed check (offline, rate-limited) is not fatal; the next launch retries.
-  })
+  silentUpdateCheck()
+  scheduleUpdateRecheck()
 }
 
 /** Swap the locale copy used by the update prompts after a language change. */
@@ -144,11 +206,14 @@ export function setUpdaterLocale(t: (key: DesktopTextKey) => string): void {
 /** Explicit Help-menu update check; reports no-update/error through dialogs. */
 export function requestUpdateCheck(): void {
   manualCheck = true
+  checkInFlight = true
   sendStatus({ status: 'checking' })
-  void autoUpdater.checkForUpdates().catch(() => {
-    sendStatus({ status: 'error' })
-    manualCheck = false
-  })
+  void autoUpdater.checkForUpdates()
+    .catch(() => {
+      sendStatus({ status: 'error' })
+      manualCheck = false
+    })
+    .finally(() => { checkInFlight = false })
 }
 
 /** The badge's action channel, rendered by render/update-badge.ts. */

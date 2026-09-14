@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 type IpcHandler = (event: unknown, payload: unknown) => void
 
@@ -40,7 +40,7 @@ vi.mock('electron-updater', () => ({
   default: { autoUpdater: mocks.updater },
 }))
 
-import { initUpdater, registerUpdateIpc, requestUpdateCheck } from '../src/main/updater.ts'
+import { initUpdater, registerUpdateIpc, requestUpdateCheck, UPDATE_RECHECK_INTERVAL_MS } from '../src/main/updater.ts'
 
 function updateActionHandler(): IpcHandler {
   const handler = mocks.ipc.handler
@@ -67,6 +67,7 @@ describe('desktop updater status and actions', () => {
     mocks.ipcOn.mockClear()
     mocks.updater.setFeedURL.mockClear()
     mocks.updater.checkForUpdates.mockClear()
+    mocks.updater.checkForUpdates.mockImplementation(() => Promise.resolve())
     mocks.updater.downloadUpdate.mockClear()
     mocks.updater.quitAndInstall.mockClear()
     mocks.showMessageBox.mockClear()
@@ -74,6 +75,10 @@ describe('desktop updater status and actions', () => {
     log.mockClear()
     send.mockClear()
     initUpdater(t, win, 'https://updates.example.test', log)
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('selects the prerelease channel from the installed version', () => {
@@ -192,6 +197,41 @@ describe('desktop updater status and actions', () => {
       expect(mocks.updater.quitAndInstall).toHaveBeenCalledOnce()
       expect(mocks.updater.quitAndInstall).toHaveBeenCalledWith(false, true)
     })
+  })
+
+  it('re-checks silently on the periodic cadence and repeats after an idle result', async () => {
+    vi.useFakeTimers()
+    // Re-init under fake timers; the beforeEach init adds one startup check.
+    initUpdater(t, win, 'https://updates.example.test', log)
+
+    expect(mocks.updater.checkForUpdates).toHaveBeenCalledTimes(2)
+    await vi.advanceTimersByTimeAsync(UPDATE_RECHECK_INTERVAL_MS)
+    expect(mocks.updater.checkForUpdates).toHaveBeenCalledTimes(3)
+    expect(send).not.toHaveBeenCalledWith('dsh:update:status', { status: 'checking' })
+
+    mocks.listeners.get('update-not-available')!({ version: '1.0.0' })
+    await vi.advanceTimersByTimeAsync(UPDATE_RECHECK_INTERVAL_MS)
+    expect(mocks.updater.checkForUpdates).toHaveBeenCalledTimes(4)
+  })
+
+  it('skips a re-check while the previous check is still in flight', async () => {
+    vi.useFakeTimers()
+    mocks.updater.checkForUpdates.mockImplementation(() => new Promise(() => {}))
+    initUpdater(t, win, 'https://updates.example.test', log)
+
+    await vi.advanceTimersByTimeAsync(UPDATE_RECHECK_INTERVAL_MS * 2)
+    expect(mocks.updater.checkForUpdates).toHaveBeenCalledTimes(2)
+  })
+
+  it('skips re-checks while an available update still awaits the user', async () => {
+    vi.useFakeTimers()
+    initUpdater(t, win, 'https://updates.example.test', log)
+    mocks.listeners.get('update-available')!({ version: '1.1.0' })
+
+    expect(send).toHaveBeenCalledWith('dsh:update:status', { status: 'available', version: '1.1.0' })
+    await vi.advanceTimersByTimeAsync(UPDATE_RECHECK_INTERVAL_MS * 2)
+    expect(mocks.updater.checkForUpdates).toHaveBeenCalledTimes(2)
+    expect(mocks.showMessageBox).not.toHaveBeenCalled()
   })
 
   it('waits for application cleanup before launching the installer', async () => {
