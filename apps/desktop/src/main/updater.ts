@@ -61,6 +61,13 @@ let reportUpdateError: ((line: string) => void) | undefined
 /** Prevent repeated clicks from launching more than one installer. */
 let installStarted = false
 
+/**
+ * Bound on the pre-install cleanup: a stuck host disposal must not strand the
+ * badge on the disabled "installing" state forever. Quitting after the timeout
+ * is safe — the quit-path disposal runs the same cleanup again.
+ */
+export const PREPARE_INSTALL_TIMEOUT_MS = 10_000
+
 /** Bounded application cleanup performed before the native installer starts. */
 let prepareInstall: () => Promise<void> = async () => {}
 
@@ -184,6 +191,14 @@ export function initUpdater(
   autoUpdater.on('error', (error) => {
     checkInFlight = false
     reportUpdateError?.(`desktop: update error: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`)
+    // An install-phase failure (e.g. Squirrel.Mac rejecting the staged app on
+    // signature grounds) must reset the badge — leaving it on the disabled
+    // "installing" state strands the user with no retry path.
+    if (installStarted) {
+      installStarted = false
+      sendStatus({ status: 'error' })
+      return
+    }
     // Startup checks are opportunistic. An offline or slow update host must
     // not create a retry control while the user is working with the product.
     // Explicit Help-menu checks still expose the failure and offer a retry.
@@ -235,7 +250,13 @@ async function beginInstall(): Promise<void> {
   installStarted = true
   sendStatus({ status: 'installing' })
   try {
-    await prepareInstall()
+    await Promise.race([
+      prepareInstall(),
+      new Promise<void>((resolve) => {
+        const timer = setTimeout(resolve, PREPARE_INSTALL_TIMEOUT_MS)
+        timer.unref?.()
+      }),
+    ])
   } catch (error) {
     reportUpdateError?.(`desktop: update cleanup error: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`)
   }

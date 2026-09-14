@@ -40,7 +40,13 @@ vi.mock('electron-updater', () => ({
   default: { autoUpdater: mocks.updater },
 }))
 
-import { initUpdater, registerUpdateIpc, requestUpdateCheck, UPDATE_RECHECK_INTERVAL_MS } from '../src/main/updater.ts'
+import {
+  initUpdater,
+  PREPARE_INSTALL_TIMEOUT_MS,
+  registerUpdateIpc,
+  requestUpdateCheck,
+  UPDATE_RECHECK_INTERVAL_MS,
+} from '../src/main/updater.ts'
 
 function updateActionHandler(): IpcHandler {
   const handler = mocks.ipc.handler
@@ -248,6 +254,37 @@ describe('desktop updater status and actions', () => {
     finishCleanup()
     await vi.waitFor(() => {
       expect(mocks.updater.quitAndInstall).toHaveBeenCalledWith(false, true)
+    })
+  })
+
+  it('launches the installer even when the pre-install cleanup never settles', async () => {
+    vi.useFakeTimers()
+    const prepareInstall = vi.fn(() => new Promise<void>(() => {}))
+    initUpdater(t, win, 'https://updates.example.test', log, prepareInstall)
+    registerUpdateIpc()
+    const handler = updateActionHandler()
+
+    handler({}, { action: 'install' })
+    expect(mocks.updater.quitAndInstall).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(PREPARE_INSTALL_TIMEOUT_MS)
+    expect(mocks.updater.quitAndInstall).toHaveBeenCalledWith(false, true)
+  })
+
+  it('resets the badge to error and allows a retry when the install phase fails', async () => {
+    registerUpdateIpc()
+    const handler = updateActionHandler()
+
+    handler({}, { action: 'install' })
+    await vi.waitFor(() => { expect(mocks.updater.quitAndInstall).toHaveBeenCalledOnce() })
+
+    mocks.listeners.get('error')!(new Error('signature mismatch'))
+    expect(send).toHaveBeenCalledWith('dsh:update:status', { status: 'error' })
+    expect(mocks.showMessageBox).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'error' }))
+
+    handler({}, { action: 'install' })
+    await vi.waitFor(() => {
+      expect(send).toHaveBeenLastCalledWith('dsh:update:status', { status: 'installing' })
+      expect(mocks.updater.quitAndInstall).toHaveBeenCalledTimes(2)
     })
   })
 })
