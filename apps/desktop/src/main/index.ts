@@ -211,6 +211,21 @@ async function main(): Promise<void> {
     registerWindowControlsIpc()
 
     const win = createWindow()
+    // macOS Dock click after the window was hidden to the tray (tray.ts hides
+    // instead of destroying on close): without this handler the app is
+    // unreachable from the Dock — icon and menu bar stay up but no window
+    // ever returns. The window is never destroyed while running, so the
+    // recreate branch only covers abnormal teardown.
+    app.on('activate', () => {
+      const current = BrowserWindow.getAllWindows()[0]
+      if (current === undefined) {
+        createWindow()
+        return
+      }
+      if (current.isMinimized()) current.restore()
+      current.show()
+      current.focus()
+    })
     // Centralized notification-activation handler: on Windows a Toast click can
     // activate the app through the OS shell instead of firing the Notification
     // instance's click event. handleActivation covers every path including cold

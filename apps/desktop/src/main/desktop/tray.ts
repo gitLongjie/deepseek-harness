@@ -1,7 +1,9 @@
 /**
  * System tray. Clicking toggles the main window; closing the window hides to
  * the tray; the tray menu quits the app (which runs the host disposal through
- * the before-quit hook).
+ * the before-quit hook). On macOS the Dock click (app 'activate') is the
+ * primary way back into a hidden window, since the menu bar holds no visible
+ * tray affordance for most users.
  * @module @deepseek-ai/dsh-desktop/desktop/tray
  */
 
@@ -11,6 +13,19 @@ import type { DesktopTextKey } from './locales.ts'
 
 /** Tray icon, beside this app's build assets in both layouts. */
 const TRAY_ICON = fileURLToPath(new URL('../../../build/tray.ico', import.meta.url))
+
+/** macOS menu bars cannot decode ICO; the PNG twins (tray.png, tray@2x.png) carry the icon there. */
+const TRAY_ICON_MAC = fileURLToPath(new URL('../../../build/tray.png', import.meta.url))
+
+/**
+ * Platform-correct tray icon path: ICO for Windows/Linux menu shells, PNG for
+ * macOS where nativeImage cannot decode the ICO and the tray would render empty.
+ * @param platform - the platform to resolve for (testable without process global).
+ * @returns absolute path to a tray image file the platform can decode.
+ */
+export function resolveTrayIconPath(platform: NodeJS.Platform): string {
+  return platform === 'darwin' ? TRAY_ICON_MAC : TRAY_ICON
+}
 
 /** Tray plus a locale-aware context-menu rebuild handle. */
 export interface TrayHandle {
@@ -25,7 +40,7 @@ export function installTray(
   t: (key: DesktopTextKey) => string,
   productName: string,
 ): TrayHandle {
-  const icon = nativeImage.createFromPath(TRAY_ICON)
+  const icon = nativeImage.createFromPath(resolveTrayIconPath(process.platform))
   const tray = new Tray(icon.isEmpty() ? nativeImage.createEmpty() : icon)
   // Same pinned text as the native window title (window-title.ts): one brand
   // name everywhere the shell hovers.
