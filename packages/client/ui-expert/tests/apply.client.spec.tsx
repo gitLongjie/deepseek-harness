@@ -5,7 +5,6 @@ import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { apply, inject, NS } from '../src/client/index.ts'
 import { UiExpertService } from '../src/client/navigation.ts'
-import { MOCK_EXPERT_PRESETS } from '../src/client/mock-data.ts'
 
 afterEach(() => { vi.restoreAllMocks() })
 
@@ -19,13 +18,12 @@ function stub(): RemoteStub {
         presets: [
           // A mode preset: no card metadata, never admitted to the market.
           { id: 'standard', trust: 'system' as const, isDefault: true, name: '标准模式' },
-          // A shipped expert that the curated roster also stages: the curated
-          // record owns the display.
+          // A shipped expert: category is the committed expert marker.
           {
             id: 'geo-optimizer', trust: 'system' as const, isDefault: false,
-            name: 'GEO 优化专家（服务器版）', category: 'marketing',
+            name: 'GEO 优化专家', category: 'marketing',
           },
-          // A shipped expert the curated roster does not stage.
+          // A shipped expert with richer card metadata.
           {
             id: 'fresh-expert', trust: 'user' as const, isDefault: false,
             name: '新装专家', category: '写作', icon: '✒️',
@@ -96,7 +94,7 @@ describe('ui-expert browser plugin', () => {
     expect(remote.list).not.toHaveBeenCalled()
   })
 
-  it('merges shipped experts ahead of the curated roster and hires stage-then-start', async () => {
+  it('admits only shipped experts with card metadata, and hires stage-then-start', async () => {
     const remote = stub()
     const b = await bench(remote)
     declare(b.slots)
@@ -110,12 +108,9 @@ describe('ui-expert browser plugin', () => {
     })()
 
     const { experts } = await injected.load()
-    // Shipped experts lead, the curated roster follows; the mode preset never
-    // enters, and the curated record wins for an id it stages.
-    expect(experts.map(expert => expert.id)).toEqual([
-      'fresh-expert',
-      ...MOCK_EXPERT_PRESETS.map(expert => expert.id),
-    ])
+    // The roster is the market's only source: the mode preset never enters,
+    // and every admitted row is the deployment's own record.
+    expect(experts.map(expert => expert.id)).toEqual(['geo-optimizer', 'fresh-expert'])
     expect(experts.find(expert => expert.id === 'geo-optimizer')?.name).toBe('GEO 优化专家')
     expect(remote.list).toHaveBeenCalledTimes(1)
 
@@ -126,7 +121,7 @@ describe('ui-expert browser plugin', () => {
     expect((b.ctx.get('uiExpert') as UiExpertService).view.getSnapshot().open).toBe(false)
   })
 
-  it('degrades to the curated roster when the roster read refuses', async () => {
+  it('degrades to an empty market when the roster read refuses', async () => {
     const remote: RemoteStub = {
       list: vi.fn(async () => ({ ok: false, error: { code: 'invocation-unavailable', message: 'absent' } })),
     }
@@ -138,6 +133,6 @@ describe('ui-expert browser plugin', () => {
     const injected = (page?.inject as unknown as () => { load: () => Promise<{ experts: readonly { id: string }[] }> })()
 
     const { experts } = await injected.load()
-    expect(experts).toEqual(MOCK_EXPERT_PRESETS)
+    expect(experts).toEqual([])
   })
 })

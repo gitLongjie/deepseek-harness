@@ -9,7 +9,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import clsx from 'clsx'
 import type { ExpertBrowserProps, ExpertRecord } from './contract/slots.ts'
-import { MOCK_FEATURED_SCENARIOS } from './mock-data.ts'
 import css from './ExpertBrowser.module.css'
 
 /** Human text for a rejected wire call, read by the page's error state. */
@@ -63,11 +62,6 @@ function avatarTone(id: string): string {
   return AVATAR_TONES[hash % AVATAR_TONES.length] ?? ''
 }
 
-/** Whether to show the featured-scenario banners (only when no search/filter is active). */
-function showFeatured(search: string, category: string | null): boolean {
-  return search.trim() === '' && category === null
-}
-
 /**
  * Render the expert page.
  * @param props - composed slot props (owner share + injected actions + locale seat).
@@ -108,7 +102,6 @@ export function ExpertBrowser({
   )
   // A filter row only earns its place when the metadata actually classifies.
   const showFilters = categories.length > 0
-  const featured = showFeatured(search, category)
 
   return (
     <div className={css.root}>
@@ -138,28 +131,6 @@ export function ExpertBrowser({
           <div className={css.state}><p className={css.stateText}>{t('empty.none')}</p></div>
         ) : (
           <>
-            {/* Featured scenario banners — shown only when no search/filter is active. */}
-            {featured && (
-              <section className={css.featuredSection}>
-                <h3 className={css.sectionTitle}>{t('featured.title')}</h3>
-                <div className={css.featuredGrid}>
-                  {MOCK_FEATURED_SCENARIOS.map(scenario => (
-                    <div key={scenario.id} className={css.featuredCard} style={{ background: scenario.gradient }}>
-                      <h4 className={css.featuredTitle}>{scenario.title}</h4>
-                      <ul className={css.featuredExperts}>
-                        {scenario.experts.map(expert => (
-                          <li key={expert.name} className={css.featuredExpert}>
-                            <span className={css.featuredExpertIcon} aria-hidden="true">{expert.icon}</span>
-                            <span className={css.featuredExpertName}>{expert.name}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
             {showFilters && (
               <nav className={css.filters} aria-label={t('page.title')}>
                 <button

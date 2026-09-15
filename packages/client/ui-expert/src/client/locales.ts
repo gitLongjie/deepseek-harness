@@ -18,7 +18,6 @@ export const zh = {
   'error.retry': '重试',
   'empty.none': '市场暂无专家',
   'empty.noMatches': '无匹配专家',
-  'featured.title': '精选场景',
 } satisfies Record<string, string>
 
 /** The expert namespace key union. */
@@ -38,5 +37,4 @@ export const en = {
   'error.retry': 'Retry',
   'empty.none': 'No experts in the market yet',
   'empty.noMatches': 'No matching experts',
-  'featured.title': 'Featured Scenarios',
 } satisfies Record<ExpertKey, string>

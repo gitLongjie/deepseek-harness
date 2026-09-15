@@ -4,11 +4,11 @@
  * entry row), ExpertBrowser fills ui-conversation's `conversation.expert.browser`
  * hole (the full page: the expert market as hireable expert cards), and
  * `UiExpertService` owns the page state and its close-on-session policy.
- * The market merges two sources: experts the deployment ships — roster rows
+ * The market's sole source is the experts the deployment ships — roster rows
  * that publish card metadata, delivered by the download channel as installed
- * expert packages — ahead of this package's curated roster; mode presets
- * publish no card metadata and cannot present here. Hiring crosses packages
- * through the uiAgentPreset staging service and uiWorkspace's startSession.
+ * expert packages; mode presets publish no card metadata and cannot present
+ * here. Hiring crosses packages through the uiAgentPreset staging service and
+ * uiWorkspace's startSession.
  * Export discipline: packages/client/AGENTS.md.
  */
 import type { Context } from '@deepseek-ai/cordis'
@@ -23,6 +23,7 @@ import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type { AgentPresetRow } from '@deepseek-ai/dsh-agent-presets/types'
 // Type-only: pulls the uiAgentPreset and uiWorkspace service merges.
 import type {} from '@deepseek-ai/dsh-client-ui-agent-preset/client'
+// Type-only: pulls the uiWorkspace service merges.
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 // Type-only: pulls the Session root standard-props merge.
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
@@ -31,7 +32,6 @@ import type { ExpertRecord } from './contract/slots.ts'
 import { ExpertBrowser } from './ExpertBrowser.tsx'
 import { ExpertNav } from './ExpertNav.tsx'
 import { en, zh, type ExpertKey } from './locales.ts'
-import { MOCK_EXPERT_PRESETS } from './mock-data.ts'
 
 export type { ExpertKey } from './locales.ts'
 export type { ExpertBrowserProps, ExpertNavProps, ExpertRecord } from './contract/slots.ts'
@@ -93,23 +93,17 @@ export function apply(ctx: Context): void {
 
   const pageInjected = () => ({
     load: async (): Promise<{ experts: readonly ExpertRecord[] }> => {
-      // The market merges two sources: experts the deployment ships — roster
-      // rows that publish card metadata; category is the committed expert
-      // marker, so mode presets cannot leak in — ahead of this package's
-      // curated roster, which also owns the display record of the ids it
-      // stages. A refused or absent roster read degrades to the curated
-      // roster alone; the page never fails on the market read.
+      // The market's only source is the roster: rows that publish card
+      // metadata — category is the committed expert marker, so mode presets
+      // cannot leak in. A refused or absent roster read degrades to an empty
+      // market; the page never fails on the market read.
       const shipped = await ctx.remote.agentPresets.list().then(
-        (result): readonly AgentPresetRow[] => (result.ok
-          ? result.value.presets.filter(preset => preset.category !== undefined)
+        (result): readonly ExpertRecord[] => (result.ok
+          ? result.value.presets.filter(preset => preset.category !== undefined).map(recordOf)
           : []),
-        (): readonly AgentPresetRow[] => [],
+        (): readonly ExpertRecord[] => [],
       )
-      const curatedIds = new Set(MOCK_EXPERT_PRESETS.map(expert => expert.id))
-      const deployed = shipped
-        .filter(preset => !curatedIds.has(preset.id))
-        .map(recordOf)
-      return { experts: [...deployed, ...MOCK_EXPERT_PRESETS] }
+      return { experts: shipped }
     },
     hire: (id: string) => {
       // The explicit close keeps the intent local; the service's own session

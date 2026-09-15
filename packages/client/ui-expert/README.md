@@ -1,5 +1,5 @@
 ---
-description: "Expert-center plugin for the dsh web client: a sidebar entry row opening the conversation-area page that presents the curated expert market as hireable expert cards."
+description: "Expert-center plugin for the dsh web client: a sidebar entry row opening the conversation-area page that presents the deployment's expert market as hireable expert cards."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-client-ui-expert` is the expert center of the dsh web client: a sidebar entry row (between the knowledge and business regions) opens the page in the conversation area — the expert market presented as hireable expert cards, each carrying its avatar, attribution subtitle, curator badge, description, and tags, with text search over those texts, the category filter bar the record metadata feeds, per-card suggested prompts, and a hire action per card. Hiring stages the card's preset id for the NEXT session through the ui-agent-preset staging service and starts that session. The market merges two sources: experts the deployment ships — roster rows that publish card metadata, delivered by the market's install channel — ahead of this package's curated roster, which owns the display record of the ids it stages; mode presets publish no card metadata and never present here.
+`dsh-client-ui-expert` is the expert center of the dsh web client: a sidebar entry row (between the knowledge and business regions) opens the page in the conversation area — the expert market presented as hireable expert cards, each carrying its avatar, attribution subtitle, curator badge, description, and tags, with text search over those texts, the category filter bar the record metadata feeds, per-card suggested prompts, and a hire action per card. Hiring stages the card's preset id for the NEXT session through the ui-agent-preset staging service and starts that session. The market's sole source is the experts the deployment ships — roster rows that publish card metadata, delivered by the market's install channel; mode presets publish no card metadata and never present here.
 
 ## Table of Contents
 
@@ -34,7 +34,7 @@ The web bundle mounts the plugin by default; remove the row to turn the surface 
 
 ### Minimal configuration
 
-No config of its own: the page renders the market roster this package ships, and the roster carries no broken rows, so every card is hireable.
+No config of its own: the page renders the roster the deployment ships — presets that publish card metadata present as hireable experts, and the rest of the roster stays out.
 
 ### What can go wrong
 
@@ -84,7 +84,7 @@ None; this package neither assembles nor sends a provider request.
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **Curated demo roster** — the market content ships with this package; wiring the market to a deployment-managed expert registry arrives with the marketplace install channel and its trust policy.
+- **Roster-driven market** — the market reads the deployment's agent-preset roster; the attribution subtitle, curator badge, and avatar image a card design reserves await the roster carrying them with the marketplace install channel, so cards fall back to a gradient tile and the published glyph.
 - **Browse-and-hire only** — expert authoring, favorites, and per-card reviews are deferred until the registry exists to publish them.
 
 <a id="dev-note"></a>
