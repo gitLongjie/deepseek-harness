@@ -8,7 +8,7 @@ import type { IndexInjection } from '@deepseek-ai/dsh-host-webserver'
 import { renderDesktopIndex } from '../src/main/ipc/index-html.ts'
 
 /** A minimal host context carrying webServer + clientModules stubs. */
-function makeCtx(rows: IndexInjection[], bundlePath?: string): Context {
+function makeCtx(rows: IndexInjection[], bundlePath?: string, bundled: string[] = []): Context {
   return {
     get(service: string): unknown {
       if (service === 'webServer') {
@@ -16,12 +16,18 @@ function makeCtx(rows: IndexInjection[], bundlePath?: string): Context {
       }
       if (service === 'clientModules') {
         return {
-          clientPath: () => bundlePath,
-          // The registry serves bundle bytes keyed by the exact resource URL;
-          // the fake answers any single-plugin URL with the fake bundle file.
-          bundleResponse: () => bundlePath === undefined
-            ? undefined
-            : { body: readFileSync(bundlePath), contentType: 'text/javascript; charset=utf-8' },
+          // The registry parses the request URL and serves the advertised
+          // revisioned bundle; the fake answers any /plugins URL with the file
+          // and records the URL so the absolute-authority requirement stays checked.
+          fetchBundle: (request: Request): Response => {
+            bundled.push(request.url)
+            return bundlePath === undefined
+              ? new Response(null, { status: 404 })
+              : new Response(readFileSync(bundlePath), {
+                  status: 200,
+                  headers: { 'content-type': 'text/javascript; charset=utf-8' },
+                })
+          },
         }
       }
       return undefined
@@ -40,7 +46,7 @@ function makeWebDist(): string {
 }
 
 describe('renderDesktopIndex', () => {
-  it('inlines script-src rows and prepends the transport IIFE', () => {
+  it('inlines script-src rows and prepends the transport IIFE', async () => {
     const dir = makeWebDist()
     const bundleFile = join(dir, 'client.js')
     writeFileSync(bundleFile, 'window.__ModuleLoader__.load({ id: "pkg", factory() {} })')
@@ -50,14 +56,18 @@ describe('renderDesktopIndex', () => {
       { kind: 'script-src', placement: 'head', src: '/plugins/@deepseek-ai/dsh-client-modules/client.js?rev=abc' },
       { kind: 'global', name: '__DSH_BOOT__', value: { rev: 'abc', entries: [] } },
     ]
-    const html = renderDesktopIndex(makeCtx(rows, bundleFile), dir, iifeFile)
+    const bundled: string[] = []
+    const html = await renderDesktopIndex(makeCtx(rows, bundleFile, bundled), dir, iifeFile)
     expect(html).toContain('window.__DSH_TRANSPORT__')
     expect(html).toContain('__ModuleLoader__.load')
     expect(html).toContain('__DSH_BOOT__')
     expect(html).not.toContain('/plugins/')
+    // The registry parses the request URL, and the file:// document has no base
+    // to resolve the table's root-relative src against.
+    expect(bundled).toEqual(['http://127.0.0.1/plugins/@deepseek-ai/dsh-client-modules/client.js?rev=abc'])
   })
 
-  it('escapes </script sequences inside inlined bundle bytes', () => {
+  it('escapes </script sequences inside inlined bundle bytes', async () => {
     const dir = makeWebDist()
     const bundleFile = join(dir, 'client.js')
     writeFileSync(bundleFile, 'const s = "</script>"')
@@ -66,25 +76,39 @@ describe('renderDesktopIndex', () => {
     const rows: IndexInjection[] = [
       { kind: 'script-src', placement: 'head', src: '/plugins/pkg/client.js?rev=abc' },
     ]
-    const html = renderDesktopIndex(makeCtx(rows, bundleFile), dir, iifeFile)
+    const html = await renderDesktopIndex(makeCtx(rows, bundleFile), dir, iifeFile)
     // The literal `</script>` must not appear verbatim, so the HTML parser
     // cannot close the inline script element early.
     expect(html).not.toContain('"</script>"')
     expect(html).toContain('"<\\/script>"')
   })
 
-  it('restores the client module bootstrap when the injection table is incomplete', () => {
+  it('drops the sourceMappingURL of every inlined script', async () => {
+    const dir = makeWebDist()
+    const bundleFile = join(dir, 'client.js')
+    writeFileSync(bundleFile, 'window.__ModuleLoader__.load({ id: "pkg", factory() {} })\n//# sourceMappingURL=client.js.map')
+    const iifeFile = join(dir, 'render-transport.js')
+    writeFileSync(iifeFile, 'window.__DSH_TRANSPORT__ = {}\n//# sourceMappingURL=render-transport.js.map')
+    const html = await renderDesktopIndex(makeCtx([], dir, iifeFile), dir, iifeFile, bundleFile)
+    // A relative map URL inside an inlined script resolves against the document,
+    // where the map is not served: the renderer logs a 500 for it.
+    expect(html).not.toContain('sourceMappingURL')
+    expect(html).toContain('window.__DSH_TRANSPORT__')
+    expect(html).toContain('__ModuleLoader__.load')
+  })
+
+  it('restores the client module bootstrap when the injection table is incomplete', async () => {
     const dir = makeWebDist()
     const bundleFile = join(dir, 'client.js')
     writeFileSync(bundleFile, 'window.__ModuleLoader__.load({ id: "@deepseek-ai/dsh-client-modules", factory() {} })')
     const iifeFile = join(dir, 'render-transport.js')
     writeFileSync(iifeFile, 'window.__DSH_TRANSPORT__ = {}')
-    const html = renderDesktopIndex(makeCtx([]), dir, iifeFile, bundleFile)
+    const html = await renderDesktopIndex(makeCtx([]), dir, iifeFile, bundleFile)
     expect(html).toContain('id: "@deepseek-ai/dsh-client-modules"')
   })
 
-  it('throws when the transport IIFE is missing', () => {
+  it('rejects when the transport IIFE is missing', async () => {
     const dir = makeWebDist()
-    expect(() => renderDesktopIndex(makeCtx([]), dir, join(dir, 'missing.js'))).toThrow()
+    await expect(renderDesktopIndex(makeCtx([]), dir, join(dir, 'missing.js'))).rejects.toThrow()
   })
 })

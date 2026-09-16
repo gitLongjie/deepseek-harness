@@ -1,5 +1,5 @@
 /** Unit tests for the desktop boot helpers. */
-import { existsSync, mkdirSync, mkdtempSync, readlinkSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -118,5 +118,20 @@ describe('ensureRootPluginLinks', () => {
     expect(realpathSync.native(subagentLink))
       .toBe(realpathSync.native(closure.get('@deepseek-ai/dsh-subagent')!))
     expect(existsSync(join(rootAi, 'dsh-profile-only'))).toBe(true)
+  })
+})
+
+describe('main entry ordering', () => {
+  it('invokes main() only after the module state its failure path reads', () => {
+    // main() runs synchronously up to its first await, and its packaged-resource
+    // guard reads these bindings before any await. Invoking it above them throws
+    // "Cannot access 'currentLocale' before initialization" and hides the real
+    // startup failure behind a ReferenceError.
+    const source = readFileSync(fileURLToPath(new URL('../src/main/index.ts', import.meta.url)), 'utf8')
+    const entry = source.indexOf('void main()')
+    expect(entry).toBeGreaterThan(-1)
+    for (const declaration of ['let currentLocale', 'const host:', 'const RESOURCE_LABEL_KEYS']) {
+      expect(source.indexOf(declaration), declaration).toBeLessThan(entry)
+    }
   })
 })

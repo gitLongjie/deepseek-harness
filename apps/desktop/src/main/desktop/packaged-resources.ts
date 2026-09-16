@@ -39,7 +39,6 @@ export type PackagedResourceLabel =
   | 'web-dist'
   | 'agent-presets'
   | 'desktop-patch'
-  | 'workflow-worker'
   | 'windows-acl-runner'
   | 'koffi-binding'
 
@@ -84,8 +83,6 @@ export function findMissingPackagedResources(
   }
   const desktopPatch = join(appRoot, 'cordis.patch.yml')
   if (!existsSync(desktopPatch)) missing.push({ label: 'desktop-patch', path: desktopPatch })
-  const workerEntry = join(appRoot, 'node_modules', '@deepseek-ai', 'dsh-workflow-worker-thread', 'lib', 'worker.cjs')
-  if (!existsSync(workerEntry)) missing.push({ label: 'workflow-worker', path: workerEntry })
 
   // The open checkout has no app.asar and no unpacked twins: its runner and
   // koffi resolve through regular node_modules, which boot itself exercises.

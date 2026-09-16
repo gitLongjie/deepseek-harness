@@ -127,6 +127,44 @@ describe('connection node half', () => {
     await fiber.dispose()
   })
 
+  it('registers a dedicated RPC channel without a Web server in the caller scope', async () => {
+    const ctx = new Context()
+    provideBrowserCredentials(ctx)
+    const fiber = ctx.plugin({ inject: [...inject], apply })
+    await fiber.await()
+    const connection = ctx.get('connection') as HostConnectionHandle
+    const remove = connection.rpc.handle('/rpc', async () => ({ ok: true, value: { reached: true } }))
+    const dispatch = connection.createChannelsFetchHandler({
+      requestBodyMode: () => 'buffered',
+      fetch: () => Promise.resolve(new Response('fallback', { status: 404 })),
+    })
+    const dispatchOne = (): Promise<Response> => dispatch.fetch(new Request(
+      'http://127.0.0.1:3080/rpc/goals/create',
+      {
+        method: 'POST',
+        headers: { host: '127.0.0.1:3080', 'content-type': 'application/json; charset=utf-8' },
+        body: JSON.stringify({
+          type: 'client-request',
+          rpcId: 'rpc-ipc',
+          method: 'goals/create',
+          payload: { args: {} },
+        }),
+      },
+    ))
+
+    const response = await dispatchOne()
+    expect(response.status).toBe(200)
+    expect(JSON.parse(await response.text())).toMatchObject({
+      rpcId: 'rpc-ipc',
+      result: { ok: true, value: { reached: true } },
+    })
+
+    // Withdrawal closes the channel for the in-process carrier too.
+    await remove()
+    expect((await dispatchOne()).status).toBe(404)
+    await fiber.dispose()
+  })
+
   it('injects validated browser recovery timing and withdraws it on disposal', async () => {
     const { ctx, dispose } = await mounted({ recovery: { generationReadyTimeoutMs: 25_000 } })
     try {

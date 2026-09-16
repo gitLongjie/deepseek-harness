@@ -102,6 +102,42 @@ describe('dispatchTransportFetch', () => {
 })
 
 describe('registerTransportIpc stream handshake', () => {
+  it('waits for a Gateway remount instead of rejecting a stream opened during host reload', async () => {
+    const gateway = {
+      wireStream: {
+        open: async (): Promise<AsyncIterable<unknown>> => (async function* () {})(),
+      },
+    } as never
+    let currentGateway: typeof gateway | undefined
+    let publishGateway: ((gateway: typeof gateway) => void) | undefined
+    const remove = registerTransportIpc(
+      () => ({ gateway: currentGateway, connection: undefined }),
+      () => new Promise(resolve => { publishGateway = resolve }),
+    )
+    try {
+      const handle = (ipcMain.handle as unknown as {
+        mock: { calls: Array<[string, (event: unknown, req: unknown) => unknown]> }
+      }).mock.calls
+      const openHandler = handle.findLast(([channel]) => channel === 'dsh:stream:open')?.[1]
+      expect(openHandler).toBeTypeOf('function')
+      const sender = { isDestroyed: () => false, send: () => {} }
+      const opening = Promise.resolve().then(() => openHandler!({ sender }, { endpoint: '$events', payload: { args: {} } }))
+      let settled = false
+      void opening.then(() => { settled = true }, () => { settled = true })
+
+      // Hold the invocation at the service-unavailable point, then publish the
+      // replacement Gateway as a live profile reload would.
+      await Promise.resolve()
+      expect(settled).toBe(false)
+      currentGateway = gateway
+      publishGateway?.(gateway)
+
+      await expect(opening).resolves.toMatchObject({ streamId: expect.any(String) })
+    } finally {
+      await remove()
+    }
+  })
+
   it('answers the open request with { streamId } and pumps only after the claim', async () => {
     const opened: Array<{ endpoint: string; payload: unknown; signal: AbortSignal }> = []
     const gateway = {
@@ -121,13 +157,13 @@ describe('registerTransportIpc stream handshake', () => {
       const on = (ipcMain.on as unknown as {
         mock: { calls: Array<[string, (event: unknown, payload: unknown) => void]> }
       }).mock.calls
-      const openHandler = handle.find(([channel]) => channel === 'dsh:stream:open')?.[1]
-      const claimHandler = on.find(([channel]) => channel === 'dsh:stream:claim')?.[1]
+      const openHandler = handle.findLast(([channel]) => channel === 'dsh:stream:open')?.[1]
+      const claimHandler = on.findLast(([channel]) => channel === 'dsh:stream:claim')?.[1]
       expect(openHandler).toBeTypeOf('function')
       expect(claimHandler).toBeTypeOf('function')
       const sender = { isDestroyed: () => false, send: (channel: string, payload: unknown): void => { send?.(channel, payload) } }
       send = vi.fn()
-      const response = openHandler!({ sender }, { endpoint: '$events', payload: { args: {} } }) as { streamId?: string }
+      const response = await openHandler!({ sender }, { endpoint: '$events', payload: { args: {} } }) as { streamId?: string }
       // The claim contract: an object field, not a bare string.
       expect(typeof response).toBe('object')
       expect(typeof response.streamId).toBe('string')

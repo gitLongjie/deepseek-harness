@@ -407,6 +407,9 @@ function SessionTree({
                   dropWorkspace(workspaceGroupHalf(e))
                 }}
             >
+              {/* The loose-Session tail carries no header: only a real Workspace
+                  has a title, a card, and group actions to show. */}
+              {workspaceId !== undefined && (
               <ProjectRowItem
                 group={group}
                 home={home}
@@ -418,35 +421,24 @@ function SessionTree({
                   setGroupExpanded(group.key, !group.expanded)
                 }}
                 onCreate={() => {
-                  if (group.workspaceId !== undefined) {
-                    setGroupExpanded(group.key, true)
-                    startSession(group.workspaceId)
-                  }
+                  setGroupExpanded(group.key, true)
+                  startSession(workspaceId)
                 }}
                 drag={workspaceDragProps}
-                actions={group.workspaceId === undefined
-                  ? undefined
-                  : {
-                    rename: () => {
-                    /* v8 ignore next -- narrowing guard: the actions object exists only for real-workspace groups. */
-                      if (group.workspaceId !== undefined) onRenameRequest(group.workspaceId, group.label)
-                    },
-                    delete: () => {
-                    /* v8 ignore next -- narrowing guard: the actions object exists only for real-workspace groups. */
-                      if (group.workspaceId !== undefined) onDeleteRequest(group.workspaceId, group.label)
-                    },
-                    reveal: () => {
-                      const directory = group.workspaceId === undefined
-                        ? undefined
-                        : workspaces.find(workspace => workspace.workspaceId === group.workspaceId)?.path
-                      if (directory !== undefined) {
-                        void openWorkspacePath(workspaceDirectoryPath(directory)).catch((reason: unknown) => {
-                          console.warn('workspace directory reveal rejected:', reason)
-                        })
-                      }
-                    },
-                  }}
+                actions={{
+                  rename: () => { onRenameRequest(workspaceId, group.label) },
+                  delete: () => { onDeleteRequest(workspaceId, group.label) },
+                  reveal: () => {
+                    const directory = workspaces.find(workspace => workspace.workspaceId === workspaceId)?.path
+                    if (directory !== undefined) {
+                      void openWorkspacePath(workspaceDirectoryPath(directory)).catch((reason: unknown) => {
+                        console.warn('workspace directory reveal rejected:', reason)
+                      })
+                    }
+                  },
+                }}
               />
+              )}
               {(sessionsExpanded
                 ? group.sessions
                 : collapsed.rows

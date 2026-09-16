@@ -20,8 +20,6 @@ function layout(dirName: string): string {
   writeFileSync(join(appRoot, 'web', 'index.html'), '<html></html>\n')
   mkdirSync(join(appRoot, 'config', 'agent-presets', 'code'), { recursive: true })
   writeFileSync(join(appRoot, 'cordis.patch.yml'), '[]\n')
-  mkdirSync(join(appRoot, 'node_modules', '@deepseek-ai', 'dsh-workflow-worker-thread', 'lib'), { recursive: true })
-  writeFileSync(join(appRoot, 'node_modules', '@deepseek-ai', 'dsh-workflow-worker-thread', 'lib', 'worker.cjs'), '')
   const unpacked = join(`${appRoot}.unpacked`, 'node_modules')
   mkdirSync(join(unpacked, '@deepseek-ai', 'dsh-sandbox-windows-acl', 'lib'), { recursive: true })
   writeFileSync(join(unpacked, '@deepseek-ai', 'dsh-sandbox-windows-acl', 'lib', 'runner.js'), '')
@@ -63,7 +61,6 @@ describe('findMissingPackagedResources', () => {
     const cases: ReadonlyArray<readonly [boolean, string, string]> = [
       [false, 'web/index.html', 'web-dist'],
       [false, 'cordis.patch.yml', 'desktop-patch'],
-      [false, 'node_modules/@deepseek-ai/dsh-workflow-worker-thread/lib/worker.cjs', 'workflow-worker'],
       [true, 'app.asar.unpacked/node_modules/koffi/package.json', 'koffi-binding'],
       [true, 'app.asar.unpacked/node_modules/@deepseek-ai/dsh-sandbox-windows-acl/lib/runner.js', 'windows-acl-runner'],
     ]

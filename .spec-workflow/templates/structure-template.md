@@ -8,7 +8,7 @@
 Example for a library/package:
 project-root/
 ├── src/                    # Source code
-├── tests/                  # Test files
+├── tests/                  # Test files  
 ├── docs/                   # Documentation
 ├── examples/               # Usage examples
 └── [build/dist/out]        # Build output
@@ -95,13 +95,17 @@ Choose what works for your project:
 
 ## Code Organization Principles
 
-## Module Boundaries
+1. **Single Responsibility**: Each file should have one clear purpose
+2. **Modularity**: Code should be organized into reusable modules
+3. **Testability**: Structure code to be easily testable
+4. **Consistency**: Follow patterns established in the codebase
 
+## Module Boundaries
 [Define how different parts of your project interact and maintain separation of concerns]
 
 Examples of boundary patterns:
 - **Core vs Plugins**: Core functionality vs extensible plugins
-- **Public API vs Internal**: What's exposed vs implementation details
+- **Public API vs Internal**: What's exposed vs implementation details  
 - **Platform-specific vs Cross-platform**: OS-specific code isolation
 - **Stable vs Experimental**: Production code vs experimental features
 - **Dependencies direction**: Which modules can depend on which

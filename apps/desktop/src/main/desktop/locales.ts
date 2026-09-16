@@ -59,7 +59,6 @@ export const zh = {
   'resources.missing.web-dist': '前端页面资源 (web/index.html)',
   'resources.missing.agent-presets': '内置 agent 预设 (config/agent-presets)',
   'resources.missing.desktop-patch': '插件组合配置 (cordis.patch.yml)',
-  'resources.missing.workflow-worker': '工作流 worker 脚本 (lib/worker.cjs)',
   'resources.missing.windows-acl-runner': '沙箱 runner (dsh-sandbox-windows-acl)',
   'resources.missing.koffi-binding': '原生 FFI 绑定 (koffi)',
 } satisfies Record<string, string>
@@ -119,7 +118,6 @@ export const en = {
   'resources.missing.web-dist': 'Frontend page assets (web/index.html)',
   'resources.missing.agent-presets': 'Built-in agent presets (config/agent-presets)',
   'resources.missing.desktop-patch': 'Plugin composition (cordis.patch.yml)',
-  'resources.missing.workflow-worker': 'Workflow worker script (lib/worker.cjs)',
   'resources.missing.windows-acl-runner': 'Sandbox runner (dsh-sandbox-windows-acl)',
   'resources.missing.koffi-binding': 'Native FFI binding (koffi)',
 } satisfies Record<DesktopTextKey, string>

@@ -7,7 +7,13 @@
 import type { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import type { BootManifest, ClientModuleLoader } from '@deepseek-ai/dsh-client-modules/client'
-import { STATE_LABELS } from './loader-status.ts'
+import { FIBER_STATE, STATE_LABELS } from './loader-status.ts'
+
+/**
+ * Bounded settle window (in macrotasks) for entries whose dependencies are
+ * still activating; see {@link settlePendingEntries}.
+ */
+const PENDING_SETTLE_ATTEMPTS = 8
 
 /** Entry state label as the boot page renders it. */
 export type EntryStateLabel = (typeof STATE_LABELS)[keyof typeof STATE_LABELS] | 'loading' | 'failed'
@@ -52,7 +58,28 @@ export async function bootClient(options: ClientBootOptions): Promise<void> {
   }))
 
   await loader.await()
+  await settlePendingEntries(ctx)
   assertEntriesActive(ctx)
+}
+
+/**
+ * Wait out in-flight activation before the audit judges an entry pending. A
+ * fiber that waits on a service reactivates only once the providing fiber has
+ * settled, and a chain of waiting rows settles one level per tick, so the state
+ * `loader.await()` resolves on can still read as `pending` for a dependency that
+ * is already there. Bounded: a service nothing provides still fails the audit.
+ * @param ctx - root Context carrying the Loader.
+ */
+async function settlePendingEntries(ctx: Context): Promise<void> {
+  for (let attempt = 0; attempt < PENDING_SETTLE_ATTEMPTS; attempt += 1) {
+    const settling = [...ctx.loader.entries()].some((entry) => {
+      const fiber = entry.fiber
+      return fiber !== undefined
+        && (fiber.state === FIBER_STATE.PENDING || fiber.state === FIBER_STATE.LOADING)
+    })
+    if (!settling) return
+    await new Promise(resolve => setTimeout(resolve, 0))
+  }
 }
 
 /**

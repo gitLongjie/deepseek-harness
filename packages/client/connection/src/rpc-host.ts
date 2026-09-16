@@ -218,10 +218,16 @@ export class HostConnectionService extends Service implements HostConnectionHand
     return owner.effect(() => {
       this.channels.set(channel, { authority, fetchHandler })
       try {
-        const unregister = owner.webServer.register(route)
+        // webServer is optional and never a caller requirement: the channel map
+        // above already carries this channel for in-process carriers (the
+        // desktop IPC bridge), which have no HTTP route table. `ctx.get` reads
+        // an undeclared service and yields undefined when the composition has no
+        // webserver, whereas `owner.webServer` demands an inject declaration the
+        // registering plugin has no reason to carry.
+        const unregister = owner.get('webServer')?.register(route)
         return () => {
           this.channels.delete(channel)
-          unregister()
+          unregister?.()
         }
       } catch (error) {
         this.channels.delete(channel)

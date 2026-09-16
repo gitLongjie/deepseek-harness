@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
 import type { ClientModuleRegistry } from '@deepseek-ai/dsh-client-modules'
 import { renderIndexInjections, type IndexInjection } from '@deepseek-ai/dsh-host-webserver'
+import { LOOPBACK_AUTHORITY } from './loopback-authority.ts'
 
 /** The built render-transport IIFE, inlined ahead of the module-system queue. */
 const TRANSPORT_IIFE_PATH = fileURLToPath(new URL('../../render-transport.js', import.meta.url))
@@ -27,9 +28,20 @@ function escapeInlineScript(text: string): string {
   return text.replace(/<\/script/gi, '<\\/script')
 }
 
+/**
+ * Drop an inlined bundle's trailing `sourceMappingURL` comment. The URL in it is
+ * relative to the script's own location, and an inlined script has none: the
+ * browser resolves it against the document instead, where the map is missing
+ * (each request hangs a 500 in the renderer console) or belongs to another
+ * script. The served `/plugins` route keeps the maps for the loader path.
+ */
+function stripSourceMappingUrl(text: string): string {
+  return text.replace(/\n?\/\/# sourceMappingURL=\S+[ \t]*\r?\n?$/, '')
+}
+
 /** Resolve one `/plugins` script-src URL — single or combo — to its bundle bytes. */
 async function readPluginBundle(modules: ClientModuleRegistry, src: string): Promise<string> {
-  const response = await modules.fetchBundle(new Request(src))
+  const response = await modules.fetchBundle(new Request(new URL(src, LOOPBACK_AUTHORITY)))
   if (response.status !== 200) {
     throw new Error(`desktop: no served client bundle for ${JSON.stringify(src)}`)
   }
@@ -66,7 +78,7 @@ export async function renderDesktopIndex(
     const text = row.src.startsWith('/plugins/')
       ? await readPluginBundle(modules, row.src)
       : readFileSync(join(webDistDir, row.src), 'utf8')
-    return { kind: 'script', placement: row.placement, text: escapeInlineScript(text) }
+    return { kind: 'script', placement: row.placement, text: escapeInlineScript(stripSourceMappingUrl(text)) }
   })
   const inlined = await Promise.all(inline)
   // The client module facade is parser-blocking and must register after the
@@ -80,13 +92,13 @@ export async function renderDesktopIndex(
     inlined.push({
       kind: 'script',
       placement: 'head',
-      text: escapeInlineScript(readFileSync(clientModulesBootstrapPath, 'utf8')),
+      text: escapeInlineScript(stripSourceMappingUrl(readFileSync(clientModulesBootstrapPath, 'utf8'))),
     })
   }
   const transport: IndexInjection = {
     kind: 'script',
     placement: 'head',
-    text: escapeInlineScript(readFileSync(transportIifePath, 'utf8')),
+    text: escapeInlineScript(stripSourceMappingUrl(readFileSync(transportIifePath, 'utf8'))),
   }
   const raw = readFileSync(join(webDistDir, 'index.html'), 'utf8')
   return renderIndexInjections(raw, [transport, ...inlined])

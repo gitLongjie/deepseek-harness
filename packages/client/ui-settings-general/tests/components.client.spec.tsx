@@ -36,10 +36,13 @@ const useSessionPendingInteraction: TriggerContentProps['useSessionPendingIntera
 const kit = { useSessions: unusedHook, useSessionPendingInteraction, usePanelInfo, useResource, useWorkspaces: unusedHook }
 
 describe('chrome content', () => {
-  it('TriggerContent renders the icon with the label in the wide column', () => {
+  it('TriggerContent renders the icon only, titled, in the wide column', () => {
     const { container } = render(<TriggerContent {...kit} wide t={t} />)
     expect(container.querySelector('svg')).toBeTruthy()
-    expect(screen.getByText('Settings')).toBeTruthy()
+    // The foot renders this trigger beside the account row, so the label is a
+    // title on the icon rather than text in the row.
+    expect(container.querySelector('[title="Settings"]')).toBeTruthy()
+    expect(screen.queryByText('Settings')).toBeNull()
   })
 
   it('TriggerContent drops the label in the rail state', () => {

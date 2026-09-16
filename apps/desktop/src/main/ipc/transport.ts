@@ -12,13 +12,7 @@ import { ipcMain } from 'electron'
 import { randomUUID } from 'node:crypto'
 import type { HostConnectionHandle } from '@deepseek-ai/dsh-client-connection'
 import type { TypertGateway } from '@deepseek-ai/dsh-api-gateway/types'
-
-/**
- * The loopback authority synthetic requests carry: the shared-channel trust
- * fence binds every `/api` request on the Host header, and the IPC carrier
- * speaks for this process's own renderer, not a remote page.
- */
-const LOOPBACK_AUTHORITY = 'http://127.0.0.1'
+import { LOOPBACK_AUTHORITY } from './loopback-authority.ts'
 
 /** Host services the IPC carrier dispatches through. */
 export interface TransportHostServices {
@@ -27,6 +21,9 @@ export interface TransportHostServices {
   /** The Connection shared-channel registry, when the composition mounted it. */
   connection: HostConnectionHandle | undefined
 }
+
+/** Waits for a Gateway service that is temporarily absent during a profile reload. */
+export type TransportGatewayWaiter = () => Promise<TypertGateway>
 
 /** A unary fetch request from the renderer. */
 export interface TransportFetchRequest {
@@ -95,9 +92,17 @@ export async function dispatchTransportFetch(
 /**
  * Register the transport IPC handlers against a host-service accessor.
  * @param getHost - resolves the current host services; `connection: undefined` before the host settles.
+ * @param waitForGateway - awaits the next Gateway service after a live profile reload withdraws it.
  * @returns a disposer that removes every handler and aborts live streams.
  */
-export function registerTransportIpc(getHost: () => TransportHostServices): () => void {
+export function registerTransportIpc(
+  getHost: () => TransportHostServices,
+  waitForGateway: TransportGatewayWaiter = async () => {
+    const { gateway } = getHost()
+    if (gateway === undefined) throw new Error('desktop: host stopped before Remote streams became available')
+    return gateway
+  },
+): () => void {
   const aborts = new Map<string, AbortController>()
 
   ipcMain.handle('dsh:transport:fetch', async (_event, req: TransportFetchRequest): Promise<TransportFetchResponse> => {
@@ -125,6 +130,7 @@ export function registerTransportIpc(getHost: () => TransportHostServices): () =
     sender: Electron.WebContents
     endpoint: string
     payload: unknown
+    gateway: TypertGateway
     controller: AbortController
   }>()
 
@@ -137,9 +143,8 @@ export function registerTransportIpc(getHost: () => TransportHostServices): () =
     const pending = pendingStreams.get(streamId)
     if (pending === undefined) return
     pendingStreams.delete(streamId)
-    const { sender, endpoint, controller } = pending
-    const { gateway } = getHost()
-    if (gateway === undefined || sender.isDestroyed()) {
+    const { sender, endpoint, gateway, controller } = pending
+    if (sender.isDestroyed()) {
       streamAborts.delete(streamId)
       return
     }
@@ -162,9 +167,11 @@ export function registerTransportIpc(getHost: () => TransportHostServices): () =
     })()
   }
 
-  ipcMain.handle('dsh:stream:open', (event, opts: TransportStreamStart): { streamId: string } => {
-    const { gateway } = getHost()
-    if (gateway === undefined) throw new Error('desktop: host not ready for Remote streams')
+  ipcMain.handle('dsh:stream:open', async (event, opts: TransportStreamStart): Promise<{ streamId: string }> => {
+    // Live profile changes briefly withdraw the Gateway. Keep this IPC request
+    // pending until its replacement publishes instead of turning a normal
+    // host reload into a renderer-side connection failure.
+    const gateway = getHost().gateway ?? await waitForGateway()
     const streamId = randomUUID()
     const controller = new AbortController()
     streamAborts.set(streamId, controller)
@@ -172,6 +179,7 @@ export function registerTransportIpc(getHost: () => TransportHostServices): () =
       sender: event.sender,
       endpoint: opts.endpoint,
       payload: opts.payload,
+      gateway,
       controller,
     })
     return { streamId }

@@ -385,26 +385,35 @@
   padding-left: 0;
 }
 
-/* Footer seats: additive actions stack above Settings. Each occupant owns its
+/* Footer seats share one line: the account row takes the free width and the
+   icon-only Settings trigger hugs its right edge. The rail has 36px of content
+   width for two controls, so only it keeps them stacked. Each occupant owns its
    button geometry and hover chrome. */
 .footArea {
   flex: none;
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 4px;
 }
 
 .settingsArea,
 .footerActions {
   flex: none;
   min-width: 0;
-  width: 100%;
 }
 
 .footerActions {
   display: flex;
+  flex: 1;
+}
+
+.settingsArea {
+  display: flex;
+  align-items: center;
 }
 
 .collapsed .footArea {
+  flex-direction: column;
   align-items: center;
 }
 

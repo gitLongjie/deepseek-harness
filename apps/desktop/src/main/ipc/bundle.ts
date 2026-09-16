@@ -8,6 +8,7 @@
 
 import { ipcMain } from 'electron'
 import type { ClientModuleRegistry } from '@deepseek-ai/dsh-client-modules'
+import { LOOPBACK_AUTHORITY } from './loopback-authority.ts'
 
 /**
  * Register the loadBundle IPC handler.
@@ -22,7 +23,9 @@ export function registerBundleIpc(getModules: () => ClientModuleRegistry | undef
     // the registry's bundle table verbatim, exactly like the web plugin's
     // `/plugins` HTTP route.
     if (!req.url.startsWith('/plugins/')) return undefined
-    const response = await modules.fetchBundle(new Request(req.url))
+    // The registry reads the resource off the request URL, which arrives
+    // root-relative because the entry URLs are.
+    const response = await modules.fetchBundle(new Request(new URL(req.url, LOOPBACK_AUTHORITY)))
     if (response.status !== 200) return undefined
     return Array.from(new Uint8Array(await response.arrayBuffer()))
   })

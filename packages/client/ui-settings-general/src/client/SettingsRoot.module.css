@@ -3,8 +3,6 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  width: calc(100% + 4px);
-  margin: 4px -2px;
 }
 
 .triggerRow.railRow {
@@ -12,23 +10,27 @@
   margin: 8px 0 10px;
 }
 
+/* The foot renders this trigger beside the account row, icon-only, so it takes
+   the 28x28 circle the sidebar's other wide controls use instead of a
+   full-width labelled bar. */
 .trigger {
-  flex: 1;
-  min-width: 0;
+  flex: none;
   display: flex;
   align-items: center;
-  gap: 8px;
-  width: auto;
-  height: 42px;
+  justify-content: center;
+  gap: 0;
+  width: 28px;
+  height: 28px;
   margin: 0;
-  padding: 0 10px 0 8px;
+  padding: 0;
   box-sizing: border-box;
   border: none;
-  border-radius: 12px;
+  border-radius: 50%;
+  corner-shape: round;
   background: transparent;
   cursor: pointer;
   overflow: hidden;
-  color: var(--dsw-alias-label-primary);
+  color: var(--dsw-alias-label-secondary);
   font-family: inherit;
   font-size: 14px;
   line-height: 22px;

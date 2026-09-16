@@ -141,17 +141,6 @@ export async function runPackagedSmoke(options: PackagedSmokeOptions): Promise<P
     checks.push({ name: 'ripgrep-spawn', ok: false, detail: error instanceof Error ? error.message : String(error) })
   }
 
-  try {
-    const workerEntry = createRequire(join(appRoot, 'package.json')).resolve('@deepseek-ai/dsh-workflow-worker-thread/worker')
-    checks.push({
-      name: 'workflow-worker-resolve',
-      ok: existsSync(workerEntry),
-      detail: existsSync(workerEntry) ? `resolved ${workerEntry}` : 'the ./worker subpath resolved to a missing file',
-    })
-  } catch (error) {
-    checks.push({ name: 'workflow-worker-resolve', ok: false, detail: error instanceof Error ? error.message : String(error) })
-  }
-
   if (process.platform === 'win32' && appRoot.endsWith('app.asar')) {
     // Load koffi the way the runtime does — resolved from the archive's
     // node_modules, with Electron redirecting the .node dlopen to its
