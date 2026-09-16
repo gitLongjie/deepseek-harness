@@ -370,6 +370,9 @@ export class LocalSandboxProvider extends SandboxProvider {
     }
     const selected = this.selectRunner(policy.mode)
     const program = this.runnerProgram(selected.runner, policy)
+    this.ctx.logger.info(
+      `sandbox-local: confining via ${selected.runner} (mode ${policy.mode}, runner ${program.argv[0]})`,
+    )
     return {
       argv: [...program.argv, '--', ...argv],
       ...program.env !== undefined ? { env: program.env } : {},

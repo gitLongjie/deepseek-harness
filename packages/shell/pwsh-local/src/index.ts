@@ -291,8 +291,14 @@ export class PwshLocalExecutor extends ShellExecutor {
         }
       } finally { d.signal.removeEventListener('abort', abort) }
     } else { argv = argvOrPrepare }
+    // Lifecycle marker for the desktop mirror (console.error -> desktop.log):
+    // a hang is localizable to before/after this spawn line.
+    process.stderr.write(`pwsh-local: spawn workdir=${JSON.stringify(spec.workdir)} argv0=${String(argv[0])}
+`)
     const handle = this.ctx.subprocess.spawn(this.spawnSpec(spec, spec.stdoutMaxBytes, d.signal, argv))
     const outcome = await handle.done
+    process.stderr.write(`pwsh-local: settle exit=${String(outcome.exitCode)} signal=${String(outcome.signal)}
+`)
     const collected = PwshLocalExecutor.collected(handle)
     // Only this executor's timeout reason counts as timedOut; outer deadlines count as aborts.
     const timedOut = timeoutOf(d.signal, 'BASH_TIMEOUT') !== undefined
