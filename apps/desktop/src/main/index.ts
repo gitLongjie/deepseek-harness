@@ -152,6 +152,28 @@ function log(line: string): void {
 }
 
 /**
+ * Mirror the host's console diagnostics (activation warnings, pending-service
+ * reports, fail-loud errors) into the desktop log. The in-process host writes
+ * through `console`, and a windowed Electron run has no stderr sink, so a
+ * wedged boot or a stuck turn previously left no trace.
+ */
+function mirrorConsoleToLog(): void {
+  for (const method of ['error', 'warn'] as const) {
+    const original = console[method].bind(console)
+    console[method] = (...args: readonly unknown[]): void => {
+      original(...args)
+      try {
+        const text = args.map(String).join(' ')
+        const logPath = process.env.DSH_DESKTOP_LOG ?? join(app.getPath('userData'), 'desktop.log')
+        appendFileSync(logPath, `${new Date().toISOString()} host ${method}: ${text}\n`)
+      } catch {
+        // Logging must never crash the host.
+      }
+    }
+  }
+}
+
+/**
  * Boot the web profile under the desktop overlay and start the app.
  */
 async function main(): Promise<void> {
@@ -628,6 +650,7 @@ if (!gotLock) {
   // settles, which is the blank "Electron" window users reported.
   app.exit(0)
 } else {
+  mirrorConsoleToLog()
   void main().catch((error: unknown) => {
     console.error('desktop: fatal startup failure:', error)
     app.exit(1)
