@@ -7,7 +7,7 @@ kind: "package-reference"
 
 [English](README.md) | 中文
 
-## 概要
+## 概述
 
 `dsh-client-ui-knowledge-base` 是 dsh Web 客户端的知识页面:侧边栏的一个入口行在会话区打开该页——库列表与文档浏览器(名称/类型/更新时间)并列,带内联文档搜索、部署控制台动作,以及每个库的"提问"动作(新建会话)。数据经 `knowledgeBase` Remote 命名空间到达,因此页面对 WeKnora 的传输一无所知也能渲染。
 
@@ -86,7 +86,7 @@ Web bundle 默认挂载本插件;移除该行(连同 `kb-weknora` 与 `kb-gatewa
 - **仅浏览行** — 点击库行打开文档浏览器;把会话的知识工具限定到所选库,要等按会话的 agent preset 到来。
 
 <a id="dev-note"></a>
-### 开发注记
+### 开发备注
 
 <details>
 <summary>维护者的工作上下文——点击展开</summary>

@@ -7,7 +7,7 @@ kind: "package-reference"
 
 [English](README.md) | 中文
 
-## 概要
+## 概述
 
 `dsh-kb-gateway` 把知识库列表放到宿主已认证的 Web 网关之后:侧边栏知识分区通过本投影读取库列表与部署控制台 URL,而不是直连服务。每个调用都来自已登录客户端,网关只转发读取动词,让 `dsh-kb-weknora` 继续独占传输与凭据解析。
 
@@ -84,7 +84,7 @@ kind: "package-reference"
 - **仅受信客户端** — 本投影不新增授权;它依赖宿主网关的已认证会话与提供者的凭据范围可见性。
 
 <a id="dev-note"></a>
-### 开发注记
+### 开发备注
 
 <details>
 <summary>维护者的工作上下文——点击展开</summary>

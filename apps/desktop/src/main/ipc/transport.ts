@@ -86,6 +86,7 @@ export async function dispatchTransportFetch(
   }
   if (req.body !== undefined) init.body = req.body
   const handler = connection.createSharedFetchHandler('/api', connection.createChannelsFetchHandler({
+    requestBodyMode: () => 'buffered',
     fetch: () => Promise.resolve(new Response('not found', { status: 404 })),
   }))
   return handler.fetch(new Request(new URL(req.path, LOOPBACK_AUTHORITY), init))

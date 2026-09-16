@@ -176,11 +176,11 @@ async function importNodeRipgrepPath(): Promise<string> {
  * desktop must spawn electron-builder's unpacked twin instead.
  */
 function unpackedAsarPath(path: string): string | undefined {
-  const segments = path.split(sep)
-  const asarIndex = segments.lastIndexOf('app.asar')
-  if (asarIndex === -1) return undefined
-  segments[asarIndex] = 'app.asar.unpacked'
-  return segments.join(sep)
+  // Separator-agnostic: a POSIX-packaged layout reaches here on Windows too.
+  const match = /(^|[\/])app\.asar(?=[\/])/.exec(path)
+  if (match === null) return undefined
+  const at = path.lastIndexOf('app.asar')
+  return `${path.slice(0, at)}app.asar.unpacked${path.slice(at + 'app.asar'.length)}`
 }
 
 /**
@@ -232,9 +232,10 @@ export function resolveRgPath(): Promise<string> {
  * `SEARCH_INVALID_PATTERN`, the rest → `SEARCH_FAILED` /
  * `SEARCH_RAW_OUTPUT_OVERFLOW`). Both launch-time failure domains are
  * classified: a synchronous throw at spawn CREATION (a NUL in argv, an abort
- * racing the pre-check, a rejected `@vscode/ripgrep` resolution) and a
- * rejection of `handle.done` (the seam's infrastructure failures) both become
- * `SEARCH_FAILED` with the original as `cause` — an abort already observed by
+ * racing the pre-check, a rejected `@vscode/ripgrep` resolution) reports that
+ * the command could not start, while a rejection of `handle.done` reports a
+ * provider failure without claiming whether execution began. Both become
+ * `SEARCH_FAILED` with the original as `cause`; an abort already observed by
  * creation time becomes `SEARCH_ABORTED` instead.
  *
  * @param ctx - the plugin context; execution uses its `subprocess` service.
@@ -289,7 +290,7 @@ export async function runRipgrep(
   try {
     outcome = await handle.done
   } catch (error: unknown) {
-    throw new SearchError(`${toolName} could not start its search command (ripgrep launch failed)`, 'SEARCH_FAILED', { cause: error })
+    throw new SearchError(`${toolName} subprocess failed before reporting an outcome (ripgrep provider failure)`, 'SEARCH_FAILED', { cause: error })
   }
   const stdout = handle.collected.stdout?.readFrom(0)
   const stderr = handle.collected.stderr?.readFrom(0)
@@ -424,7 +425,7 @@ export async function trySaveFormattedResult(
   }
   const save: SaveTextSpill = {
     owner: { sessionId },
-    source: { toolName: exec.name, callId: exec.callId, label: 'result' },
+    source: { kind: 'tool', toolName: exec.name, callId: exec.callId, label: 'result' },
     suggestedName,
     content,
   }

@@ -16,7 +16,11 @@ function isBuildFaceClient(value: unknown): boolean {
 export default defineConfig(({ env }) => {
   const client = isBuildFaceClient(env?.DSH_BUILD_FACE)
   return {
-    workspace: ['vendor/*', 'packages/*/*', 'apps/cli'],
+    workspace: client
+      ? ['vendor/*', 'packages/*/*', 'apps/cli']
+      // The desktop shell (apps/desktop) is the fork's Electron product built
+      // by its own tsc/packaging pipeline, not a lib-emitting tsdown package.
+      : ['vendor/*', 'packages/*/*', 'apps/cli', 'apps/desktop-host'],
     entry: client ? '' : ['lib/types/{index,invariant,startup}.js'],
     outDir: 'lib',
     format: ['esm'],

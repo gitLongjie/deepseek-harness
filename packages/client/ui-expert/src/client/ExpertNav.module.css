@@ -69,6 +69,7 @@
   height: 36px;
   border: none;
   border-radius: 50%;
+  corner-shape: round;
   padding: 0;
   margin: 0 0 12px;
   background: transparent;

@@ -2,3 +2,7 @@
 # this goal-only scenario omits the settings shell it would mount.
 - id: ui-settings-general
   disabled: true
+# This scenario owns Goal bar actions, not autonomous Goal rounds. Keeping the
+# driver out prevents an active Goal from issuing an unrelated model request.
+- id: goal-round-driver
+  disabled: true

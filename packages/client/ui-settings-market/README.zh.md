@@ -7,7 +7,7 @@ kind: "package-reference"
 
 [English](README.md) | 中文
 
-## 摘要
+## 概述
 
 本包为 Web 客户端的插件设置添加市场标签页:它列出已配置的目录来源,以搜索方式浏览选中来源的条目,展示每个条目经 npm 校验的可安装性,并在受管 profile 中安装或卸载插件。安装与卸载在宿主上执行并在下次宿主启动时生效;标签页报告 `restartRequired` 而不假装支持热重载。来源管理只在既有来源之间切换;添加与删除来源经 `dsh market` CLI 执行。
 
@@ -82,7 +82,7 @@ web-app bundle 默认挂载本包,标签页出现在设置的插件区。没有�
 - **没有实时安装进度** — 安装与卸载是单次请求/响应操作;较长的 pnpm 运行受宿主 `pnpmTimeoutMs` 约束,只以最终结果呈现。
 
 <a id="dev-note"></a>
-### Dev Note
+### 开发备注
 
 <details>
 <summary>维护者的工作上下文 — 点击展开</summary>

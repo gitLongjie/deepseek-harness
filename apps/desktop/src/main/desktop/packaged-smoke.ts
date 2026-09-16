@@ -117,7 +117,7 @@ export async function runPackagedSmoke(options: PackagedSmokeOptions): Promise<P
   }
 
   try {
-    const html = renderDesktopIndex(ctx, webDistDir)
+    const html = await renderDesktopIndex(ctx, webDistDir)
     checks.push({
       name: 'web-index-render',
       ok: html.length > 0,

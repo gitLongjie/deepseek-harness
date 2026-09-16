@@ -3,4 +3,4 @@
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/kb/kb-gateway/README.md
 README.md: fb82a222a48827756bb2bb713ea54edd879e5795
-README.zh.md: 9028beaf795807562a57b193d990d1821977b448
+README.zh.md: 0ea893da298a5ad5c8ba3f79872d8c75dc4e3aed

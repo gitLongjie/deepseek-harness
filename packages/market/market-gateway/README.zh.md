@@ -7,7 +7,7 @@ kind: "package-reference"
 
 [English](README.md) | 中文
 
-## 摘要
+## 概述
 
 `dsh-market-gateway` 把市场放进宿主经身份验证的 Web 网关:Web 设置页通过该投影读取来源、浏览目录页并发起安装,而不是直接触达服务。每次调用都来自已登录客户端,因此网关原样转发不透明的来源、条目与 bundle id,由 `dsh-market-local` 在宿主侧继续解析包名、版本与命令。任何希望 Web 客户端管理插件的宿主都挂载它。
 
@@ -84,7 +84,7 @@ kind: "package-reference"
 - **仅限受信任客户端** — 投影自身不加授权;它依赖宿主网关的已验证会话与提供方的宿主侧校验。
 
 <a id="dev-note"></a>
-### Dev Note
+### 开发备注
 
 <details>
 <summary>维护者的工作上下文 — 点击展开</summary>

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Host-backed user interfaces use `dsh-file-reference` to offer `@file` completion: a UI asks for path candidates for the addressed agent, the model types `@path` or `@"path with spaces"`, and picking a candidate inserts the matching mention as ordinary prompt text. The seam itself owns no filesystem access — a concrete provider such as `@deepseek-ai/dsh-file-reference-local` supplies candidates, ranking, caching, and invalidation. Selecting a candidate never reads or attaches file contents; the model must call a filesystem tool to inspect a file. Session Controller exposes the same discovery to browser consumers through the `fileReferences/list` Remote, and workspace import — storing an externally sourced file so `@` mentions can address it — through the `fileReferences/import` Remote.
+Host-backed user interfaces use `dsh-file-reference` to offer `@file` completion: a UI asks for path candidates for the addressed agent, the model types `@path` or `@"path with spaces"`, and picking a candidate inserts the matching mention as ordinary prompt text. The seam itself owns no filesystem access — a concrete provider such as `@deepseek-ai/dsh-file-reference-local` supplies candidates, ranking, caching, and invalidation. Selecting a candidate never reads or attaches file contents; the model must call a filesystem tool to inspect a file. Session Controller exposes the same discovery to browser consumers through the `fileReferences/list` Remote.
 
 ## Table of Contents
 
@@ -35,10 +35,6 @@ An `@path` token at the start of input or after whitespace triggers completion; 
 
 `ctx.fileReferences.list(agent, query, signal)` returns path-only file and directory candidates for one agent's working directory, deterministically ranked by the provider. Directory mentions render with a trailing `/` so completion can descend another level. Browser consumers call the Session Controller adapter as `ctx.remote.fileReferences.list`; the trailing signal cancels a slow autocomplete.
 
-### Importing a file
-
-`ctx.fileReferences.import(agent, { name, data }, signal)` stores one externally sourced file inside the agent's workspace — the composer's "add file" path — and answers with the stored copy's workspace-relative path, ready to render as an `@` mention. Implementations never overwrite an existing file: a name collision receives a numeric suffix. Browser consumers call the Session Controller adapter as `ctx.remote.fileReferences.import` with canonical base64 bytes.
-
 ### Pairing with a provider
 
 For a local filesystem, mount `@deepseek-ai/dsh-file-reference-local`; other namespaces (remote or virtual filesystems) need a provider whose discovery matches the effective tool. When the addressed agent can call `read`, a provider may install the stable `FILE_REFERENCE_PROMPT` guidance that tells the model to read a referenced file before claiming to have inspected it.
@@ -63,8 +59,8 @@ The package separates an abstract discovery service from a shared, browser-safe 
 |---|---|
 | [`src/index.ts`](src/index.ts) | Abstract `FileReferenceService` and `FILE_REFERENCE_PROMPT` |
 | [`src/grammar.ts`](src/grammar.ts) | `activeAtToken` recognition and `formatFileMention` rendering |
-| [`src/types.ts`](src/types.ts) | `FileReferenceCandidate`, `FileImportRequest`, and `FileImportValue` wire types |
-| [`src/invariant.ts`](src/invariant.ts) | Invariant companion for the discovery contract |
+| [`src/types.ts`](src/types.ts) | `FileReferenceCandidate` path-only result type |
+| — | No runtime invariant companion is published; the interface retains no candidate or lifecycle state; concrete providers own their cache and invalidation relationships. |
 
 ### Main flow
 

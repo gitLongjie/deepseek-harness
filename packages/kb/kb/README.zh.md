@@ -7,7 +7,7 @@ kind: "package-reference"
 
 [English](README.md) | 中文
 
-## 概要
+## 概述
 
 `dsh-kb` 声明知识库能力:列出部署的知识服务向所配置凭据暴露的库。库 id 由后端分配且不透明;可见性跟随提供者解析的凭据,列出的库就是部署可读的全部。具体 WeKnora 提供者位于 `dsh-kb-weknora`;消费方是宿主 Remote 网关(`dsh-kb-gateway`)与 Web 客户端的侧边栏知识分区。检索动词在消费方需要时加入本定义。
 
@@ -85,7 +85,7 @@ kind: "package-reference"
 - **仅列表** — 检索动词在消费方需要时加入定义;在此之前,客户端只能通过面向模型的知识工具从库中作答。
 
 <a id="dev-note"></a>
-### 开发注记
+### 开发备注
 
 <details>
 <summary>维护者的工作上下文——点击展开</summary>

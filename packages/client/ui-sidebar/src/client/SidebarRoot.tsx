@@ -1,15 +1,15 @@
 /**
- * Sidebar shell: column geometry only. Collapse is a slide plus crossfade:
+ * Sidebar shell: column geometry and global panel navigation.
+ * Collapse is a slide plus crossfade:
  * content freezes at its expanded width (inline style) and fades out in place
  * while the sliding column (AppFrame grid tracks) clips it — nothing reflows
- * mid-slide. At settle the wide-only content unmounts and the four upper
+ * mid-slide. At settle the wide-only content unmounts and the upper
  * controls enter the 56px rail from the same horizontal offset (one icon each,
  * same top-down order) on one fade that ends with the slide. The bottom-pinned
- * settings control only fades. The browsing region between the New Session
- * row and the foot holds the `sidebar.knowledge`, `sidebar.business`, and
- * `sidebar.workspaces` registrants in that top-down order (all optional), and
- * the foot holds `sidebar.settings` plus `sidebar.footer.action`; the shell
- * hands them the wide flag (plus an expand request callback for the browsers).
+ * settings control only fades. The workspace/session browsing region between
+ * global panel rows and the foot is the `sidebar.workspaces` registrant's,
+ * and the foot holds `sidebar.settings` plus `sidebar.footer.action`; the shell
+ * hands them the wide flag (plus an expand request callback for the browser).
  *
  * The column also owns whether the scroll regions nested in it draw a
  * scrollbar at all: the shell tracks the pointer and rebinds ui-theme's
@@ -19,9 +19,12 @@
 import { useEffect, useRef, useState } from 'react'
 import clsx from 'clsx'
 import {
-  IconPanelLeftOutline16, IconPlusOutline16, Tooltip,
+  IconNewChatOutline16, IconPanelLeftOutline16, Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { SidebarRootComponentProps } from './contract/slots.ts'
+import type { InjectFace, PropsRenderSlots, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import type {
+  SidebarPanelMetadata, SidebarRootComponentProps, SidebarRootInjected, SidebarSectionOwnerProps,
+} from './contract/slots.ts'
 import css from './SidebarRoot.module.css'
 
 /** Wide-content unmount delay; matches the 150ms wide-content fade-out. */
@@ -35,6 +38,48 @@ const COLLAPSE_SETTLE_MS = 150
  */
 const SCROLLBAR_LINGER_MS = 2000
 
+/** Format complete-build metadata for the local brand badge. */
+function localBuildVersion(): string | undefined {
+  const version = process.env.DSH_CLIENT_VERSION
+  if (version === undefined) return undefined
+  const commit = process.env.DSH_CLIENT_COMMIT_HASH
+  return version
+    + (commit === undefined ? '' : `-${commit}`)
+    + (process.env.DSH_CLIENT_GIT_DIRTY === 'true' ? '-dirty' : '')
+}
+
+type PanelRowProps =
+  Pick<SidebarPanelMetadata, 'id' | 'label'>
+  & Pick<SidebarSectionOwnerProps, 'wide'>
+  & Pick<PropsRuntime<'sidebar'>, 'usePanelInfo'>
+  & Pick<InjectFace<SidebarRootInjected>, 'selectPanel'>
+  & PropsRenderSlots<'sidebar.panellist'>
+
+/** Each panel row subscribes only to its own selection state. */
+function PanelRow({ id, label, wide, usePanelInfo, selectPanel, renderSlot }: PanelRowProps) {
+  const active = usePanelInfo(info => info.activePanelId === id)
+  return (
+    <Tooltip label={label} delayMs={500} disabled={wide}>
+      <button
+        type="button"
+        className={clsx(css.panelRow, active && css.panelActive)}
+        aria-label={label}
+        aria-current={active ? 'page' : undefined}
+        onClick={() => { selectPanel(id) }}
+      >
+        <span className={css.panelGlyph} aria-hidden="true">
+          {renderSlot('sidebar.panellist', { size: wide ? 16 : 18, active }, { only: id })}
+        </span>
+        {wide && (
+          <span className={clsx(css.panelTitle, css.wide)}>
+            {label}
+          </span>
+        )}
+      </button>
+    </Tooltip>
+  )
+}
+
 /**
  * Render the sidebar column shell.
  * @param props - composed slot props (runtime share + injected callbacks, contract/slots.ts).
@@ -45,9 +90,13 @@ export function SidebarRoot({
   width,
   startSession,
   toggleSidebar,
+  selectPanel,
+  usePanels,
+  usePanelInfo,
   t,
   renderSlot,
 }: SidebarRootComponentProps) {
+  const panels = usePanels(snapshot => snapshot)
   // Wide content stays mounted while the collapse animates (fading via
   // .collapsed .wide), unmounts at settle, and remounts right away on expand.
   const [settled, setSettled] = useState(collapsed)
@@ -112,6 +161,8 @@ export function SidebarRoot({
     }
   }, [pointerInside])
 
+  const buildVersion = localBuildVersion()
+
   return (
     <div
       ref={column}
@@ -137,15 +188,26 @@ export function SidebarRoot({
             onClick={() => { startSession() }}
           >
             <span className={css.brandIdentity} aria-hidden="true">
+              <span className={css.brandMark}>
+                {renderSlot('sidebar.brand.mark', { size: 24 })}
+              </span>
               <span className={css.brandName}>
                 {renderSlot('sidebar.brand.name', {}, {
-                  fallback: <span className={css.fallbackBrandName}>{t('brand.localBuild')}</span>,
+                  fallback: buildVersion === undefined
+                    ? <span className={css.fallbackBrandName}>{t('brand.localBuild')}</span>
+                    : (
+                      <span className={css.localBuildBrand}>
+                        <span className={css.localBuildTitle}>{t('brand.localBuild')}</span>
+                        <span className={css.buildVersion}>{buildVersion}</span>
+                      </span>
+                    ),
                 })}
               </span>
             </span>
           </button>
         )}
-        {/* The collapsed rail uses only the panel icon as the expand affordance. */}
+        {/* Rail resting state is the whale mark; hovering swaps in the panel
+            icon (the expand affordance, figma sidebar-hover flow). */}
         <Tooltip label={collapsed ? t('toggle.open') : t('toggle.collapse')} delayMs={500}>
           <button
             type="button"
@@ -153,6 +215,11 @@ export function SidebarRoot({
             aria-label={collapsed ? t('toggle.open') : t('toggle.collapse')}
             onClick={() => { toggleSidebar() }}
           >
+            {!wide && (
+              <span className={css.railMark} aria-hidden="true">
+                {renderSlot('sidebar.brand.mark', { size: 24 })}
+              </span>
+            )}
             {/* Rail icons render at 18 (figma rail spec); expanded keeps the glyph-native sizes. */}
             <IconPanelLeftOutline16 className={css.panelIcon} size={wide ? 16 : 18} />
           </button>
@@ -167,10 +234,26 @@ export function SidebarRoot({
           aria-label={t('session.new.label')}
           onClick={() => { startSession() }}
         >
-          <IconPlusOutline16 size={wide ? 14 : 18} />
+          <IconNewChatOutline16 size={wide ? 14 : 18} />
           {wide && <span className={clsx(css.newSessionLabel, css.wide)}>{t('session.new')}</span>}
         </button>
       </Tooltip>
+
+      {panels.length > 0 && (
+        <nav className={css.panelList} aria-label={t('panels.label')}>
+          {panels.map(({ id, label }) => (
+            <PanelRow
+              key={id}
+              id={id}
+              label={label}
+              wide={wide}
+              usePanelInfo={usePanelInfo}
+              selectPanel={selectPanel}
+              renderSlot={renderSlot}
+            />
+          ))}
+        </nav>
+      )}
 
       {/* The browsing region fills the column between the controls and the
           foot in both states; its rail icon column rides the same slot. The

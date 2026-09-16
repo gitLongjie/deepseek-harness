@@ -7,7 +7,7 @@ kind: "package-reference"
 
 [English](README.md) | 中文
 
-## 摘要
+## 概述
 
 `dsh-market` 让用户从目录源挑选插件并安装进受管 profile。服务列出用户配置的来源、浏览其归一化目录条目、校验每个条目恰好映射到一个 npm 包——确切稳定版本且声明 dsh bundle——并以该确切版本运行 profile 包管理器。id 不透明且经宿主校验:客户端把来源与条目 id 回传给服务,包名、版本与命令全部由服务自行解析。本包只提供约定;HTTPS 目录、npm 注册表与 pnpm 实现位于 `dsh-market-local`。
 
@@ -91,7 +91,7 @@ kind: "package-reference"
 - **每个提供方管理一个 profile** — 约定不涉及多 profile 故事;提供方实现自行选定其管理的 profile。
 
 <a id="dev-note"></a>
-### Dev Note
+### 开发备注
 
 <details>
 <summary>维护者的工作上下文 — 点击展开</summary>

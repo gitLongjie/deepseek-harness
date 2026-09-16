@@ -7,7 +7,7 @@ kind: "package-reference"
 
 [English](README.md) | 中文
 
-## 摘要
+## 概述
 
 `dsh-market-local` 在本机实现市场约定:通过有界 HTTPS 读取你配置的目录来源,对每个候选包执行 npm 注册表校验,再用 pnpm 把解析出的确切版本安装进受管 profile。全新 home 以内置的 DSH 1024Store 来源预选启动,你也可以添加自己的标准 dsh 目录来源。`dsh market` CLI 与 Web 设置页都构建在该服务之上;安装行为等同 `dsh plugin add`,并在下次宿主启动时激活。
 
@@ -109,7 +109,7 @@ manifest 端点离开其源、缺失 `/v1/plugins` 或超出响应上限的来�
 - **store-v1 过滤发生在拉取之后** — 完整可安装列表必须装进 `maxCatalogBytes`;更大的上游列表会失败而不是截断。
 
 <a id="dev-note"></a>
-### Dev Note
+### 开发备注
 
 <details>
 <summary>维护者的工作上下文 — 点击展开</summary>

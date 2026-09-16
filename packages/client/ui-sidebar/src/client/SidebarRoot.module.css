@@ -24,7 +24,7 @@
 
 /* Rail geometry (figma rail spec): 36x36 control boxes centered in the 56px
    rail (10px side padding), 12px vertical rhythm, 18px from the rail top to
-   the brand mark's box. */
+   the whale's box (24px to the 24-wide whale glyph itself). */
 .root.collapsed {
   padding: 18px 10px 6px;
 }
@@ -58,13 +58,14 @@
   from { opacity: 0; }
 }
 
-/* At the 150ms rail settle, the four upper controls enter from the former
+/* At the 150ms rail settle, the upper controls enter from the former
    rail right edge over the remaining 150ms of the AppFrame track transition.
    The bottom-pinned settings seat shares their opacity timeline but stays
    horizontally fixed. Only a live collapse gets .railIn; a cold collapsed
    render stays static. */
 .railIn .iconButton,
 .railIn .newSession,
+.railIn .panelList,
 .railIn .regionArea {
   animation: rail-in 150ms var(--ds-ease-in-out) backwards;
 }
@@ -124,12 +125,21 @@
   cursor: pointer;
 }
 
-/* The expanded sidebar carries the product name without a leading brand mark. */
+/* Mark and name are independent slots; the shell owns their shared baseline,
+   spacing, and height so either occupant can vary in width. */
 .brandIdentity {
   display: inline-flex;
   align-items: center;
+  gap: 8px;
   height: 24px;
   min-width: 0;
+}
+
+.brandMark {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .brandName {
@@ -150,6 +160,23 @@
   white-space: nowrap;
 }
 
+.localBuildBrand {
+  flex: none;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 1px;
+  height: 24px;
+  white-space: nowrap;
+}
+
+.localBuildTitle {
+  font-size: 12px;
+  line-height: 13px;
+  letter-spacing: 0;
+}
+
 .iconButton {
   flex: none;
   display: inline-flex;
@@ -159,6 +186,7 @@
   height: 28px;
   border: none;
   border-radius: 50%;
+  corner-shape: round;
   padding: 0;
   background: transparent;
   cursor: pointer;
@@ -174,28 +202,64 @@
   height: 36px;
 }
 
+/* Rail logo swap: collapsed, the toggle rests as the whale mark (brand ink,
+   no hover circle) and hovering reveals the panel icon — the expand
+   affordance (figma sidebar-hover flow). Expanded it is a plain panel icon. */
+.collapsed .toggle .panelIcon {
+  display: none;
+}
+
+.collapsed .toggle:hover .panelIcon {
+  display: inline;
+}
+
+.collapsed .toggle:hover .railMark {
+  display: none;
+}
+
+.railMark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 /* Rail icons ride the primary ink (figma rail spec); expanded keeps the
    secondary icon-button ink. */
 .collapsed .iconButton {
   color: var(--dsw-alias-label-primary);
 }
 
-/* New Session: a flat row matching the browsing-region rows (8px radius,
-   transparent fill, hover chrome); collapsed it renders as the rail's plain
-   icon control. */
+.buildVersion {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  height: 10px;
+  padding: 0 3px;
+  border-radius: 2px;
+  color: var(--dsw-alias-label-primary-inverted);
+  background: var(--dsw-alias-label-primary);
+  font-family: var(--ds-font-family-code);
+  font-size: 6px;
+  font-weight: 500;
+  line-height: 10px;
+  white-space: nowrap;
+}
+
+/* New Session: 38px bar, 12px radius (figma 133:7634 geometry, squared-off
+   corners); collapsed it renders as the rail's plain icon control. */
 .newSession {
   flex: none;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   gap: 6px;
-  height: 36px;
-  padding: 0 8px;
+  height: 38px;
+  padding: 8px 16px;
   margin: 0 2px 8px;
   box-sizing: border-box;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
+  border: 0.5px solid var(--dsw-alias-border-l3);
+  border-radius: 12px;
+  background: var(--dsw-alias-button-elevated-fill);
   color: var(--dsw-alias-label-primary);
   font-size: 14px;
   font-weight: 500;
@@ -205,17 +269,17 @@
 }
 
 .newSession:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
+  background: var(--dsw-alias-button-floating-hover);
 }
 
 .collapsed .newSession {
   align-self: flex-start;
-  justify-content: center;
   width: 36px;
   height: 36px;
   padding: 0;
   margin: 0 0 12px;
   gap: 0;
+  border-color: transparent;
   background: transparent;
 }
 
@@ -231,6 +295,74 @@
 
 .collapsed .newSessionLabel {
   max-width: 0;
+}
+
+.panelList {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.panelRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 36px;
+  padding: 7px 8px;
+  box-sizing: border-box;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font: inherit;
+  line-height: 22px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.panelRow:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.panelRow.panelActive {
+  background: var(--dsw-alias-interactive-bg-active);
+  color: var(--dsw-alias-label-primary);
+  font-weight: 500;
+}
+
+.panelRow:focus-visible {
+  outline: 2px solid var(--dsw-alias-label-primary);
+  outline-offset: -2px;
+}
+
+.panelGlyph {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.panelTitle {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.collapsed .panelList {
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.collapsed .panelRow {
+  width: 36px;
+  height: 36px;
+  justify-content: center;
+  padding: 0;
+  color: var(--dsw-alias-label-primary);
 }
 
 /* Region seat: always mounted so the foot never moves. Its trailing margin
@@ -253,28 +385,19 @@
   padding-left: 0;
 }
 
-/* Footer seats: wide renders the additive actions and Settings on one row
-   (actions stretch to fill, Settings pinned at the right edge at content
-   width); the collapsed rail stacks them. Each occupant owns its button
-   geometry and hover chrome. */
+/* Footer seats: additive actions stack above Settings. Each occupant owns its
+   button geometry and hover chrome. */
 .footArea {
   flex: none;
   display: flex;
-  flex-direction: row;
-  align-items: stretch;
+  flex-direction: column;
 }
 
 .settingsArea,
 .footerActions {
-  min-width: 0;
-}
-
-.footerActions {
-  flex: 1;
-}
-
-.settingsArea {
   flex: none;
+  min-width: 0;
+  width: 100%;
 }
 
 .footerActions {
@@ -282,7 +405,6 @@
 }
 
 .collapsed .footArea {
-  flex-direction: column;
   align-items: center;
 }
 
@@ -298,6 +420,7 @@
   .fading > *,
   .railIn .iconButton,
   .railIn .newSession,
+  .railIn .panelList,
   .railIn .footArea,
   .railIn .regionArea {
     transition: none;

@@ -7,7 +7,7 @@ kind: "package-reference"
 
 [English](README.md) | 中文
 
-## 概要
+## 概述
 
 `dsh-kb-weknora` 在自托管 WeKnora 部署之上挂载 `ctx.knowledgeBase`:每次读取一个 `GET /knowledge-bases` 请求,带墙钟时间上界、响应体大小上界与逐次凭据解析,轮换后的密钥无需重启即可到达下一次调用。base URL 是部署自有配置且通常位于内网,因此与市场传输不同,本提供者不设公网地址守卫——配置的 URL 就是信任决策。侧边栏知识分区经线面网关消费它。
 
@@ -86,7 +86,7 @@ yml 中缺席的每个连接字段先经信任环境层解析,再到内置默认
 - **无公网地址守卫** — 市场传输的 HTTPS-only 公网主机规则在此刻意不适用;需要该策略的部署必须在自己的边界上拥有它。
 
 <a id="dev-note"></a>
-### 开发注记
+### 开发备注
 
 <details>
 <summary>维护者的工作上下文——点击展开</summary>

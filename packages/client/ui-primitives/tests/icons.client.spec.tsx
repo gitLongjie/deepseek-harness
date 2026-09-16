@@ -3,7 +3,8 @@ import { cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import * as primitives from '@deepseek-ai/dsh-client-ui-primitives'
 import {
-  IconApiOutline14, IconArchiveOutline20, IconFolderClose16, IconGoalOutline16, IconSendOutline16,
+  IconAlarmClockOutline16, IconApiOutline14, IconArchiveOutline20, IconFolderClose16,
+  IconGoalOutline16, IconSendOutline14,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 
 afterEach(cleanup)
@@ -16,8 +17,16 @@ const icons = Object.fromEntries(
 const iconNames = Object.keys(icons)
 
 describe('ic_ds_ icon set', () => {
-  it('exports the full icon set (46 deepsuite + 21 figma extracts + five product glyphs outside those sets)', () => {
-    expect(iconNames.length).toBe(72)
+  it('exports the full icon set (46 deepsuite + 21 figma extracts + twelve product glyphs outside those sets)', () => {
+    expect(iconNames.length).toBe(80)
+    // The composer menu's own glyphs, pinned by name.
+    expect(iconNames).toEqual(expect.arrayContaining(['IconPlanOutline14', 'IconCompactOutline16', 'IconShieldOutline16']))
+  })
+
+  it('the permission selector composes its marks over the shield contour exported here', () => {
+    const { container } = render(<primitives.IconShieldOutline16 />)
+    expect(container.querySelector('path')?.getAttribute('d')).toBe(primitives.SHIELD_OUTLINE_PATH)
+    expect(container.querySelector('path')?.getAttribute('stroke-width')).toBe(primitives.SHIELD_OUTLINE_STROKE)
   })
 
   it.each(iconNames)('%s renders an svg with currentColor fills and no hardcoded palette', (name) => {
@@ -31,7 +40,7 @@ describe('ic_ds_ icon set', () => {
   })
 
   it('size and className props land on the root svg', () => {
-    const { container } = render(<IconSendOutline16 size={20} className="x" />)
+    const { container } = render(<IconSendOutline14 size={20} className="x" />)
     const svg = container.querySelector('svg')!
     expect(svg.getAttribute('width')).toBe('20')
     expect(svg.getAttribute('height')).toBe('20')
@@ -45,6 +54,8 @@ describe('ic_ds_ icon set', () => {
     expect(folder.container.querySelector('svg')!.getAttribute('width')).toBe('16')
     const archive = render(<IconArchiveOutline20 />)
     expect(archive.container.querySelector('svg')!.getAttribute('width')).toBe('20')
+    const alarm = render(<IconAlarmClockOutline16 />)
+    expect(alarm.container.querySelector('svg')!.getAttribute('width')).toBe('16')
   })
 
   it('renders reusable goal glyphs without document-global ids', () => {
@@ -64,22 +75,6 @@ describe('FishLogo', () => {
     expect(container.querySelectorAll('path')).toHaveLength(1)
     expect(container.innerHTML).toContain('currentColor')
     expect(container.innerHTML).not.toContain('M0 0L23.16')
-  })
-})
-
-describe('MewoLogo', () => {
-  it('renders the square application artwork at the requested size', () => {
-    const { container } = render(<primitives.MewoLogo size={34} className="hero-mark" />)
-    const image = container.querySelector('img')!
-    const encoded = image.getAttribute('src')?.split(',')[1]
-    const png = Buffer.from(encoded ?? '', 'base64')
-
-    expect(png.subarray(1, 4).toString('ascii')).toBe('PNG')
-    expect(png.readUInt32BE(16)).toBe(72)
-    expect(png.readUInt32BE(20)).toBe(72)
-    expect(image.getAttribute('width')).toBe('34')
-    expect(image.getAttribute('height')).toBe('34')
-    expect(image.getAttribute('class')).toBe('hero-mark')
   })
 })
 

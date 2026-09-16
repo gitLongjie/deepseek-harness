@@ -1,7 +1,17 @@
-import type { HeroBrandMarkOwnerProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { SidebarBrandMarkOwnerProps } from '@deepseek-ai/dsh-client-ui-sidebar/client'
 
-type OfficialBrandMarkProps = HeroBrandMarkOwnerProps & SidebarBrandMarkOwnerProps
+/**
+ * The hero and sidebar mark seats share one presentation shape (square edge
+ * plus host class). Declared structurally here so this package stays a leaf:
+ * importing the conversation face would drag its whole client program into
+ * this package's compilation.
+ */
+type OfficialBrandMarkProps = {
+  /** Requested square edge in pixels. */
+  size: number
+  /** Host class preserving the surrounding mark geometry. */
+  className?: string | undefined
+} & SidebarBrandMarkOwnerProps
 
 /**
  * Render the official mark with the presentation requested by its host surface.

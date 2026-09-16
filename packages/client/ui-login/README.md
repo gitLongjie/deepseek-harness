@@ -1,8 +1,17 @@
+---
+description: "Sign-in plugin for the dsh web client: a full-page login takeover and a signed-in account row wired to the deployment's account server through the OEM config."
+kind: "package-reference"
+---
+
 # @deepseek-ai/dsh-client-ui-login
 
 English | [中文](README.zh.md)
 
+## Summary
+
 This package registers the account sign-in flow against the deployment's account server. The repository [`oem.config.json`](../../../oem.config.json) owns the default endpoint, product name, shared `brandIcon`, and Chinese and English `loginTagline` copy. The login card renders that icon and the active locale's tagline; an explicit `DSH_CLIENT_LOGIN_URL` overrides the endpoint, and an empty override loads the plugin but registers nothing.
+
+## Table of Contents
 
 Two occupants install through declaration-aware `slots.inject()` calls, so activation order relative to ui-layout and ui-sidebar does not matter and teardown withdraws both:
 
@@ -26,3 +35,7 @@ None; this package neither assembles nor sends a provider request.
 - **No session refresh** — the stored profile is display-only; a server-side rename or avatar change appears after the next sign-in.
 - **No registration entry** — accounts are issued by the account server; the sign-in card deliberately offers no sign-up link.
 - **Bearer-session calls are out of scope** — the account server's session cookie is not replayed against other endpoints by this package.
+
+### Dev Note
+
+The two occupants share one `localStorage` profile record; the overlay and the account row both read it on mount, and sign-out clears it once for both surfaces.

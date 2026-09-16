@@ -1,8 +1,17 @@
+---
+description: "dsh Web 客户端的登录插件：整页登录接管与已登录账号行，通过 OEM 配置对接部署的账号服务器。"
+kind: "package-reference"
+---
+
 # @deepseek-ai/dsh-client-ui-login
 
 [English](README.md) | 中文
 
+## 概述
+
 本包针对部署的账号服务器注册登录流程。仓库 [`oem.config.json`](../../../oem.config.json) 提供默认端点、产品名称、共用的 `brandIcon` 及中英文 `loginTagline` 文案。登录卡片会渲染该图标与当前 locale 的副标题；显式的 `DSH_CLIENT_LOGIN_URL` 会覆盖端点，将它设为空字符串的构建只加载插件、不注册任何占位。
+
+## 目录
 
 两个占位通过声明感知的 `slots.inject()` 安装，因此与 ui-layout、ui-sidebar 的激活顺序无关，卸载时一并撤出：
 
@@ -26,3 +35,7 @@
 - **不刷新会话** —— 存储的资料仅用于展示；服务器端改名或换头像在下次登录后才会出现。
 - **无注册入口** —— 账号由账号服务器发放；登录卡片刻意不提供注册链接。
 - **不代发会话请求** —— 本包不将账号服务器的 session cookie 重放到其他端点。
+
+### 开发备注
+
+两个占位共享同一条 `localStorage` 资料记录；overlay 与账号行都在挂载时读取它，退出登录只清除一次即可同时撤出两个表面。

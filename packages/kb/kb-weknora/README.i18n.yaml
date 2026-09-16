@@ -3,4 +3,4 @@
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/kb/kb-weknora/README.md
 README.md: 7439cd29164bac8489c547e68f523c759c6032dc
-README.zh.md: 36e960954d2e9a4696e3e3027c7862384f9f2079
+README.zh.md: 0a4717cd15a649d8ed94f70d85c1cff0904d3f57

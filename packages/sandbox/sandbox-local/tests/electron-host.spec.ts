@@ -69,7 +69,7 @@ describe('windows-acl runner resolution inside an Electron embedding', () => {
   it('runs the unpacked on-disk twin in Node mode when the resolved entry lives inside app.asar', async () => {
     const { asarEntry, unpackedEntry } = fakePackagedEntry()
     const sandbox = await setup({ electronHost: true, windowsAclRunnerEntry: asarEntry })
-    const confined = sandbox.confine(['true'], RO)
+    const confined = await sandbox.confine(['true'], RO)
     expect(confined.argv.slice(0, 2)).toEqual([process.execPath, unpackedEntry])
     expect(confined.env).toEqual({ ELECTRON_RUN_AS_NODE: '1' })
   })
@@ -86,7 +86,7 @@ describe('windows-acl runner resolution inside an Electron embedding', () => {
     const builtEntry = join(root, 'runner.js')
     writeFileSync(builtEntry, 'process.exit(0)')
     const sandbox = await setup({ electronHost: true, windowsAclRunnerEntry: builtEntry })
-    const confined = sandbox.confine(['true'], RO)
+    const confined = await sandbox.confine(['true'], RO)
     expect(confined.argv.slice(0, 2)).toEqual([process.execPath, builtEntry])
     expect(confined.env).toEqual({ ELECTRON_RUN_AS_NODE: '1' })
   })
@@ -97,14 +97,14 @@ describe('windows-acl runner resolution inside an Electron embedding', () => {
     const builtEntry = join(root, 'runner.js')
     writeFileSync(builtEntry, 'process.exit(0)')
     const sandbox = await setup({ windowsAclRunnerEntry: builtEntry })
-    const confined = sandbox.confine(['true'], RO)
+    const confined = await sandbox.confine(['true'], RO)
     expect(confined.argv.slice(0, 2)).toEqual([process.execPath, builtEntry])
     expect(confined.env).toBeUndefined()
   })
 
   it('the operator argv override stays untouched and injects no environment', async () => {
     const sandbox = await setup({ electronHost: true, windowsAclRunnerArgs: ['fake-runner', '--flag'] })
-    const confined = sandbox.confine(['true'], RO)
+    const confined = await sandbox.confine(['true'], RO)
     expect(confined.argv.slice(0, 2)).toEqual(['fake-runner', '--flag'])
     expect(confined.env).toBeUndefined()
   })
@@ -120,7 +120,7 @@ describe('windows-acl runner resolution inside an Electron embedding', () => {
       electronHost: true,
       windowsAclRunnerEntry: asarEntry,
     })
-    const confined = sandbox.confine(['true'], RO)
+    const confined = await sandbox.confine(['true'], RO)
     expect(confined.argv.slice(0, 2)).toEqual([process.execPath, unpackedEntry])
     expect(confined.env).toEqual({ ELECTRON_RUN_AS_NODE: '1' })
   }, 15_000)

@@ -6,7 +6,6 @@
  */
 
 import { randomUUID } from '@deepseek-ai/dsh-util-crypto'
-import type { RpcStreamOpen } from '@deepseek-ai/dsh-client-connection'
 
 /** The preload bridge surface, exposed as `window.__DSH_IPC__`. */
 export interface IpcBridge {
@@ -38,7 +37,7 @@ function headersToRecord(headers?: HeadersInit): Record<string, string> | undefi
 /** One unary fetch through the IPC bridge. */
 async function ipcFetch(ipc: IpcBridge, input: URL, init: RequestInit): Promise<Response> {
   const requestId = randomUUID()
-  const signal = init.signal
+  const signal = init.signal ?? undefined
   if (signal !== undefined && !signal.aborted) {
     signal.addEventListener('abort', () => { ipc.send('dsh:transport:abort', requestId) }, { once: true })
   }
@@ -51,7 +50,7 @@ async function ipcFetch(ipc: IpcBridge, input: URL, init: RequestInit): Promise<
   }) as { status: number; body: number[]; contentType?: string }
   return new Response(new Uint8Array(res.body), {
     status: res.status,
-    headers: res.contentType === undefined ? undefined : { 'content-type': res.contentType },
+    ...(res.contentType === undefined ? {} : { headers: { 'content-type': res.contentType } }),
   })
 }
 
@@ -61,6 +60,14 @@ export function createIpcFetch(ipc: IpcBridge): (input: URL, init: RequestInit) 
 }
 
 type StreamFrame = { streamId: string; item: unknown } | { streamId: string; kind: 'end' }
+
+/** Worker-local opener for decoded Gateway Remote streams (client face's contract, restated
+ * locally because the desktop render half compiles against the host face). */
+export type RpcStreamOpen = (
+  endpoint: string,
+  payload: unknown,
+  signal: AbortSignal,
+) => AsyncIterable<unknown>
 
 /**
  * The Gateway stream opener: one IPC stream per logical Remote stream, with

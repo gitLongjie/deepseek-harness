@@ -30,6 +30,7 @@
   height: 28px;
   border: none;
   border-radius: 50%;
+  corner-shape: round;
   padding: 0;
   background: transparent;
   cursor: pointer;
@@ -78,6 +79,7 @@
   box-sizing: border-box;
   border: none;
   border-radius: 50%;
+  corner-shape: round;
   background: transparent;
   cursor: text;
   color: var(--dsw-alias-label-secondary);
@@ -92,7 +94,7 @@
 .searchExpanded {
   height: 30px;
   padding: 0 4px 0 0;
-  border: 1px solid var(--dsw-alias-border-l2);
+  border: 0.5px solid var(--dsw-alias-border-l2);
   border-radius: 10px;
   background: transparent;
   color: var(--dsw-alias-label-caption);
@@ -107,6 +109,7 @@
   height: 28px;
   border: none;
   border-radius: 50%;
+  corner-shape: round;
   padding: 0;
   background: transparent;
   cursor: pointer;
@@ -186,7 +189,7 @@
   flex: none;
   height: 36px;
   padding: 0 12px 0 4px;
-  border-bottom: 1px solid var(--dsw-alias-border-l2);
+  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
   color: var(--dsw-alias-label-tertiary);
   font-size: 12px;
   line-height: 18px;

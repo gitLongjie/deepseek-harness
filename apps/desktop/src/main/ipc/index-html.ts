@@ -28,12 +28,12 @@ function escapeInlineScript(text: string): string {
 }
 
 /** Resolve one `/plugins` script-src URL — single or combo — to its bundle bytes. */
-function readPluginBundle(modules: ClientModuleRegistry, src: string): string {
-  const response = modules.bundleResponse(src)
-  if (response === undefined) {
+async function readPluginBundle(modules: ClientModuleRegistry, src: string): Promise<string> {
+  const response = await modules.fetchBundle(new Request(src))
+  if (response.status !== 200) {
     throw new Error(`desktop: no served client bundle for ${JSON.stringify(src)}`)
   }
-  return response.body.toString('utf8')
+  return Buffer.from(await response.arrayBuffer()).toString('utf8')
 }
 
 /**
@@ -46,12 +46,12 @@ function readPluginBundle(modules: ClientModuleRegistry, src: string): string {
  * @param clientModulesBootstrapPath - packaged client module bootstrap artifact.
  * @returns the injected index.html text.
  */
-export function renderDesktopIndex(
+export async function renderDesktopIndex(
   ctx: Context,
   webDistDir: string,
   transportIifePath: string = TRANSPORT_IIFE_PATH,
   clientModulesBootstrapPath: string = CLIENT_MODULES_BOOTSTRAP_PATH,
-): string {
+): Promise<string> {
   const server = ctx.get('webServer') as { collectIndexInjections(): IndexInjection[] } | undefined
   if (server === undefined) {
     throw new Error('desktop: no webServer service to collect index injections')
@@ -61,13 +61,14 @@ export function renderDesktopIndex(
     throw new Error('desktop: no clientModules service to resolve bundle bytes')
   }
   const table = server.collectIndexInjections()
-  const inline = table.map((row): IndexInjection => {
+  const inline = table.map(async (row): Promise<IndexInjection> => {
     if (row.kind !== 'script-src') return row
     const text = row.src.startsWith('/plugins/')
-      ? readPluginBundle(modules, row.src)
+      ? await readPluginBundle(modules, row.src)
       : readFileSync(join(webDistDir, row.src), 'utf8')
     return { kind: 'script', placement: row.placement, text: escapeInlineScript(text) }
   })
+  const inlined = await Promise.all(inline)
   // The client module facade is parser-blocking and must register after the
   // queue facade but before the Vite shell entry. A profile assembled without
   // the corresponding index row would otherwise fail only in the renderer,
@@ -76,7 +77,7 @@ export function renderDesktopIndex(
   const hasClientModulesBootstrap = table.some(row =>
     row.kind === 'script-src' && row.src.includes(`${CLIENT_MODULES_ID}/client.js`))
   if (!hasClientModulesBootstrap) {
-    inline.push({
+    inlined.push({
       kind: 'script',
       placement: 'head',
       text: escapeInlineScript(readFileSync(clientModulesBootstrapPath, 'utf8')),
@@ -88,5 +89,5 @@ export function renderDesktopIndex(
     text: escapeInlineScript(readFileSync(transportIifePath, 'utf8')),
   }
   const raw = readFileSync(join(webDistDir, 'index.html'), 'utf8')
-  return renderIndexInjections(raw, [transport, ...inline])
+  return renderIndexInjections(raw, [transport, ...inlined])
 }

@@ -30,14 +30,14 @@ import {
   LAUNCHER_FAILURE_EXIT,
   launcherPath as landlockLauncherPath,
   probe as defaultProbeLandlock,
-} from '@deepseek-ai/node-addon-landlock-run'
+} from '@deepseek-ai/node-addon-system/landlock-run'
 import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { assertNever } from '@deepseek-ai/dsh-llm'
-import { SandboxProvider, SandboxUnavailableError } from '@deepseek-ai/dsh-sandbox'
+import { SandboxProvider, SandboxUnavailableError, canonicalPath } from '@deepseek-ai/dsh-sandbox'
 import type { ConfinedArgv, ConfinedSandboxMode, RunnerFailureRule, SandboxEnforcement, SandboxPolicy } from '@deepseek-ai/dsh-sandbox'
 import type { SessionId } from '@deepseek-ai/dsh-session'
 import { AclWriteGrant, assertTempRootOutsideWorkspace, tempWriteSid, workspaceWriteSid } from '@deepseek-ai/dsh-sandbox-windows-acl'
+import { assertNever } from '@deepseek-ai/dsh-util-values'
 import { bwrapProfileArgs, landlockProfileArgs, seatbeltProfileArgs } from './profiles.ts'
 
 /** Plugin config. All optional — `static Config` supplies the defaults. */
@@ -250,8 +250,8 @@ const DENIAL_SIGNATURES = {
   landlock: ['permission denied'],
   seatbelt: ['operation not permitted'],
   // pwsh/.NET: "Access to the path '...' is denied."; cmd: "Access is denied.";
-  // node EACCES: "permission denied".
-  'windows-acl': ['access is denied', 'access to the path', 'permission denied'],
+  // Node EACCES: "permission denied"; EPERM: "operation not permitted".
+  'windows-acl': ['access is denied', 'access to the path', 'permission denied', 'operation not permitted'],
   runnerCommand: ['read-only file system', 'permission denied'],
 } as const satisfies Record<SelectedRunner['runner'] | 'runnerCommand', readonly string[]>
 
@@ -352,18 +352,21 @@ export class LocalSandboxProvider extends SandboxProvider {
    *
    * @param argv - the exact argv the caller is about to spawn.
    * @param policy - the file-effect policy this execution runs under.
+   * @param signal - cancellation before policy resolution or grant creation.
    * @returns the wrapped argv plus the selected backend's enforcement completeness, denial
    *   signatures, and structured runner-failure rules; throws the fail-closed
    *   `SANDBOX_UNAVAILABLE` error when the platform has no usable runner.
    */
-  confine(argv: readonly string[], policy: SandboxPolicy): ConfinedArgv {
+  async confine(argv: readonly string[], policy: SandboxPolicy, signal?: AbortSignal): Promise<ConfinedArgv> {
+    signal?.throwIfAborted()
+    policy = { ...policy, workspaceRoot: canonicalPath(policy.workspaceRoot) }
     if (this.runnerCommand !== undefined) {
-      return {
+      return Promise.resolve<ConfinedArgv>({
         argv: [...this.runnerCommand, ...bwrapProfileArgs(policy), '--', ...argv],
         enforcement: 'full',
         denialSignatures: DENIAL_SIGNATURES.runnerCommand,
         runnerFailureRules: [{ fatalSignatures: this.configuredRunnerFailureSignatures }],
-      }
+      })
     }
     const selected = this.selectRunner(policy.mode)
     const program = this.runnerProgram(selected.runner, policy)
@@ -606,6 +609,8 @@ export class LocalSandboxProvider extends SandboxProvider {
   /**
    * The windows-acl runner argv prefix: the built lib/runner.js entry when
    * present (production), else the package source through tsx (development).
+   * Pin the source loader and TypeScript paths to this installation, independently
+   * of target cwd or environment overrides.
    * The prefix stays `[node, runner, ...]` — a future native-exe runner keeps
    * the same argv contract and only swaps these entries.
    *

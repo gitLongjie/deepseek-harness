@@ -463,7 +463,7 @@ function registerWebProtocol(writeLog: (line: string) => void): void {
         if (injected === undefined) {
           const ctx = host.ctx
           if (ctx === undefined) throw new Error('desktop: host not ready to render index')
-          injected = renderDesktopIndex(ctx, WEB_DIST_DIR)
+          injected = await renderDesktopIndex(ctx, WEB_DIST_DIR)
         }
         return new Response(injected, { headers: { 'content-type': 'text/html; charset=utf-8' } })
       }

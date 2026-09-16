@@ -15,16 +15,16 @@ import type { ClientModuleRegistry } from '@deepseek-ai/dsh-client-modules'
  * @returns a disposer that removes the handler.
  */
 export function registerBundleIpc(getModules: () => ClientModuleRegistry | undefined): () => void {
-  ipcMain.handle('dsh:transport:loadBundle', (_event, req: { url: string }): number[] | undefined => {
+  ipcMain.handle('dsh:transport:loadBundle', async (_event, req: { url: string }): Promise<number[] | undefined> => {
     const modules = getModules()
     if (modules === undefined) return undefined
-    // Combo URLs (`/plugins/??a/client.js,b/client.js&rev=...`) key the
-    // registry's precomputed response table verbatim, exactly like the web
-    // plugin's `/plugins` HTTP route.
+    // Combo URLs (`/plugins/??a/client.js,b/client.js&rev=...`) resolve through
+    // the registry's bundle table verbatim, exactly like the web plugin's
+    // `/plugins` HTTP route.
     if (!req.url.startsWith('/plugins/')) return undefined
-    const response = modules.bundleResponse(req.url)
-    if (response === undefined) return undefined
-    return Array.from(response.body)
+    const response = await modules.fetchBundle(new Request(req.url))
+    if (response.status !== 200) return undefined
+    return Array.from(new Uint8Array(await response.arrayBuffer()))
   })
   return () => {
     ipcMain.removeHandler('dsh:transport:loadBundle')
