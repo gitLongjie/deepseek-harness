@@ -14,12 +14,14 @@ import { dirname, join, resolve } from 'node:path'
 import { app, BrowserWindow, dialog, ipcMain, protocol } from 'electron'
 import type { Context } from '@deepseek-ai/cordis'
 import { loadLayeredEnv } from '@deepseek-ai/dsh-app-boot'
+import type { TypertGateway } from '@deepseek-ai/dsh-api-gateway/types'
 import { runDesktopBoot } from './boot.ts'
 import type { ProcessShutdown } from './process-shutdown.ts'
 import { dispatchTransportFetch, registerTransportIpc, type TransportFetchRequest } from './ipc/transport.ts'
 import { registerBundleIpc } from './ipc/bundle.ts'
 import { registerPluginToggleIpc } from './ipc/plugin-toggle.ts'
 import { renderDesktopIndex } from './ipc/index-html.ts'
+import { LOOPBACK_AUTHORITY } from './ipc/loopback-authority.ts'
 import { installSingleInstanceLock } from './desktop/single-instance.ts'
 import { installTray, type TrayHandle } from './desktop/tray.ts'
 import { copy, normalizeLocale, type DesktopLocaleId, type DesktopTextKey } from './desktop/locales.ts'
@@ -75,21 +77,6 @@ const WEB_DIST_DIR = fileURLToPath(new URL('../../web/', import.meta.url))
 /** Absolute path of the preload script. */
 const PRELOAD_PATH = fileURLToPath(new URL('../preload/index.js', import.meta.url))
 
-const gotLock = installSingleInstanceLock()
-if (!gotLock) {
-  // app.exit bypasses the before-quit / window-close lifecycle and terminates
-  // immediately. On Windows a Toast-notification click can launch a second
-  // instance through the OS shell; app.quit() leaves the event loop alive long
-  // enough for Electron to flash a default BrowserWindow before the process
-  // settles, which is the blank "Electron" window users reported.
-  app.exit(0)
-} else {
-  void main().catch((error: unknown) => {
-    console.error('desktop: fatal startup failure:', error)
-    app.exit(1)
-  })
-}
-
 /** The settled host context and its shutdown controller, filled after boot. */
 const host: { ctx?: Context; shutdown?: ProcessShutdown } = {}
 
@@ -114,6 +101,21 @@ function readLocalePreference(): DesktopLocaleId {
   } catch {
     return 'zh'
   }
+}
+
+/** Resolve when a live profile reload publishes the next Gateway service. */
+function waitForTransportGateway(): Promise<TypertGateway> {
+  const ctx = host.ctx
+  const gateway = ctx?.get('typertGateway')
+  if (gateway !== undefined) return Promise.resolve(gateway)
+  if (ctx === undefined) return Promise.reject(new Error('desktop: host stopped before Remote streams became available'))
+  return new Promise(resolve => {
+    const dispose = ctx.on('internal/service', (name: string, value: unknown) => {
+      if (name !== 'typertGateway' || value === undefined) return
+      dispose()
+      resolve(value as TypertGateway)
+    })
+  })
 }
 
 /**
@@ -198,7 +200,7 @@ async function main(): Promise<void> {
     registerTransportIpc(() => ({
       gateway: host.ctx?.get('typertGateway'),
       connection: host.ctx?.get('connection'),
-    }))
+    }), waitForTransportGateway)
     registerBundleIpc(() => host.ctx?.get('clientModules'))
     registerPluginToggleIpc()
 
@@ -308,7 +310,6 @@ const RESOURCE_LABEL_KEYS: Record<PackagedResourceLabel, DesktopTextKey> = {
   'web-dist': 'resources.missing.web-dist',
   'agent-presets': 'resources.missing.agent-presets',
   'desktop-patch': 'resources.missing.desktop-patch',
-  'workflow-worker': 'resources.missing.workflow-worker',
   'windows-acl-runner': 'resources.missing.windows-acl-runner',
   'koffi-binding': 'resources.missing.koffi-binding',
 }
@@ -447,6 +448,83 @@ function registerWindowControlsIpc(): void {
   }
 }
 
+/** Authenticated loopback origin and cookie of the in-process host web server. */
+let webProxySession: { origin: string; cookie: string } | undefined
+
+/**
+ * Complete the host web server's token→cookie handshake over the loopback.
+ * The profile runs the web server on 127.0.0.1:0 (the connection row binds its
+ * gateway there), so its routes — open-in-app among them — are reachable
+ * in-process; the exchange mints the authority-bound cookie their trust fence
+ * requires, exactly as a browser's first visit would.
+ * @returns the proxy session, or undefined while the host has not settled.
+ */
+async function ensureWebHostSession(): Promise<{ origin: string; cookie: string } | undefined> {
+  if (webProxySession !== undefined) return webProxySession
+  const ctx = host.ctx
+  if (ctx === undefined) return undefined
+  const webServer = ctx.get('webServer') as { port: number; host: string } | undefined
+  const connection = ctx.get('connection') as
+    { authenticatedUrl(baseUrl: string): string } | undefined
+  if (webServer === undefined || connection === undefined) return undefined
+  const origin = `http://${webServer.host}:${webServer.port}`
+  const response = await fetch(connection.authenticatedUrl(origin), { redirect: 'manual' })
+  const setCookie = response.headers.get('set-cookie')
+  const cookie = setCookie === null ? undefined : setCookie.split(';')[0]
+  webProxySession = { origin, cookie: cookie ?? '' }
+  return webProxySession
+}
+
+/**
+ * Forward one host web-server request from the app scheme to the in-process
+ * loopback listener. The shell is the local trust boundary (the same tier the
+ * /api IPC transport sits in), so its proxy carries the authenticated session
+ * cookie rather than re-deriving the browser fence per request; a rejected
+ * session is re-established once and the request retried.
+ * @param request - the renderer's app-scheme request.
+ * @param writeLog - the shell's log sink for proxy failures.
+ * @returns the web server's response verbatim.
+ */
+async function proxyToWebHost(request: Request, writeLog: (line: string) => void): Promise<Response> {
+  const incoming = new URL(request.url)
+  const attempt = async (session: { origin: string; cookie: string }): Promise<Response> => {
+    const headers = new Headers()
+    for (const name of ['content-type', 'accept']) {
+      const value = request.headers.get(name)
+      if (value !== null) headers.set(name, value)
+    }
+    headers.set('host', session.origin.slice('http://'.length))
+    headers.set('origin', session.origin)
+    if (session.cookie !== '') headers.set('cookie', session.cookie)
+    const body = request.method === 'GET' || request.method === 'HEAD'
+      ? undefined
+      : await request.arrayBuffer()
+    return await fetch(`${session.origin}${incoming.pathname}${incoming.search}`, {
+      method: request.method,
+      headers,
+      ...(body === undefined ? {} : { body }),
+    })
+  }
+  let session = await ensureWebHostSession()
+  if (session === undefined) return new Response('host not ready', { status: 503 })
+  let response = await attempt(session)
+  if (response.status === 401) {
+    webProxySession = undefined
+    session = await ensureWebHostSession()
+    if (session === undefined) return new Response('host not ready', { status: 503 })
+    response = await attempt(session)
+  }
+  if (response.status >= 500) {
+    writeLog(`desktop: web proxy ${request.method} ${incoming.pathname} -> ${response.status}`)
+  }
+  const responseHeaders = new Headers()
+  for (const name of ['content-type', 'cache-control']) {
+    const value = response.headers.get(name)
+    if (value !== null) responseHeaders.set(name, value)
+  }
+  return new Response(await response.arrayBuffer(), { status: response.status, headers: responseHeaders })
+}
+
 /** Serve the frontend dist over the app scheme, rendering the index on demand. */
 function registerWebProtocol(writeLog: (line: string) => void): void {
   let injected: string | undefined
@@ -495,14 +573,24 @@ function registerWebProtocol(writeLog: (line: string) => void): void {
         return new Response(responseBody, { status: response.status, headers: responseHeaders })
       }
       // /plugins/* — dynamic client bundles owned by the module registry, not
-      // static web assets. The renderer may reach them by URL when the
+      // static web assets. The renderer reaches them by URL whenever the
       // transport loadBundle path is not in effect; combo URLs key the
       // registry's precomputed response table verbatim.
       if (pathname.startsWith('/plugins/')) {
-        const modules = host.ctx?.get('clientModules') as { bundleResponse(resourceUrl: string): { body: Buffer; contentType: string } | undefined } | undefined
-        const response = modules?.bundleResponse(`${pathname}${url.search}`)
-        if (response === undefined) return new Response('not found', { status: 404 })
-        return new Response(new Uint8Array(response.body), { headers: { 'content-type': response.contentType } })
+        const modules = host.ctx?.get('clientModules')
+        if (modules === undefined) return new Response('not found', { status: 404 })
+        // The registry reads the resource off the request URL; the app scheme's
+        // own origin is not the authority its response table is keyed on.
+        return await modules.fetchBundle(new Request(
+          new URL(`${pathname}${url.search}`, LOOPBACK_AUTHORITY),
+          { method: request.method },
+        ))
+      }
+      // Host web-server routes (open-in-app availability, icons, launches) are
+      // live on the profile's ephemeral loopback listener; the shell proxies
+      // them there, completing that server's token→cookie trust handshake once.
+      if (pathname.startsWith('/open-in-app/')) {
+        return await proxyToWebHost(request, writeLog)
       }
       const data = await readFile(filePath)
       return new Response(data, { headers: { 'content-type': contentTypeFor(pathname) } })
@@ -524,4 +612,24 @@ function contentTypeFor(pathname: string): string {
   if (pathname.endsWith('.json')) return 'application/json; charset=utf-8'
   if (pathname.endsWith('.webmanifest')) return 'application/manifest+json'
   return 'application/octet-stream'
+}
+
+// The entry invocation must stay the last statement in this module: main() runs
+// synchronously up to its first await, and its early exits (the packaged-resource
+// check above all) read module-level bindings declared further down — currentLocale,
+// host, RESOURCE_LABEL_KEYS. Invoking it any earlier throws a bare ReferenceError
+// on the failure path and buries the real startup reason.
+const gotLock = installSingleInstanceLock()
+if (!gotLock) {
+  // app.exit bypasses the before-quit / window-close lifecycle and terminates
+  // immediately. On Windows a Toast-notification click can launch a second
+  // instance through the OS shell; app.quit() leaves the event loop alive long
+  // enough for Electron to flash a default BrowserWindow before the process
+  // settles, which is the blank "Electron" window users reported.
+  app.exit(0)
+} else {
+  void main().catch((error: unknown) => {
+    console.error('desktop: fatal startup failure:', error)
+    app.exit(1)
+  })
 }

@@ -149,19 +149,24 @@ export function ConversationMainPanel(props: ConversationSlotProps) {
   const hero = sessionId === undefined
     || (shellPhase === 'blank' && (openState === 'open' || summaryBlank === true))
   const phase = settling ? 'settling' : hero ? 'hero' : 'active'
+  const browserPageOpen = expertPageOpen || knowledgePageOpen
 
   return (
     <div ref={rootResizeRef} className={css.root} data-phase={phase}>
-      {/* A browser replaces whatever the session surface shows — hero or a
-          live session. Each owns its own lifetime: the ui-knowledge-base and
-          ui-expert watchers close their page on any Session navigation, so a
-          session click always lands back on the session surface. The expert
-          page wins should both stand at once. */}
-      {expertPageOpen ? (
-        renderSlot('conversation.expert.browser', {})
-      ) : knowledgePageOpen ? (
-        renderSlot('conversation.knowledge.browser', {})
-      ) : (<>
+      {/* The chat surface stays mounted (hidden, not unmounted) while a
+          browser page stands, so toggling back to the conversation is
+          instant: the Lexical editor, scroll positions, and the composer's
+          textarea survive the round trip. Each browser owns its own
+          lifetime — the ui-knowledge-base and ui-expert watchers close
+          their page on any Session navigation, so a session click always
+          lands back on the session surface. The expert page wins should
+          both stand at once. */}
+      <div
+        // display:contents keeps the original flex layout (header + scroll
+        // body as direct .root participants) while the wrapper exists only
+        // to carry the hide toggle.
+        style={browserPageOpen ? { display: 'none' } : { display: 'contents' }}
+      >
         {sessionId === undefined ? null : renderSlot('conversation.session.header', {})}
         <ConversationContent
           {...props}
@@ -173,7 +178,9 @@ export function ConversationMainPanel(props: ConversationSlotProps) {
           onHandleCommit={onHandleCommit}
           onHandleEnd={onHandleEnd}
         />
-      </>)}
+      </div>
+      {expertPageOpen ? renderSlot('conversation.expert.browser', {}) : null}
+      {knowledgePageOpen ? renderSlot('conversation.knowledge.browser', {}) : null}
     </div>
   )
 }
