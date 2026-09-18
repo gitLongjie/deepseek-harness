@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-18-oem-desktop-without-update-feed.md
-2026-09-18-oem-desktop-without-update-feed.md: 515df5c3b29cac42cf88f80ee6e80d9086d0faf6
-2026-09-18-oem-desktop-without-update-feed.zh.md: 9c11352f4664e08d2ebc0edebedba7356760b7d4
+2026-09-18-oem-desktop-without-update-feed.md: a431e22cd3bf753a4ad06a6fa893b8a9e3e64f61
+2026-09-18-oem-desktop-without-update-feed.zh.md: 3af3aca0605b2b1a21892737f0b119042bd4fe41

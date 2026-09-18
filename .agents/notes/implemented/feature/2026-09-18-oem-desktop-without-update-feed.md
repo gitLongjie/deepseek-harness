@@ -10,7 +10,7 @@ English | [中文](2026-09-18-oem-desktop-without-update-feed.zh.md)
 
 ## Decision
 
-`updateUrl` is optional end to end. `oem.config.json` omits it for feed-less deployments; the parser and the desktop packaging projection still reject a present-but-invalid value. The electron-builder overlay omits `dsh.updateUrl` and the `publish` block when no feed exists. At runtime `resolveDesktopUpdateUrl` returns undefined, and `initUpdater` leaves electron-updater entirely unwired: no feed, no startup check, no periodic re-check. `requestUpdateCheck` and the badge's IPC actions are inert, and the Help menu omits the check-updates entry (`updateChecksEnabled`). The in-app badge never appears because no status event is ever sent.
+`updateUrl` is optional end to end. `oem.config.json` omits it for feed-less deployments; the parser and the desktop packaging projection still reject a present-but-invalid value. The electron-builder overlay omits `dsh.updateUrl` and the `publish` block when no feed exists, and the checked-in `electron-builder.yml` declares no publish provider, so the package ships no `app-update.yml` at all. At runtime `resolveDesktopUpdateUrl` returns undefined, and `initUpdater` leaves electron-updater entirely unwired: no feed, no startup check, no periodic re-check. `requestUpdateCheck` and the badge's IPC actions are inert, and the Help menu omits the check-updates entry (`updateChecksEnabled`). The in-app badge never appears because no status event is ever sent.
 
 ## Alternatives considered
 

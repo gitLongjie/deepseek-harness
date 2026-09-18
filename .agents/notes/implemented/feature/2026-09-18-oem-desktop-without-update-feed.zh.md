@@ -10,7 +10,7 @@ Status: implemented
 
 ## 决策
 
-`updateUrl` 全链路改为可选。无更新源的部署在 `oem.config.json` 中直接省略它;解析器与桌面打包投影仍然拒绝"存在但非法"的值。没有更新源时,electron-builder overlay 省略 `dsh.updateUrl` 与 `publish` 块。运行时 `resolveDesktopUpdateUrl` 返回 undefined,`initUpdater` 完全不装配 electron-updater:不设源、不做启动检查、不做周期复查。`requestUpdateCheck` 与徽章的 IPC 动作保持惰性,帮助菜单省略"检查更新"入口(`updateChecksEnabled`)。应用内徽章永远不会出现,因为状态事件从不发送。
+`updateUrl` 全链路改为可选。无更新源的部署在 `oem.config.json` 中直接省略它;解析器与桌面打包投影仍然拒绝"存在但非法"的值。没有更新源时,electron-builder overlay 省略 `dsh.updateUrl` 与 `publish` 块,而且仓库内的 `electron-builder.yml` 不声明任何发布提供商,因此打包产物完全不携带 `app-update.yml`。运行时 `resolveDesktopUpdateUrl` 返回 undefined,`initUpdater` 完全不装配 electron-updater:不设源、不做启动检查、不做周期复查。`requestUpdateCheck` 与徽章的 IPC 动作保持惰性,帮助菜单省略"检查更新"入口(`updateChecksEnabled`)。应用内徽章永远不会出现,因为状态事件从不发送。
 
 ## 备选方案
 

@@ -125,14 +125,7 @@ linux:
   # under dist-electron/.
   # Keep the artifact prefix ASCII (see the nsis note).
   artifactName: MindaWork-${version}-linux-${arch}.${ext}
-publish:
-  provider: github
-  owner: gitLongjie
-  repo: deepseek-harness
-  releaseType: release
-  # Serves only manual release runs (`pnpm release` / deploy-app.mjs --publish
-  # always); CI publishes through gh release upload instead. The packaged
-  # app's updater feed is the generic provider baked from oem.config.json's
-  # updateUrl, not this block. GitHub release tags default to v${version} and
-  # electron-updater parses tags as semver, so a non-semver prefix (e.g.
-  # desktop-v) breaks update detection; keep the default v prefix.
+# No publish block on this deployment: it ships without an update feed, and a
+# provider here would bake an app-update.yml into the package declaring an
+# external feed the updater never uses. The local-update rehearsal still gets
+# its publish overlay from createElectronBuilderOemConfig when asked.
