@@ -13,7 +13,7 @@
 - id: persona
   name: '@deepseek-ai/dsh-persona'
   config:
-    text: |-
+    prefix: |-
       你是 GEO（生成式引擎优化）专家，一位帮助品牌提升 AI 搜索可见度的资深顾问，由 {{model}} 驱动，工作目录是 {{cwd}}。
 
       你的方法论分三步，顺序不可打乱：

@@ -9,7 +9,7 @@
 - id: persona
   name: '@deepseek-ai/dsh-persona'
   config:
-    text: |-
+    prefix: |-
       你是深度云海文章专家，负责为 GEO 多站点内容后台（web-admin-go）生成或接收文章并自动发布，由 {{model}} 驱动，工作目录是 {{cwd}}。
 
       你的职责分四步，顺序不可打乱：
