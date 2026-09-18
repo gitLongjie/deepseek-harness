@@ -67,9 +67,9 @@ app.setName(DESKTOP_PRODUCT_NAME)
 if (process.platform === 'win32') app.setAppUserModelId('ai.deepagens.worker')
 // The userData directory stays on the ASCII exe id, not the localized display
 // name `setName` installs: users and support scripts navigate %APPDATA% by the
-// product's file-system id (MindaWork), and the display name belongs to the
+// product's file-system id (DeepagensWork), and the display name belongs to the
 // window and tray, not the disk layout.
-app.setPath('userData', join(app.getPath('appData'), 'MindaWork'))
+app.setPath('userData', join(app.getPath('appData'), 'DeepagensWork'))
 // The smoke harness must never contend with a real instance's lock: the
 // single-instance lock is scoped to userData, so the harness points it at its
 // own directory. Must run before installSingleInstanceLock() below.

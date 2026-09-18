@@ -1,7 +1,7 @@
 {
   "name": "@xmanrui/expert-article-publisher",
   "version": "0.1.0",
-  "description": "民大工作台专家包：民大工作台文章专家——生成或接收文章并自动发布到多站点内容后台。 Expert package: an article publisher card that writes or accepts articles and pushes them to the multi-site content backend.",
+  "description": "深度Work 专家包：深度云海文章专家——生成或接收文章并自动发布到多站点内容后台。 Expert package: an article publisher card that writes or accepts articles and pushes them to the multi-site content backend.",
   "keywords": [
     "deepseek-harness",
     "dsh",

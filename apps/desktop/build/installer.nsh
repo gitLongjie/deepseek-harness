@@ -1,4 +1,4 @@
-; Default the assisted installer to the ASCII MindaWork directory under
+; Default the assisted installer to the ASCII DeepagensWork directory under
 ; Program Files: the OEM display name stays user-facing (see the nsis config)
 ; while the on-disk install path stays stable across OEM display-name renames.
 ;
@@ -17,7 +17,7 @@
 !include "LogicLib.nsh"
 
 !macro customInit
-  StrCpy $INSTDIR "$PROGRAMFILES64\MindaWork"
+  StrCpy $INSTDIR "$PROGRAMFILES64\DeepagensWork"
   InitPluginsDir
   !insertmacro _dwStopLegacyApp "MeowWork.exe"
   !insertmacro _dwStopLegacyApp "Deepagens-Worker.exe"

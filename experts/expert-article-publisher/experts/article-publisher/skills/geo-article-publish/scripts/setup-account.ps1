@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  一次性为「民大工作台文章专家」创建发文章专用账号（幂等）。
+  一次性为「深度云海文章专家」创建发文章专用账号（幂等）。
 .DESCRIPTION
   1. 用 .env 的 ADMIN_PASSWORD 登录超管；
   2. 创建 ARTICLE_BOT_USERNAME 账号（已存在则复用）；

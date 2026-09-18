@@ -12,7 +12,7 @@ function scratch() {
 
 function writeTree(root) {
   mkdirSync(join(root, 'article-publisher', 'skills', 'geo-article-publish'), { recursive: true })
-  writeFileSync(join(root, 'article-publisher', 'preset.yml'), 'name: 民大工作台文章专家\n')
+  writeFileSync(join(root, 'article-publisher', 'preset.yml'), 'name: 深度云海文章专家\n')
   writeFileSync(join(root, 'article-publisher', 'agent.cordis.yml'), '- id: persona\n')
   writeFileSync(join(root, 'article-publisher', 'skills', 'geo-article-publish', 'SKILL.md'), '# publish\n')
 }
@@ -26,7 +26,7 @@ test('syncs a nested expert tree into the target root', () => {
 
   assert.equal(
     readFileSync(join(target, 'article-publisher', 'preset.yml'), 'utf8'),
-    'name: 民大工作台文章专家\n',
+    'name: 深度云海文章专家\n',
   )
   assert.equal(
     readFileSync(join(target, 'article-publisher', 'skills', 'geo-article-publish', 'SKILL.md'), 'utf8'),
@@ -58,12 +58,12 @@ test('overwrites a target file whose content drifted', () => {
   writeTree(source)
   syncExperts(source, target)
 
-  writeFileSync(join(source, 'article-publisher', 'preset.yml'), 'name: 民大工作台文章专家 v2\n')
+  writeFileSync(join(source, 'article-publisher', 'preset.yml'), 'name: 深度云海文章专家 v2\n')
   syncExperts(source, target)
 
   assert.equal(
     readFileSync(join(target, 'article-publisher', 'preset.yml'), 'utf8'),
-    'name: 民大工作台文章专家 v2\n',
+    'name: 深度云海文章专家 v2\n',
   )
   rmSync(source, { recursive: true, force: true })
   rmSync(target, { recursive: true, force: true })

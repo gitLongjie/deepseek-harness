@@ -1,5 +1,5 @@
 ---
-description: "民大工作台 expert package: publishes the article publisher (民大工作台文章专家) as an installable expert card for the dsh expert market."
+description: "深度Work expert package: publishes the article publisher (深度云海文章专家) as an installable expert card for the dsh expert market."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`@xmanrui/expert-article-publisher` publishes 民大工作台文章专家 as a downloadable, hireable expert card for the dsh expert market. The packaged `experts/article-publisher/` is a complete expert directory — `preset.yml` card metadata, the `agent.cordis.yml` composition, and the `skills/` toolbox (the `geo-article-publish` workflow plus API references and a one-time account setup script) — and the package ships a micro mount plugin that, on every host start, syncs the expert directory into the harness home's user preset root (`.agent-presets`), where the preset roster's user root discovers it on its next read (trust: user). The expert page renders and hires it through the existing agentPresets projection and staging machinery; the package adds no model-facing mechanism of its own.
+`@xmanrui/expert-article-publisher` publishes 深度云海文章专家 as a downloadable, hireable expert card for the dsh expert market. The packaged `experts/article-publisher/` is a complete expert directory — `preset.yml` card metadata, the `agent.cordis.yml` composition, and the `skills/` toolbox (the `geo-article-publish` workflow plus API references and a one-time account setup script) — and the package ships a micro mount plugin that, on every host start, syncs the expert directory into the harness home's user preset root (`.agent-presets`), where the preset roster's user root discovers it on its next read (trust: user). The expert page renders and hires it through the existing agentPresets projection and staging machinery; the package adds no model-facing mechanism of its own.
 
 The expert writes articles, or accepts a user-provided one, and publishes them to a running `web-admin-go` multi-site backend via `POST /api/v1/news`, targeting a chosen `website_id`. Authentication is a dedicated least-privilege account (role 内容编辑) whose credentials are written to the target project's `.env` by `skills/geo-article-publish/scripts/setup-account.ps1`.
 

@@ -24,7 +24,7 @@ const WEB_MANIFEST_CONFIG = {
 const STANDALONE_ERROR = 'apps/web is not a standalone application: bare Vite cannot inject window.__DSH_BOOT__. '
   + 'From a repository checkout, run `pnpm dsh web`; an installed package uses `dsh web`. '
   + 'For client-plugin HMR, run `pnpm dsh web` together with `pnpm run dev:web`.'
-const DEFAULT_CLIENT_TITLE = '民大工作台'
+const DEFAULT_CLIENT_TITLE = '深度Works'
 
 /** Escape build-time text before placing it in the HTML title element. */
 function escapeHtmlText(value: string): string {
@@ -41,7 +41,7 @@ function clientDocumentTitle(): Plugin {
       order: 'pre',
       handler(html) {
         return html
-          .replace('<title>民大工作台</title>', `<title>${title}</title>`)
+          .replace('<title>深度Works</title>', `<title>${title}</title>`)
           .replace('href="/favicon.ico"', `href="${icon}"`)
       },
     },

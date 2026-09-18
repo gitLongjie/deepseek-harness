@@ -1,5 +1,5 @@
 ---
-description: "民大工作台 expert package: publishes the GEO optimizer as an installable expert card for the dsh expert market."
+description: "深度Work expert package: publishes the GEO optimizer as an installable expert card for the dsh expert market."
 kind: "package-reference"
 ---
 

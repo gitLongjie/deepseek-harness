@@ -67,7 +67,7 @@ win:
   # Windows Explorer, the taskbar, and Task Manager read the executable's
   # embedded icon rather than BrowserWindow's runtime icon.
   icon: build/icon.ico
-  executableName: MindaWork
+  executableName: 深度Work
   target:
     - target: nsis
       arch:
@@ -76,11 +76,11 @@ nsis:
   # electron-publish uploads release assets under this name verbatim: a
   # non-ASCII prefix puts unescaped characters in the GitHub request path and
   # electron-builder's safe-name fallback drops the arch suffix. Keep the
-  # artifact prefix ASCII; the display name stays 民大工作台.
-  artifactName: MindaWork-${version}-win-${arch}.${ext}
+  # artifact prefix ASCII; the display name stays 深度Work.
+  artifactName: DeepagensWork-${version}-win-${arch}.${ext}
   # Per-machine install so the assisted wizard defaults to Program Files, and
-  # installer.nsh pins that default to the ASCII MindaWork directory: the
-  # display name stays 民大工作台 while the on-disk path stays stable across OEM
+  # installer.nsh pins that default to the ASCII DeepagensWork directory: the
+  # display name stays 深度Work while the on-disk path stays stable across OEM
   # renames.
   perMachine: true
   include: build/installer.nsh
@@ -88,13 +88,13 @@ nsis:
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  shortcutName: 民大工作台
-  uninstallDisplayName: 民大工作台
+  shortcutName: 深度Work
+  uninstallDisplayName: 深度Work
 mac:
   # Both architectures are built in one job. The architecture suffix prevents
   # the Intel and Apple Silicon assets from colliding in the GitHub release.
   # Keep the artifact prefix ASCII (see the nsis note).
-  artifactName: MindaWork-${version}-mac-${arch}.${ext}
+  artifactName: DeepagensWork-${version}-mac-${arch}.${ext}
   target:
     - target: dmg
       arch:
@@ -110,7 +110,7 @@ mac:
   identity: null
   notarize: false
 dmg:
-  artifactName: MindaWork-${version}-mac-${arch}.${ext}
+  artifactName: DeepagensWork-${version}-mac-${arch}.${ext}
 linux:
   target:
     - AppImage
@@ -124,8 +124,15 @@ linux:
   # not exist). Pin a flat artifact name so both Linux targets write directly
   # under dist-electron/.
   # Keep the artifact prefix ASCII (see the nsis note).
-  artifactName: MindaWork-${version}-linux-${arch}.${ext}
-# No publish block on this deployment: it ships without an update feed, and a
-# provider here would bake an app-update.yml into the package declaring an
-# external feed the updater never uses. The local-update rehearsal still gets
-# its publish overlay from createElectronBuilderOemConfig when asked.
+  artifactName: DeepagensWork-${version}-linux-${arch}.${ext}
+publish:
+  provider: github
+  owner: gitLongjie
+  repo: deepseek-harness
+  releaseType: release
+  # Serves only manual release runs (`pnpm release` / deploy-app.mjs --publish
+  # always); CI publishes through gh release upload instead. The packaged
+  # app's updater feed is the generic provider baked from oem.config.json's
+  # updateUrl, not this block. GitHub release tags default to v${version} and
+  # electron-updater parses tags as semver, so a non-semver prefix (e.g.
+  # desktop-v) breaks update detection; keep the default v prefix.

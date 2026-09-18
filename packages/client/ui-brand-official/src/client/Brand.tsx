@@ -19,7 +19,7 @@ type OfficialBrandMarkProps = {
  * @returns the official MEWO mark.
  */
 export function OfficialBrandMark({ size, className }: OfficialBrandMarkProps) {
-  const src = process.env.DSH_CLIENT_BRAND_ICON ?? '/favicon.ico'
+  const src = process.env.DSH_CLIENT_BRAND_ICON ?? '/favicon.svg'
   return <img src={src} width={size} height={size} className={className} alt="" />
 }
 
@@ -28,6 +28,6 @@ export function OfficialBrandMark({ size, className }: OfficialBrandMarkProps) {
  * @returns the official name wordmark.
  */
 export function OfficialBrandName() {
-  const name = process.env.DSH_CLIENT_BRAND_NAME ?? '民大工作台'
+  const name = process.env.DSH_CLIENT_BRAND_NAME ?? '深度Work'
   return <span>{name}</span>
 }

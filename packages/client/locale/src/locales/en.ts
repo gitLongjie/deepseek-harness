@@ -30,7 +30,7 @@ export const en = {
   'collapse': 'Collapse',
   'expand': 'Expand',
   'back': 'Back',
-  'brand.localBuild': '民大工作台',
+  'brand.localBuild': '深度Work',
   'unknown': 'Unknown',
   'none': 'None',
   'truncated': 'Truncated',

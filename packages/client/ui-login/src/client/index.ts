@@ -75,7 +75,7 @@ export function apply(ctx: ClientContext): void {
   const authUrl = override === '' ? '' : override ?? DEFAULT_LOGIN_URL
   if (authUrl === '') return
   console.warn(`[ui-login] applying login gate against ${authUrl}`)
-  const brandName = process.env.DSH_CLIENT_BRAND_NAME ?? '民大工作台'
+  const brandName = process.env.DSH_CLIENT_BRAND_NAME ?? '深度Work'
   ctx.effect(() => ctx.locale.register(NS, {
     zh: {
       ...zh,
@@ -96,7 +96,7 @@ export function apply(ctx: ClientContext): void {
   })
   controller.load()
   const t = ctx.locale.bind(NS) as (key: LoginKey) => string
-  const brandIcon = process.env.DSH_CLIENT_BRAND_ICON ?? '/favicon.ico'
+  const brandIcon = process.env.DSH_CLIENT_BRAND_ICON ?? '/favicon.svg'
 
   ctx.slots.inject('shell.overlay', () => ctx.slots.register(
     { name: 'shell.overlay', id: 'login-gate', inject: () => ({ controller, brandIcon, t }) },

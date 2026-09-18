@@ -22,8 +22,8 @@ const COPY: Record<DesktopLocaleId, {
   completed: string
   error: (message: string) => string
 }> = {
-  zh: { title: '民大工作台', completed: '回答已完成', error: message => `模型回答失败：${message}` },
-  en: { title: '民大工作台', completed: 'Answer completed', error: message => `Model response failed: ${message}` },
+  zh: { title: '深度Work', completed: '回答已完成', error: message => `模型回答失败：${message}` },
+  en: { title: '深度Work', completed: 'Answer completed', error: message => `Model response failed: ${message}` },
 }
 
 /** Reasons that represent a response that should not alert the operator. */
