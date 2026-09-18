@@ -45,6 +45,7 @@ it.each([false, true])('tracks the Web carrier lifetime when server-first is %s'
   const ctx = new Context()
   contexts.push({ ctx })
   ctx.provide('loader', { entries: () => [] })
+  ctx.provide('dshBareModuleBaseUrl', undefined)
   const routes = new Set<WebRoute>()
   const mountServer = () => ctx.plugin((serverCtx) => {
     serverCtx.provide('webServer', {
@@ -467,13 +468,15 @@ describe('client bundle activation', () => {
     expect(service.clientPath(packageName)).toBe(clientPath)
   })
 
-  it('resamples entries that appeared before the next boot graph is read', () => {
+  it('resamples entries that appeared before the next boot graph is read', async () => {
     const packageName = '@fixture/late-visible-client'
     writeBuiltPackage(packageName, {})
     const entries: string[] = []
-    const { service } = constructWithRoute(entries)
+    const { context, service } = constructWithRoute(entries)
 
     entries.push(packageName)
+    emitLoaderEntryChange(context, packageName)
+    await Promise.resolve()
 
     expect(service.graph().entries.map(entry => entry.id)).toEqual([packageName])
   })

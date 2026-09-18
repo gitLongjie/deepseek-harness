@@ -545,7 +545,7 @@ window.__ModuleLoader__={
  * boot activation audit reports it).
  */
 export class ClientModuleRegistry extends Service {
-  static inject = ['loader']
+  static inject = ['loader', 'dshBareModuleBaseUrl']
 
   private readonly table = new Map<string, WebPluginRecord>()
   private readonly sources = new Map<string, ClientPackageSource>()
@@ -963,8 +963,11 @@ export class ClientModuleRegistry extends Service {
     // A bare-specifier entry in a packaged host resolves from the installed
     // application's own node_modules (the `dshBareModuleBaseUrl` fact the
     // boot layer provides), not from the profile tree's base URL — the
-    // packaged app's package.json sits outside every profile directory.
-    const barePackage = exactPackageSpecifier(loaderName) === undefined
+    // packaged app's package.json sits outside every profile directory, and
+    // the profile tree's fallback directory exists only where a dev run
+    // healed it. Non-package specifiers (cordis: builtins, relative and file
+    // paths) keep the owning tree.
+    const barePackage = exactPackageSpecifier(loaderName) !== undefined
     const baseUrl = barePackage
       ? this.ctx.dshBareModuleBaseUrl ?? entry.parent.tree.ctx.baseUrl
       : entry.parent.tree.ctx.baseUrl
