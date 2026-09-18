@@ -73,7 +73,7 @@ A client shows or hides selection by writing only `modeSelectionEnabled`; the [W
 
 ### Display metadata
 
-A preset directory may carry a `preset.yml` beside the composition, holding display text only: `name`, `description`, and `order` for every picker, plus the expert-card fields a market-style picker groups and filters by — a deployment-owned `category` id, up to eight `tags`, up to three `quickPrompts` suggested first messages, and a short `icon` glyph. The file never carries identity or trust (`id` is the directory, `trust` comes from the root), and every absent or malformed field degrades to no metadata rather than to a preset that cannot start.
+A preset directory may carry a `preset.yml` beside the composition, holding display text only: `name`, `description`, and `order` for every picker, plus the expert-card fields a market-style picker groups and filters by — a deployment-owned `category` id, up to eight `tags`, up to three `quickPrompts` suggested first messages, and a short `icon` glyph. The file never carries identity or trust (`id` is the directory, `trust` comes from the root), and every absent or malformed field degrades to no metadata rather than to a preset that cannot start. A row that publishes `category` is expert inventory: the expert market renders it as a hireable card, the mode surfaces — the new-session picker and the preset-management section — exclude it, and the session-header label still names a session running one.
 
 ### Authoring presets
 

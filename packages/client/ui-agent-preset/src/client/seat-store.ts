@@ -86,11 +86,16 @@ export class AgentPresetSeatController {
     }
     const { presets, modeSelectionEnabled } = roster.value
     if (!modeSelectionEnabled) this.staged = undefined
-    this.fallback = presets.find(preset => preset.isDefault)?.id ?? presets[0]?.id ?? ''
+    const options = presetOptions(presets)
+    // The chip opens on the Host-effective default while the roster still
+    // offers it as a mode; a default it no longer offers (deleted, or
+    // expert-marked market inventory) falls through to the first offered one.
+    this.fallback = presets.find(preset => preset.isDefault
+      && options.some(option => option.id === preset.id))?.id ?? options[0]?.id ?? ''
     const session = this.currentSession()
     this.set({
       showPicker: modeSelectionEnabled,
-      options: presetOptions(presets),
+      options,
       // Staged pick first, then the composition the current session
       // already carries, then the Host-effective default. The middle term is
       // what keeps a late-landing load from regressing the display after

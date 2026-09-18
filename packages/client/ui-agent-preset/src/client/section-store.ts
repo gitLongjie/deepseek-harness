@@ -19,6 +19,9 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { beginRosterRead, writeDefaultPreset, writeModeSelectionEnabled } from './settings-store.ts'
+// The expert marker this management surface excludes by; the display fold is
+// the shared inline-safe home.
+import { isExpertPreset } from '@deepseek-ai/dsh-agent-presets/display'
 
 /** Ids a preset directory may be named, mirroring the host's own rule. */
 const PRESET_ID = /^[a-z0-9][a-z0-9-]*$/
@@ -85,7 +88,7 @@ export interface AgentPresetSectionState {
   showPicker: boolean
   /** Whether a mode-selection policy write is in flight. */
   policySaving: boolean
-  /** Every preset the deployment currently supplies. */
+  /** Every mode preset the deployment currently supplies; expert-marked presets render in the expert market instead. */
   rows: readonly PresetRow[]
   /** The open copy dialog, or null. */
   copy: CopyDraft | null
@@ -258,15 +261,26 @@ export class AgentPresetSectionController {
     // A reveal outlives a reload but not its preset: a path for a row the
     // roster no longer lists would be a claim about a directory that is gone.
     const revealed = this.store.getSnapshot().revealedPaths
+    // Expert-marked rows are the expert market's inventory: the package that
+    // ships them re-syncs their files on every host start, so viewing,
+    // copying, or deleting one here would promise management its package owns.
+    const rows = presets.filter(preset => !isExpertPreset(preset)).map(preset => ({ ...preset }))
+    if (rows.length === 0) {
+      // Nothing to manage leaves nothing to keep a dialog open over.
+      this.set({
+        status: 'unavailable', rows: [], authorable, hasDocument, showPicker, copy: null, view: null,
+      })
+      return
+    }
     const kept = Object.fromEntries(
-      Object.entries(revealed).filter(([id]) => presets.some(preset => preset.id === id)))
+      Object.entries(revealed).filter(([id]) => rows.some(row => row.id === id)))
     this.set({
       status: 'ready',
       error: null,
       authorable,
       hasDocument,
       showPicker,
-      rows: presets.map(preset => ({ ...preset })),
+      rows,
       revealedPaths: kept,
     })
   }

@@ -1,6 +1,7 @@
 /**
  * Display resolution for roster presets, shared by every surface that renders
- * preset names: shipped presets resolve through locale dictionary keys, and
+ * preset names, and the expert-marker rule that splits market inventory from
+ * session modes: shipped presets resolve through locale dictionary keys, and
  * user-authored metadata is never translated. A pure fold with no imports, so
  * browser bundles inline it and the Host uses the same single home for which
  * shipped id carries which copy key.
@@ -62,4 +63,19 @@ export function presetDisplayText(
     name: preset.name ?? preset.id,
     ...preset.description === undefined ? {} : { description: preset.description },
   }
+}
+
+/**
+ * Whether a roster row publishes expert-card metadata. `category` is the
+ * committed expert marker, and this predicate owns the rule in both
+ * directions: the expert market admits exactly these rows as hireable
+ * cards, while the mode surfaces — the new-session chip and the
+ * preset-management section — exclude them. The session-header label is
+ * neither: it names a session already running an expert, so it resolves
+ * names across the whole healthy roster.
+ * @param preset - the roster-row fields carrying the marker.
+ * @returns whether the row is expert inventory rather than a session mode.
+ */
+export function isExpertPreset(preset: { readonly category?: string }): boolean {
+  return preset.category !== undefined
 }

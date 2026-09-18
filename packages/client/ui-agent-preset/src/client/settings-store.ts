@@ -10,6 +10,9 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis'
 // Type-only: pulls the ctx.remote merge into this program.
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
+// The expert marker both this package's mode surfaces and the expert market
+// filter by; the display fold is the shared inline-safe home.
+import { isExpertPreset } from '@deepseek-ai/dsh-agent-presets/display'
 import type { AgentPresetRoster } from '@deepseek-ai/dsh-agent-presets/types'
 
 /** The agent-preset settings namespace on the host wire. */
@@ -114,29 +117,46 @@ export async function beginRosterRead<S extends { status: string; error: string 
 }
 
 /**
- * The roster entries as the pickers render them: healthy presets only.
- *
- * The chip exists to choose the NEXT session's composition, and a broken
- * preset cannot compose one — offering it would defer the discovery of that
- * fact to a failed session start. The management section renders the full
- * roster (broken rows included) from its own store instead.
- *
- * The chip, the header label, and the management section all show the same
- * facts, and `exactOptionalPropertyTypes` makes "absent" and "present as
- * undefined" different shapes — so the spread dance belongs in one place rather than
- * once per store.
- * @param presets - the roster the host answered with.
- * @returns one option per selectable preset, in roster order.
+ * One display entry for a preset. `exactOptionalPropertyTypes` makes "absent"
+ * and "present as undefined" different shapes, so the spread dance for the
+ * published text lives here rather than once per surface.
+ * @param preset - the roster row.
+ * @returns the entry the surface renders.
  */
-export function presetOptions(
-  presets: readonly { id: string; trust: 'system' | 'user'; name?: string; description?: string; broken?: string }[],
-): AgentPresetOption[] {
-  return presets.filter(preset => preset.broken === undefined).map(preset => ({
+function asOption(preset: RosterPreset): AgentPresetOption {
+  return {
     id: preset.id,
     trust: preset.trust,
     ...preset.name === undefined ? {} : { name: preset.name },
     ...preset.description === undefined ? {} : { description: preset.description },
-  }))
+  }
+}
+
+/**
+ * The roster entries a display surface may name: every healthy preset, an
+ * expert included — the header label names a session already running one.
+ * @param presets - the roster the host answered with.
+ * @returns one entry per healthy preset, in roster order.
+ */
+export function presetDisplayEntries(presets: readonly RosterPreset[]): AgentPresetOption[] {
+  return presets.filter(preset => preset.broken === undefined).map(asOption)
+}
+
+/**
+ * The roster entries a mode surface offers: healthy presets that publish no
+ * expert-card metadata.
+ *
+ * The chip exists to choose the NEXT session's composition, and a broken
+ * preset cannot compose one — offering it would defer the discovery of that
+ * fact to a failed session start; an expert-marked preset is the market's
+ * inventory, so offering it as a mode would present one thing as two nouns.
+ * The management section renders the non-expert roster (broken rows
+ * included) from its own store instead.
+ * @param presets - the roster the host answered with.
+ * @returns one option per selectable preset, in roster order.
+ */
+export function presetOptions(presets: readonly RosterPreset[]): AgentPresetOption[] {
+  return presets.filter(preset => preset.broken === undefined && !isExpertPreset(preset)).map(asOption)
 }
 
 /** Agent-preset roster snapshot for the display surfaces. */
@@ -185,7 +205,9 @@ export class AgentPresetSettingsController {
     this.set({
       status: 'ready',
       error: null,
-      options: presetOptions(presets),
+      // Display, not selection: the label names a session already running an
+      // expert, so expert-marked rows stay nameable here.
+      options: presetDisplayEntries(presets),
     })
   }
 

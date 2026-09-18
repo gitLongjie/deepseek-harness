@@ -12,7 +12,7 @@ import { RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
 import { AgentPresetSectionController, draftBlocker } from '../src/client/section-store.ts'
 import type { CopyDraft, PresetRow } from '../src/client/section-store.ts'
 
-interface FakePreset { trust: 'system' | 'user'; content: string; name?: string }
+interface FakePreset { trust: 'system' | 'user'; content: string; name?: string; category?: string }
 interface Recorded { method: string; payload: unknown }
 
 interface FakeOptions {
@@ -85,6 +85,7 @@ function fakeCtx(
             presets: [...presets].map(([id, preset]) => ({
               id, trust: preset.trust, isDefault: id === effectiveDefault,
               ...preset.name === undefined ? {} : { name: preset.name },
+              ...preset.category === undefined ? {} : { category: preset.category },
             })),
             authorable: options.authorable ?? true,
             modeSelectionEnabled: selectionEnabled,
@@ -224,6 +225,35 @@ describe('loading the roster', () => {
 
     await controller.load()
 
+    expect(controller.store.getSnapshot().status).toBe('unavailable')
+  })
+
+  it('manages no expert-marked preset: the market owns those cards', async () => {
+    const { controller, presets } = harness()
+    presets.set('geo-optimizer', {
+      trust: 'system', content: '- id: persona\n', name: 'GEO 专家', category: 'marketing',
+    })
+
+    await controller.load()
+
+    // The package shipping an expert re-syncs its files on every host start,
+    // so viewing, copying, or deleting the row here would promise management
+    // its package owns.
+    const state = controller.store.getSnapshot()
+    expect(state.status).toBe('ready')
+    expect(state.rows.map((row: PresetRow) => row.id)).toEqual(['standard', 'mine'])
+  })
+
+  it('reports a roster of only expert-marked presets as unavailable', async () => {
+    const { controller, presets } = harness()
+    presets.clear()
+    presets.set('geo-optimizer', {
+      trust: 'system', content: '- id: persona\n', name: 'GEO 专家', category: 'marketing',
+    })
+
+    await controller.load()
+
+    // No mode preset leaves nothing to manage, pick as default, or copy from.
     expect(controller.store.getSnapshot().status).toBe('unavailable')
   })
 

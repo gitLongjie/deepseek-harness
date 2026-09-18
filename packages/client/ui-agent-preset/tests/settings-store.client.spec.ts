@@ -13,6 +13,7 @@ import type { SessionSummary } from '@deepseek-ai/dsh-api-session-controller/cli
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import {
   AGENT_PRESET_SETTINGS_NS, AgentPresetSettingsController,
+  presetOptions,
   writeDefaultPreset, writeModeSelectionEnabled,
 } from '../src/client/settings-store.ts'
 
@@ -128,6 +129,30 @@ describe('the agent-preset roster store', () => {
     expect(controller.store.getSnapshot().options).toEqual([
       { id: 'standard', trust: 'system', name: '标准模式', description: '完整的编码 agent。' },
     ])
+  })
+
+  it('keeps an expert-marked preset nameable: the label reads this store', async () => {
+    const controller = derivedController(fakeApi([
+      { id: 'standard', trust: 'system', isDefault: true },
+      { id: 'geo-optimizer', trust: 'system', isDefault: false, name: 'GEO 专家', category: 'marketing' },
+    ] as never))
+
+    await controller.load()
+
+    // A session hired from the expert market runs that preset, and the header
+    // label names what the session runs rather than printing the raw id.
+    expect(controller.store.getSnapshot().options).toEqual([
+      { id: 'standard', trust: 'system' },
+      { id: 'geo-optimizer', trust: 'system', name: 'GEO 专家' },
+    ])
+  })
+
+  it('presetOptions offers no expert-marked preset: the market owns those cards', () => {
+    expect(presetOptions([
+      { id: 'standard', trust: 'system', isDefault: true },
+      { id: 'geo-optimizer', trust: 'system', isDefault: false, category: 'marketing' },
+      { id: 'damaged', trust: 'user', isDefault: false, broken: 'not valid YAML', category: 'writing' },
+    ] as never)).toEqual([{ id: 'standard', trust: 'system' }])
   })
 
   it('reports an empty roster as unavailable, not as an error', async () => {
@@ -302,6 +327,19 @@ describe('the new-session chip controller', () => {
     // Settings can name a preset that was since deleted; the chip still has
     // to open on something rather than render nothing.
     expect(controller.store.getSnapshot().current).toBe('minimal')
+  })
+
+  it('skips an expert-marked default: the market hires those, the chip offers modes', async () => {
+    const controller = chip([
+      { id: 'geo-optimizer', trust: 'system', isDefault: true, category: 'marketing' },
+      { id: 'standard', trust: 'system', isDefault: false },
+    ] as never, undefined)
+
+    await controller.load()
+
+    const state = controller.store.getSnapshot()
+    expect(state.options.map(option => option.id)).toEqual(['standard'])
+    expect(state.current).toBe('standard')
   })
 
   it('carries the display metadata into the menu rows', async () => {

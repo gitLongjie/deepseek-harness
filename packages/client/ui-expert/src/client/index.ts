@@ -21,6 +21,10 @@ import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 // Type-only: the shipped roster row shape the market admits experts from.
 import type { AgentPresetRow } from '@deepseek-ai/dsh-agent-presets/types'
+// The expert marker the market admits by — the same predicate the mode
+// surfaces exclude by, so the two rules cannot drift. The display fold is
+// the shared inline-safe home a client bundle may inline.
+import { isExpertPreset } from '@deepseek-ai/dsh-agent-presets/display'
 // Type-only: pulls the uiAgentPreset and uiWorkspace service merges.
 import type {} from '@deepseek-ai/dsh-client-ui-agent-preset/client'
 // Type-only: pulls the uiWorkspace service merges.
@@ -93,13 +97,14 @@ export function apply(ctx: Context): void {
 
   const pageInjected = () => ({
     load: async (): Promise<{ experts: readonly ExpertRecord[] }> => {
-      // The market's only source is the roster: rows that publish card
-      // metadata — category is the committed expert marker, so mode presets
-      // cannot leak in. A refused or absent roster read degrades to an empty
-      // market; the page never fails on the market read.
+      // The market's only source is the roster: rows the shared expert
+      // predicate admits — the same marker the mode surfaces exclude by, so
+      // a preset presents here or as a mode, never both. A refused or absent
+      // roster read degrades to an empty market; the page never fails on the
+      // market read.
       const shipped = await ctx.remote.agentPresets.list().then(
         (result): readonly ExpertRecord[] => (result.ok
-          ? result.value.presets.filter(preset => preset.category !== undefined).map(recordOf)
+          ? result.value.presets.filter(isExpertPreset).map(recordOf)
           : []),
         (): readonly ExpertRecord[] => [],
       )
