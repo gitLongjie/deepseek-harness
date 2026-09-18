@@ -7,20 +7,28 @@
  *
  * Flags:
  *   --skip-build   smoke the existing dist-electron artifact without repackaging
+ *   --in-place     smoke the artifact in place instead of from an outside copy
  *   --publish      after a passing smoke, run the full `deploy-app.mjs
  *                  --publish always` release build (GH_TOKEN required)
+ *
+ * By default the artifact is copied under a temporary path that contains a
+ * space and sits outside the repository, mirroring the installed layout
+ * (`C:\Program Files\...`): no workspace node_modules may backfill a package
+ * the asar forgot, and every spawn path must survive the space.
  */
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
+import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { basename, dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import yaml from 'js-yaml'
 
 const desktopRoot = fileURLToPath(new URL('../', import.meta.url))
 const outputRoot = resolve(desktopRoot, 'dist-electron')
 const args = process.argv.slice(2)
+const dirMode = args.includes('--dir')
 const skipBuild = args.includes('--skip-build')
+const inPlace = args.includes('--in-place')
 const publishAfterSmoke = args.includes('--publish')
 const timeoutIndex = args.indexOf('--timeout-ms')
 const smokeTimeoutMs = timeoutIndex === -1 ? 300_000 : Number(args[timeoutIndex + 1])
@@ -76,6 +84,27 @@ export function findPackagedExecutable(platform = process.platform, root = outpu
   throw new Error(`unsupported smoke platform: ${platform}`)
 }
 
+/**
+ * Copy the packaged layout under a path with a space, outside the repository:
+ * the destination machine installs under `C:\Program Files\...` — a space, and
+ * no workspace `node_modules` above the app — so both properties must be part
+ * of the smoke's reality. A missing package that the checkout's node_modules
+ * accidentally backfills would otherwise pass the in-repo smoke and fail the
+ * installed app.
+ * @param executable - the packaged executable inside the checkout output.
+ * @param copyRoot - an existing directory to copy the app layout into.
+ * @returns the copied app root and the executable inside it.
+ */
+function copyOutsideRepo(executable, copyRoot) {
+  const sourceRoot = process.platform === 'darwin'
+    ? dirname(dirname(dirname(executable)))
+    : dirname(executable)
+  const leaf = process.platform === 'darwin' ? `${basename(sourceRoot)} copy` : 'DSH Desktop copy'
+  const targetRoot = join(copyRoot, leaf)
+  cpSync(sourceRoot, targetRoot, { recursive: true })
+  return { root: targetRoot, executable: join(targetRoot, relative(sourceRoot, executable)) }
+}
+
 /** Build the isolated launch environment: its own userData, DSH home, and result sinks. */
 export function smokeEnvironment(runDir, extra = {}) {
   return {
@@ -99,14 +128,19 @@ async function main() {
   }
 
   const executable = findPackagedExecutable()
-  console.log(`Smoke target: ${executable}`)
+  const outsideCopyRoot = inPlace ? null : mkdtempSync(join(tmpdir(), 'dsh-desktop-smoke-app-'))
+  const smokeTarget = outsideCopyRoot === null
+    ? { root: dirname(executable), executable }
+    : copyOutsideRepo(executable, outsideCopyRoot)
+  console.log(`Smoke target: ${smokeTarget.executable}`)
   const runDir = mkdtempSync(join(tmpdir(), 'dsh-desktop-smoke-'))
   const launchArgs = process.platform === 'linux' ? ['--no-sandbox'] : []
-  const result = spawnSync(executable, launchArgs, {
+  const result = spawnSync(smokeTarget.executable, launchArgs, {
     timeout: smokeTimeoutMs,
     encoding: 'utf8',
     env: smokeEnvironment(runDir),
   })
+  if (outsideCopyRoot !== null) rmSync(smokeTarget.root, { recursive: true, force: true })
   const logText = existsSync(join(runDir, 'desktop.log'))
     ? readFileSync(join(runDir, 'desktop.log'), 'utf8')
     : ''

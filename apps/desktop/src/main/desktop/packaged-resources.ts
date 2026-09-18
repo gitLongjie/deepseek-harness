@@ -24,6 +24,17 @@ export const REQUIRED_UNPACKED_PACKAGES: readonly string[] = [
   'koffi',
 ]
 
+/**
+ * Packages the unpacked runner chain imports at its plain-Node load time. A
+ * plain-Node child resolves only real files, so a dependency that stayed
+ * inside app.asar is unreachable from the unpacked tree even though the
+ * archive carries it.
+ */
+export const UNPACKED_DEPENDENCY_PACKAGES: readonly string[] = [
+  '@deepseek-ai/dsh-lazy-require',
+  '@deepseek-ai/dsh-subprocess',
+]
+
 /** electron-builder `asarUnpack` globs covering every required unpacked package. */
 export const ASAR_UNPACK_GLOBS: readonly string[] = [
   '**/*.node',
@@ -32,6 +43,7 @@ export const ASAR_UNPACK_GLOBS: readonly string[] = [
   '**/*.so',
   '**/*.so.*',
   ...REQUIRED_UNPACKED_PACKAGES.map(name => `**/node_modules/${name}/**`),
+  ...UNPACKED_DEPENDENCY_PACKAGES.map(name => `**/node_modules/${name}/**`),
 ]
 
 /** Stable id of one boot-critical packaged resource, localized in desktop/locales. */

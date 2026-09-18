@@ -176,11 +176,14 @@ async function importNodeRipgrepPath(): Promise<string> {
  * desktop must spawn electron-builder's unpacked twin instead.
  */
 function unpackedAsarPath(path: string): string | undefined {
-  // Separator-agnostic: a POSIX-packaged layout reaches here on Windows too.
-  const match = /(^|[\/])app\.asar(?=[\/])/.exec(path)
-  if (match === null) return undefined
-  const at = path.lastIndexOf('app.asar')
-  return `${path.slice(0, at)}app.asar.unpacked${path.slice(at + 'app.asar'.length)}`
+  // Separator-agnostic: Windows resolves to backslash paths while a
+  // POSIX-packaged layout reaches here on Windows with forward slashes too.
+  const marker = 'app.asar'
+  const slash = path.lastIndexOf(`/${marker}/`)
+  const backslash = path.lastIndexOf(`\\${marker}\\`)
+  const at = Math.max(slash, backslash)
+  if (at === -1) return undefined
+  return `${path.slice(0, at + 1)}${marker}.unpacked${path.slice(at + 1 + marker.length)}`
 }
 
 /**
