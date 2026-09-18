@@ -34,12 +34,16 @@ describe('desktop update URL', () => {
     })).toThrow('desktop: OEM update URL must be HTTPS')
   })
 
-  it('rejects malformed and missing update URLs', () => {
+  it('rejects malformed update URLs', () => {
     expect(() => resolveDesktopUpdateUrl(undefined, {
       dsh: { updateUrl: 'not a URL', localUpdateTest: true },
     })).toThrow('desktop: OEM update URL must be HTTPS')
-    expect(() => resolveDesktopUpdateUrl(undefined, {}))
-      .toThrow('desktop: OEM update URL is missing')
+  })
+
+  it('resolves a deployment without any update URL to a disabled updater', () => {
+    expect(resolveDesktopUpdateUrl(undefined, {})).toBeUndefined()
+    expect(resolveDesktopUpdateUrl(undefined, { dsh: {} })).toBeUndefined()
+    expect(resolveDesktopUpdateUrl(undefined, { dsh: { updateUrl: null } })).toBeUndefined()
   })
 
   it('prefers an explicit HTTPS update URL over packaged metadata', () => {

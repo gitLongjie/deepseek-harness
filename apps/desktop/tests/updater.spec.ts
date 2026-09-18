@@ -46,6 +46,7 @@ import {
   registerUpdateIpc,
   requestUpdateCheck,
   UPDATE_RECHECK_INTERVAL_MS,
+  updateChecksEnabled,
 } from '../src/main/updater.ts'
 
 function updateActionHandler(): IpcHandler {
@@ -286,5 +287,64 @@ describe('desktop updater status and actions', () => {
       expect(send).toHaveBeenLastCalledWith('dsh:update:status', { status: 'installing' })
       expect(mocks.updater.quitAndInstall).toHaveBeenCalledTimes(2)
     })
+  })
+})
+
+describe('desktop updater without an update feed', () => {
+  const send = vi.fn()
+  const win = {
+    isDestroyed: () => false,
+    webContents: { send },
+  }
+  const t = (key: string): string => key
+  const log = vi.fn()
+
+  beforeEach(() => {
+    mocks.listeners.clear()
+    mocks.ipc.handler = undefined
+    for (const fn of [
+      mocks.updater.setFeedURL,
+      mocks.updater.checkForUpdates,
+      mocks.updater.downloadUpdate,
+      mocks.updater.quitAndInstall,
+    ]) fn.mockClear()
+    log.mockClear()
+    send.mockClear()
+    initUpdater(t, win, undefined, log)
+  })
+
+  it('leaves electron-updater unwired and reports checks as disabled', () => {
+    expect(mocks.updater.setFeedURL).not.toHaveBeenCalled()
+    expect(mocks.updater.checkForUpdates).not.toHaveBeenCalled()
+    expect(updateChecksEnabled()).toBe(false)
+  })
+
+  it('keeps a manual check inert instead of failing', () => {
+    requestUpdateCheck()
+
+    expect(mocks.updater.checkForUpdates).not.toHaveBeenCalled()
+    expect(send).not.toHaveBeenCalled()
+  })
+
+  it('ignores badge actions that can no longer exist', () => {
+    registerUpdateIpc()
+    const handler = mocks.ipc.handler
+    if (handler === undefined) throw new Error('update action handler was not registered')
+
+    handler({}, { action: 'check' })
+    handler({}, { action: 'download' })
+    handler({}, { action: 'install' })
+
+    expect(mocks.updater.checkForUpdates).not.toHaveBeenCalled()
+    expect(mocks.updater.downloadUpdate).not.toHaveBeenCalled()
+    expect(mocks.updater.quitAndInstall).not.toHaveBeenCalled()
+    expect(send).not.toHaveBeenCalled()
+  })
+
+  it('re-arms when a feed URL appears after a disabled init', () => {
+    initUpdater(t, win, 'https://updates.example.test', log)
+
+    expect(updateChecksEnabled()).toBe(true)
+    expect(mocks.updater.checkForUpdates).toHaveBeenCalledOnce()
   })
 })

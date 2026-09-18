@@ -1,6 +1,8 @@
 /**
  * Auto-update via electron-updater. The OEM build supplies a generic HTTPS
- * feed containing electron-updater metadata and release artifacts.
+ * feed containing electron-updater metadata and release artifacts; an OEM
+ * deployment without a feed (oem.config.json without updateUrl) keeps the
+ * updater unwired — no checks, no badge, no Help-menu entry.
  *
  * Availability and download-complete events are pushed to the renderer over
  * `dsh:update:status` so the in-app badge (render/update-badge.ts) shows them;
@@ -62,6 +64,13 @@ let reportUpdateError: ((line: string) => void) | undefined
 let installStarted = false
 
 /**
+ * True from the latest initUpdater only when a feed URL was supplied; the
+ * Help-menu entry and the badge's IPC actions consult it to stay inert on
+ * deployments without updates.
+ */
+let feedConfigured = false
+
+/**
  * Bound on the pre-install cleanup: a stuck host disposal must not strand the
  * badge on the disabled "installing" state forever. Quitting after the timeout
  * is safe — the quit-path disposal runs the same cleanup again.
@@ -119,17 +128,19 @@ function scheduleUpdateRecheck(): void {
 /**
  * Initialize the updater. Packaged runs check for updates on startup and then
  * re-check silently every {@link UPDATE_RECHECK_INTERVAL_MS}; discovery lights
- * up the renderer badge instead of auto-showing dialogs.
+ * up the renderer badge instead of auto-showing dialogs. With no feed URL the
+ * whole updater stays unwired and {@link updateChecksEnabled} reports false.
  * @param t - locale-bound copy resolver (desktop/locales.ts).
  * @param win - the main window whose renderer hosts the update badge.
- * @param updateUrl - generic electron-updater feed base URL.
+ * @param updateUrl - generic electron-updater feed base URL, or undefined for
+ * deployments that must not check for updates.
  * @param log - durable desktop diagnostic sink.
  * @param prepare - bounded application cleanup before installer launch.
  */
 export function initUpdater(
   t: (key: DesktopTextKey) => string,
   win: BrowserWindow,
-  updateUrl: string,
+  updateUrl: string | undefined,
   log?: (line: string) => void,
   prepare: () => Promise<void> = async () => {},
 ): void {
@@ -141,6 +152,8 @@ export function initUpdater(
   checkInFlight = false
   lastStatus = undefined
   prepareInstall = prepare
+  feedConfigured = updateUrl !== undefined
+  if (updateUrl === undefined) return
   autoUpdater.setFeedURL({
     provider: 'generic',
     url: updateUrl,
@@ -218,8 +231,14 @@ export function setUpdaterLocale(t: (key: DesktopTextKey) => string): void {
   currentT = t
 }
 
+/** Whether this deployment has a feed and therefore offers update checks. */
+export function updateChecksEnabled(): boolean {
+  return feedConfigured
+}
+
 /** Explicit Help-menu update check; reports no-update/error through dialogs. */
 export function requestUpdateCheck(): void {
+  if (!feedConfigured) return
   manualCheck = true
   checkInFlight = true
   sendStatus({ status: 'checking' })
@@ -237,6 +256,7 @@ export const UPDATE_ACTION_CHANNEL = 'dsh:update:action'
 /** Register the badge's download/install actions. Call once after app ready. */
 export function registerUpdateIpc(): void {
   ipcMain.on(UPDATE_ACTION_CHANNEL, (_event, payload) => {
+    if (!feedConfigured) return
     const action = parseAction(payload)
     if (action === 'check') requestUpdateCheck()
     else if (action === 'download') void downloadUpdate()

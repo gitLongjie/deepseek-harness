@@ -2,7 +2,8 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const GREETING_SLOTS = ['morning', 'noon', 'afternoon', 'evening', 'night'] as const
-const CONFIG_KEYS = ['brandIcon', 'greetings', 'knowledgeBase', 'loginTagline', 'loginUrl', 'productName', 'updateUrl'] as const
+const REQUIRED_CONFIG_KEYS = ['brandIcon', 'greetings', 'knowledgeBase', 'loginTagline', 'loginUrl', 'productName'] as const
+const OPTIONAL_CONFIG_KEYS = ['updateUrl'] as const
 const KNOWLEDGE_BASE_KEYS = ['apiKeyEnv', 'baseUrl', 'tenantId', 'webUiUrl'] as const
 
 /** One complete locale-specific set of blank-panel greetings. */
@@ -21,7 +22,11 @@ export interface OemConfig {
   readonly productName: string
   readonly brandIcon: string
   readonly loginUrl: string
-  readonly updateUrl: string
+  /**
+   * The desktop auto-update feed, or undefined for deployments that must not
+   * check for updates at all (the desktop updater and its menu entry stay off).
+   */
+  readonly updateUrl?: string
   readonly loginTagline: { readonly zh: string; readonly en: string }
   readonly greetings: { readonly zh: OemGreetings; readonly en: OemGreetings }
   readonly knowledgeBase: OemKnowledgeBase
@@ -29,7 +34,7 @@ export interface OemConfig {
 
 /** Parse and validate an OEM config before any browser artifact is compiled. */
 export function parseOemConfig(value: unknown, source: string): OemConfig {
-  const root = objectWithKeys(value, CONFIG_KEYS, source)
+  const root = objectWithKeys(value, REQUIRED_CONFIG_KEYS, source, OPTIONAL_CONFIG_KEYS)
   const productName = nonEmptyString(root.productName, `${source}.productName`)
   if (productName.length > 80) throw new Error(`${source}.productName must not exceed 80 characters`)
   assertWindowsFilename(productName, `${source}.productName`)
@@ -37,8 +42,8 @@ export function parseOemConfig(value: unknown, source: string): OemConfig {
   assertLocalBrandIcon(brandIcon, `${source}.brandIcon`)
   const loginUrl = nonEmptyString(root.loginUrl, `${source}.loginUrl`)
   if (!isHttpUrl(loginUrl)) throw new Error(`${source}.loginUrl must be an HTTP or HTTPS URL`)
-  const updateUrl = nonEmptyString(root.updateUrl, `${source}.updateUrl`)
-  if (!isHttpsUrl(updateUrl)) throw new Error(`${source}.updateUrl must be an HTTPS URL`)
+  const updateUrl = root.updateUrl === undefined ? undefined : nonEmptyString(root.updateUrl, `${source}.updateUrl`)
+  if (updateUrl !== undefined && !isHttpsUrl(updateUrl)) throw new Error(`${source}.updateUrl must be an HTTPS URL`)
   const loginTagline = objectWithKeys(root.loginTagline, ['en', 'zh'], `${source}.loginTagline`)
   const greetings = objectWithKeys(root.greetings, ['en', 'zh'], `${source}.greetings`)
   return {
@@ -152,17 +157,19 @@ function parseGreetings(value: unknown, subject: string): OemGreetings {
 
 function objectWithKeys(
   value: unknown,
-  expected: readonly string[],
+  required: readonly string[],
   subject: string,
+  optional: readonly string[] = [],
 ): Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     throw new Error(`${subject} must be an object`)
   }
   const record = value as Record<string, unknown>
   const actual = Object.keys(record).sort()
-  const keys = [...expected].sort()
-  const extra = actual.filter(key => !keys.includes(key))
-  const missing = keys.filter(key => !actual.includes(key))
+  const mandatory = [...required].sort()
+  const allowed = [...required, ...optional].sort()
+  const extra = actual.filter(key => !allowed.includes(key))
+  const missing = mandatory.filter(key => !actual.includes(key))
   if (extra.length > 0 || missing.length > 0) {
     throw new Error(`${subject} has invalid fields; extra: ${extra.join(', ') || 'none'}; missing: ${missing.join(', ') || 'none'}`)
   }

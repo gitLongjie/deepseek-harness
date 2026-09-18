@@ -8,16 +8,20 @@ export interface DesktopUpdateManifest {
 
 /**
  * Resolve an update feed while keeping the HTTP exception limited to marked
- * local-update rehearsal packages and loopback hosts.
+ * local-update rehearsal packages and loopback hosts. A deployment without any
+ * update URL (OEM builds that must not auto-update) resolves to undefined and
+ * the caller keeps the updater unwired.
  * @param explicit - Optional environment override for the update feed.
  * @param manifest - Parsed packaged application metadata.
- * @returns The validated desktop update feed URL.
+ * @returns The validated desktop update feed URL, or undefined when the OEM
+ * config declares no feed.
  */
 export function resolveDesktopUpdateUrl(
   explicit: string | undefined,
   manifest: DesktopUpdateManifest,
-): string {
+): string | undefined {
   const value: unknown = explicit ?? manifest.dsh?.updateUrl
+  if (value === undefined || value === null) return undefined
   if (typeof value !== 'string') throw new Error('desktop: OEM update URL is missing')
   try {
     const url = new URL(value)

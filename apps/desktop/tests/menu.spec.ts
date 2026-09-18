@@ -6,6 +6,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MENU_POPUP_CHANNEL, installApplicationMenu, registerMenuPopupIpc } from '../src/main/desktop/menu.ts'
 import { copy } from '../src/main/desktop/locales.ts'
+import { requestUpdateCheck } from '../src/main/updater.ts'
 
 /** The role union shipped by electron.d.ts; an unknown role fails at runtime. */
 const VALID_ROLES = new Set([
@@ -40,6 +41,7 @@ const state = vi.hoisted(() => ({
   fromWebContents: vi.fn(),
   getAllWindows: vi.fn(() => [] as Array<Record<string, unknown>>),
   openExternal: vi.fn(async () => {}),
+  updatesEnabled: true,
 }))
 
 vi.mock('electron', () => ({
@@ -73,6 +75,7 @@ vi.mock('../src/main/desktop/autostart.ts', () => ({
 
 vi.mock('../src/main/updater.ts', () => ({
   requestUpdateCheck: vi.fn(),
+  updateChecksEnabled: () => state.updatesEnabled,
 }))
 
 /** Depth-first search of one template subtree for an item with the given id. */
@@ -94,6 +97,8 @@ beforeEach(() => {
   state.getAllWindows.mockReturnValue([])
   state.openExternal.mockClear()
   state.menu = undefined
+  state.updatesEnabled = true
+  vi.mocked(requestUpdateCheck).mockClear()
   installApplicationMenu(key => copy('zh', '深度Worker')[key])
 })
 
@@ -135,6 +140,22 @@ describe('application menu template', () => {
     expect(urls).toContain('https://github.com/gitLongjie/deepseek-harness')
     expect(urls).toContain('https://github.com/gitLongjie/deepseek-harness/issues')
     expect(urls.every(url => url.startsWith('https://github.com/gitLongjie/deepseek-harness'))).toBe(true)
+  })
+
+  it('routes the check-updates entry to the updater while the deployment has a feed', () => {
+    const label = copy('zh', '深度Worker')['menu.checkUpdates']
+    const entry = (findItem(state.template, 'help')?.submenu ?? []).find(item => item.label === label)
+    expect(entry).toBeDefined()
+    entry?.click?.({}, undefined)
+    expect(requestUpdateCheck).toHaveBeenCalledOnce()
+  })
+
+  it('omits the check-updates entry for deployments without an update feed', () => {
+    state.updatesEnabled = false
+    installApplicationMenu(key => copy('zh', '深度Worker')[key])
+    const label = copy('zh', '深度Worker')['menu.checkUpdates']
+    const items = findItem(state.template, 'help')?.submenu ?? []
+    expect(items.some(item => item.label === label)).toBe(false)
   })
 })
 

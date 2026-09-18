@@ -39,22 +39,22 @@ describe('desktop builder identity', () => {
 
   it('gives Windows and macOS release assets stable architecture-specific names', () => {
     expect(config).toMatch(
-      /^nsis:\s*$[\s\S]*?^\s+artifactName:\s+深度Work-\$\{version\}-win-\$\{arch\}\.\$\{ext\}\s*$/m,
+      /^nsis:\s*$[\s\S]*?^\s+artifactName:\s+MindaWork-\$\{version\}-win-\$\{arch\}\.\$\{ext\}\s*$/m,
     )
     expect(config).toMatch(
-      /^mac:\s*$[\s\S]*?^\s+artifactName:\s+深度Work-\$\{version\}-mac-\$\{arch\}\.\$\{ext\}\s*$/m,
+      /^mac:\s*$[\s\S]*?^\s+artifactName:\s+MindaWork-\$\{version\}-mac-\$\{arch\}\.\$\{ext\}\s*$/m,
     )
     expect(config).toMatch(
-      /^linux:\s*$[\s\S]*?^\s+artifactName:\s+深度Work-\$\{version\}-linux-\$\{arch\}\.\$\{ext\}\s*$/m,
+      /^linux:\s*$[\s\S]*?^\s+artifactName:\s+MindaWork-\$\{version\}-linux-\$\{arch\}\.\$\{ext\}\s*$/m,
     )
     expect(config).not.toContain('${productName}-${version}')
   })
 
-  it('installs per-machine under the stable ASCII DeepagensWork directory', () => {
+  it('installs per-machine under the stable ASCII MindaWork directory', () => {
     expect(config).toMatch(/^  perMachine: true\s*$/m)
     expect(config).toMatch(/^  include: build\/installer\.nsh\s*$/m)
     const installer = readFileSync(fileURLToPath(new URL('../build/installer.nsh', import.meta.url)), 'utf8')
-    expect(installer).toContain('StrCpy $INSTDIR "$PROGRAMFILES64\\DeepagensWork"')
+    expect(installer).toContain('StrCpy $INSTDIR "$PROGRAMFILES64\\MindaWork"')
   })
 
   it('brands the Windows development executable used by Task Manager', () => {
@@ -94,7 +94,7 @@ describe('desktop builder identity', () => {
       extends: 'electron-builder.yml',
       productName: '深度Worker',
       extraMetadata: {
-        name: 'DeepagensWork',
+        name: 'MindaWork',
         productName: '深度Worker',
         dsh: { updateUrl: 'https://updates.example.test/desktop' },
       },
@@ -118,7 +118,7 @@ describe('desktop builder identity', () => {
     })).toMatchObject({
       directories: { output: 'C:/local-update/feed' },
       extraMetadata: {
-        name: 'DeepagensWork',
+        name: 'MindaWork',
         productName: 'Worker',
         version: '1.2.4',
         dsh: { updateUrl: 'http://127.0.0.1:43119', localUpdateTest: true },
@@ -128,6 +128,36 @@ describe('desktop builder identity', () => {
     expect(() => createElectronBuilderOemConfig('Worker', 'http://updates.example.test', {
       allowLoopbackHttp: true,
     })).toThrow(/updateUrl/)
+  })
+
+  it('ships no update metadata when the OEM deployment has no feed', () => {
+    expect(createElectronBuilderOemConfig('深度Worker')).toEqual({
+      extends: 'electron-builder.yml',
+      productName: '深度Worker',
+      extraMetadata: {
+        name: 'MindaWork',
+        productName: '深度Worker',
+        dsh: {},
+      },
+    })
+    expect(createElectronBuilderOemConfig('Worker', undefined, { localUpdateFeed: true })).not.toHaveProperty('publish')
+    expect(createElectronBuilderOemConfig('Worker', undefined, { localUpdateFeed: true }).extraMetadata.dsh)
+      .not.toHaveProperty('localUpdateTest')
+  })
+
+  it('reads an OEM file without an update URL as a no-update deployment', () => {
+    const repoRoot = mkdtempSync(join(tmpdir(), 'dsh-oem-no-update-'))
+    roots.push(repoRoot)
+    writeFileSync(join(repoRoot, 'oem.config.json'), JSON.stringify({
+      productName: 'Acme Agent',
+      brandIcon: '/brand/acme.ico',
+    }))
+
+    expect(readDesktopOemConfig(repoRoot, {})).toEqual({
+      productName: 'Acme Agent',
+      brandIcon: '/brand/acme.ico',
+      updateUrl: undefined,
+    })
   })
 
   it('projects one configured Web icon into both native desktop icon files', () => {
@@ -188,8 +218,10 @@ describe('desktop builder identity', () => {
     expect(updater).toContain('autoUpdater.setFeedURL({')
     expect(updater).toContain('url: updateUrl')
     expect(updater).toContain('channel: resolveUpdateChannel(app.getVersion())')
+    // The call site at the end of initUpdater is the first trigger of any
+    // check; the feed must be configured before that line can run.
     expect(updater.indexOf('autoUpdater.setFeedURL'))
-      .toBeLessThan(updater.indexOf('autoUpdater.checkForUpdates'))
+      .toBeLessThan(updater.indexOf('silentUpdateCheck()\n  scheduleUpdateRecheck()'))
   })
 
   it('declares runtime-only packages required by the shipped plugin tree', () => {

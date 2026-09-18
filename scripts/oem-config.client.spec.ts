@@ -65,6 +65,13 @@ describe('OEM configuration', () => {
     expect(parseOemConfig({ ...valid, loginUrl: 'http://accounts.acme.test/api/login' }, 'fixture').loginUrl)
       .toBe('http://accounts.acme.test/api/login')  })
 
+  it('treats a missing update URL as a deployment without auto-update', () => {
+    const noUpdate: Record<string, unknown> = { ...valid }
+    delete noUpdate.updateUrl
+    expect(parseOemConfig(noUpdate, 'fixture').updateUrl).toBeUndefined()
+    expect(() => { parseOemConfig({ ...noUpdate, updateUrl: null }, 'fixture') }).toThrow(/updateUrl/)
+  })
+
   it('keeps the repository OEM file parseable as the build source of truth', () => {
     const path = resolve(import.meta.dirname, '..', 'oem.config.json')
     expect(() => { parseOemConfig(JSON.parse(readFileSync(path, 'utf8')), path) }).not.toThrow()

@@ -24,7 +24,7 @@ export function readDesktopOemConfig(repoRoot, environment = process.env) {
   }
   const updateUrl = environment.DSH_DESKTOP_UPDATE_URL ?? oemConfig.updateUrl
   const localUpdateTest = environment.DSH_DESKTOP_LOCAL_UPDATE_TEST === '1'
-  if (!isHttpsUrl(updateUrl) && !(localUpdateTest && isLoopbackHttpUrl(updateUrl))) {
+  if (updateUrl !== undefined && !isHttpsUrl(updateUrl) && !(localUpdateTest && isLoopbackHttpUrl(updateUrl))) {
     throw new Error('oem.config.json.updateUrl must be an HTTPS URL')
   }
   const knowledgeBase = readOemKnowledgeBase(oemConfig.knowledgeBase)
@@ -94,23 +94,27 @@ export function syncDesktopOemIcons(repoRoot, desktopRoot, environment = process
 /** Create the electron-builder overlay that carries the OEM product identity. */
 export function createElectronBuilderOemConfig(productName, updateUrl, options = {}) {
   assertWindowsFilename(productName)
-  if (!isHttpsUrl(updateUrl) && !(options.allowLoopbackHttp && isLoopbackHttpUrl(updateUrl))) {
+  if (updateUrl !== undefined
+    && !isHttpsUrl(updateUrl)
+    && !(options.allowLoopbackHttp && isLoopbackHttpUrl(updateUrl))) {
     throw new Error('oem.config.json.updateUrl must be an HTTPS URL')
   }
   const config = {
     extends: 'electron-builder.yml',
     // The installer identity (install dir, shortcuts, uninstall entry) carries
     // the configured OEM display name. The package `name` stays the ASCII
-    // DeepagensWork identity: electron-builder derives APP_FILENAME from it to
+    // MindaWork identity: electron-builder derives APP_FILENAME from it to
     // sanitize the install directory, and an ASCII name keeps that check stable
-    // while the display name is non-ASCII (深度Work).
+    // while the display name is non-ASCII (民大工作台).
     productName,
     extraMetadata: {
-      name: 'DeepagensWork',
+      name: 'MindaWork',
       productName,
       dsh: {
-        updateUrl,
-        ...(options.localUpdateFeed ? { localUpdateTest: true } : {}),
+        // No updateUrl means the packaged runtime disables auto-update
+        // entirely (updater.ts skips wiring; the Help menu drops the entry).
+        ...(updateUrl === undefined ? {} : { updateUrl }),
+        ...(options.localUpdateFeed && updateUrl !== undefined ? { localUpdateTest: true } : {}),
         ...(options.knowledgeBase === undefined ? {} : { knowledgeBase: options.knowledgeBase }),
       },
     },
@@ -129,7 +133,7 @@ export function createElectronBuilderOemConfig(productName, updateUrl, options =
   return {
     ...config,
     ...(options.output === undefined ? {} : { directories: { output: options.output } }),
-    ...(options.localUpdateFeed ? { publish: [{ provider: 'generic', url: updateUrl }] } : {}),
+    ...(options.localUpdateFeed && updateUrl !== undefined ? { publish: [{ provider: 'generic', url: updateUrl }] } : {}),
   }
 }
 

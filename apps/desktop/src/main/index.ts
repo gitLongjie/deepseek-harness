@@ -62,7 +62,7 @@ protocol.registerSchemesAsPrivileged([
 // match electron-builder.yml's appId so dev and packaged share one identity. The
 // name must be set before any userData path (the single-instance lock below).
 const DESKTOP_PRODUCT_NAME = resolveDesktopWindowTitle(app.getName())
-const DESKTOP_UPDATE_URL = readDesktopUpdateUrl()
+const DESKTOP_UPDATE_URL: string | undefined = readDesktopUpdateUrl()
 app.setName(DESKTOP_PRODUCT_NAME)
 if (process.platform === 'win32') app.setAppUserModelId('ai.deepagens.worker')
 // The smoke harness must never contend with a real instance's lock: the
@@ -109,7 +109,7 @@ function waitForTransportGateway(): Promise<TypertGateway> {
   const gateway = ctx?.get('typertGateway')
   if (gateway !== undefined) return Promise.resolve(gateway)
   if (ctx === undefined) return Promise.reject(new Error('desktop: host stopped before Remote streams became available'))
-  return new Promise(resolve => {
+  return new Promise((resolve) => {
     const dispose = ctx.on('internal/service', (name: string, value: unknown) => {
       if (name !== 'typertGateway' || value === undefined) return
       dispose()
@@ -319,8 +319,8 @@ async function main(): Promise<void> {
   }
 }
 
-/** Read packaged metadata and resolve the desktop update feed. */
-function readDesktopUpdateUrl(): string {
+/** Read packaged metadata and resolve the desktop update feed (undefined disables updates). */
+function readDesktopUpdateUrl(): string | undefined {
   const manifest = JSON.parse(
     readFileSync(join(app.getAppPath(), 'package.json'), 'utf8'),
   ) as DesktopUpdateManifest
