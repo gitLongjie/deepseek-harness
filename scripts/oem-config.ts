@@ -50,7 +50,7 @@ export function parseOemConfig(value: unknown, source: string): OemConfig {
     productName,
     brandIcon,
     loginUrl,
-    updateUrl,
+    ...(updateUrl === undefined ? {} : { updateUrl }),
     loginTagline: {
       zh: nonEmptyString(loginTagline.zh, `${source}.loginTagline.zh`),
       en: nonEmptyString(loginTagline.en, `${source}.loginTagline.en`),
