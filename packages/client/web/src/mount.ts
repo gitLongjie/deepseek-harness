@@ -5,6 +5,7 @@
  */
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
+import { bootLog } from './boot-log.ts'
 
 /**
  * Mount the UI renderer into `container` through a dependency fiber on
@@ -17,8 +18,10 @@ import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
  * then, otherwise it installs when the service arrives.
  */
 export async function mountClient(ctx: Context, container: HTMLElement): Promise<void> {
+  bootLog('mount: waiting for the uiRenderer provider')
   const mounted = ctx.inject(['uiRenderer'], (scope) => {
     scope.effect(() => scope.uiRenderer.mount(container), 'web boot: application mount')
   })
   await mounted
+  bootLog('mount: application mounted')
 }

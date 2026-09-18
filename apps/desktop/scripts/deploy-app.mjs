@@ -34,6 +34,12 @@ function run(cmd, cmdArgs, opts = {}) {
   if (r.status !== 0) process.exit(r.status ?? 1)
 }
 
+// 0. Rebuild every workspace lib/ artifact first. The packaged node_modules
+// ships these files verbatim, and the frontend and main-process builds below
+// consume the same lib/ outputs, so packaging over stale or missing libs
+// ships whatever was last built; rebuilding here keeps the payload fresh.
+run('pnpm', ['run', 'build'], { cwd: repoRoot })
+
 // 1. Build the frontend with a relative asset base directly into apps/desktop/web
 // (vite outDir outside the web project root), so apps/web/dist stays untouched
 // for the served `dsh web` build.

@@ -56,6 +56,10 @@ async function readPluginBundle(modules: ClientModuleRegistry, src: string): Pro
  * @param webDistDir - directory containing the built frontend index.html.
  * @param transportIifePath - absolute path of the built render-transport IIFE.
  * @param clientModulesBootstrapPath - packaged client module bootstrap artifact.
+ * @param writeLog - optional desktop-log sink; logs the injection-table shape,
+ * because a table without the application batches (or without the
+ * client-modules bootstrap, recovered from the packaged artifact here) renders
+ * a page that boots zero plugins and waits forever.
  * @returns the injected index.html text.
  */
 export async function renderDesktopIndex(
@@ -63,6 +67,7 @@ export async function renderDesktopIndex(
   webDistDir: string,
   transportIifePath: string = TRANSPORT_IIFE_PATH,
   clientModulesBootstrapPath: string = CLIENT_MODULES_BOOTSTRAP_PATH,
+  writeLog?: (line: string) => void,
 ): Promise<string> {
   const server = ctx.get('webServer') as { collectIndexInjections(): IndexInjection[] } | undefined
   if (server === undefined) {
@@ -73,7 +78,25 @@ export async function renderDesktopIndex(
     throw new Error('desktop: no clientModules service to resolve bundle bytes')
   }
   const table = server.collectIndexInjections()
+  const preloadRows = table.filter(row => row.kind === 'script-preload').length
+  writeLog?.(
+    `desktop: index table: ${table.length} rows (${String(preloadRows)} application preloads, `
+    + `${String(table.filter(row => row.kind === 'script-src').length)} bootstrap scripts)`,
+  )
+  if (preloadRows === 0) {
+    writeLog?.(
+      'desktop: index table carries NO application batches — the client-modules graph composed without '
+      + 'client packages; the page will boot zero plugins (see the host boot\'s dsh.client scan warnings)',
+    )
+  }
   const inline = table.map(async (row): Promise<IndexInjection> => {
+    if (row.kind === 'script-preload' && row.src.startsWith('/plugins/')) {
+      // Desktop does not use the browser's HTTP cache for client bundles: the
+      // renderer loads them through IPC. Execute application batches inline so
+      // their factories enter the module-loader queue before AppWebEntry runs.
+      const text = await readPluginBundle(modules, row.src)
+      return { kind: 'script', placement: 'head', text: escapeInlineScript(stripSourceMappingUrl(text)) }
+    }
     if (row.kind !== 'script-src') return row
     const text = row.src.startsWith('/plugins/')
       ? await readPluginBundle(modules, row.src)
@@ -89,6 +112,7 @@ export async function renderDesktopIndex(
   const hasClientModulesBootstrap = table.some(row =>
     row.kind === 'script-src' && row.src.includes(`${CLIENT_MODULES_ID}/client.js`))
   if (!hasClientModulesBootstrap) {
+    writeLog?.('desktop: index table has no client-modules bootstrap row; injecting the packaged recovery copy')
     inlined.push({
       kind: 'script',
       placement: 'head',

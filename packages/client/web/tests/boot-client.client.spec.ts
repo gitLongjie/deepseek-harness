@@ -5,7 +5,10 @@ import {
   type ClientBundleRegistration, type ClientModuleLoader, type ClientModuleLoaderTarget, type WebBootEntry, type WebBootGraph,
 } from '@deepseek-ai/dsh-client-modules/client'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
-import { assertEntriesActive, bootClient, type EntryStateLabel } from '../src/boot-client.ts'
+import {
+  assertEntriesActive, BOOT_WATCHDOG_INTERVAL_MS, bootClient, inactiveEntryLines, startBootWatchdog,
+  type EntryStateLabel,
+} from '../src/boot-client.ts'
 import { FIBER_STATE } from '../src/loader-status.ts'
 
 const BOOTSTRAP_ID = '@deepseek-ai/dsh-client-modules'
@@ -44,6 +47,20 @@ function stateSink(): { states: Map<string, EntryStateLabel[]>; onEntryState: (n
     states,
     onEntryState: (name, state) => { states.set(name, [...(states.get(name) ?? []), state]) },
   }
+}
+
+interface FakeEntry { name: string; fiber?: { state: number; inject: Record<string, null> } }
+
+/** Loader-shaped double: entries with scripted fiber states, services by name. */
+function auditCtx(entries: readonly FakeEntry[], services: Record<string, unknown> = {}): Context {
+  return {
+    loader: {
+      * entries() {
+        for (const entry of entries) yield { options: { name: entry.name }, fiber: entry.fiber }
+      },
+    },
+    get: (name: string) => services[name],
+  } as unknown as Context
 }
 
 describe('bootClient', () => {
@@ -96,20 +113,6 @@ describe('bootClient', () => {
 })
 
 describe('assertEntriesActive', () => {
-  interface FakeEntry { name: string; fiber?: { state: number; inject: Record<string, null> } }
-
-  /** Loader-shaped double: entries with scripted fiber states, services by name. */
-  function auditCtx(entries: readonly FakeEntry[], services: Record<string, unknown> = {}): Context {
-    return {
-      loader: {
-        * entries() {
-          for (const entry of entries) yield { options: { name: entry.name }, fiber: entry.fiber }
-        },
-      },
-      get: (name: string) => services[name],
-    } as unknown as Context
-  }
-
   it('passes when every entry is active', () => {
     expect(() => { assertEntriesActive(auditCtx([{ name: 'a', fiber: { state: FIBER_STATE.ACTIVE, inject: {} } }])) }).not.toThrow()
   })
@@ -133,5 +136,49 @@ describe('assertEntriesActive', () => {
 
   it('uses the singular form for one failing entry', () => {
     expect(() => { assertEntriesActive(auditCtx([{ name: 'lost' }])) }).toThrow('web boot: 1 entry did not activate\n')
+  })
+})
+
+describe('inactiveEntryLines', () => {
+  it('skips active entries and lines up the rest with their reasons', () => {
+    const ctx = auditCtx([
+      { name: 'fine', fiber: { state: FIBER_STATE.ACTIVE, inject: {} } },
+      { name: 'lost' },
+      { name: 'waiting', fiber: { state: FIBER_STATE.PENDING, inject: { a: null } } },
+      { name: 'broken', fiber: { state: FIBER_STATE.FAILED, inject: {} } },
+    ])
+
+    expect(inactiveEntryLines(ctx)).toEqual([
+      'lost: import failed (see console for the import error)',
+      'waiting: pending (waiting for service: a)',
+      'broken: failed',
+    ])
+  })
+
+  it('returns no lines when every entry is active', () => {
+    expect(inactiveEntryLines(auditCtx([{ name: 'a', fiber: { state: FIBER_STATE.ACTIVE, inject: {} } }]))).toEqual([])
+  })
+})
+
+describe('startBootWatchdog', () => {
+  it('warn-snapshots non-active entries each interval, silently skipping empty snapshots', () => {
+    vi.useFakeTimers()
+    onTestFinished(() => { vi.useRealTimers() })
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    onTestFinished(() => { warn.mockRestore() })
+
+    let lines: string[] = []
+    const watchdog = startBootWatchdog(() => lines)
+    vi.advanceTimersByTime(BOOT_WATCHDOG_INTERVAL_MS)
+    expect(warn).not.toHaveBeenCalled()
+
+    lines = ['picker: pending (waiting for service: uiWorkspace)']
+    vi.advanceTimersByTime(BOOT_WATCHDOG_INTERVAL_MS)
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(String(warn.mock.calls[0]?.[0])).toContain('picker: pending (waiting for service: uiWorkspace)')
+
+    watchdog.stop()
+    vi.advanceTimersByTime(BOOT_WATCHDOG_INTERVAL_MS)
+    expect(warn).toHaveBeenCalledTimes(1)
   })
 })

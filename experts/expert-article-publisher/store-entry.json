@@ -1,0 +1,18 @@
+{
+  "id": "expert/article-publisher",
+  "name": "民大工作台文章专家",
+  "owner": "xmanrui",
+  "url": "https://github.com/xmanrui/expert-article-publisher",
+  "category": "expert",
+  "description": {
+    "zh": "生成或接收文章并自动发布到 GEO 多站点内容后台。安装后专家页出现该卡片，聘用即以该专家的组合开启新对话。",
+    "en": "Writes or accepts articles and publishes them to the GEO multi-site content backend. After install, the expert page shows the card and hiring starts a session composed as the expert."
+  },
+  "installMethods": [
+    {
+      "kind": "npm",
+      "code": "published_package",
+      "spec": "@xmanrui/expert-article-publisher"
+    }
+  ]
+}

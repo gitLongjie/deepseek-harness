@@ -1,16 +1,17 @@
 {
-  "name": "@xmanrui/expert-geo-optimizer",
+  "name": "@xmanrui/expert-article-publisher",
   "version": "0.1.0",
-  "description": "民大工作台专家包：GEO 优化专家——诊断品牌在 AI 搜索中的可见度，给出提升方案与可结算的报价速查表。 Expert package: a GEO (generative-engine-optimization) consultant card for the dsh expert market.",
+  "description": "民大工作台专家包：民大工作台文章专家——生成或接收文章并自动发布到多站点内容后台。 Expert package: an article publisher card that writes or accepts articles and pushes them to the multi-site content backend.",
   "keywords": [
     "deepseek-harness",
     "dsh",
     "dsh-plugin",
     "dsh-expert",
     "expert",
-    "geo",
-    "seo",
-    "ai-search"
+    "article",
+    "publish",
+    "content",
+    "multi-site"
   ],
   "author": {
     "name": "xmanrui",
@@ -37,7 +38,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/xmanrui/expert-geo-optimizer.git"
+    "url": "git+https://github.com/xmanrui/expert-article-publisher.git"
   },
   "dsh": {
     "expert": {

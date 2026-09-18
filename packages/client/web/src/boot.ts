@@ -13,6 +13,7 @@ import type {
 // bridge reads.
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import { bootClient } from './boot-client.ts'
+import { bootLog } from './boot-log.ts'
 import { BootPage } from './boot-page.ts'
 import { mountClient } from './mount.ts'
 import { getStaticModules } from './seed.ts'
@@ -55,6 +56,7 @@ export class AppWebEntry {
       // row, or rejects it into the failure rendering below. An absent global
       // means no bootstrap owns the document and there is nothing to wait for.
       await (globalThis as { __DSH_BOOT_READY__?: { promise: Promise<void> } }).__DSH_BOOT_READY__?.promise
+      bootLog('boot-ready gate settled')
       const win = globalThis as DshWindow
       const moduleLoader = win.__ModuleLoader__
       if (moduleLoader === undefined) {
@@ -75,6 +77,10 @@ export class AppWebEntry {
         ...this.seams,
       })
       this.manifest = this.modules.manifest
+      bootLog(
+        `module system built: manifest ${this.manifest.rev}, `
+        + `${this.manifest.plugins.length} plugin rows, ${this.manifest.modules.length} module rows`,
+      )
 
       const prefetching = this.prefetchImmediateTier()
       const ctx = new Context()
@@ -88,6 +94,7 @@ export class AppWebEntry {
         onEntryState: (name, state) => { this.page.setState(name, state) },
       })
       await mountClient(ctx, this.container)
+      bootLog('boot finished')
       // Desktop-shell bridge: the packaged host opens a session from outside
       // the page (completion notifications, tray restore) through this global.
       ;(globalThis as { __DSH_OPEN_SESSION__?: (sessionId: string) => void }).__DSH_OPEN_SESSION__ = (sessionId) => {
@@ -109,10 +116,11 @@ export class AppWebEntry {
 
   /** Prefetch stage-one bundles and their dynamic requests before concurrent plugin imports. */
   private async prefetchImmediateTier(): Promise<void> {
-    await Promise.all(this.manifest.plugins
-      .filter(row => row.immediately)
-      .map(row => this.modules.prefetch(row.id).catch((_prefetchError: unknown) => {
-        // Prefetch only starts transport early; the Loader import retries and reports this bundle failure.
-      })))
+    const immediate = this.manifest.plugins.filter(row => row.immediately)
+    bootLog(`prefetch: ${immediate.length} immediate rows`)
+    await Promise.all(immediate.map(row => this.modules.prefetch(row.id).catch((_prefetchError: unknown) => {
+      // Prefetch only starts transport early; the Loader import retries and reports this bundle failure.
+    })))
+    bootLog('prefetch finished')
   }
 }

@@ -43,11 +43,15 @@ const transport: ClientTransportHooks = {
   fetch: (input: URL, init: RequestInit) => createIpcFetch(ipc)(input, init),
   openStream: createIpcStreamOpen(ipc),
   loadBundle: async (url: string) => {
+    const started = performance.now()
+    console.info(`[boot] loadBundle ${url}`)
     const bytes = await ipc.invoke('dsh:transport:loadBundle', { url }) as number[] | undefined
     if (bytes === undefined) {
+      console.warn(`[boot] loadBundle ${url} returned no bytes after ${Math.round(performance.now() - started)}ms`)
       throw new Error(`desktop render: no bundle bytes for ${url}`)
     }
     const source = new TextDecoder().decode(new Uint8Array(bytes))
+    console.info(`[boot] loadBundle ${url} -> ${bytes.length} bytes in ${Math.round(performance.now() - started)}ms`)
     // Indirect eval runs the factory in global scope, where it registers itself
     // through window.__ModuleLoader__.load — the same contract the served
     // `<script src=/plugins/...>` form exercises.

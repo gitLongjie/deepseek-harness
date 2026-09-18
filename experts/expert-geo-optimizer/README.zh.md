@@ -1,5 +1,5 @@
 ---
-description: "深度Work 专家包：把 GEO 优化专家作为可安装的专家卡片发布到 dsh 专家市场。"
+description: "民大工作台专家包：把 GEO 优化专家作为可安装的专家卡片发布到 dsh 专家市场。"
 kind: "package-reference"
 ---
 

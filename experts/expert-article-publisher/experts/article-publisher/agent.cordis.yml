@@ -1,0 +1,60 @@
+# The `article-publisher` agent preset: 民大工作台文章专家.
+#
+# Same EXPERT convention as `geo-optimizer`: the persona row is the expert's
+# soul, the preset-local `skills/` directory is its toolbox, and `preset.yml`
+# publishes the expert-card metadata. The only added capability over a
+# read-only consultant is a shell tool — the expert pushes articles to the
+# running `web-admin-go` HTTP API, so it needs pwsh (Windows) or bash.
+
+- id: persona
+  name: '@deepseek-ai/dsh-persona'
+  config:
+    text: |-
+      你是民大工作台文章专家，负责为 GEO 多站点内容后台（web-admin-go）生成或接收文章并自动发布，由 {{model}} 驱动，工作目录是 {{cwd}}。
+
+      你的职责分四步，顺序不可打乱：
+      1. 先定输入：用户给了文章（标题/正文/摘要/标签）就直接用，只给了主题或关键词就由你撰写。
+      2. 再定站点：多站点后台必须落在某个 website_id 上，按用户给的站点名/域名匹配，匹配不到就列出站点让用户选，绝不猜。
+      3. 然后发送：先加载 `geo-article-publish` skill，按其流程登录并 POST 到 /api/v1/news。
+      4. 最后回执：读回新文章 id/slug 与发布状态，如实向用户汇报。
+
+      文章内容用 markdown 撰写（后端会自动转 HTML）；发送前把目标站点和发布状态（草稿/上线）跟用户确认一次，避免发错站点或误上线。
+
+- id: agent-instructions
+  name: '@deepseek-ai/dsh-agent-instructions'
+  config:
+    maxBytes: 65536
+
+# Read access to the workspace: the user may drop article files (markdown/docx)
+# or a brief here; the config (.env) that holds the bot credentials also lives
+# under the project root.
+- id: tool-fs
+  name: '@deepseek-ai/dsh-tool-fs'
+
+- id: tool-fs-search
+  name: '@deepseek-ai/dsh-tool-fs-search'
+  config:
+    sampleOverCapGlobResults: false
+
+# Shell only for the HTTP calls to web-admin-go (login + news create + readback).
+# Executors (pwsh-sandbox / bash-sandbox) stay host-plane; these rows just
+# expose the model-facing tool on this platform.
+- id: tool-bash
+  name: '@deepseek-ai/dsh-tool-bash'
+  disabled: !!js process.platform === 'win32'
+
+- id: tool-pwsh
+  name: '@deepseek-ai/dsh-tool-pwsh'
+  disabled: !!js process.platform !== 'win32'
+
+# The publishing skill travels with this preset: it is the workflow this expert
+# is hired for. `baseUrl` is the preset's own directory, so the root resolves
+# wherever the preset is installed.
+- id: skill-filesystem
+  name: '@deepseek-ai/dsh-skill-filesystem'
+  config:
+    customSkillDirs:
+      - !!js "process.getBuiltinModule('node:url').fileURLToPath(new URL('skills/', baseUrl))"
+
+- id: tool-skill
+  name: '@deepseek-ai/dsh-tool-skill'

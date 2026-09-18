@@ -65,6 +65,11 @@ const DESKTOP_PRODUCT_NAME = resolveDesktopWindowTitle(app.getName())
 const DESKTOP_UPDATE_URL: string | undefined = readDesktopUpdateUrl()
 app.setName(DESKTOP_PRODUCT_NAME)
 if (process.platform === 'win32') app.setAppUserModelId('ai.deepagens.worker')
+// The userData directory stays on the ASCII exe id, not the localized display
+// name `setName` installs: users and support scripts navigate %APPDATA% by the
+// product's file-system id (MindaWork), and the display name belongs to the
+// window and tray, not the disk layout.
+app.setPath('userData', join(app.getPath('appData'), 'MindaWork'))
 // The smoke harness must never contend with a real instance's lock: the
 // single-instance lock is scoped to userData, so the harness points it at its
 // own directory. Must run before installSingleInstanceLock() below.
@@ -211,6 +216,19 @@ async function main(): Promise<void> {
     host.ctx = result.ctx
     host.shutdown = result.shutdown
     log('desktop: host booted')
+    // The composed client graph decides what the renderer can boot: a graph
+    // without application entries renders a page stuck on plugin loading
+    // forever, so name its shape here. Structural read: a composition without
+    // the registry must log "0 entries" instead of crashing this diagnostic.
+    const modules = host.ctx.get('clientModules') as
+      | { graph(): { entries: unknown[]; batches: readonly { phase: string; entries: readonly string[] }[] } }
+      | undefined
+    const graph = modules?.graph()
+    const applicationBatches = graph?.batches.filter(batch => batch.phase === 'application').length ?? 0
+    log(
+      `desktop: client graph: ${String(graph?.entries.length ?? 0)} entries, `
+      + `${String(applicationBatches)} application batches`,
+    )
 
     // The packaging gate branch: run the boot self-check suite and exit with
     // the verdict instead of starting the shell.
@@ -223,7 +241,7 @@ async function main(): Promise<void> {
       gateway: host.ctx?.get('typertGateway'),
       connection: host.ctx?.get('connection'),
     }), waitForTransportGateway)
-    registerBundleIpc(() => host.ctx?.get('clientModules'))
+    registerBundleIpc(() => host.ctx?.get('clientModules'), log)
     registerPluginToggleIpc()
 
     // Protocol handlers and the menu must register after the app is ready.
@@ -270,6 +288,10 @@ async function main(): Promise<void> {
     win.webContents.on('console-message', (event) => {
       if (event.level === 'warning' || event.level === 'error') {
         log(`desktop: renderer console[${event.level}] ${event.message} (${event.sourceId}:${event.lineNumber})`)
+      } else if (event.level === 'info' && event.message.startsWith('[boot]')) {
+        // The client boot chain's own progress lines (@deepseek-ai/dsh-client-web
+        // boot-log): a wedged renderer boot must name its stuck stage in the log.
+        log(`desktop: renderer ${event.message}`)
       }
     })
     win.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
@@ -563,7 +585,8 @@ function registerWebProtocol(writeLog: (line: string) => void): void {
         if (injected === undefined) {
           const ctx = host.ctx
           if (ctx === undefined) throw new Error('desktop: host not ready to render index')
-          injected = await renderDesktopIndex(ctx, WEB_DIST_DIR)
+          injected = await renderDesktopIndex(ctx, WEB_DIST_DIR, undefined, undefined, writeLog)
+          writeLog(`desktop: index rendered (${injected.length} chars)`)
         }
         return new Response(injected, { headers: { 'content-type': 'text/html; charset=utf-8' } })
       }

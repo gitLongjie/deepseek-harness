@@ -92,6 +92,25 @@ export async function runPackagedSmoke(options: PackagedSmokeOptions): Promise<P
       : `missing services: ${absentCarriers.join(', ')}`,
   })
 
+  // A graph without application entries renders a page that boots zero plugins
+  // and waits forever: the packaged dsh.client scan resolved no client package
+  // (a node_modules closure or resolution failure the resource check cannot see).
+  const modules = ctx.get('clientModules') as
+    | { graph(): { entries: unknown[]; batches: readonly { phase: string; entries: readonly string[] }[] } }
+    | undefined
+  const graph = modules === undefined ? undefined : modules.graph()
+  const applicationEntries = graph?.batches
+    .filter(batch => batch.phase === 'application')
+    .flatMap(batch => batch.entries) ?? []
+  checks.push({
+    name: 'client-graph',
+    ok: applicationEntries.length > 0,
+    detail: applicationEntries.length > 0
+      ? `${String(applicationEntries.length)} application client entries composed `
+        + `(${String(graph?.entries.length ?? 0)} total)`
+      : `no application client entries composed (${String(graph?.entries.length ?? 0)} total)`,
+  })
+
   try {
     // The preset roster answers from the same on-disk closure a session's
     // standing mount imports from: a packaged layout whose preset rows cannot
