@@ -1,0 +1,216 @@
+/* Scheduled-work management page: toolbar, list rows, batch bar, empty states. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: var(--dsh-bg, #fff);
+  color: var(--dsh-fg, #1f2329);
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--dsh-border, #e5e6eb);
+}
+
+.tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tab {
+  appearance: none;
+  border: none;
+  background: transparent;
+  padding: 5px 12px;
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 500;
+  color: var(--dsh-fg-muted, #646a73);
+  cursor: pointer;
+}
+
+.tab:hover {
+  background: var(--dsh-hover, #f2f3f5);
+}
+
+.tabOn {
+  background: var(--dsh-active, #ececee);
+  color: var(--dsh-fg, #1f2329);
+}
+
+.toolbarControls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.filterSelect {
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--dsh-border, #e5e6eb);
+  border-radius: 8px;
+  font: inherit;
+  background: var(--dsh-bg, #fff);
+  color: inherit;
+}
+
+.search {
+  width: 220px;
+}
+
+.batchBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--dsh-border, #e5e6eb);
+  background: var(--dsh-subtle, #f7f8fa);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 8px 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+}
+
+.row:hover {
+  background: var(--dsh-hover, #f5f6f7);
+}
+
+.checkbox {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--dsh-accent, #1f2329);
+}
+
+.rowBody {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.rowTitleLine {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.rowTitle {
+  font-weight: 600;
+}
+
+.rowMeta {
+  color: var(--dsh-fg-muted, #646a73);
+  font-size: 13px;
+}
+
+.rowPrompt {
+  margin: 0;
+  color: var(--dsh-fg-muted, #646a73);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--dsh-fg-muted, #646a73);
+}
+
+.rowActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  visibility: hidden;
+}
+
+.row:hover .rowActions,
+.row:focus-within .rowActions {
+  visibility: visible;
+}
+
+.active {
+  color: var(--dsh-ok, #2ea44f);
+}
+
+.paused,
+.idle {
+  color: var(--dsh-fg-muted, #646a73);
+}
+
+.ended {
+  color: var(--dsh-fg-muted, #646a73);
+}
+
+.failed {
+  color: var(--dsh-danger, #d03050);
+}
+
+.runDot {
+  display: inline-flex;
+}
+
+.runError {
+  margin: 0;
+  color: var(--dsh-danger, #d03050);
+  font-size: 13px;
+}
+
+.errorState {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px;
+  color: var(--dsh-danger, #d03050);
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex: 1;
+  color: var(--dsh-fg-faint, #8f959e);
+}
+
+/* Dialog form rows shared with the editor module. */
+
+.dialogRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+}
+
+@media (max-width: 720px) {
+  .search {
+    width: 140px;
+  }
+}

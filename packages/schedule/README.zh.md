@@ -1,15 +1,15 @@
 ---
-description: "schedule 组地图：基于会话日志的会话本地持久提醒，供浏览本组的用户与维护者阅读。"
+description: "schedule 组地图：会话本地提醒与应用级定时任务，供浏览本组的用户与维护者阅读。"
 kind: "package-group"
 ---
 
-# schedule/ — 仅限会话内的提醒
+# schedule/ — 提醒与定时任务
 
 [English](README.md) | 中文
 
 ## 概述
 
-schedule 组让 agent（智能体）为当前会话创建、列出和取消提醒。提醒可以在延迟后、绝对时间或固定间隔触发；到期时，它们会作为普通消息进入该会话。提醒在重启后依然存在，但不会离开会话，也不会发送电子邮件、短信或推送通知。本组的包提供提醒管理与交付。可选的浏览器包显示当前提醒目录，并标记已知存在活动提醒的会话；这些标识反映缓存状态，可能落后于运行中的会话。
+schedule 组承载两类基于时间的自动化。`schedule` 包让 agent（智能体）为当前会话创建、列出和取消提醒：延迟后、绝对时间或固定间隔触发，到期时作为普通消息进入该会话；提醒在重启后依然存在，但不会离开会话，也不会发送电子邮件、短信或推送通知。`schedule-work` 包是"定时工作"页面背后的应用级能力：用户自己编写的任务按日历或固定频率规则打开自己的会话，支持暂停、有效期截止与运行记录。可选的浏览器包显示提醒目录并管理定时任务。
 
 ## 目录
 
@@ -25,6 +25,7 @@ schedule 组让 agent（智能体）为当前会话创建、列出和取消提�
 | 包 | 职责 | ctx 键 |
 |---|---|---|
 | [`schedule/`](schedule/README.zh.md) | 会话本地提醒：安排、列出并取消活动记录；发布供 header 目录与列表行标识读取的可选只读 projection；把到期提醒作为会话消息交付 | —（工具只注册在精确的 agent scope 中） |
+| [`schedule-work/`](schedule-work/README.zh.md) | 应用级定时任务：按日历或固定频率规则触发到自己的会话中，携带运行记录与 `scheduleWork` Remote 命名空间 | `scheduleWorkGateway` |
 
 -----
 
@@ -35,6 +36,7 @@ schedule 组让 agent（智能体）为当前会话创建、列出和取消提�
 - [生成的工具目录](../../docs/tool-catalog.zh.md#deepseek-aidsh-schedule)——模型接收的 `schedule_create`／`schedule_list`／`schedule_delete` schema。
 - [Schedule 用户指南](../../docs/user/guide/schedule.zh.md)——挂载本包的官方配置路径。
 - [Web Schedule 目录](../client/ui-schedule/README.zh.md)——活动记录的可选只读浏览器呈现。
+- [定时工作页面](../client/ui-schedule-work/README.zh.md)——应用级任务的侧边栏入口、任务目录、编辑器与运行记录。
 
 -----
 

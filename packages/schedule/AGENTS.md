@@ -1,6 +1,6 @@
 # AGENTS.md — Schedule packages
 
-These rules supplement the repository and package instructions for `packages/schedule/*`.
+These rules supplement the repository and package instructions for `packages/schedule/*`. Rules 1–7 scope the session-local reminder capability (`schedule/`); `schedule-work/` is an app-level capability whose durable state is its own storage domain, not a session log.
 
 - The owning Session's versioned `schedule/change` stream is the only durable Schedule state. Folds validate every durable JSON boundary and derive active records; timers, idle waiters, and tool values remain disposable projections.
 - A normal Session folds its complete log. A fork derives active Schedule state only from events at or after the Session's exact `inheritedEventCount`; it never inherits an active parent reminder.

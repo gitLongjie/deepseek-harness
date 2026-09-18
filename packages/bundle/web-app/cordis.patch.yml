@@ -149,6 +149,12 @@
     - id: workspace-controller
       name: '@deepseek-ai/dsh-api-workspace-controller'
 
+    # App-level scheduled work: durable tasks on calendar or fixed-rate rules
+    # dispatched into Sessions, with run records, over Typert Remote (the
+    # `scheduleWork` namespace).
+    - id: schedule-work
+      name: '@deepseek-ai/dsh-schedule-work'
+
     - id: cordis-host-runner
       name: '@deepseek-ai/dsh-cordis-host-runner'
 
@@ -368,6 +374,11 @@
     - id: ui-schedule
       name: '@deepseek-ai/dsh-client-ui-schedule'
       disabled: true
+
+    # Scheduled-work management: the sidebar panel row plus the task catalog,
+    # editor dialog, and run records over the scheduleWork Remote.
+    - id: ui-schedule-work
+      name: '@deepseek-ai/dsh-client-ui-schedule-work'
 
     # Background jobs: the session-header list over the jobsBySession mirror.
     - id: ui-jobs

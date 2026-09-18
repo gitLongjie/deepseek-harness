@@ -1,15 +1,15 @@
 ---
-description: "The schedule group map: session-local durable reminders over the session log, for users and maintainers navigating the group."
+description: "The schedule group map: session-local reminders and app-level scheduled tasks, for users and maintainers navigating the group."
 kind: "package-group"
 ---
 
-# schedule/ — Session-local reminders
+# schedule/ — Reminders and scheduled tasks
 
 English | [中文](README.zh.md)
 
 ## Summary
 
-The schedule group lets an agent create, list, and cancel reminders for the current conversation. Reminders can run after a delay, at an absolute time, or on a fixed interval; when due, they arrive as ordinary messages in that conversation. They survive restarts, but never leave the session or send email, SMS, or push notifications. The group's package provides reminder management and delivery. Optional browser packages show the current reminder catalog and mark conversations with known active reminders; those indicators reflect cached state and may lag the running session.
+The schedule group owns two kinds of time-based automation. The `schedule` package lets an agent create, list, and cancel reminders for the current conversation: after a delay, at an absolute time, or on a fixed interval, delivered as ordinary messages in that conversation; they survive restarts but never leave the session or send email, SMS, or push notifications. The `schedule-work` package is the app-level capability behind the 定时工作 page: user-authored tasks on calendar or fixed-rate rules that open their own Sessions, with pause, validity bounds, and run records. Optional browser packages show the reminder catalog and manage the tasks.
 
 ## Table of Contents
 
@@ -25,6 +25,7 @@ The schedule group lets an agent create, list, and cancel reminders for the curr
 | Package | Role | ctx key |
 |---|---|---|
 | [`schedule/`](schedule/README.md) | Session-local reminders: schedule, list, and cancel active records; publish an optional read-only projection for the header catalog and list-row marker; deliver due reminders as conversation messages | — (tools only, in the exact agent scope) |
+| [`schedule-work/`](schedule-work/README.md) | App-level scheduled tasks on calendar or fixed-rate rules dispatched into their own Sessions, with run records and the `scheduleWork` Remote namespace | `scheduleWorkGateway` |
 
 -----
 
@@ -35,6 +36,7 @@ The schedule group lets an agent create, list, and cancel reminders for the curr
 - [Generated tool catalog](../../docs/tool-catalog.md#deepseek-aidsh-schedule) — the `schedule_create`/`schedule_list`/`schedule_delete` schemas the model receives.
 - [Schedule user guide](../../docs/user/guide/schedule.md) — the official configuration path for mounting the package.
 - [Web Schedule catalog](../client/ui-schedule/README.md) — the optional read-only browser presentation of active records.
+- [Scheduled-work page](../client/ui-schedule-work/README.md) — the sidebar entry, task catalog, editor, and run records for app-level tasks.
 
 -----
 

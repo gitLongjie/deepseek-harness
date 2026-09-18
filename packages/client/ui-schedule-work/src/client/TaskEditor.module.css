@@ -1,0 +1,101 @@
+/* Task editor dialog form. */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 4px 2px;
+  min-width: 480px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.fieldLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--dsh-fg, #1f2329);
+}
+
+.prompt {
+  font: inherit;
+  padding: 8px 10px;
+  border: 1px solid var(--dsh-border, #e5e6eb);
+  border-radius: 10px;
+  resize: vertical;
+  min-height: 96px;
+  background: var(--dsh-bg, #fff);
+  color: inherit;
+}
+
+.prompt:focus {
+  outline: 2px solid var(--dsh-accent, #1f2329);
+  outline-offset: -1px;
+}
+
+.select {
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--dsh-border, #e5e6eb);
+  border-radius: 8px;
+  font: inherit;
+  background: var(--dsh-bg, #fff);
+  color: inherit;
+}
+
+.ruleEditor {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.weekdays {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.weekday {
+  appearance: none;
+  border: 1px solid var(--dsh-border, #e5e6eb);
+  background: var(--dsh-bg, #fff);
+  color: var(--dsh-fg-muted, #646a73);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.weekdayOn {
+  background: var(--dsh-active, #1f2329);
+  border-color: var(--dsh-active, #1f2329);
+  color: var(--dsh-bg, #fff);
+}
+
+.dayInput {
+  width: 90px;
+}
+
+.intervalUnit {
+  color: var(--dsh-fg-muted, #646a73);
+  font-size: 13px;
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.submitError {
+  margin: 0;
+  color: var(--dsh-danger, #d03050);
+  font-size: 13px;
+}
