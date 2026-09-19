@@ -234,6 +234,15 @@ export function launchWindowsJob(
     ipcDisconnected = true
     settleRange()
   })
+  // A wedge before the runner reports — a runner that never starts, or one
+  // that never speaks the control protocol — must not hang the caller past
+  // its own deadline: the caller's abort settles the spawn as a provider
+  // failure and terminates the runner.
+  spec.signal?.addEventListener('abort', () => {
+    if (directResultType !== undefined) return
+    failInfrastructure(new Error('subprocess-local: spawn was aborted before the runner reported a target'))
+    owner.terminateForHostExit()
+  }, { once: true })
 
   return {
     stdin: spec.stdio.stdin === 'ignore' ? null : targetStdin,

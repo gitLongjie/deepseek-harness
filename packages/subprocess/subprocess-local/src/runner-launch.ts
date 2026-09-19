@@ -77,10 +77,16 @@ export function runnerEnvironment(
       Reflect.deleteProperty(env, name)
     }
   }
+  // The desktop host runs in the Electron main process, so execPath is the
+  // application binary; without the node switch the runner boots a second GUI
+  // instance (whose single-instance lock exits silently) instead of the runner.
+  // The target env is built parent-side per spawn, so the switch never reaches
+  // a spawned target.
   return {
     ...env,
     [SUBPROCESS_RUNNER_ENV]: selection,
     SYSTEMD_LOG_TARGET: 'null',
+    ...process.versions.electron !== undefined ? { ELECTRON_RUN_AS_NODE: '1' } : {},
     ...entry?.endsWith('.ts') === true ? { TSX_TSCONFIG_PATH: SOURCE_TSCONFIG_PATH } : {},
   }
 }

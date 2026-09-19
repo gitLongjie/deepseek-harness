@@ -162,6 +162,25 @@ describe('Windows parent runner contract', () => {
     expect(await range).toBeInstanceOf(Error)
   })
 
+  it('settles the spawn as failed and terminates the runner when the caller aborts before a result', async () => {
+    const controller = new AbortController()
+    const { child, result } = launch(new FakeChild(), { ...spec, signal: controller.signal })
+    const direct = result.direct.catch((error: unknown) => error)
+    controller.abort()
+    expect(await direct).toBeInstanceOf(Error)
+    expect(child.killed).toEqual(['SIGKILL'])
+  })
+
+  it('ignores a late abort once the runner reported the target outcome', async () => {
+    const controller = new AbortController()
+    const { child, result } = launch(new FakeChild(), { ...spec, signal: controller.signal })
+    child.emit('message', { type: 'target-exit', exitCode: 0 })
+    await expect(result.direct).resolves.toEqual({ exitCode: 0, signal: null })
+    controller.abort()
+    await expect(result.direct).resolves.toEqual({ exitCode: 0, signal: null })
+    expect(child.killed).toEqual([])
+  })
+
   it('keeps the requested control endpoint separate from runner IPC and ordinary output', () => {
     const child = new FakeChild()
     const control = new PassThrough()

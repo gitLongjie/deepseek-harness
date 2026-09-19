@@ -259,6 +259,19 @@ describe('runner launch inputs', () => {
     env: { EXPLICIT: 'yes' },
   } as const
 
+  it('reports the node-mode switch for an Electron host and omits it under plain Node', () => {
+    const versions = process.versions as { electron?: string }
+    const original = versions.electron
+    try {
+      versions.electron = '33.0.0'
+      expect(runnerEnvironment('/tmp/request').ELECTRON_RUN_AS_NODE).toBe('1')
+    } finally {
+      if (original === undefined) delete versions.electron
+      else versions.electron = original
+    }
+    expect(runnerEnvironment('/tmp/request').ELECTRON_RUN_AS_NODE).toBeUndefined()
+  })
+
   it('keeps target state out of the bootstrap environment and consumes its selector', () => {
     const env = runnerEnvironment('/tmp/request')
     const sourceEnv = runnerEnvironment('/tmp/request', [process.execPath, '/repo/bin.ts'])
@@ -266,6 +279,7 @@ describe('runner launch inputs', () => {
     expect(env[SUBPROCESS_RUNNER_ENV]).toBe('/tmp/request')
     expect(env.SYSTEMD_LOG_TARGET).toBe('null')
     expect(env.EXPLICIT).toBeUndefined()
+    expect(env.ELECTRON_RUN_AS_NODE).toBeUndefined()
     expect(sourceEnv.TSX_TSCONFIG_PATH).toBe(resolve(import.meta.dirname, '../../../..', 'tsconfig.base.json'))
     expect(builtEnv.TSX_TSCONFIG_PATH).toBe(env.TSX_TSCONFIG_PATH)
     expect(consumeRunnerSelection(env)).toBe('/tmp/request')
