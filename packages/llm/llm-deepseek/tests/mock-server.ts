@@ -13,6 +13,8 @@ export interface MockServer {
   requests: unknown[]
   /** Header bags of received requests, in order (parallel to `requests`). */
   headers: IncomingMessage['headers'][]
+  /** Paths of received chat requests, in order (parallel to `requests`). */
+  paths: string[]
   /** Parsed Files API operations, excluded from chat request ordering. */
   fileRequests: Array<{ method: string; path: string; filename?: string; bytes?: number }>
   script: Behavior[]
@@ -38,6 +40,7 @@ export const textEvents = [
 export async function mockServer(script: Behavior[]): Promise<MockServer> {
   const requests: unknown[] = []
   const headers: IncomingMessage['headers'][] = []
+  const paths: string[] = []
   const fileRequests: MockServer['fileRequests'] = []
   const files = new Map<string, { id: string; object: 'file'; bytes: number; created_at: number; filename: string; purpose: 'user_data'; expires_at: number }>()
   let nextFile = 1
@@ -116,6 +119,7 @@ export async function mockServer(script: Behavior[]): Promise<MockServer> {
 
         requests.push(JSON.parse(body.toString('utf8')))
         headers.push(request.headers)
+        paths.push(url.pathname)
         const behavior = script.shift()
         if (!behavior) {
           response.writeHead(500).end('mock script exhausted')
@@ -153,6 +157,7 @@ export async function mockServer(script: Behavior[]): Promise<MockServer> {
     url: `http://127.0.0.1:${address.port}`,
     requests,
     headers,
+    paths,
     fileRequests,
     script,
     close: () => new Promise(resolve => server.close(() => { resolve() })),

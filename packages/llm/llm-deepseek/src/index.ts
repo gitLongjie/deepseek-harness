@@ -190,7 +190,11 @@ export function apply(ctx: Context, config: Config): void {
     registeredDeepagensPolicy = policy
   }
   ctx.inject(['settings'], (settingsCtx) => {
-    settingsCtx.settings.installSection(ctx, DEEPAGENS_NS, Config, { models: [] }, {
+    // The base layer carries the wire protocol: the login flow seeds a baseURL
+    // ending in /v1 and the gateway serves chat completions there, while the
+    // shared Config schema defaults to `messages`, whose request path appends
+    // a second /v1. The user layer still overrides this base.
+    settingsCtx.settings.installSection(ctx, DEEPAGENS_NS, Config, { models: [], protocol: 'chat-completions' }, {
       setSource: (source) => {
         deepagensCurrent = source
       },
