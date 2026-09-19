@@ -161,6 +161,38 @@ describe('translate: tool calls', () => {
       { type: 'block-start', index: 1, blockType: 'tool-call' },
     ])
   })
+
+  it('splits parallel tool calls a gateway packs under one repeated index (new id)', async () => {
+    const chunks = await collect(translate(feed(
+      firstChunk,
+      { choices: [{ delta: { tool_calls: [{ index: 0, id: 'call_a', type: 'function', function: { name: 'grep', arguments: '{"pattern": "a"}' } }] } }] },
+      { choices: [{ delta: { tool_calls: [{ index: 0, id: 'call_b', type: 'function', function: { name: 'glob', arguments: '{"pattern": "b"}' } }] } }] },
+      { choices: [{ delta: {}, finish_reason: 'tool_calls' }] },
+      DONE,
+    )))
+    const ends = chunks.filter(chunk => chunk.type === 'block-end')
+    expect(ends).toEqual([
+      { type: 'block-end', index: 0, block: { type: 'tool-call', id: 'call_a', name: 'grep', arguments: '{"pattern": "a"}' } },
+      { type: 'block-end', index: 1, block: { type: 'tool-call', id: 'call_b', name: 'glob', arguments: '{"pattern": "b"}' } },
+    ])
+  })
+
+  it('splits parallel tool calls under one repeated index by name when ids repeat the empty-string shape', async () => {
+    // The split call carries no fresh id (the '' repetition means "unchanged"),
+    // so the fresh function name is the only identity marking another call.
+    const chunks = await collect(translate(feed(
+      firstChunk,
+      { choices: [{ delta: { tool_calls: [{ index: 0, id: 'call_a', type: 'function', function: { name: 'grep', arguments: '{"pattern": "a"}' } }] } }] },
+      { choices: [{ delta: { tool_calls: [{ index: 0, id: '', type: 'function', function: { name: 'glob', arguments: '{"pattern": "b"}' } }] } }] },
+      { choices: [{ delta: {}, finish_reason: 'tool_calls' }] },
+      DONE,
+    )))
+    const ends = chunks.filter(chunk => chunk.type === 'block-end')
+    expect(ends).toEqual([
+      { type: 'block-end', index: 0, block: { type: 'tool-call', id: 'call_a', name: 'grep', arguments: '{"pattern": "a"}' } },
+      { type: 'block-end', index: 1, block: { type: 'tool-call', id: '', name: 'glob', arguments: '{"pattern": "b"}' } },
+    ])
+  })
 })
 
 describe('translate: finish and usage handling', () => {

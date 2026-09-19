@@ -1,8 +1,10 @@
 /**
- * Translate DeepSeek SSE payloads with one stateful harness block per content, reasoning, or tool
- * call index. An empty initial reasoning delta does not open a block. Finish reason and the latest
- * usage are deferred until `[DONE]`, covering both finish-attached and trailing usage-only shapes
- * while ensuring no chunk follows `finish`.
+ * Translate DeepSeek SSE payloads into harness blocks: one stateful block per
+ * content, reasoning, or tool call index, split into another block when a new
+ * tool call identity arrives on an index that is already taken. An empty
+ * initial reasoning delta does not open a block. Finish reason and the latest
+ * usage are deferred until `[DONE]`, covering both finish-attached and trailing
+ * usage-only shapes while ensuring no chunk follows `finish`.
  *
  * Translate DeepSeek wire chunks into the harness `StreamChunk` protocol.
  * @module dsh-llm-deepseek/translate
@@ -12,7 +14,7 @@ import { brandString } from '@deepseek-ai/dsh-brand'
 import { EMPTY_RESPONSE_CODE, LlmError } from '@deepseek-ai/dsh-llm'
 import type { ContentBlock, FinishReason, StreamChunk, TokenUsage, ToolCallId } from '@deepseek-ai/dsh-llm'
 import { DONE } from './sse.ts'
-import type { WireChunk, WireUsage } from './types.ts'
+import type { WireChunk, WireToolCallDelta, WireUsage } from './types.ts'
 
 /** One open block under assembly. */
 interface OpenBlock {
@@ -84,6 +86,23 @@ export function mapUsage(usage: WireUsage): TokenUsage {
  */
 function acceptIdentity(current: string | undefined, incoming: unknown): string | undefined {
   return typeof incoming === 'string' && incoming.length > 0 ? incoming : current
+}
+
+/**
+ * Whether one `tool_calls` delta starts a call different from the block its
+ * index currently maps to. `id` and `name` stream once per call, so a fresh
+ * value that disagrees with the open block marks another call packed under the
+ * same index — the shape parallel tool calls take through some
+ * OpenAI-compatible gateways that never advance `index`.
+ * @param block - the open block the delta's index maps to.
+ * @param call - the delta as parsed from the wire.
+ * @returns true when the delta must open a new harness block instead of continuing this one.
+ */
+function beginsAnotherCall(block: OpenBlock, call: WireToolCallDelta): boolean {
+  const id = typeof call.id === 'string' && call.id.length > 0 ? call.id : undefined
+  if (id !== undefined && block.callId !== undefined && id !== block.callId) return true
+  const name = typeof call.function?.name === 'string' && call.function.name.length > 0 ? call.function.name : undefined
+  return name !== undefined && block.name !== undefined && name !== block.name
 }
 
 /** Assemble the final ContentBlock for one open block. */
@@ -176,6 +195,11 @@ export async function* translate(payloads: AsyncIterable<string>): AsyncGenerato
 
       for (const call of delta?.tool_calls ?? []) {
         let block = toolBlocks.get(call.index)
+        if (block !== undefined && beginsAnotherCall(block, call)) {
+          // One repeated index can carry parallel calls: split so the second
+          // call's fragments never concatenate into the first call's arguments.
+          block = undefined
+        }
         if (!block) {
           block = open('tool-call')
           toolBlocks.set(call.index, block)
