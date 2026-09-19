@@ -30,6 +30,8 @@ export interface ProviderDirectoryEntry {
   readonly settingsPath: readonly string[]
   readonly active: boolean
   readonly declared?: boolean
+  /** The curated editor family the owning adapter names, when it names one. */
+  readonly editorFamily?: string
   readonly error?: string
 }
 
@@ -52,6 +54,7 @@ export function joinProviderDirectory(
     settingsPath: [...entry.settingsPath],
     active: active.has(entry.provider),
     ...entry.declared === undefined ? {} : { declared: entry.declared },
+    ...entry.editorFamily === undefined ? {} : { editorFamily: entry.editorFamily },
     ...entry.error === undefined ? {} : { error: entry.error },
   }))
   for (const provider of registered) {

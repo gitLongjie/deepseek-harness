@@ -175,6 +175,7 @@ function targetOf(row: ProviderRow): EditorTarget {
     ...credentialRef === undefined ? {} : { credentialRef },
     // Only declared routes may expose route-owned fields.
     ...row.entry.declared === true ? { declared: true } : {},
+    ...row.entry.editorFamily === undefined ? {} : { editorFamily: row.entry.editorFamily },
   }
 }
 

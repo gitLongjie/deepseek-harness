@@ -332,7 +332,7 @@ describe('ModelsSection', () => {
     const scripted = scriptedFace()
     const failure = 'llm-pi-ai: provider "openai" model "111" needs an api'
     scripted.face.llm.listConfigurableProviders.mockResolvedValue(remoteOk([
-      { provider: 'openai', displayName: 'openai', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'openai'], error: failure },
+      { provider: 'openai', displayName: 'openai', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'openai'], editorFamily: 'pi-ai', error: failure },
     ]))
     await mountFace(scripted)
     expect(screen.getByRole('alert').textContent).toBe(failure)
@@ -355,7 +355,7 @@ describe('ModelsSection', () => {
       { id: 'deepseek-official', name: 'DeepSeek' },
     ]))
     scripted.face.llm.listConfigurableProviders.mockResolvedValue(remoteOk([
-      { provider: 'deepseek-official', displayName: 'DeepSeek', settingsNs: 'llm-deepseek', settingsPath: [], error: failure },
+      { provider: 'deepseek-official', displayName: 'DeepSeek', settingsNs: 'llm-deepseek', settingsPath: [], editorFamily: 'deepseek', error: failure },
     ]))
     scripted.face.credentials.describe.mockResolvedValue(remoteOk({
       DEEPSEEK_API_KEY: { configured: false, writable: true },
@@ -642,6 +642,7 @@ describe('ModelsSection', () => {
     render(<ProviderEditor
       provider="deepseek-official"
       displayName="DeepSeek"
+      editorFamily="deepseek"
       namespace={namespace}
       schema={settingsSchema}
       settingsPath={[]}
