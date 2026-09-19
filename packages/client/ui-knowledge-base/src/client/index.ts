@@ -49,7 +49,7 @@ export const NS = 'knowledge'
  * to this one is NOT constrained: apply therefore depends on each declaration
  * through `slots.inject()` instead of assuming order.
  */
-export const inject = ['slots', 'locale', 'remote', 'remote.knowledgeBase', 'uiWorkspace', 'sessions']
+export const inject = ['slots', 'locale', 'remote', 'remote.knowledgeBase', 'layout', 'uiWorkspace', 'sessions']
 
 /**
  * Register the nav row and the page once their slot declarations are on the
@@ -60,7 +60,7 @@ export const inject = ['slots', 'locale', 'remote', 'remote.knowledgeBase', 'uiW
 export function apply(ctx: Context): void {
   const workspaceNavigation = ctx.get('uiWorkspace') as unknown as { startSession(workspaceId?: unknown): void }
   const sessions = ctx.get('sessions') as ISessions
-  const uiKnowledge = new UiKnowledgeService(ctx, sessions)
+  const uiKnowledge = new UiKnowledgeService(ctx, sessions, ctx.layout)
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-knowledge-base: dictionaries')
 
   type CallResult<T> = { ok: true; value: T } | { ok: false; error: { code: string; message: string } }

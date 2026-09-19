@@ -60,7 +60,7 @@ export const NS = 'expert'
  * hire action forwards to.
  */
 export const inject = [
-  'slots', 'locale', 'remote', 'remote.agentPresets', 'sessions', 'uiWorkspace', 'uiAgentPreset',
+  'slots', 'locale', 'remote', 'remote.agentPresets', 'sessions', 'layout', 'uiWorkspace', 'uiAgentPreset',
 ]
 
 /** Project one shipped roster row onto the market's card record. */
@@ -86,7 +86,7 @@ export function apply(ctx: Context): void {
   const sessions = ctx.get('sessions') as ISessions
   const uiWorkspace = ctx.get('uiWorkspace') as unknown as { startSession(workspaceId?: unknown): void }
   const uiAgentPreset = ctx.get('uiAgentPreset') as unknown as { stageNextSessionPreset(id: string): void }
-  const uiExpert = new UiExpertService(ctx, sessions)
+  const uiExpert = new UiExpertService(ctx, sessions, ctx.layout)
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-expert: dictionaries')
 
   const navInjected = () => ({

@@ -45,6 +45,8 @@ async function bench(remote: RemoteStub) {
   ctx.provide('uiAgentPreset', uiAgentPreset as never)
   const uiWorkspace = { startSession: vi.fn(() => { calls.push('start') }) }
   ctx.provide('uiWorkspace', uiWorkspace as never)
+  const layout = { selectPanel: vi.fn((panelId: unknown) => { calls.push(panelId === null ? 'panel:conversation' : 'panel') }) }
+  ctx.provide('layout', layout as never)
   const sessions = {
     list: {
       getSnapshot: () => ({ current: undefined }),
@@ -79,7 +81,7 @@ describe('ui-expert browser plugin', () => {
   it('declares only the services used by the expert contributions', () => {
     expect(NS).toBe('expert')
     expect(inject).toEqual([
-      'slots', 'locale', 'remote', 'remote.agentPresets', 'sessions', 'uiWorkspace', 'uiAgentPreset',
+      'slots', 'locale', 'remote', 'remote.agentPresets', 'sessions', 'layout', 'uiWorkspace', 'uiAgentPreset',
     ])
   })
 

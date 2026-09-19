@@ -7,6 +7,7 @@
  */
 import { Context, Service } from '@deepseek-ai/cordis'
 import type { ISessions } from '@deepseek-ai/dsh-api-session-controller/client'
+import type { ILayout } from '@deepseek-ai/dsh-client-ui-layout/client'
 import { defineStore, type StoreInstance } from '@deepseek-ai/dsh-client-store'
 import type { KnowledgeBaseRow } from './contract/slots.ts'
 
@@ -73,10 +74,12 @@ export class UiKnowledgeService extends Service implements UiKnowledge {
   /**
    * @param ctx - Client root Context.
    * @param sessions - pure Session Controller, for the close-on-navigation policy.
+   * @param layout - panel actions, so opening the page leaves any global panel.
    */
   constructor(
     ctx: Context,
     private readonly sessions: ISessions,
+    private readonly layout: ILayout,
   ) {
     super(ctx, 'uiKnowledge')
     this.page = createKnowledgePageStore().create()
@@ -89,6 +92,9 @@ export class UiKnowledgeService extends Service implements UiKnowledge {
   }
 
   openPage(): void {
+    // The page lives in the conversation area, so a global panel (the
+    // scheduled-work page) covering the column must stand down first.
+    this.layout.selectPanel(null)
     this.page.actions.setOpen(true)
   }
 

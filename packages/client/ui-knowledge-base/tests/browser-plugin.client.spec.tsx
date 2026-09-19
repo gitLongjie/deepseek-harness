@@ -36,6 +36,8 @@ async function bench(remote: RemoteStub) {
   const locale = new LocaleRuntime(ctx)
   ctx.provide('locale', locale)
   const uiWorkspace = { startSession: vi.fn() }
+  const layout = { selectPanel: vi.fn() }
+  ctx.provide('layout', layout as never)
   ctx.provide('uiWorkspace', uiWorkspace as never)
   const sessions = {
     list: {
@@ -70,7 +72,7 @@ function declare(slots: SlotRegistry): () => void {
 describe('ui-knowledge-base browser plugin', () => {
   it('declares only the services used by the knowledge contributions', () => {
     expect(NS).toBe('knowledge')
-    expect(inject).toEqual(['slots', 'locale', 'remote', 'remote.knowledgeBase', 'uiWorkspace', 'sessions'])
+    expect(inject).toEqual(['slots', 'locale', 'remote', 'remote.knowledgeBase', 'layout', 'uiWorkspace', 'sessions'])
   })
 
   it('registers the nav row and the page without reading the Remote eagerly', async () => {
