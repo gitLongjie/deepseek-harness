@@ -36,7 +36,18 @@ function owner(overrides: Partial<DirectoryFlowOwnerProps> = {}): DirectoryFlowO
 
 describe('directory-picker-native client half', () => {
   it('declares the services it drives', () => {
-    expect(inject).toEqual(['slots', 'uiWorkspace'])
+    expect(inject).toEqual([])
+  })
+
+  it('does not hold client boot on uiWorkspace before its owner activates', async () => {
+    const ctx = new Context()
+    await ctx.plugin(SlotRegistry).await()
+    const slots = ctx.get('slots') as SlotRegistry
+    const fiber = ctx.plugin({ inject: [...inject], apply })
+    await expect(fiber.await()).resolves.toBeDefined()
+    expect(slots.entries(HOLES[0])).toHaveLength(0)
+    await fiber.dispose()
+    await ctx.fiber.dispose()
   })
 
   it('fills both directory-flow holes for declarations before or after apply, and leaves with its fiber', async () => {

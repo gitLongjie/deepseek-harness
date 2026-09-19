@@ -12,12 +12,13 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 // Type-only: pulls the SlotRegistry service merge (ctx.slots).
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
+import type { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type { NativeFlowInjected } from './flow.ts'
 import { NativeDirectoryFlow } from './flow.ts'
 
 
-/** Required services (cordis fiber inject): the slot registry and workspace UI service. */
-export const inject = ['slots', 'uiWorkspace']
+/** This optional surface does not block client boot while the renderer starts. */
+export const inject: string[] = []
 
 /**
  * Client plugin body: register the renderless native flow into both
@@ -26,17 +27,32 @@ export const inject = ['slots', 'uiWorkspace']
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
-  const injected = (): NativeFlowInjected => ({ pick: () => ctx.uiWorkspace.pickDirectory() })
-  // Both declaration lifetimes must be live before the pair installs; the
-  // generator makes the two registrations one transactional effect. The
-  // outer/inner nesting order is arbitrary; neither hole has precedence.
-  ctx.slots.inject('conversation.hero.workspace.directoryFlow', () =>
-    ctx.slots.inject('sidebar.workspaces.directoryFlow', function* () {
-      yield ctx.slots.register({
-        name: 'conversation.hero.workspace.directoryFlow', inject: injected,
-      }, NativeDirectoryFlow)
-      yield ctx.slots.register({
-        name: 'sidebar.workspaces.directoryFlow', inject: injected,
-      }, NativeDirectoryFlow)
-    }))
+  const injected = (): NativeFlowInjected => ({
+    pick: () => {
+      const uiWorkspace = ctx.get('uiWorkspace')
+      if (uiWorkspace === undefined) throw new Error('ui-directory-picker-native: uiWorkspace is unavailable')
+      return uiWorkspace.pickDirectory()
+    },
+  })
+  let installed = false
+  const install = (): void => {
+    if (installed) return
+    const slots = ctx.get('slots') as SlotRegistry | undefined
+    if (slots === undefined) return
+    installed = true
+    // Both declaration lifetimes must be live before the pair installs; the
+    // generator makes the two registrations one transactional effect. The
+    // outer/inner nesting order is arbitrary; neither hole has precedence.
+    slots.inject('conversation.hero.workspace.directoryFlow', () =>
+      slots.inject('sidebar.workspaces.directoryFlow', function* () {
+        yield slots.register({
+          name: 'conversation.hero.workspace.directoryFlow', inject: injected,
+        }, NativeDirectoryFlow)
+        yield slots.register({
+          name: 'sidebar.workspaces.directoryFlow', inject: injected,
+        }, NativeDirectoryFlow)
+      }))
+  }
+  install()
+  ctx.effect(() => ctx.on('internal/status', install), 'directory-picker-native: await renderer slots')
 }
