@@ -12,7 +12,6 @@ import { Button, Input, Modal, Switch } from '@deepseek-ai/dsh-client-ui-primiti
 import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import { NS } from './locales.ts'
 import css from './TaskEditor.module.css'
-import editorCss from './ScheduleWorkPage.module.css'
 
 /** Brand a raw HH:mm input at the form edge; the picker only emits valid clock times. */
 const clock = (value: string): ClockTime => value as ClockTime
@@ -88,6 +87,8 @@ export function TaskEditor({ mode, initial, workspaces, t, onCancel, onSubmit, s
       onClose={onCancel}
       title={t(mode === 'create' ? 'dialog.addTitle' : 'dialog.editTitle')}
       closeLabel={t('action.cancel')}
+      className={css.dialog ?? ''}
+      contentClassName={css.dialogContent ?? ''}
       footer={(
         <div className={css.footer}>
           <Button onClick={onCancel}>{t('action.cancel')}</Button>
@@ -118,7 +119,7 @@ export function TaskEditor({ mode, initial, workspaces, t, onCancel, onSubmit, s
           />
         </div>
 
-        <div className={editorCss.dialogRow}>
+        <div className={css.dialogRow}>
           <label className={css.field}>
             <span className={css.fieldLabel}>{t('dialog.workspace')}</span>
             <select
@@ -132,18 +133,20 @@ export function TaskEditor({ mode, initial, workspaces, t, onCancel, onSubmit, s
               ))}
             </select>
           </label>
-          <Switch
-            checked={fullAccess}
-            onChange={setFullAccess}
-            label={t('dialog.fullAccess')}
-          />
+          <span className={css.switchField}>
+            <Switch
+              checked={fullAccess}
+              onChange={setFullAccess}
+              label={t('dialog.fullAccess')}
+            />
+          </span>
         </div>
 
         <div className={css.field}>
           <span className={css.fieldLabel}>{t('dialog.frequency')}</span>
           <div className={css.ruleEditor}>
             <select
-              className={css.select}
+              className={`${css.select} ${css.kindSelect}`}
               value={rule.kind}
               onChange={(event) => { patchRule(switchRuleKind(rule, event.currentTarget.value as ScheduleWorkRule['kind'])) }}
             >
@@ -151,31 +154,31 @@ export function TaskEditor({ mode, initial, workspaces, t, onCancel, onSubmit, s
                 <option key={kind} value={kind}>{t(kindKey(kind))}</option>
               ))}
             </select>
-            <RuleFields rule={rule} t={t} onChange={patchRule} />
+            <div className={css.ruleFields}>
+              <RuleFields rule={rule} t={t} onChange={patchRule} />
+            </div>
           </div>
         </div>
 
-        <div className={editorCss.dialogRow}>
-          <div className={css.field}>
-            <span className={css.fieldLabel}>{t('dialog.validity')}</span>
-            <div className={css.ruleEditor}>
-              <select
+        <div className={css.field}>
+          <span className={css.fieldLabel}>{t('dialog.validity')}</span>
+          <div className={css.ruleEditor}>
+            <select
+              className={`${css.select} ${css.kindSelect}`}
+              value={hasEnd ? 'until' : 'forever'}
+              onChange={(event) => { setHasEnd(event.currentTarget.value === 'until') }}
+            >
+              <option value="forever">{t('validity.forever')}</option>
+              <option value="until">{t('validity.until')}</option>
+            </select>
+            {hasEnd && (
+              <input
+                type="date"
                 className={css.select}
-                value={hasEnd ? 'until' : 'forever'}
-                onChange={(event) => { setHasEnd(event.currentTarget.value === 'until') }}
-              >
-                <option value="forever">{t('validity.forever')}</option>
-                <option value="until">{t('validity.until', { date: endDate === '' ? '—' : endDate })}</option>
-              </select>
-              {hasEnd && (
-                <input
-                  type="date"
-                  className={css.select}
-                  value={endDate}
-                  onChange={(event) => { setEndDate(event.currentTarget.value) }}
-                />
-              )}
-            </div>
+                value={endDate}
+                onChange={(event) => { setEndDate(event.currentTarget.value) }}
+              />
+            )}
           </div>
         </div>
 
@@ -196,7 +199,7 @@ function RuleFields({ rule, t, onChange }: {
       return (
         <input
           type="datetime-local"
-          className={css.select}
+          className={`${css.select} ${css.onceInput}`}
           value={toDateInput(rule.at)}
           onChange={(event) => {
             const value = event.currentTarget.value
@@ -208,7 +211,7 @@ function RuleFields({ rule, t, onChange }: {
       return (
         <input
           type="time"
-          className={css.select}
+          className={`${css.select} ${css.timeInput}`}
           value={rule.time}
           onChange={(event) => {
             if (event.currentTarget.value !== '') onChange({ kind: 'daily', time: clock(event.currentTarget.value) })
@@ -236,7 +239,7 @@ function RuleFields({ rule, t, onChange }: {
           })}
           <input
             type="time"
-            className={css.select}
+            className={`${css.select} ${css.timeInput}`}
             value={rule.time}
             onChange={(event) => {
               if (event.currentTarget.value !== '') onChange({ kind: 'weekly', weekdays: rule.weekdays, time: clock(event.currentTarget.value) })
@@ -260,7 +263,7 @@ function RuleFields({ rule, t, onChange }: {
           />
           <input
             type="time"
-            className={css.select}
+            className={`${css.select} ${css.timeInput}`}
             value={rule.time}
             onChange={(event) => {
               if (event.currentTarget.value !== '') onChange({ kind: 'monthly', days: rule.days, time: clock(event.currentTarget.value) })

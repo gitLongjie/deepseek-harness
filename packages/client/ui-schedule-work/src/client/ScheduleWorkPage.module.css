@@ -5,8 +5,8 @@
   flex-direction: column;
   height: 100%;
   overflow: hidden;
-  background: var(--dsh-bg, #fff);
-  color: var(--dsh-fg, #1f2329);
+  background: var(--dsw-alias-bg-layer-1, #fff);
+  color: var(--dsw-alias-label-primary, #1f2329);
 }
 
 .toolbar {
@@ -14,7 +14,7 @@
   align-items: center;
   gap: 12px;
   padding: 10px 20px;
-  border-bottom: 1px solid var(--dsh-border, #e5e6eb);
+  border-bottom: 1px solid var(--dsw-alias-border-l3, #e5e6eb);
 }
 
 .tabs {
@@ -31,17 +31,17 @@
   border-radius: 8px;
   font: inherit;
   font-weight: 500;
-  color: var(--dsh-fg-muted, #646a73);
+  color: var(--dsw-alias-label-secondary, #646a73);
   cursor: pointer;
 }
 
 .tab:hover {
-  background: var(--dsh-hover, #f2f3f5);
+  background: var(--dsw-alias-interactive-bg-hover, #f2f3f5);
 }
 
 .tabOn {
-  background: var(--dsh-active, #ececee);
-  color: var(--dsh-fg, #1f2329);
+  background: var(--dsw-alias-interactive-bg-active, #ececee);
+  color: var(--dsw-alias-label-primary, #1f2329);
 }
 
 .toolbarControls {
@@ -54,10 +54,10 @@
 .filterSelect {
   height: 30px;
   padding: 0 8px;
-  border: 1px solid var(--dsh-border, #e5e6eb);
+  border: 1px solid var(--dsw-alias-border-l3, #e5e6eb);
   border-radius: 8px;
   font: inherit;
-  background: var(--dsh-bg, #fff);
+  background: var(--dsw-alias-bg-layer-1, #fff);
   color: inherit;
 }
 
@@ -70,8 +70,8 @@
   align-items: center;
   gap: 8px;
   padding: 8px 20px;
-  border-bottom: 1px solid var(--dsh-border, #e5e6eb);
-  background: var(--dsh-subtle, #f7f8fa);
+  border-bottom: 1px solid var(--dsw-alias-border-l3, #e5e6eb);
+  background: var(--dsw-alias-bg-layer-2, #f7f8fa);
 }
 
 .list {
@@ -93,13 +93,13 @@
 }
 
 .row:hover {
-  background: var(--dsh-hover, #f5f6f7);
+  background: var(--dsw-alias-interactive-bg-hover, #f5f6f7);
 }
 
 .checkbox {
   width: 15px;
   height: 15px;
-  accent-color: var(--dsh-accent, #1f2329);
+  accent-color: var(--dsw-alias-brand-primary, #1f2329);
 }
 
 .rowBody {
@@ -122,13 +122,13 @@
 }
 
 .rowMeta {
-  color: var(--dsh-fg-muted, #646a73);
+  color: var(--dsw-alias-label-secondary, #646a73);
   font-size: 13px;
 }
 
 .rowPrompt {
   margin: 0;
-  color: var(--dsh-fg-muted, #646a73);
+  color: var(--dsw-alias-label-secondary, #646a73);
   font-size: 13px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -141,7 +141,7 @@
   gap: 5px;
   margin-left: auto;
   font-size: 13px;
-  color: var(--dsh-fg-muted, #646a73);
+  color: var(--dsw-alias-label-secondary, #646a73);
 }
 
 .rowActions {
@@ -157,20 +157,20 @@
 }
 
 .active {
-  color: var(--dsh-ok, #2ea44f);
+  color: var(--dsw-alias-state-success-primary, #2ea44f);
 }
 
 .paused,
 .idle {
-  color: var(--dsh-fg-muted, #646a73);
+  color: var(--dsw-alias-label-secondary, #646a73);
 }
 
 .ended {
-  color: var(--dsh-fg-muted, #646a73);
+  color: var(--dsw-alias-label-secondary, #646a73);
 }
 
 .failed {
-  color: var(--dsh-danger, #d03050);
+  color: var(--dsw-alias-state-error-primary, #d03050);
 }
 
 .runDot {
@@ -179,7 +179,7 @@
 
 .runError {
   margin: 0;
-  color: var(--dsh-danger, #d03050);
+  color: var(--dsw-alias-state-error-primary, #d03050);
   font-size: 13px;
 }
 
@@ -188,7 +188,7 @@
   align-items: center;
   gap: 12px;
   padding: 16px 24px;
-  color: var(--dsh-danger, #d03050);
+  color: var(--dsw-alias-state-error-primary, #d03050);
 }
 
 .empty {
@@ -198,7 +198,7 @@
   justify-content: center;
   gap: 12px;
   flex: 1;
-  color: var(--dsh-fg-faint, #8f959e);
+  color: var(--dsw-alias-label-tertiary, #8f959e);
 }
 
 /* Dialog form rows shared with the editor module. */

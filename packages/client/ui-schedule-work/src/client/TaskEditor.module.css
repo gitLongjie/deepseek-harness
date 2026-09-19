@@ -1,11 +1,22 @@
-/* Task editor dialog form. */
+/* Task editor dialog: an 720px-max dialog the Modal width default would
+   otherwise clamp to 380px; the content region scrolls, the footer stays. */
+
+.dialog {
+  width: min(720px, calc(100vw - 64px));
+  max-height: calc(100vh - 96px);
+}
+
+.dialogContent {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
 
 .form {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 4px 2px;
-  min-width: 480px;
+  gap: 18px;
+  padding-top: 2px;
 }
 
 .field {
@@ -13,78 +24,122 @@
   flex-direction: column;
   gap: 6px;
   flex: 1;
+  min-width: 0;
 }
 
 .fieldLabel {
   font-size: 13px;
   font-weight: 500;
-  color: var(--dsh-fg, #1f2329);
+  color: var(--dsw-alias-label-primary, #1f2329);
 }
 
 .prompt {
   font: inherit;
-  padding: 8px 10px;
-  border: 1px solid var(--dsh-border, #e5e6eb);
+  line-height: 1.6;
+  padding: 10px 12px;
+  border: 1px solid var(--dsw-alias-border-l3, #e5e6eb);
   border-radius: 10px;
   resize: vertical;
-  min-height: 96px;
-  background: var(--dsh-bg, #fff);
+  min-height: 132px;
+  background: var(--dsw-alias-bg-layer-1, #fff);
   color: inherit;
 }
 
 .prompt:focus {
-  outline: 2px solid var(--dsh-accent, #1f2329);
+  outline: 2px solid var(--dsw-alias-brand-primary, #1f2329);
   outline-offset: -1px;
 }
 
 .select {
-  height: 32px;
-  padding: 0 8px;
-  border: 1px solid var(--dsh-border, #e5e6eb);
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--dsw-alias-border-l3, #e5e6eb);
   border-radius: 8px;
   font: inherit;
-  background: var(--dsh-bg, #fff);
+  background: var(--dsw-alias-bg-layer-1, #fff);
   color: inherit;
 }
 
+.select:focus {
+  outline: 2px solid var(--dsw-alias-brand-primary, #1f2329);
+  outline-offset: -1px;
+}
+
+/* One control row: a labeled field fills the free width, the switch hugs
+   its label at the row's end. */
+.dialogRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 20px;
+}
+
+.dialogRow .switchField {
+  flex: none;
+  padding-bottom: 7px;
+}
+
+/* The schedule and validity rows: the kind selector is a fixed-width lead
+   control, the per-kind fields flow beside it and wrap on narrow widths. */
 .ruleEditor {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
+}
+
+.kindSelect {
+  flex: none;
+  width: 148px;
+}
+
+.ruleFields {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
 }
 
 .weekdays {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
 .weekday {
   appearance: none;
-  border: 1px solid var(--dsh-border, #e5e6eb);
-  background: var(--dsh-bg, #fff);
-  color: var(--dsh-fg-muted, #646a73);
+  border: 1px solid var(--dsw-alias-border-l3, #e5e6eb);
+  background: var(--dsw-alias-bg-layer-1, #fff);
+  color: var(--dsw-alias-label-secondary, #646a73);
   border-radius: 8px;
-  padding: 4px 8px;
+  padding: 6px 10px;
   font: inherit;
   font-size: 13px;
   cursor: pointer;
 }
 
 .weekdayOn {
-  background: var(--dsh-active, #1f2329);
-  border-color: var(--dsh-active, #1f2329);
-  color: var(--dsh-bg, #fff);
+  background: var(--dsw-alias-interactive-bg-active, #1f2329);
+  border-color: var(--dsw-alias-interactive-bg-active, #1f2329);
+  color: var(--dsw-alias-bg-layer-1, #fff);
 }
 
 .dayInput {
-  width: 90px;
+  width: 96px;
+}
+
+.timeInput {
+  width: 116px;
+}
+
+.onceInput {
+  width: 220px;
 }
 
 .intervalUnit {
-  color: var(--dsh-fg-muted, #646a73);
+  color: var(--dsw-alias-label-secondary, #646a73);
   font-size: 13px;
 }
 
@@ -96,6 +151,6 @@
 
 .submitError {
   margin: 0;
-  color: var(--dsh-danger, #d03050);
+  color: var(--dsw-alias-state-error-primary, #d03050);
   font-size: 13px;
 }
