@@ -305,6 +305,8 @@
   margin-bottom: 8px;
 }
 
+/* Resting type matches the sibling browsing-region rows (knowledge, experts):
+   primary ink at weight 500. The selected row is marked by its fill alone. */
 .panelRow {
   display: flex;
   align-items: center;
@@ -316,7 +318,7 @@
   border: none;
   border-radius: 8px;
   background: transparent;
-  color: var(--dsw-alias-label-secondary);
+  color: var(--dsw-alias-label-primary);
   font: inherit;
   line-height: 22px;
   text-align: left;
@@ -329,8 +331,6 @@
 
 .panelRow.panelActive {
   background: var(--dsw-alias-interactive-bg-active);
-  color: var(--dsw-alias-label-primary);
-  font-weight: 500;
 }
 
 .panelRow:focus-visible {
@@ -350,6 +350,9 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 14px;
+  line-height: 22px;
+  font-weight: 500;
 }
 
 .collapsed .panelList {
@@ -362,7 +365,6 @@
   height: 36px;
   justify-content: center;
   padding: 0;
-  color: var(--dsw-alias-label-primary);
 }
 
 /* Region seat: always mounted so the foot never moves. Its trailing margin

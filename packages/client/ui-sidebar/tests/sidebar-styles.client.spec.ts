@@ -72,4 +72,12 @@ describe('SidebarRoot.module.css', () => {
     expect(declarations('.fallbackBrandName')?.get('font-size')).toBe('17px')
     expect(declarations('.fallbackBrandName')?.get('white-space')).toBe('nowrap')
   })
+
+  it('gives panel rows the same resting ink and label weight as the region nav rows', () => {
+    expect(declarations('.panelRow')?.get('color')).toBe('var(--dsw-alias-label-primary)')
+    const title = declarations('.panelTitle')
+    expect(title?.get('font-size')).toBe('14px')
+    expect(title?.get('font-weight')).toBe('500')
+    expect(title?.get('line-height')).toBe('22px')
+  })
 })
