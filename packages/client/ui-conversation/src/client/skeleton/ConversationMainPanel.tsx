@@ -158,9 +158,11 @@ export function ConversationMainPanel(props: ConversationSlotProps) {
           instant: the Lexical editor, scroll positions, and the composer's
           textarea survive the round trip. Each browser owns its own
           lifetime — the ui-knowledge-base and ui-expert watchers close
-          their page on any Session navigation, so a session click always
-          lands back on the session surface. The expert page wins should
-          both stand at once. */}
+          their page on any Session navigation, and either service's
+          openPage stands the other down, so a session click always lands
+          back on the session surface and the sidebar entries switch the
+          area instead of stacking pages. The expert page wins should both
+          ever stand (defense; the services keep them exclusive). */}
       <div
         // display:contents keeps the original flex layout (header + scroll
         // body as direct .root participants) while the wrapper exists only

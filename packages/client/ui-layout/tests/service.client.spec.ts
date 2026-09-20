@@ -58,6 +58,35 @@ describe('LayoutController', () => {
     expect(panels.closeRightbar).not.toHaveBeenCalled()
   })
 
+  it('reports every committed selection to panel listeners, and a disposer removes its listener', () => {
+    const service = new LayoutController(fakePanels(), () => true)
+    const listener = vi.fn()
+    const dispose = service.onPanelSelection(listener)
+
+    service.selectPanel('panel-a' as MainPanelId)
+    service.selectPanel(null)
+    expect(listener).toHaveBeenNthCalledWith(1, 'panel-a' as MainPanelId)
+    expect(listener).toHaveBeenNthCalledWith(2, null)
+
+    dispose()
+    service.selectPanel('panel-a' as MainPanelId)
+    expect(listener).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not report a rejected selection, and disposal clears the listeners', () => {
+    const present = new Set(['panel-a'])
+    const service = new LayoutController(fakePanels(), id => present.has(id))
+    const listener = vi.fn()
+    service.onPanelSelection(listener)
+
+    expect(() => { service.selectPanel('absent' as MainPanelId) }).toThrow('main panel "absent" is not registered')
+    expect(listener).not.toHaveBeenCalled()
+
+    service.dispose()
+    service.selectPanel('panel-a' as MainPanelId)
+    expect(listener).not.toHaveBeenCalled()
+  })
+
   it('keeps separately constructed controllers bound to their own instances', () => {
     const first = fakePanels()
     const second = fakePanels()

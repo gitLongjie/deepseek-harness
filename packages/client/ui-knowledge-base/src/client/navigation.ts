@@ -2,8 +2,9 @@
  * Cross-surface knowledge navigation: the knowledge-library page (base list
  * beside the document browser) shown in the conversation area, and the policy
  * that closes it. The page is ephemeral — it never survives a reload, and any
- * Session navigation (open, archive-clear, New Session) closes it, because
- * the Session surface always wins the conversation area.
+ * Session navigation (open, archive-clear, New Session) or global-panel
+ * selection (the scheduled-work page) closes it, because the Session surface
+ * and the global panels always win the conversation area.
  */
 import { Context, Service } from '@deepseek-ai/cordis'
 import type { ISessions } from '@deepseek-ai/dsh-api-session-controller/client'
@@ -47,7 +48,11 @@ export function createKnowledgePageStore(): {
 
 /** Cross-surface knowledge-page navigation capability. */
 export interface UiKnowledge {
-  /** Open the knowledge page (base list beside the document browser). */
+  /**
+   * Open the knowledge page (base list beside the document browser). Any
+   * global panel and the expert page stand down first: the sidebar entries
+   * switch the conversation area, they never stack.
+   */
   openPage(): void
   /** Close the knowledge page; the session surface (hero or session) stands again. */
   closePage(): void
@@ -84,6 +89,7 @@ export class UiKnowledgeService extends Service implements UiKnowledge {
     super(ctx, 'uiKnowledge')
     this.page = createKnowledgePageStore().create()
     ctx.effect(() => this.watchSessionNavigation(), 'ui-knowledge-base: page session policy')
+    ctx.effect(() => this.watchPanelSelection(), 'ui-knowledge-base: page panel policy')
   }
 
   /** The page-state observable bound as the conversation area's `useKnowledgePage` hook. */
@@ -95,6 +101,11 @@ export class UiKnowledgeService extends Service implements UiKnowledge {
     // The page lives in the conversation area, so a global panel (the
     // scheduled-work page) covering the column must stand down first.
     this.layout.selectPanel(null)
+    // The expert page shares this area, and the sidebar entries switch it, so
+    // the sibling stands down and the two pages never stack. Optional lookup:
+    // ui-expert is an optional mount, the same per-use rule ui-conversation
+    // applies to its view source.
+    ;(this.ctx.get('uiExpert') as unknown as { closePage(): void } | undefined)?.closePage()
     this.page.actions.setOpen(true)
   }
 
@@ -126,5 +137,17 @@ export class UiKnowledgeService extends Service implements UiKnowledge {
       this.closePage()
     })
     return dispose
+  }
+
+  /**
+   * Any global-panel selection — the scheduled-work page — closes the page,
+   * so its nav row never stays lit beside the panel row that replaced it.
+   * Returning to the Conversation (null) leaves the page as it is.
+   * @returns the subscription disposer.
+   */
+  private watchPanelSelection(): () => void {
+    return this.layout.onPanelSelection((panelId) => {
+      if (panelId !== null) this.closePage()
+    })
   }
 }

@@ -33,6 +33,14 @@ export interface ILayout {
    */
   selectPanel(panelId: MainPanelId | null): void
   /**
+   * Subscribe to main-panel selections. Every committed selectPanel call
+   * reports to the listeners, so conversation-area occupants can stand down
+   * when a global panel replaces the center.
+   * @param listener - receives the selected panel id, or null for the Conversation.
+   * @returns the subscription disposer.
+   */
+  onPanelSelection(listener: (panelId: MainPanelId | null) => void): () => void
+  /**
    * Start an asynchronous navigation, superseding any earlier pending navigation.
    * @returns a signal aborted by the next navigation or layout disposal; check it before committing UI state.
    */
@@ -54,6 +62,7 @@ export interface ILayout {
 /** Cross-plugin panel-action face (ctx.layout). */
 export class LayoutController implements ILayout {
   private navigation = new AbortController()
+  private readonly panelListeners = new Set<(panelId: MainPanelId | null) => void>()
 
   /**
    * @param panels - actions of the instance shared with the root entry.
@@ -71,6 +80,13 @@ export class LayoutController implements ILayout {
     }
     this.navigation.abort()
     this.panels.selectPanel(panelId)
+    for (const listener of this.panelListeners) listener(panelId)
+  }
+
+  /** @inheritdoc */
+  onPanelSelection(listener: (panelId: MainPanelId | null) => void): () => void {
+    this.panelListeners.add(listener)
+    return () => { this.panelListeners.delete(listener) }
   }
 
   /** @returns the new pending navigation's cancellation signal. */
@@ -80,9 +96,10 @@ export class LayoutController implements ILayout {
     return this.navigation.signal
   }
 
-  /** Invalidate pending navigations when the layout owner is unloaded. */
+  /** Invalidate pending navigations and panel subscriptions when the layout owner is unloaded. */
   dispose(): void {
     this.navigation.abort()
+    this.panelListeners.clear()
   }
 
   /** Toggle the sidebar panel (closed ⟷ contract default width). */

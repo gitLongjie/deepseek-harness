@@ -36,7 +36,17 @@ async function bench(remote: RemoteStub) {
   const locale = new LocaleRuntime(ctx)
   ctx.provide('locale', locale)
   const uiWorkspace = { startSession: vi.fn() }
-  const layout = { selectPanel: vi.fn() }
+  const panelListeners: Array<(panelId: unknown) => void> = []
+  const layout = {
+    selectPanel: vi.fn(),
+    onPanelSelection: vi.fn((listener: (panelId: unknown) => void) => {
+      panelListeners.push(listener)
+      return () => {
+        const at = panelListeners.indexOf(listener)
+        if (at >= 0) panelListeners.splice(at, 1)
+      }
+    }),
+  }
   ctx.provide('layout', layout as never)
   ctx.provide('uiWorkspace', uiWorkspace as never)
   const sessions = {
@@ -53,7 +63,7 @@ async function bench(remote: RemoteStub) {
   }
   new RemoteService(ctx)
   ctx.provide('remote.knowledgeBase', remote)
-  return { ctx, slots: ctx.get('slots') as SlotRegistry, locale, uiWorkspace }
+  return { ctx, slots: ctx.get('slots') as SlotRegistry, locale, uiWorkspace, panelListeners }
 }
 
 function declare(slots: SlotRegistry): () => void {
@@ -91,6 +101,46 @@ describe('ui-knowledge-base browser plugin', () => {
     const uiKnowledge = b.ctx.get('uiKnowledge') as unknown as {
       view: { getSnapshot(): { open: boolean; base: unknown } }
     }
+    expect(uiKnowledge.view.getSnapshot().open).toBe(true)
+    await b.ctx.fiber.dispose()
+  })
+
+  it('stands the expert page down when the nav row opens the knowledge page', async () => {
+    const b = await bench(stub())
+    // The sibling is an optional mount: present here, absent in the test
+    // above, and both openings must hold.
+    const closeExpert = vi.fn()
+    b.ctx.provide('uiExpert', { closePage: closeExpert } as never)
+    declare(b.slots)
+    await b.ctx.plugin({ inject: [...inject], apply }).await()
+
+    const nav = (b.slots.entries('sidebar.knowledge')[0]!.inject as unknown as () => KnowledgeNavInjected)()
+    nav.openPage()
+    expect(closeExpert).toHaveBeenCalledOnce()
+    await b.ctx.fiber.dispose()
+  })
+
+  it('closes the page when a global panel is selected, and keeps it when the Conversation returns', async () => {
+    const b = await bench(stub())
+    declare(b.slots)
+    await b.ctx.plugin({ inject: [...inject], apply }).await()
+
+    const nav = (b.slots.entries('sidebar.knowledge')[0]!.inject as unknown as () => KnowledgeNavInjected)()
+    const uiKnowledge = b.ctx.get('uiKnowledge') as unknown as {
+      view: { getSnapshot(): { open: boolean } }
+    }
+    nav.openPage()
+    expect(uiKnowledge.view.getSnapshot().open).toBe(true)
+
+    // The scheduled-work panel replaces the conversation area, so the page
+    // stands down and its nav row goes dark beside the panel row.
+    for (const notify of b.panelListeners) notify('schedule-work')
+    expect(uiKnowledge.view.getSnapshot().open).toBe(false)
+
+    // Returning to the Conversation is not a panel selection: the page keeps
+    // its own state.
+    nav.openPage()
+    for (const notify of b.panelListeners) notify(null)
     expect(uiKnowledge.view.getSnapshot().open).toBe(true)
     await b.ctx.fiber.dispose()
   })

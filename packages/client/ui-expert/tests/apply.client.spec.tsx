@@ -5,6 +5,7 @@ import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { apply, inject, NS } from '../src/client/index.ts'
 import { UiExpertService } from '../src/client/navigation.ts'
+import type { ExpertNavInjected } from '../src/client/contract/slots.ts'
 
 afterEach(() => { vi.restoreAllMocks() })
 
@@ -45,7 +46,17 @@ async function bench(remote: RemoteStub) {
   ctx.provide('uiAgentPreset', uiAgentPreset as never)
   const uiWorkspace = { startSession: vi.fn(() => { calls.push('start') }) }
   ctx.provide('uiWorkspace', uiWorkspace as never)
-  const layout = { selectPanel: vi.fn((panelId: unknown) => { calls.push(panelId === null ? 'panel:conversation' : 'panel') }) }
+  const panelListeners: Array<(panelId: unknown) => void> = []
+  const layout = {
+    selectPanel: vi.fn((panelId: unknown) => { calls.push(panelId === null ? 'panel:conversation' : 'panel') }),
+    onPanelSelection: vi.fn((listener: (panelId: unknown) => void) => {
+      panelListeners.push(listener)
+      return () => {
+        const at = panelListeners.indexOf(listener)
+        if (at >= 0) panelListeners.splice(at, 1)
+      }
+    }),
+  }
   ctx.provide('layout', layout as never)
   const sessions = {
     list: {
@@ -61,7 +72,7 @@ async function bench(remote: RemoteStub) {
   }
   new RemoteService(ctx)
   ctx.provide('remote.agentPresets', remote)
-  return { ctx, slots: ctx.get('slots') as SlotRegistry, locale, uiAgentPreset, uiWorkspace, calls }
+  return { ctx, slots: ctx.get('slots') as SlotRegistry, locale, uiAgentPreset, uiWorkspace, calls, panelListeners }
 }
 
 function declare(slots: SlotRegistry): () => void {
@@ -94,6 +105,48 @@ describe('ui-expert browser plugin', () => {
     expect(b.slots.entries('sidebar.experts')).toHaveLength(1)
     expect(b.slots.entries('conversation.expert.browser')).toHaveLength(1)
     expect(remote.list).not.toHaveBeenCalled()
+
+    // The nav row opens the page through the navigation service; the
+    // knowledge sibling is absent here and the opening must hold anyway.
+    const nav = (b.slots.entries('sidebar.experts')[0]!.inject as unknown as () => ExpertNavInjected)()
+    nav.openPage()
+    expect((b.ctx.get('uiExpert') as UiExpertService).view.getSnapshot().open).toBe(true)
+  })
+
+  it('stands the knowledge page down when the nav row opens the expert page', async () => {
+    const b = await bench(stub())
+    // The sibling is an optional mount: present here, absent in the test
+    // above, and both openings must hold.
+    const closeKnowledge = vi.fn()
+    b.ctx.provide('uiKnowledge', { closePage: closeKnowledge } as never)
+    declare(b.slots)
+    await b.ctx.plugin({ inject: [...inject], apply }).await()
+
+    const nav = (b.slots.entries('sidebar.experts')[0]!.inject as unknown as () => ExpertNavInjected)()
+    nav.openPage()
+    expect(closeKnowledge).toHaveBeenCalledOnce()
+  })
+
+  it('closes the page when a global panel is selected, and keeps it when the Conversation returns', async () => {
+    const b = await bench(stub())
+    declare(b.slots)
+    await b.ctx.plugin({ inject: [...inject], apply }).await()
+
+    const nav = (b.slots.entries('sidebar.experts')[0]!.inject as unknown as () => ExpertNavInjected)()
+    const uiExpert = b.ctx.get('uiExpert') as UiExpertService
+    nav.openPage()
+    expect(uiExpert.view.getSnapshot().open).toBe(true)
+
+    // The scheduled-work panel replaces the conversation area, so the page
+    // stands down and its nav row goes dark beside the panel row.
+    for (const notify of b.panelListeners) notify('schedule-work')
+    expect(uiExpert.view.getSnapshot().open).toBe(false)
+
+    // Returning to the Conversation is not a panel selection: the page keeps
+    // its own state.
+    nav.openPage()
+    for (const notify of b.panelListeners) notify(null)
+    expect(uiExpert.view.getSnapshot().open).toBe(true)
   })
 
   it('admits only shipped experts with card metadata, and hires stage-then-start', async () => {
