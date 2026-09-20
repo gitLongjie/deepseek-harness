@@ -29,11 +29,11 @@ Open Settings and select **Archived sessions** to see the sessions currently hid
 
 ### Reading a row
 
-Each row shows the session's display title, the title of the Workspace that accounts for it or the ungrouped label, and its last activity as a compact relative time. The page lists the most recently archived session first, the reverse of the durable archive order. The page waits for the Session list before rendering rows; while that list loads it shows a reading status instead of an empty archive. An empty archive, an archive whose entries have no loaded Session to restore, and a query matching no row report three different messages, so neither a search nor an unaddressable entry ever looks like an empty archive.
+Each row shows the session's display title, the title of the Workspace that accounts for it or the Tasks label, and its last activity as a compact relative time. The page lists the most recently archived session first, the reverse of the durable archive order. The page waits for the Session list before rendering rows; while that list loads it shows a reading status instead of an empty archive. An empty archive, an archive whose entries have no loaded Session to restore, and a query matching no row report three different messages, so neither a search nor an unaddressable entry ever looks like an empty archive.
 
 ### Restoring a session
 
-Unarchive restores the session to its recorded position under its Workspace, or to the ungrouped sessions when it belongs to none, and the row disappears from the page. The action calls `ctx.uiWorkspace.unarchiveSession`, whose echoed archive set updates every surface that filters on it, so the session reappears in the sidebar and search as well. A rejected call is logged as a console diagnostic and leaves the row in place for another attempt.
+Unarchive restores the session to its recorded position under its Workspace, or to the Tasks group when it belongs to none, and the row disappears from the page. The action calls `ctx.uiWorkspace.unarchiveSession`, whose echoed archive set updates every surface that filters on it, so the session reappears in the sidebar and search as well. A rejected call is logged as a console diagnostic and leaves the row in place for another attempt.
 
 -----
 
@@ -51,7 +51,7 @@ The page is one localized `settings.section` contribution with id `archived-sess
 
 ### Row derivation
 
-Rows are derived from the archive set joined with the loaded summaries: a member with no summary produces no row, which is why a session deleted outside the Workspace registry leaves no unarchive action behind. Workspace ownership is read from each Workspace's `sessionIds`; a member outside every Workspace renders with the ungrouped label. Search normalizes the query once and matches it against the row title and Workspace label.
+Rows are derived from the archive set joined with the loaded summaries: a member with no summary produces no row, which is why a session deleted outside the Workspace registry leaves no unarchive action behind. Workspace ownership is read from each Workspace's `sessionIds`; a member outside every Workspace renders with the Tasks label. Search normalizes the query once and matches it against the row title and Workspace label.
 
 ### Source map
 

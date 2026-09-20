@@ -355,10 +355,7 @@ export function deriveGroups(
     : owningGroupKey(workspaces, list.current)
   const groups: GroupNode[] = []
   for (const g of groupByWorkspace(list, workspaces, archived, view.ungroupedOrder)) {
-    // The ungrouped tail renders without a header row, so it has no toggle to
-    // open it and stays expanded; the row-level collapse inside the tail is what
-    // shortens it instead.
-    const expanded = g.workspaceId === undefined || expandedGroups.has(g.key)
+    const expanded = expandedGroups.has(g.key)
     groups.push({
       key: g.key,
       workspaceId: g.workspaceId,

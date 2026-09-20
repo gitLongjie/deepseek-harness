@@ -94,7 +94,7 @@ describe('ArchivedSessionsSection', () => {
 
     expect(screen.getAllByRole('listitem')).toHaveLength(1)
     expect(screen.getByText('Loose session')).toBeTruthy()
-    expect(screen.getByText('Ungrouped · now')).toBeTruthy()
+    expect(screen.getByText('Tasks · now')).toBeTruthy()
   })
 
   it('reads sessions until the list arrives, then reports an empty archive', () => {
