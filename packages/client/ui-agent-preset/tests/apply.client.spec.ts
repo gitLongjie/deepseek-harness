@@ -72,14 +72,33 @@ const ROSTER_HIDDEN = {
   },
 }
 
+/** The deployment after the market installed an expert into the user root. */
+const ROSTER_EXPERT = {
+  ok: true as const,
+  value: {
+    presets: [
+      { id: 'standard', trust: 'system', isDefault: true },
+      {
+        id: 'geo-optimizer', trust: 'user', isDefault: false,
+        name: 'GEO 优化专家', category: 'marketing',
+      },
+    ],
+    authorable: true,
+    modeSelectionEnabled: true,
+  },
+}
+
 async function bench(options: {
   failSettingsUpdate?: boolean
 } = {}) {
   const ctx = new Context()
   // The host's answer, mutable so a spec can move the default the way the
   // settings surface does and watch who re-reads it.
-  let ROSTER: typeof ROSTER_ONE | typeof ROSTER_MOVED | typeof ROSTER_AUTHORED | typeof ROSTER_HIDDEN = ROSTER_ONE
+  let ROSTER:
+    | typeof ROSTER_ONE | typeof ROSTER_MOVED | typeof ROSTER_AUTHORED
+    | typeof ROSTER_HIDDEN | typeof ROSTER_EXPERT = ROSTER_ONE
   const moveDefault = (): void => { ROSTER = ROSTER_MOVED }
+  const installExpert = (): void => { ROSTER = ROSTER_EXPERT }
   await ctx.plugin(SlotRegistry).await()
   const locale = new LocaleRuntime(ctx)
   locale.setLocale('zh')
@@ -147,7 +166,7 @@ async function bench(options: {
   ctx.provide('remote.agentPresets', agentPresets as never)
   Object.assign(remote, { agentPresets })
   await ctx.plugin({ inject: [...settingsInject], apply: settingsApply }).await()
-  return { ctx, slots: ctx.get('slots') as SlotRegistry, calls, moveDefault, remote }
+  return { ctx, slots: ctx.get('slots') as SlotRegistry, calls, moveDefault, installExpert, remote }
 }
 
 function declareRoot(slots: SlotRegistry): () => void {
@@ -172,12 +191,21 @@ function declareConversation(slots: SlotRegistry): () => void {
   } as never, () => null)
 }
 
-/** A Workspace UI double recording new-session starts. */
+/** A Workspace UI double recording new-session starts and placeholder steps. */
 function uiWorkspaceDouble() {
   const starts: unknown[] = []
+  const adoptions: ((sessionId: SessionId) => void | Promise<void>)[] = []
   return {
     starts,
+    adoptions,
     startSession: (workspaceId?: unknown) => { starts.push(workspaceId ?? null) },
+    bindPlaceholderAdoption: (listener: (sessionId: SessionId) => void | Promise<void>) => {
+      adoptions.push(listener)
+      return () => {
+        const at = adoptions.indexOf(listener)
+        if (at >= 0) adoptions.splice(at, 1)
+      }
+    },
   }
 }
 
@@ -539,6 +567,59 @@ describe('ui-agent-preset apply', () => {
     // A session created before the deployment composed presets records none;
     // reading that as "already runs it" would drop the pick on the floor.
     expect(calls).toContain('select:minimal')
+  })
+
+  it('names the composition a chat runs, including an expert the menu cannot offer', async () => {
+    const { ctx, slots, installExpert } = await bench()
+    declareRoot(slots)
+    const conversation = declareConversation(slots)
+    ctx.provide('conversation', {} as never)
+    ctx.provide('sessions', sessionsDouble({
+      current: 's1',
+      byId: {
+        s1: { id: 's1', blank: true, projectionValues: { agentPreset: 'geo-optimizer' } },
+      },
+    }) as never)
+    ctx.provide('uiWorkspace', uiWorkspaceDouble() as never)
+    await ctx.plugin({ inject: [...inject, 'conversation', 'sessions', 'uiWorkspace'], apply }).await()
+    const seat = (slots.entries('conversation.hero.agentPreset')[0]!
+      .inject as unknown as () => AgentPresetSeatInjected)()
+    installExpert()
+
+    await seat.load()
+
+    // The expert is market inventory rather than a mode, so the menu offers
+    // modes alone — while the chip still names what this chat will run instead
+    // of showing its identifier.
+    expect(seat.hooks.agentPresetSeat.getSnapshot().options.map(option => option.id)).toEqual(['standard'])
+    expect(seat.hooks.agentPresetSeat.getSnapshot().currentPreset?.name).toBe('GEO 优化专家')
+    conversation()
+  })
+
+  it('restores a new Session\'s composition on the placeholder a flow adopts', async () => {
+    const { ctx, slots, calls, installExpert } = await bench()
+    declareRoot(slots)
+    const conversation = declareConversation(slots)
+    ctx.provide('conversation', {} as never)
+    ctx.provide('sessions', sessionsDouble({
+      current: 's1',
+      byId: {
+        s1: { id: 's1', blank: true, projectionValues: { agentPreset: 'geo-optimizer' } },
+      },
+    }) as never)
+    const uiWorkspace = uiWorkspaceDouble()
+    ctx.provide('uiWorkspace', uiWorkspace as never)
+    await ctx.plugin({ inject: [...inject, 'conversation', 'sessions', 'uiWorkspace'], apply }).await()
+    installExpert()
+
+    // The Workspace's blank placeholder carries the expert a hire composed
+    // into it and never used; the flow adopting it starts a new Session, so it
+    // composes what one gets rather than that leftover.
+    expect(uiWorkspace.adoptions).toHaveLength(1)
+    await uiWorkspace.adoptions[0]!(SessionId('s1'))
+
+    expect(calls).toContain('select:standard')
+    conversation()
   })
 
   it('forgets the stage once it has been spent', async () => {

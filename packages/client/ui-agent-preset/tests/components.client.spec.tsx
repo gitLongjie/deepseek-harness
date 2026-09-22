@@ -26,13 +26,16 @@ const ROSTER_READY: AgentPresetSettingsState = {
   options: [{ id: 'standard', trust: 'system', name: '标准模式' }, { id: 'mine', trust: 'user' }],
 }
 
+const SEAT_OPTIONS: AgentPresetSeatState['options'] = [
+  { id: 'standard', trust: 'system', name: '标准模式', description: '完整的编码 agent。' },
+  { id: 'mine', trust: 'user' },
+]
+
 const SEAT_READY: AgentPresetSeatState = {
   showPicker: true,
   current: 'standard',
-  options: [
-    { id: 'standard', trust: 'system', name: '标准模式', description: '完整的编码 agent。' },
-    { id: 'mine', trust: 'user' },
-  ],
+  currentPreset: SEAT_OPTIONS[0],
+  options: SEAT_OPTIONS,
   busy: false,
   error: null,
   introduce: false,
@@ -50,7 +53,13 @@ function renderSeat(
   state: Partial<AgentPresetSeatState> = {},
   select: () => Promise<string | undefined> = () => Promise.resolve(undefined),
 ) {
-  const store = createSnapshotStore<AgentPresetSeatState>({ ...SEAT_READY, ...state })
+  const merged = { ...SEAT_READY, ...state }
+  // Naming moves with the id it names: the snapshot's `currentPreset` is the
+  // roster row carrying `current`, so a test states only what it varies.
+  const ready: AgentPresetSeatState = 'currentPreset' in state
+    ? merged
+    : { ...merged, currentPreset: merged.options.find(option => option.id === merged.current) }
+  const store = createSnapshotStore<AgentPresetSeatState>(ready)
   const actions = { load: vi.fn(() => Promise.resolve()), select: vi.fn(select), introduced: vi.fn() }
   render(<AgentPresetSeat {...({
     ...actions,
@@ -119,6 +128,23 @@ describe('the new-session chip', () => {
     renderSeat({ current: 'arriving' })
 
     expect(screen.getByRole('button').textContent).toContain('arriving')
+    // Nothing on the roster names it, so the hint says as much instead of
+    // claiming a preset that is not there.
+    expect(screen.getByRole('button').getAttribute('title'))
+      .toBe(translate('seatUnknownHint', { id: 'arriving' }))
+  })
+
+  it('names a composition the menu cannot offer and says where it came from', () => {
+    // An expert is hired from the market rather than picked here, so the chip
+    // shows a preset its own menu has no row for.
+    renderSeat({
+      current: 'geo-optimizer',
+      currentPreset: { id: 'geo-optimizer', trust: 'user', name: 'GEO 优化专家' },
+    })
+
+    expect(screen.getByRole('button').textContent).toContain('GEO 优化专家')
+    expect(screen.getByRole('button').getAttribute('title'))
+      .toBe(translate('seatExpertHint', { name: 'GEO 优化专家' }))
   })
 
   it('stages the picked preset and closes the menu', () => {

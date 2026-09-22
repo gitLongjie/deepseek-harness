@@ -34,10 +34,29 @@ export interface UiWorkspace {
   forkSession(sessionId: SessionId): Promise<void>
   /**
    * Resolve the reusable or newly created blank Session for a Workspace.
+   *
+   * A reused blank Session is that Workspace's New Session placeholder, so
+   * every registered {@link UiWorkspace.bindPlaceholderAdoption} step runs on
+   * it before this resolves.
    * @param workspaceId - target Workspace.
    * @returns a Session already addressable through the Session Controller.
    */
   connectWorkspace(workspaceId: WorkspaceId): Promise<SessionId>
+  /**
+   * Register the step every adopted New Session placeholder runs before the
+   * flow opens it.
+   *
+   * A Workspace's blank Session is that Workspace's New Session placeholder,
+   * and a flow adopting one starts the chat it will compose — but the
+   * placeholder still carries whatever composition an EARLIER flow gave it,
+   * such as an expert hired into it. The composition's own owner restores the
+   * one a new Session gets here, which is why this is a hook rather than a
+   * composition dependency of this package. A listener that fails never fails
+   * the navigation.
+   * @param listener - the step, awaited before the adopted Session opens.
+   * @returns the disposer that unregisters it.
+   */
+  bindPlaceholderAdoption(listener: (sessionId: SessionId) => void | Promise<void>): () => void
   /**
    * Start a New Session flow and navigate to its Session.
    * @param workspaceId - explicit target; absent inherits the current or most recent Workspace.
@@ -96,6 +115,9 @@ class UiWorkspaceService extends Service implements UiWorkspace {
   private readonly connecting = new Map<WorkspaceId, Promise<SessionId>>()
   private readonly lifetime = new AbortController()
 
+  /** The composition step a binding registered for adopted placeholders. */
+  private placeholderAdoption: ((sessionId: SessionId) => void | Promise<void>) | undefined
+
   /**
    * @param ctx - Client root Context.
    * @param directoryPicker - the directory-picking Remote namespace.
@@ -127,13 +149,31 @@ class UiWorkspaceService extends Service implements UiWorkspace {
       const summary = sessions.byId[id]
       if (summary !== undefined && summary.blank && summary.cwd === workspace.path
         && workspace.sessionIds.includes(summary.id)
-        && !archived.includes(summary.id)) return summary.id
+        && !archived.includes(summary.id)) {
+        // The blank member is this Workspace's New Session placeholder, and the
+        // flow adopting it starts the chat it will compose: one left composed
+        // by another flow (an expert hired into it) is restored to a new
+        // Session's composition here, before it opens.
+        try {
+          await this.placeholderAdoption?.(summary.id)
+        } catch {
+          // A failed step is not a failed navigation: the Session opens anyway.
+        }
+        return summary.id
+      }
     }
 
     const attempt = this.sessions.create({ workspaceId })
       .finally(() => { this.connecting.delete(workspaceId) })
     this.connecting.set(workspaceId, attempt)
     return attempt
+  }
+
+  bindPlaceholderAdoption(listener: (sessionId: SessionId) => void | Promise<void>): () => void {
+    this.placeholderAdoption = listener
+    return () => {
+      if (this.placeholderAdoption === listener) this.placeholderAdoption = undefined
+    }
   }
 
   openSession(sessionId: SessionId): void {

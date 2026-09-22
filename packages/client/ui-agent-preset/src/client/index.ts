@@ -111,9 +111,10 @@ export function apply(ctx: ClientContext): void {
   // The new-session chip and the header label: one controller, because the
   // staged choice belongs to the flow rather than to any one session.
   ctx.inject(['slots', 'conversation', 'sessions', 'uiWorkspace'], (scope: ClientContext) => {
-    const seat = new AgentPresetSeatController(scope, () => {
+    const seat = new AgentPresetSeatController(scope, (id) => {
       const state = scope.sessions.list.getSnapshot()
-      return state.current === undefined ? undefined : state.byId[state.current]
+      const wanted = id ?? state.current
+      return wanted === undefined ? undefined : state.byId[wanted]
     })
     activeSeat = seat
 
@@ -123,6 +124,14 @@ export function apply(ctx: ClientContext): void {
     scope.effect(
       () => uiAgentPreset.bindStage((id: string) => { seat.stage(id, true) }),
       'ui-agent-preset: cross-surface staging',
+    )
+
+    // The Workspace's New Session placeholder is composed by whichever flow
+    // adopts it: a chat left composed by another flow (an expert hired into it)
+    // would otherwise start the next new session under that composition.
+    scope.effect(
+      () => scope.uiWorkspace.bindPlaceholderAdoption(id => seat.prepareNewSession(id)),
+      'ui-agent-preset: adopted placeholder composition',
     )
 
     const seatInjected = (): AgentPresetSeatInjected => ({

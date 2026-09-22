@@ -53,6 +53,8 @@ The value is intentionally best effort for cold Sessions. An identity-matching u
 
 `ctx.uiWorkspace.openSession(id)` selects the Session and returns the main area to the Conversation as one UI navigation action, including when that Session was already current. `openWorkspace(id, beforeOpen?)` and `forkSession(id)` open their result only if no later navigation has superseded the request; New Session uses `openWorkspace`. The optional synchronous preparation callback runs only for a current Workspace request, so superseded requests do not move composer drafts. Navigation or owner disposal suppresses the late UI commit, not the underlying Session creation. Selection failure leaves a global panel visible. Session rows read `usePanelInfo` to suppress their selected appearance while a global panel is active; search and directory-picker focus alone do not leave that panel.
 
+`bindPlaceholderAdoption(listener)` registers the step every reused blank Session runs before the flow opens it. A blank Session is its Workspace's New Session placeholder, and it still carries whatever composition an earlier flow gave it — so the composition's own owner restores the one a new Session gets there, and a listener that fails never fails the navigation. The step runs for an adopted placeholder only: a Session this package creates composes that same default by construction.
+
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
 
@@ -120,4 +122,4 @@ None.
 
 </details>
 
-**Runtime invariant:** No companion is published. This is a pure-consumer plugin that registers presentational components into two host-declared slots and registers its locale dictionaries; its inject face consists of stateless RPC wrappers plus a create-and-open call. It emits no Cordis events and owns no cross-plugin mutable state.
+**Runtime invariant:** No companion is published. This is a pure-consumer plugin that registers presentational components into two host-declared slots, registers its locale dictionaries, and holds the one placeholder-adoption step a composition owner registers; its inject face consists of stateless RPC wrappers plus a create-and-open call. It emits no Cordis events.

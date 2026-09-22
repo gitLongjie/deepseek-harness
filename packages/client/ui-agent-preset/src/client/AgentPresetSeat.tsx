@@ -9,7 +9,9 @@
  * where it still works.
  *
  * The menu opens on the staged choice, which starts as the deployment default.
- * Picking stages; the choice reaches a session when one becomes current.
+ * Picking stages; the choice reaches a session when one becomes current. The
+ * label always names the composition that chat will run — including one this
+ * menu cannot offer, such as an expert the market hired into it.
  */
 
 import { useEffect, useRef, useState } from 'react'
@@ -105,10 +107,23 @@ export function AgentPresetSeat({ load, select, introduced, useAgentPresetSeat, 
     setToast(null)
   }, [state.showPicker])
 
-  const chosen = state.options.find(option => option.id === state.current)
-  const chosenText = chosen === undefined ? undefined : presetDisplayText(chosen, t)
-  const label = chosenText?.name ?? state.current
+  // The roster row naming the composition this chat runs, when one carries it.
+  const label = state.currentPreset === undefined
+    ? state.current
+    : presetDisplayText(state.currentPreset, t).name
   const ready = state.options.length > 0 && state.current !== ''
+  // The chip names whatever the next chat will compose, which the menu cannot
+  // always offer: an expert is hired from the market rather than picked here,
+  // and a preset deleted or broken since a session started has no row left.
+  // Both would otherwise show a bare identifier and leave the user guessing
+  // where the composition came from.
+  const hint = state.error ?? (
+    state.currentPreset === undefined
+      ? t('seatUnknownHint', { id: state.current })
+      : state.options.some(option => option.id === state.current)
+        ? t('seatHint')
+        : t('seatExpertHint', { name: label })
+  )
 
   // The introduce cue: the pick was staged from another screen (the settings
   // creator entry), so the chip announces it — the icon eases in and each
@@ -199,7 +214,7 @@ export function AgentPresetSeat({ load, select, introduced, useAgentPresetSeat, 
             className={css.seat}
             aria-haspopup="menu"
             aria-expanded={open}
-            title={state.error ?? t('seatHint')}
+            title={hint}
             disabled={state.busy}
             onClick={() => { setOpen(value => !value) }}
           >

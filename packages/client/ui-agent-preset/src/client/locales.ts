@@ -2,7 +2,7 @@
 
 /** Locale keys these surfaces render. */
 export type AgentPresetSettingsKey =
-  | 'error' | 'userTrust' | 'seatHint' | 'headerHint'
+  | 'error' | 'userTrust' | 'seatHint' | 'seatExpertHint' | 'seatUnknownHint' | 'headerHint'
   | 'nav' | 'sectionIntro' | 'builtIn' | 'setDefault' | 'view'
   | 'presetStandardName' | 'presetStandardDescription'
   | 'presetPtcName' | 'presetPtcDescription'
@@ -25,6 +25,8 @@ export const en: Record<AgentPresetSettingsKey, string> = {
   error: 'Could not load agent presets.',
   userTrust: 'Custom',
   seatHint: 'Agent preset for the session you are about to start',
+  seatExpertHint: 'This chat was composed from the expert "{name}"; pick a mode to switch',
+  seatUnknownHint: 'This chat runs preset "{id}", which is not available now',
   headerHint: 'The agent preset this session runs, fixed when it started',
   nav: 'Agent presets',
   sectionIntro:
@@ -96,6 +98,8 @@ export const zh: Record<AgentPresetSettingsKey, string> = {
   error: '无法加载 Agent 预设。',
   userTrust: '自定义',
   seatHint: '即将开始的这个会话所用的 Agent 预设',
+  seatExpertHint: '本会话由专家「{name}」组成；选择其他模式即可切换',
+  seatUnknownHint: '本会话运行的预设「{id}」当前不可用',
   headerHint: '本会话运行的 Agent 预设，开始时即固定',
   nav: 'Agent 预设',
   sectionIntro: '预设即一个会话的 Agent 所运行的插件组装 —— 它的工具、提示词与能力。复制一份既有预设改成自己的，或用「创造模式」让 Agent 帮你创建。',

@@ -25,11 +25,21 @@ import { AgentPresetSeatController } from '../src/client/seat-store.ts'
 
 type SeatSession = Pick<SessionSummary, 'id' | 'blank' | 'projectionValues'>
 
+/** One roster row a spec scripts, with the metadata a surface may read. */
+interface FakePreset {
+  id: string
+  trust: 'system' | 'user'
+  isDefault: boolean
+  name?: string
+  category?: string
+  broken?: string
+}
+
 interface Recorded { ns: string; ops: unknown }
 
 /** A roster Remote answering a fixed set of rows, or refusing. */
 function fakeRoster(
-  presets: { id: string; trust: 'system' | 'user'; isDefault: boolean }[],
+  presets: FakePreset[],
   options: {
     failList?: string
     failListCode?: RemoteErrorCode
@@ -61,7 +71,7 @@ function fakeRoster(
 
 /** A context whose roster and settings write outcome the test controls. */
 function fakeApi(
-  presets: { id: string; trust: 'system' | 'user'; isDefault: boolean }[],
+  presets: FakePreset[],
   options: {
     writes?: Recorded[]
     failWrite?: string
@@ -233,10 +243,10 @@ describe('the agent-preset roster store', () => {
 })
 
 describe('the new-session chip controller', () => {
-  /** A chip over a current session the test can move. */
+  /** A chip over a current session the test can move, or resolve by id. */
   function chip(
-    presets: { id: string; trust: 'system' | 'user'; isDefault: boolean }[],
-    current: SeatSession | undefined | (() => SeatSession | undefined),
+    presets: FakePreset[],
+    current: SeatSession | undefined | ((id?: SessionId) => SeatSession | undefined),
     options: {
       writes?: Recorded[]
       failSelect?: string
@@ -282,9 +292,18 @@ describe('the new-session chip controller', () => {
     )
   }
 
-  const ROSTER: { id: string; trust: 'system' | 'user'; isDefault: boolean }[] = [
+  const ROSTER: FakePreset[] = [
     { id: 'standard', trust: 'system', isDefault: true },
     { id: 'minimal', trust: 'system', isDefault: false },
+  ]
+
+  /** The roster after the expert market installed one into the user root. */
+  const ROSTER_EXPERT: FakePreset[] = [
+    { id: 'standard', trust: 'system', isDefault: true },
+    {
+      id: 'geo-optimizer', trust: 'user', isDefault: false,
+      name: 'GEO 优化专家', category: 'marketing',
+    },
   ]
 
   it('opens on the deployment default', async () => {
@@ -340,6 +359,23 @@ describe('the new-session chip controller', () => {
     const state = controller.store.getSnapshot()
     expect(state.options.map(option => option.id)).toEqual(['standard'])
     expect(state.current).toBe('standard')
+  })
+
+  it('names the composition a chat runs, including one the menu cannot offer', async () => {
+    const controller = chip(ROSTER_EXPERT, {
+      id: 's1' as SessionId,
+      blank: true,
+      projectionValues: { agentPreset: 'geo-optimizer' },
+    })
+
+    await controller.load()
+
+    const state = controller.store.getSnapshot()
+    // A hire composed this chat, and the market is where an expert is chosen:
+    // the menu still offers modes alone, while the chip names what the chat
+    // will actually run instead of showing the raw identifier.
+    expect(state.options.map(option => option.id)).toEqual(['standard'])
+    expect(state.currentPreset?.name).toBe('GEO 优化专家')
   })
 
   it('carries the display metadata into the menu rows', async () => {
@@ -541,6 +577,143 @@ describe('the new-session chip controller', () => {
     await controller.load()
 
     expect(controller.store.getSnapshot()).toMatchObject({ error: 'host down', options: [] })
+  })
+
+  describe('the adopted New Session placeholder', () => {
+    /** A chip whose session reader resolves any listed Session by id. */
+    function chipOver(
+      presets: FakePreset[],
+      sessions: Record<string, SeatSession>,
+      options: { writes?: Recorded[]; failSelect?: string; failList?: string } = {},
+    ): AgentPresetSeatController {
+      return chip(presets, id => (id === undefined ? undefined : sessions[id]), options)
+    }
+
+    /** One blank placeholder, composed from `preset` when one is named. */
+    function placeholder(preset?: string): Record<string, SeatSession> {
+      return {
+        s1: {
+          id: 's1' as SessionId,
+          blank: true,
+          ...preset === undefined ? {} : { projectionValues: { agentPreset: preset } },
+        },
+      }
+    }
+
+    it('restores the composition a new Session gets', async () => {
+      const writes: Recorded[] = []
+      const controller = chipOver(ROSTER_EXPERT, placeholder('geo-optimizer'), { writes })
+
+      await controller.prepareNewSession('s1' as SessionId)
+
+      // A chat the user hired an expert into and never used is the NEXT new
+      // session's placeholder: adopting it must not start a chat under a
+      // composition nobody asked for this flow.
+      expect(writes).toEqual([{ ns: 'select', ops: 'standard' }])
+    })
+
+    it('leaves a placeholder already composing the default alone', async () => {
+      const writes: Recorded[] = []
+      const controller = chipOver(ROSTER, placeholder('standard'), { writes })
+      // A chip that already read the roster knows the default without asking
+      // again; the step reuses that read.
+      await controller.load()
+
+      await controller.prepareNewSession('s1' as SessionId)
+
+      expect(writes).toEqual([])
+    })
+
+    it('keeps a mode picked on this screen', async () => {
+      const writes: Recorded[] = []
+      const controller = chipOver(ROSTER, placeholder('minimal'), { writes })
+
+      await controller.prepareNewSession('s1' as SessionId)
+
+      // The chip offers this preset, so the user may have picked it for this
+      // very chat: adopting the placeholder must not overrule that.
+      expect(writes).toEqual([])
+    })
+
+    it('restores a placeholder that records no preset at all', async () => {
+      const writes: Recorded[] = []
+      const controller = chipOver(ROSTER, placeholder(), { writes })
+
+      await controller.prepareNewSession('s1' as SessionId)
+
+      // Nothing chose this Session's composition — a fresh create resolves the
+      // default — so the placeholder is composed like one.
+      expect(writes).toEqual([{ ns: 'select', ops: 'standard' }])
+    })
+
+    it('ignores a placeholder it cannot read', async () => {
+      const writes: Recorded[] = []
+      const controller = chipOver(ROSTER_EXPERT, placeholder('geo-optimizer'), { writes })
+
+      await controller.prepareNewSession('gone' as SessionId)
+
+      // Nothing is listed under that id, so there is no composition to judge.
+      expect(writes).toEqual([])
+    })
+
+    it('leaves a Session that has started to the composition it ran', async () => {
+      const writes: Recorded[] = []
+      const controller = chipOver(ROSTER_EXPERT, {
+        s1: { id: 's1' as SessionId, blank: false, projectionValues: { agentPreset: 'geo-optimizer' } },
+      }, { writes })
+
+      await controller.prepareNewSession('s1' as SessionId)
+
+      // Its history was produced under that composition; the host refuses the
+      // swap anyway, and the user is using the chat.
+      expect(writes).toEqual([])
+    })
+
+    it('defers to a pick this flow already staged', async () => {
+      const writes: Recorded[] = []
+      const controller = chipOver(ROSTER_EXPERT, placeholder('geo-optimizer'), { writes })
+      controller.stage('minimal')
+
+      await controller.prepareNewSession('s1' as SessionId)
+
+      // The staged pick IS what this flow asked for, and the applier owns
+      // switching the Session onto it.
+      expect(writes).toEqual([])
+    })
+
+    it('restores nothing while the roster marks no default', async () => {
+      const writes: Recorded[] = []
+      const controller = chipOver(
+        [{ id: 'standard', trust: 'system', isDefault: false }],
+        placeholder('geo-optimizer'),
+        { writes },
+      )
+
+      await controller.prepareNewSession('s1' as SessionId)
+
+      // Without a marked default there is no composition a fresh create would
+      // produce, so the placeholder's own is the best answer available.
+      expect(writes).toEqual([])
+    })
+
+    it('survives a refused roster read', async () => {
+      const writes: Recorded[] = []
+      const controller = chipOver(ROSTER_EXPERT, placeholder('geo-optimizer'), {
+        writes, failList: 'host down',
+      })
+
+      await controller.prepareNewSession('s1' as SessionId)
+
+      expect(writes).toEqual([])
+    })
+
+    it('ignores a refusal from a Session that started mid-step', async () => {
+      const controller = chipOver(ROSTER_EXPERT, placeholder('geo-optimizer'), {
+        failSelect: 'already started',
+      })
+
+      await expect(controller.prepareNewSession('s1' as SessionId)).resolves.toBeUndefined()
+    })
   })
 
 })

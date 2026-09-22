@@ -7,7 +7,9 @@
  * which is why staging cannot simply ride along on `sessions.create`.
  *
  * The stage is forgotten once applied. The next new session starts from the
- * Host-effective default again.
+ * Host-effective default again, which is what {@link
+ * AgentPresetSeatController.prepareNewSession} restores on the placeholder a
+ * later flow adopts.
  */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
@@ -16,7 +18,7 @@ import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type { SessionSummary } from '@deepseek-ai/dsh-api-session-controller/client'
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type {} from '@deepseek-ai/dsh-agent-presets/types'
-import { presetOptions, readRoster } from './settings-store.ts'
+import { presetDisplayEntries, presetOptions, readRoster } from './settings-store.ts'
 import type { AgentPresetOption } from './settings-store.ts'
 
 /** Hero-chip snapshot. */
@@ -25,6 +27,14 @@ export interface AgentPresetSeatState {
   showPicker: boolean
   /** Presets the deployment supplies; empty means the chip renders nothing. */
   options: readonly AgentPresetOption[]
+  /**
+   * Roster row naming {@link current}, resolved over the WHOLE healthy roster
+   * rather than over `options`: the market hires expert-marked presets, so a
+   * session composed from one is named by that preset here while the menu
+   * still offers modes alone. Absent when no healthy preset carries the id,
+   * which is the only case where a surface falls back to the raw id.
+   */
+  currentPreset: AgentPresetOption | undefined
   /** The staged choice, empty until the roster loads. */
   current: string
   /** A rejected apply's message, cleared by the next attempt. */
@@ -39,7 +49,8 @@ export interface AgentPresetSeatState {
 }
 
 const INITIAL: AgentPresetSeatState = {
-  showPicker: false, options: [], current: '', error: null, busy: false, introduce: false,
+  showPicker: false, options: [], currentPreset: undefined,
+  current: '', error: null, busy: false, introduce: false,
 }
 
 /** Stages the next session's preset and applies it when one appears. */
@@ -56,13 +67,31 @@ export class AgentPresetSeatController {
   /** Set while a pick is waiting for a session; cleared once applied. */
   private staged: string | undefined
 
+  /**
+   * Every healthy preset the last roster read reported, for naming a
+   * composition the menu does not offer and for resolving the default.
+   */
+  private entries: readonly AgentPresetOption[] = []
+
+  /**
+   * The presets this flow's surfaces can offer, from the same roster read as
+   * {@link defaultId}: what a pick made here can possibly have chosen.
+   */
+  private options: readonly AgentPresetOption[] = []
+
+  /** The preset a Session created now composes: the roster's marked default. */
+  private defaultId: string | undefined
+
   /** Only the newest roster read may publish after overlapping refreshes. */
   private loadGeneration = 0
 
   constructor(
     private readonly ctx: ClientContext,
-    /** The session the hero is about to hand over to, when there is one. */
-    private readonly currentSession: () => Pick<
+    /**
+     * One session's list facts: the current session when no id is given, so
+     * the applier and the placeholder step read the same projection.
+     */
+    private readonly sessionOf: (id?: SessionSummary['id']) => Pick<
       SessionSummary,
       'id' | 'blank' | 'projectionValues'
     > | undefined,
@@ -70,6 +99,17 @@ export class AgentPresetSeatController {
 
   private set(patch: Partial<AgentPresetSeatState>): void {
     this.store.set({ ...this.store.getSnapshot(), ...patch })
+  }
+
+  /**
+   * The state fields that name one preset id: the id itself and the healthy
+   * roster row carrying it, so every publish names the composition the same
+   * way a fresh roster read would.
+   * @param id - preset id the snapshot should name.
+   * @returns the naming fields to merge into a snapshot patch.
+   */
+  private naming(id: string): Pick<AgentPresetSeatState, 'current' | 'currentPreset'> {
+    return { current: id, currentPreset: this.entries.find(entry => entry.id === id) }
   }
 
   /**
@@ -92,7 +132,14 @@ export class AgentPresetSeatController {
     // expert-marked market inventory) falls through to the first offered one.
     this.fallback = presets.find(preset => preset.isDefault
       && options.some(option => option.id === preset.id))?.id ?? options[0]?.id ?? ''
-    const session = this.currentSession()
+    // Naming and the placeholder step read the whole healthy roster: a session
+    // running an expert-marked preset is named by that preset even though the
+    // menu cannot offer it, and the default a fresh create composes is the
+    // marked row whether or not this chip may display it as a mode.
+    this.entries = presetDisplayEntries(presets)
+    this.options = options
+    this.defaultId = presets.find(preset => preset.isDefault)?.id
+    const session = this.sessionOf()
     this.set({
       showPicker: modeSelectionEnabled,
       options,
@@ -102,7 +149,7 @@ export class AgentPresetSeatController {
       // an applied stage was consumed — the chip mounts (and loads) only
       // once the flow's session is current, so the reply can arrive after
       // apply() already composed it.
-      current: this.staged ?? (session === undefined ? this.fallback : presetOf(session) ?? ''),
+      ...this.naming(this.staged ?? (session === undefined ? this.fallback : presetOf(session) ?? '')),
       error: null,
       ...modeSelectionEnabled ? {} : { introduce: false },
     })
@@ -140,7 +187,7 @@ export class AgentPresetSeatController {
    */
   stage(id: string, introduce = false): void {
     this.staged = id
-    this.set({ current: id, error: null, introduce })
+    this.set({ ...this.naming(id), error: null, introduce })
   }
 
   /**
@@ -148,7 +195,7 @@ export class AgentPresetSeatController {
    * @returns its id, or undefined outside a blank Session.
    */
   blankSessionId(): SessionSummary['id'] | undefined {
-    const session = this.currentSession()
+    const session = this.sessionOf()
     return session?.blank === true ? session.id : undefined
   }
 
@@ -163,11 +210,49 @@ export class AgentPresetSeatController {
     expectedSessionId: SessionSummary['id'],
     id: string,
   ): Promise<string | undefined> {
-    const session = this.currentSession()
+    const session = this.sessionOf()
     if (session === undefined || !session.blank || session.id !== expectedSessionId) return undefined
     this.stage(id)
     await this.apply()
     return this.store.getSnapshot().error ?? undefined
+  }
+
+  /**
+   * Restore the composition a fresh Session gets on the blank Session a
+   * new-session flow adopts.
+   *
+   * A Workspace's blank Session IS its New Session placeholder, and flows
+   * share it: a hire composes the expert into it, and the next new-session flow
+   * adopts that same Session. Left alone, that flow would start the chat it
+   * promises under a composition nobody chose for it — and the chip would name
+   * a preset its own menu cannot even offer.
+   *
+   * What is restored is only what these surfaces cannot have chosen. A pick
+   * made on this screen or the settings page is that flow's own answer and
+   * stays; a composition the menu has no row for — an expert hired from the
+   * market, a preset deleted since — is another flow's leftover. A staged pick
+   * returns immediately too: it IS what this flow asked for, and the applier
+   * owns switching the Session onto it.
+   * @param sessionId - the adopted placeholder, still blank.
+   * @returns once the composition settled, or immediately when there is nothing to do.
+   */
+  async prepareNewSession(sessionId: SessionSummary['id']): Promise<void> {
+    if (this.staged !== undefined) return
+    const session = this.sessionOf(sessionId)
+    // A Session with history keeps the composition that history was produced
+    // under; only the untouched placeholder is housekeeping's business.
+    if (session === undefined || session.blank !== true) return
+    if (this.defaultId === undefined) await this.load()
+    const defaultId = this.defaultId
+    if (defaultId === undefined) return
+    const current = presetOf(session)
+    if (current === defaultId) return
+    if (current !== undefined && this.options.some(option => option.id === current)) return
+    const result = await this.ctx.remote.agentPresets.select(sessionId, defaultId)
+    // A refusal means the Session stopped being the placeholder this flow
+    // adopted — someone started using it, so its composition is now theirs to
+    // choose and this step leaves it alone.
+    if (!result.ok) return
   }
 
   /** Acknowledge the introduction cue once the chip has played it. */
@@ -185,10 +270,10 @@ export class AgentPresetSeatController {
    */
   async apply(): Promise<void> {
     const staged = this.staged
-    const session = this.currentSession()
+    const session = this.sessionOf()
     if (staged === undefined) {
       const current = session === undefined ? this.fallback : presetOf(session) ?? ''
-      if (current !== this.store.getSnapshot().current) this.set({ current })
+      if (current !== this.store.getSnapshot().current) this.set(this.naming(current))
       return
     }
     if (session === undefined) return
@@ -213,12 +298,12 @@ export class AgentPresetSeatController {
         error: 'reason' in error.details && typeof error.details.reason === 'string'
           ? error.details.reason
           : error.message,
-        current: presetOf(session) ?? '',
+        ...this.naming(presetOf(session) ?? ''),
       })
       return
     }
     // Consumed: the next new session opens on the Host-effective default again.
-    this.set({ busy: false, current: result.value })
+    this.set({ busy: false, ...this.naming(result.value) })
   }
 }
 

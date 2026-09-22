@@ -392,6 +392,37 @@ describe('UiWorkspaceService', () => {
       .rejects.toThrow('uiWorkspace.connectWorkspace: unknown workspace ghost')
   })
 
+  it('runs the registered placeholder step on an adopted blank, never on a created Session', async () => {
+    const b = bench()
+    const blank = sid('member-blank')
+    b.workspaces.list.set(workspaceState([workspace('alpha', [blank]), workspace('beta')]))
+    b.sessions.list.set(sessionState([summary('member-blank', { blank: true, cwd: '/w/alpha' })], blank))
+    const steps: SessionId[] = []
+    const unbind = b.uiWorkspace.bindPlaceholderAdoption((sessionId) => { steps.push(sessionId) })
+
+    await expect(b.uiWorkspace.connectWorkspace(wid('alpha'))).resolves.toBe(blank)
+    // A created Session composes what a new Session gets by construction, so
+    // the step belongs to the adopted placeholder alone.
+    await expect(b.uiWorkspace.connectWorkspace(wid('beta'))).resolves.toBe(sid('created-beta'))
+    expect(steps).toEqual([blank])
+
+    unbind()
+    await b.uiWorkspace.connectWorkspace(wid('alpha'))
+    expect(steps).toEqual([blank])
+  })
+
+  it('opens an adopted blank even when its placeholder step fails', async () => {
+    const b = bench()
+    const blank = sid('member-blank')
+    b.workspaces.list.set(workspaceState([workspace('alpha', [blank])]))
+    b.sessions.list.set(sessionState([summary('member-blank', { blank: true, cwd: '/w/alpha' })], blank))
+    b.uiWorkspace.bindPlaceholderAdoption(() => Promise.reject(new Error('roster unavailable')))
+
+    // The step is housekeeping on a Session the flow is about to open: a
+    // failure leaves the navigation intact.
+    await expect(b.uiWorkspace.connectWorkspace(wid('alpha'))).resolves.toBe(blank)
+  })
+
   it('targets an explicit, current-session, then recent Workspace and reports failed starts', async () => {
     const current = summary('current', { cwd: '/w/current-home', updatedAt: 1 })
     const recent = summary('recent', { cwd: '/w/recent-home', updatedAt: 2 })
