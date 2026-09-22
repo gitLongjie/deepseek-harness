@@ -87,7 +87,7 @@ export function apply(ctx: ClientContext): void {
       'conversation.approval.detail': { kind: 'single', scope: 'session' },
     },
   }, ApprovalPanel))
-  ctx.remote.$on('approval/request', function (request, next) {
+  ctx.effect(() => ctx.remote.$on('approval/request', function (request, next) {
     return answerApproval(ctx, this, request, next, registerPendingInteraction)
-  })
+  }), 'ui-approval: approval request gate')
 }

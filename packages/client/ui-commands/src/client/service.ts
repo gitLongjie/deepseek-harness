@@ -97,12 +97,18 @@ export class CommandUiRuntime extends Service implements CommandUiContract {
       matchEnter: (session, line, signal, envelope) => this.matchEnter(session, line, signal, envelope),
       warm: (session) => { this.directory.warm(session.sessionId) },
     }), 'command: slash source')
-    ctx.remote.$on('commands/change', () => { this.directory.invalidateAll() })
-    // A preset switch changes which commands one session's agent resolves and
-    // registers nothing globally. Drop that key's old composition before
-    // prewarming so a newly opened menu waits for the replacement catalog.
-    ctx.remote.$on('agent-preset/selected', (sessionId) => { this.directory.resetSession(sessionId) })
-    ctx.on('connection/reset', () => { this.directory.resetConnected() })
+    ctx.effect(() => {
+      const disposers = [
+        ctx.remote.$on('commands/change', () => { this.directory.invalidateAll() }),
+        // A preset switch changes which commands one session's agent resolves
+        // and registers nothing globally. Drop that key's old composition
+        // before prewarming so a newly opened menu waits for the replacement
+        // catalog.
+        ctx.remote.$on('agent-preset/selected', (sessionId) => { this.directory.resetSession(sessionId) }),
+        ctx.on('connection/reset', () => { this.directory.resetConnected() }),
+      ]
+      return () => { for (const dispose of disposers) dispose() }
+    }, 'command: directory invalidations')
   }
 
   /**

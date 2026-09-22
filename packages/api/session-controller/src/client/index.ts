@@ -99,28 +99,37 @@ export const inject = [
 export function apply(ctx: Context): void {
   const remotes = ctx.remote as unknown as SessionRemotes
   const sessions = new ClientSessions(ctx, remotes)
-  ctx.remote.$on('api-session/added', (summary) => { sessions.handleSessionAdded(summary) })
-  ctx.remote.$on('api-session/removed', (sessionId) => { sessions.handleSessionRemoved(sessionId) })
-  ctx.remote.$on('api-session/status', (sessionId, running) => {
-    sessions.handleSessionStatus(sessionId, running)
-  })
-  ctx.remote.$on('api-session/activity', (sessionId, updatedAt) => {
-    sessions.handleSessionActivity(sessionId, updatedAt)
-  })
-  ctx.remote.$on('api-session/error', (sessionId, message) => {
-    sessions.handleSessionError(sessionId, message)
-  })
+  // Every wire subscription names this activation's sessions instance, so the
+  // set is rebound and the old one withdrawn whenever this entry reloads; a
+  // subscription kept across reloads would keep delivering events into the
+  // retired instance, and one per reload accumulates.
+  ctx.effect(() => {
+    const disposers: Array<() => void | Promise<void>> = [
+      ctx.remote.$on('api-session/added', (summary) => { sessions.handleSessionAdded(summary) }),
+      ctx.remote.$on('api-session/removed', (sessionId) => { sessions.handleSessionRemoved(sessionId) }),
+      ctx.remote.$on('api-session/status', (sessionId, running) => {
+        sessions.handleSessionStatus(sessionId, running)
+      }),
+      ctx.remote.$on('api-session/activity', (sessionId, updatedAt) => {
+        sessions.handleSessionActivity(sessionId, updatedAt)
+      }),
+      ctx.remote.$on('api-session/error', (sessionId, message) => {
+        sessions.handleSessionError(sessionId, message)
+      }),
+      ctx.on('connection/reset', () => { sessions.handleConnected() }),
+    ]
+    disposers.push(ctx.typert.contexts.registerClient('agent', {
+      identity: candidate => sessions.scopeOf(candidate),
+      resolve: sessionId => sessions.resolveAgentScope(sessionId),
+    }))
+    return () => { for (const dispose of disposers) void dispose() }
+  }, 'session-controller.client.wire-events')
 
   const control = createSessionControlStream(remotes, {
     accept: (frame) => { sessions.handleControlFrame(frame) },
     failed: (error) => { console.error('[session-controller] control stream failed:', error) },
   })
   control.start()
-  ctx.on('connection/reset', () => { sessions.handleConnected() })
   if (ctx.remote.$host.home !== undefined) sessions.handleConnected()
-  ctx.typert.contexts.registerClient('agent', {
-    identity: candidate => sessions.scopeOf(candidate),
-    resolve: sessionId => sessions.resolveAgentScope(sessionId),
-  })
   ctx.effect(() => async () => { await control.dispose() }, 'session-controller.client.control')
 }
