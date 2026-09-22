@@ -14,9 +14,10 @@ const UNVIEWABLE_BINARY_EXTENSIONS: readonly string[] = [
   'mp3', 'wav', 'flac', 'ogg', 'm4a', 'aac', 'wma', 'opus',
   // archives
   'zip', 'gz', 'tgz', 'bz2', 'xz', 'zst', '7z', 'rar', 'tar', 'jar',
-  // office documents — `key` stays out: it collides with key/credential files
-  // that are readable text, and the uncertain suffix keeps the plain-text fallback
-  'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp', 'pages', 'numbers',
+  // office containers no converter extracts text from; `doc`, `docx`, and `odt`
+  // stay out because the Host's file read extracts their text, and `key` stays
+  // out because the suffix collides with readable key/credential files
+  'xls', 'xlsx', 'ppt', 'pptx', 'ods', 'odp', 'pages', 'numbers',
   // executables and compiled objects
   'exe', 'dll', 'so', 'dylib', 'bin', 'o', 'class', 'pyc', 'wasm',
   // fonts

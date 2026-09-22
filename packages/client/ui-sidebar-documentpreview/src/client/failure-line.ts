@@ -28,6 +28,9 @@ export function failureLine(t: TranslateNS<'sidebarDocumentPreview'>, failure: R
       return t('error.tooLarge', { limit: humanBytes(failure.details.limit) })
     case 'workspace-file/not-text': return t('error.notText')
     case 'workspace-file/not-regular-file': return t('error.notRegularFile')
+    case 'workspace-file/no-converter': return t('error.noConverter')
+    case 'workspace-file/conversion-failed':
+      return t('error.conversionFailed', { message: failure.message })
     // Carrier and unclassified host failures reach the reader as themselves:
     // this panel knows nothing useful to add to a transport-level message.
     default: return t('error.unavailable', { message: failure.message })

@@ -162,5 +162,9 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
       readonly path: string
       readonly kind: 'file' | 'symlink' | 'other'
     }
+    /** The document suffix is extractable, but no configured converter resolves on this host. */
+    'workspace-file/no-converter': { readonly path: string }
+    /** The resolved converter failed, or its output is not valid UTF-8. */
+    'workspace-file/conversion-failed': { readonly path: string; readonly converter: string }
   }
 }

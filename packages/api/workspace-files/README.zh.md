@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-使用本包可从 Web Client 预览 Session 文件系统允许读取的文件。它按页读取 UTF-8 文本、按有界窗口或完整文件读取原始字节、从基文件目录解析关联文件，并报告文件元数据。文件读取可以指向工作区外路径；目录列举与已埋点的文件系统观察仍限定于工作区。本服务不提供修改操作。
+使用本包可从 Web Client 预览 Session 文件系统允许读取的文件。它按页读取 UTF-8 文本、按有界窗口或完整文件读取原始字节、从基文件目录解析关联文件、报告文件元数据，并从受支持的 Office 文档提取纯文本。文件读取可以指向工作区外路径；目录列举与已埋点的文件系统观察仍限定于工作区。本服务不提供修改操作。
 
 ## 目录
 
@@ -53,6 +53,10 @@ kind: "package-reference"
 
 每项操作都先通过 `lstat` 拒绝不存在的路径、末端符号链接或错误的文件类型。文件操作随后通过组合文件系统解析和读取，不做额外的工作区包含检查。只有 `list` 要求解析后的目录仍位于工作区内。配置的分页、窗口、完整文件和目录列举上限仍然适用。文本页还拒绝无效 UTF-8 与 NUL 字节；字节读取不解码内容。空路径是 `gateway/bad-request`。
 
+### 文档文本提取
+
+`read` 遇到 `.doc`、`.docx` 或 `.odt` 文件时，返回文档提取出的纯文本分页，而不是以 not-text 失败。Host 在运行任何命令之前显式解析转换器：macOS 上是 `textutil`；其他平台首选 LibreOffice（`soffice`），`.docx`/`.odt` 回退 `pandoc`，旧式 `.doc` 回退 `catdoc`。转换在调用方的 `signal` 下运行，输出随后按严格 UTF-8 解码——不信任任何转换器的编码默认值，编码直接写进 argv（`textutil -convert txt -encoding UTF-8`），并剥掉一个字节顺序标记。转换文本以 `maxFileBytes` 封顶，按绝对路径缓存、以文件 `version` 判新，预览的懒加载分页因此对同一文件状态只转换一次；缓存保留最近的四个文档。`documentText.enabled: false` 恢复原本的 not-text 拒绝；每个转换器命令都是 Config 字段，部署可以指向自己的安装路径。
+
 ### 变更流
 
 `changes` 是 `stream` 模式的 Remote。一代流注册观察队列并解析 Session 工作区根之后，才产出 `{ kind: 'ready' }`。随后产出 `{ kind: 'change', change }`，其中 `change` 对存在的文件为 `{ absolutePath, version }`，对被观察到已消失的文件为 `{ absolutePath, absent: true }`。来源是按该根内目标过滤的 `fs/observed`；操作系统并未被监视。一代流首次拉取后的观察都会排队，包括解析根期间的观察。流在取消或插件释放时结束。
@@ -62,15 +66,17 @@ kind: "package-reference"
 | 字段 | 默认值 | 含义 |
 |---|---|---|
 | `maxBytes` | `2097152`（2 MiB） | 单页文本与单个字节窗口的字节上限（含）；更大的页或窗口失败 |
-| `maxFileBytes` | `33554432`（32 MiB） | `readAll` 和 `readRelated` 的完整文件字节上限（含）；更大文件以 `too-large` 失败 |
+| `maxFileBytes` | `33554432`（32 MiB） | `readAll` 和 `readRelated` 的完整文件字节上限（含），也是文档转换文本的上限；更大内容以 `too-large` 失败 |
 | `maxLines` | `5000` | 页大小的缺省值与上限（行）；更大的 `limit` 被拒绝 |
 | `maxEntries` | `2000` | 返回目录条目数上限；其余丢弃并报告截断 |
+| `documentText.enabled` | `true` | 对受支持的文档后缀提取文本，而不是以 not-text 失败 |
+| `documentText.textutilPath` / `sofficePath` / `pandocPath` / `catdocPath` | `textutil` / `soffice` / `pandoc` / `catdoc` | 各转换器的命令：PATH 名称或绝对路径 |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-api-workspace-files)是每个可接受字段及其 JSDoc 的完备来源。
 
 ### 失败
 
-每种失败都是一个带类型化 details 的 `RemoteError` 代码，声明于 [`src/types.ts`](src/types.ts)：`workspace-file/not-found`、`workspace-file/outside-workspace`（仅目录列举）、`workspace-file/too-large`（带 `limit`，即适用的页、窗口或完整文件上限）、`workspace-file/not-text`、`workspace-file/not-regular-file`（`kind` 为 `directory`、`symlink` 或 `other`）以及 `workspace-file/not-directory`（`kind` 为 `file`、`symlink` 或 `other`）。调用方按代码分支，绝不按消息文本。
+每种失败都是一个带类型化 details 的 `RemoteError` 代码，声明于 [`src/types.ts`](src/types.ts)：`workspace-file/not-found`、`workspace-file/outside-workspace`（仅目录列举）、`workspace-file/too-large`（带 `limit`，即适用的页、窗口或完整文件上限）、`workspace-file/not-text`、`workspace-file/not-regular-file`（`kind` 为 `directory`、`symlink` 或 `other`）、`workspace-file/not-directory`（`kind` 为 `file`、`symlink` 或 `other`）、`workspace-file/no-converter`（文档后缀可提取，但本主机没有解析到任何配置的转换器）以及 `workspace-file/conversion-failed`（带 `converter`；子进程失败或输出不是有效 UTF-8）。调用方按代码分支，绝不按消息文本。
 
 ### Client 文件资源
 
@@ -99,6 +105,7 @@ kind: "package-reference"
 | 文件 | 职责 |
 |---|---|
 | [`src/index.ts`](src/index.ts) | `WorkspaceFiles`：`workspaceFiles` 服务与 Remote 命名空间、`Config`、四道关、切页器、`read`、`readBytes`、`readAll`、`readRelated`、`stat`、`list` |
+| [`src/document-text.ts`](src/document-text.ts) | 文档文本提取：按平台的转换器解析、argv、soffice 输出目录处理、严格 UTF-8 解码与生产 internals |
 | [`src/changes.ts`](src/changes.ts) | `WorkspaceChangeFeed`：`fs/observed` 订阅与每个打开的 `changes` generation 各一条队列 |
 | [`src/types.ts`](src/types.ts) | 线路类型与 `RemoteErrorDetailsMap` 错误码，以 `./types` 发布给 Client 包 |
 | [`src/client/index.ts`](src/client/index.ts)、[`provider.ts`](src/client/provider.ts)、[`change-feed.ts`](src/client/change-feed.ts) | 浏览器插件、文件元数据与每 Session 变更流 |
@@ -144,6 +151,7 @@ Typert 生成 `./typert` 与 `./remote` 暴露的 Host 与 Client Remote 产物�
 - **generation 队列无界**——一个 `changes` generation 会缓冲每一条被包含的观察直到消费方 pull；停滞的消费方会在流的生命期内持续增长 Host 内存。
 - **`maxEntries` 限制的是答案，不是列举**——`list` 让 `ctx.fs.listDir` 列出全部子项后再截断数组，远超上限的目录仍让 Host 付出整个列举的代价（`fs-local` 上每个子项一次 stat）；要限制这份工作，需要文件系统 seam 的 `listDir` 支持上限。
 - **失效流保留元数据**——Host 结束 `changes` 或流终态失败后，已打开的值保持最后已知状态，直到重新打开。
+- **提取质量取决于转换器**——本服务把 `textutil`、`soffice`、`pandoc`、`catdoc` 当作外部二进制运行并拒绝非 UTF-8 输出；版式、表格与图片按各工具自行退化，`.xls`/`.ppt`/iWork 后缀保持不可预览，因为列出的转换器都不支持它们。
 
 <a id="dev-note"></a>
 ### 开发备注

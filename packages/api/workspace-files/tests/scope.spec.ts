@@ -10,6 +10,13 @@ const CAPS = {
   maxFileBytes: 1024,
   maxLines: 100,
   maxEntries: 100,
+  documentText: {
+    enabled: false,
+    textutilPath: 'textutil',
+    sofficePath: 'soffice',
+    pandocPath: 'pandoc',
+    catdocPath: 'catdoc',
+  },
 }
 
 function header(id: SessionId, cwd?: string): SessionHeader {

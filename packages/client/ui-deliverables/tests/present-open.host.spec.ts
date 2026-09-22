@@ -36,7 +36,10 @@ async function fixture() {
   ctx.provide('sandboxPolicy', { workspaceRoot: cwd } as never)
   await ctx.plugin({
     inject: ['fs', 'sandboxPolicy'],
-    apply: (scope) => { new WorkspaceFiles(scope, { maxBytes: 1024, maxFileBytes: 1024, maxLines: 100, maxEntries: 100 }) },
+    apply: (scope) => { new WorkspaceFiles(scope, {
+      maxBytes: 1024, maxFileBytes: 1024, maxLines: 100, maxEntries: 100,
+      documentText: { enabled: false, textutilPath: 'textutil', sofficePath: 'soffice', pandocPath: 'pandoc', catdocPath: 'catdoc' },
+    }) },
   })
   const resolveAgent = vi.fn<Context['sessionController']['resolveAgent']>(() => { throw new Error('Agent activation is unavailable') })
   const readEvent = vi.fn(async (request: SessionEventReadRequest) => {

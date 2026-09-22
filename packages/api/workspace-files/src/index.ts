@@ -30,6 +30,10 @@ import type {} from '@deepseek-ai/dsh-session-persistence'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { Remote, RemoteError, TypertRemoteService, type TypertLookup } from '@deepseek-ai/dsh-typert-protocol'
 import { WorkspaceChangeFeed } from './changes.ts'
+import {
+  convertDocumentText, defaultDocumentTextInternals, documentTextSuffixOf, resolveDocumentConverter,
+  type DocumentTextConfig, type DocumentTextInternals,
+} from './document-text.ts'
 import type {
   WorkspaceByteRange,
   WorkspaceDirectoryEntry,
@@ -65,7 +69,7 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
   }
 }
 
-/** Deployment caps on one page or one listing. */
+/** Deployment caps on one page or one listing, and document text extraction. */
 export interface Config {
   /**
    * Inclusive byte cap on one page's text and on one byte window.
@@ -81,6 +85,8 @@ export interface Config {
   readonly maxLines: number
   /** Cap on returned directory entries; the rest is dropped and reported cut. */
   readonly maxEntries: number
+  /** Office-document text extraction: covered suffixes read as their converted text. */
+  readonly documentText: DocumentTextConfig
 }
 
 /** One page cut from a decoded text stream. */
@@ -187,15 +193,36 @@ export class WorkspaceFiles extends TypertRemoteService {
     maxFileBytes: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER - 1).default(32 * 1024 * 1024),
     maxLines: z.number().step(1).min(1).default(5000),
     maxEntries: z.number().step(1).min(1).default(2000),
+    documentText: z.object({
+      enabled: z.boolean().default(true),
+      textutilPath: z.string().default('textutil'),
+      sofficePath: z.string().default('soffice'),
+      pandocPath: z.string().default('pandoc'),
+      catdocPath: z.string().default('catdoc'),
+    }).default({
+      enabled: true,
+      textutilPath: 'textutil',
+      sofficePath: 'soffice',
+      pandocPath: 'pandoc',
+      catdocPath: 'catdoc',
+    }),
   })
 
   private readonly feed: WorkspaceChangeFeed
+  /** Most recent converted documents by absolute path; the file's version decides freshness. */
+  private readonly convertedDocuments = new Map<string, { version: string; text: string }>()
 
   /**
    * @param ctx - Host context carrying the filesystem and the sandbox policy.
-   * @param config - deployment caps on one page or one listing.
+   * @param config - deployment caps on one page or one listing, and document text extraction.
+   * @param documentTextInternals - platform observations and converter execution; production
+   *   defaults resolve commands on PATH and run them without a shell.
    */
-  constructor(ctx: Context, private readonly config: Config) {
+  constructor(
+    ctx: Context,
+    private readonly config: Config,
+    private readonly documentTextInternals: DocumentTextInternals = defaultDocumentTextInternals,
+  ) {
     super(ctx, 'workspaceFiles')
     this.feed = new WorkspaceChangeFeed(ctx)
     ctx.inject(['sessions', 'typert'], (scope) => {
@@ -221,7 +248,11 @@ export class WorkspaceFiles extends TypertRemoteService {
   }
 
   /**
-   * Read one page of lines from a UTF-8 file readable by the filesystem backend.
+   * Read one page of lines from a file readable by the filesystem backend.
+   *
+   * A suffix document text extraction covers reads as its converted plain
+   * text, produced by the platform converter and decoded as strict UTF-8;
+   * every other file reads as UTF-8 bytes and fails as not-text otherwise.
    * @param workspaceFileScope - header-derived workspace root for the Session identity on the wire.
    * @param path - absolute path or path relative to the workspace root; files outside it are allowed.
    * @param range - the line window; omitted fields take the page defaults.
@@ -237,7 +268,11 @@ export class WorkspaceFiles extends TypertRemoteService {
   ): Promise<WorkspaceFileText> {
     const { offset, limit } = this.resolvePage(range)
     const { target, info } = await this.locateFile(workspaceFileScope, path, signal)
-    const page = await this.cutPage(target, offset, limit, signal, path)
+    const absolutePath = this.ctx.fs.processPath(target)
+    const extracting = this.config.documentText.enabled && documentTextSuffixOf(absolutePath) !== undefined
+    const page = extracting
+      ? await this.convertedPage(absolutePath, info.version, offset, limit, path, signal)
+      : await this.cutPage(target, offset, limit, signal, path)
     if (page.text.includes(NUL)) {
       throw new RemoteError('workspace-file/not-text', `"${path}" contains NUL bytes`, { path })
     }
@@ -465,6 +500,74 @@ export class WorkspaceFiles extends TypertRemoteService {
       throw error
     }
   }
+
+  /**
+   * Page from a document's extracted text, converting once per file version:
+   * the preview pages lazily, so a cache keyed by the stat `read` already
+   * carries keeps one conversion from running once per page. The cache holds
+   * the most recent documents only, and a version match reads without
+   * touching the file again.
+   */
+  private async convertedPage(
+    absolutePath: string,
+    version: string,
+    offset: number,
+    limit: number,
+    path: string,
+    signal: AbortSignal,
+  ): Promise<Page> {
+    const cached = this.convertedDocuments.get(absolutePath)
+    const text = cached?.version === version
+      ? cached.text
+      : await this.convertDocument(absolutePath, version, path, signal)
+    if (cached !== undefined && cached.version === version) {
+      this.convertedDocuments.delete(absolutePath)
+      this.convertedDocuments.set(absolutePath, cached)
+    }
+    return cutPage(singleChunk(text), offset, limit, this.config.maxBytes, path)
+  }
+
+  /** Resolve, run, and cache one document's text extraction. */
+  private async convertDocument(
+    absolutePath: string,
+    version: string,
+    path: string,
+    signal: AbortSignal,
+  ): Promise<string> {
+    const converter = resolveDocumentConverter(absolutePath, this.config.documentText, this.documentTextInternals)
+    if (converter === undefined) {
+      throw new RemoteError(
+        'workspace-file/no-converter',
+        `no document text converter for "${path}" resolves on this host; name one in `
+          + 'workspaceFiles.documentText (textutilPath, sofficePath, pandocPath, or catdocPath)',
+        { path },
+      )
+    }
+    const text = await convertDocumentText(converter, absolutePath, this.documentTextInternals, signal, path)
+    if (Buffer.byteLength(text, 'utf8') > this.config.maxFileBytes) {
+      throw new RemoteError(
+        'workspace-file/too-large',
+        `"${path}" exceeds the ${this.config.maxFileBytes} byte full-file cap after conversion`,
+        { path, limit: this.config.maxFileBytes },
+      )
+    }
+    this.convertedDocuments.set(absolutePath, { version, text })
+    while (this.convertedDocuments.size > CONVERTED_DOCUMENT_CACHE_LIMIT) {
+      const oldest = this.convertedDocuments.keys().next()
+      if (oldest.done === true) break
+      this.convertedDocuments.delete(oldest.value)
+    }
+    return text
+  }
+}
+
+/** Converted documents the service keeps for lazy paging. */
+const CONVERTED_DOCUMENT_CACHE_LIMIT = 4
+
+/** One whole text as a stream, so a converted document pages through the same cutPage. */
+// oxlint-disable-next-line typescript/require-await -- the single chunk is already in memory; only the async iteration shape is needed.
+async function* singleChunk(text: string): AsyncIterable<string> {
+  yield text
 }
 
 /**

@@ -25,6 +25,8 @@ export const zh = {
   'error.tooLarge': '单页内容超过 {limit} 上限，无法读取',
   'error.notText': '该格式文件暂时无法预览',
   'error.notRegularFile': '该路径不是普通文件，没有可显示的内容',
+  'error.noConverter': '该文档格式需要转换工具（textutil、LibreOffice、pandoc 或 catdoc）才能预览，当前主机上没有可用工具',
+  'error.conversionFailed': '文档转换失败：{message}',
   'error.unavailable': '读取失败：{message}',
   retry: '重试',
 } satisfies Record<string, string>
@@ -51,6 +53,8 @@ export const en = {
   'error.tooLarge': 'This page exceeds the {limit} limit and cannot be read.',
   'error.notText': 'Preview is not available for this file type yet.',
   'error.notRegularFile': 'Not a regular file, nothing to display.',
+  'error.noConverter': 'Previewing this document needs a converter (textutil, LibreOffice, pandoc, or catdoc) this host does not have.',
+  'error.conversionFailed': 'Document conversion failed: {message}',
   'error.unavailable': 'Read failed: {message}',
   retry: 'Retry',
 } satisfies Record<SidebarDocumentPreviewKey, string>

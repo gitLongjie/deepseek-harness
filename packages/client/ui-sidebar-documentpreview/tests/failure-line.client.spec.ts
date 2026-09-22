@@ -21,6 +21,8 @@ describe('failureLine', () => {
     expect(failureLine(t, failure('workspace-file/not-found'))).toBe('error.notFound')
     expect(failureLine(t, failure('workspace-file/not-text'))).toBe('error.notText')
     expect(failureLine(t, failure('workspace-file/not-regular-file'))).toBe('error.notRegularFile')
+    expect(failureLine(t, failure('workspace-file/no-converter'))).toBe('error.noConverter')
+    expect(failureLine(t, failure('workspace-file/conversion-failed', {}, 'exit 2'))).toBe('error.conversionFailed(message=exit 2)')
   })
 
   it('states the byte cap the way a person reads one', () => {

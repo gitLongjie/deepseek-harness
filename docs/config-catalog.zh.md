@@ -277,7 +277,7 @@ export interface Config {
 Requires: `fs` · `sandboxPolicy` · `sessions` · `typert`
 
 ```ts config-catalog
-/** Deployment caps on one page or one listing. */
+/** Deployment caps on one page or one listing, and document text extraction. */
 export interface Config {
   /**
    * Inclusive byte cap on one page's text and on one byte window.
@@ -293,10 +293,29 @@ export interface Config {
   readonly maxLines: number
   /** Cap on returned directory entries; the rest is dropped and reported cut. */
   readonly maxEntries: number
+  /** Office-document text extraction: covered suffixes read as their converted text. */
+  readonly documentText: DocumentTextConfig
+}
+
+/**
+ * Extraction configuration; every converter command is a PATH name or an
+ * absolute path, nameable per deployment because installs differ per host.
+ */
+export interface DocumentTextConfig {
+  /** Extract text for covered document suffixes instead of failing them as not-text. */
+  readonly enabled: boolean
+  /** The macOS converter (handles `doc`, `docx`, and `odt`). */
+  readonly textutilPath: string
+  /** The LibreOffice converter, the first choice off macOS. */
+  readonly sofficePath: string
+  /** The pandoc converter (`docx` and `odt` only). */
+  readonly pandocPath: string
+  /** The catdoc converter (legacy `doc` only). */
+  readonly catdocPath: string
 }
 ```
 
-来源：[`packages/api/workspace-files/src/index.ts:69`](../packages/api/workspace-files/src/index.ts)
+来源：[`packages/api/workspace-files/src/index.ts:73`](../packages/api/workspace-files/src/index.ts)
 
 <a id="deepseek-aidsh-attachment-local"></a>
 

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Use this package to preview files readable through a Session's filesystem from the web client. It reads UTF-8 text by page, reads bounded byte windows or complete files, resolves related files from a base file's directory, and reports file metadata. File reads may target paths outside the workspace; directory listing and instrumented filesystem observations remain workspace-scoped. The service exposes no mutation operation.
+Use this package to preview files readable through a Session's filesystem from the web client. It reads UTF-8 text by page, reads bounded byte windows or complete files, resolves related files from a base file's directory, reports file metadata, and extracts plain text from covered office documents. File reads may target paths outside the workspace; directory listing and instrumented filesystem observations remain workspace-scoped. The service exposes no mutation operation.
 
 ## Table of Contents
 
@@ -53,6 +53,10 @@ Mount the package beside `dsh-fs`, `dsh-sandbox-policy`, the Session store, and 
 
 Every operation first uses `lstat` to reject a missing path, a final symlink, or the wrong file kind. File operations then resolve and read through the composed filesystem without an additional workspace-containment check. `list` alone requires the resolved directory to remain inside the workspace root. The configured page, window, complete-file, and listing caps still apply. Text pages additionally reject invalid UTF-8 and NUL bytes; byte reads do not decode content. An empty path is a `gateway/bad-request`.
 
+### Document text extraction
+
+`read` on a `.doc`, `.docx`, or `.odt` file returns pages of the document's extracted plain text instead of failing as not-text. The Host resolves the converter explicitly before anything runs: on macOS `textutil`, off macOS LibreOffice (`soffice`) first, then `pandoc` for `.docx`/`.odt` and `catdoc` for legacy `.doc`. Conversion runs under the caller's `signal`, and the output is decoded as strict UTF-8 afterwards — no converter's encoding default is trusted, so the encoding is stated in the argv (`textutil -convert txt -encoding UTF-8`) and a byte-order mark is stripped. Converted text is capped at `maxFileBytes` and cached per absolute path keyed by the file's `version`, so a preview's lazy pages convert the document once per file state; the cache holds the most recent four documents. `documentText.enabled: false` restores the plain not-text refusal, and every converter command is a Config name so a deployment can point at its own installs.
+
 ### The change feed
 
 `changes` is a `stream` Remote. A generation registers its observation queue and resolves the Session workspace root before yielding `{ kind: 'ready' }`. It then yields `{ kind: 'change', change }`, where `change` is `{ absolutePath, version }` for a present file or `{ absolutePath, absent: true }` for one observed gone. The source is `fs/observed`, filtered to targets inside that root; the operating system is not watched. Observations after the generation's first pull are queued, including while the root resolves. The generation ends on cancellation or plugin disposal.
@@ -62,15 +66,17 @@ Every operation first uses `lstat` to reject a missing path, a final symlink, or
 | Field | Default | Meaning |
 |---|---|---|
 | `maxBytes` | `2097152` (2 MiB) | Inclusive byte cap on one page's text and on one byte window; a larger page or window fails |
-| `maxFileBytes` | `33554432` (32 MiB) | Inclusive complete-file cap for `readAll` and `readRelated`; larger files fail with `too-large` |
+| `maxFileBytes` | `33554432` (32 MiB) | Inclusive complete-file cap for `readAll` and `readRelated`, and for a document's converted text; larger content fails with `too-large` |
 | `maxLines` | `5000` | Default and largest page size in lines; a larger `limit` is refused |
 | `maxEntries` | `2000` | Cap on returned directory entries; the rest is dropped and reported cut |
+| `documentText.enabled` | `true` | Extract text for covered document suffixes instead of failing them as not-text |
+| `documentText.textutilPath` / `sofficePath` / `pandocPath` / `catdocPath` | `textutil` / `soffice` / `pandoc` / `catdoc` | Each converter's command: a PATH name or an absolute path |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-api-workspace-files) is the exhaustive source for every accepted field and its JSDoc.
 
 ### Failures
 
-Each failure is one `RemoteError` code with typed details, declared in [`src/types.ts`](src/types.ts): `workspace-file/not-found`, `workspace-file/outside-workspace` (directory listing only), `workspace-file/too-large` (with `limit`, the applicable page, window, or complete-file cap), `workspace-file/not-text`, `workspace-file/not-regular-file` (`kind`: `directory`, `symlink`, or `other`), and `workspace-file/not-directory` (`kind`: `file`, `symlink`, or `other`). Callers branch on the code, never on message text.
+Each failure is one `RemoteError` code with typed details, declared in [`src/types.ts`](src/types.ts): `workspace-file/not-found`, `workspace-file/outside-workspace` (directory listing only), `workspace-file/too-large` (with `limit`, the applicable page, window, or complete-file cap), `workspace-file/not-text`, `workspace-file/not-regular-file` (`kind`: `directory`, `symlink`, or `other`), `workspace-file/not-directory` (`kind`: `file`, `symlink`, or `other`), `workspace-file/no-converter` (an extractable document suffix with no converter resolved on this host), and `workspace-file/conversion-failed` (with `converter`; the child failed or its output was not valid UTF-8). Callers branch on the code, never on message text.
 
 ### Client file resources
 
@@ -99,6 +105,7 @@ Reads through `ctx.fs` use the backend's read authority; the sandboxing backend 
 | File | Role |
 |---|---|
 | [`src/index.ts`](src/index.ts) | `WorkspaceFiles`: the `workspaceFiles` service and Remote namespace, `Config`, the gates, the page cutter, `read`, `readBytes`, `readAll`, `readRelated`, `stat`, `list` |
+| [`src/document-text.ts`](src/document-text.ts) | Document text extraction: per-platform converter resolve, argv, soffice outdir handling, strict UTF-8 decode, and the production internals |
 | [`src/changes.ts`](src/changes.ts) | `WorkspaceChangeFeed`: `fs/observed` subscription and one queue per open `changes` generation |
 | [`src/types.ts`](src/types.ts) | Wire types and the `RemoteErrorDetailsMap` codes, published as `./types` for Client packages |
 | [`src/client/index.ts`](src/client/index.ts), [`provider.ts`](src/client/provider.ts), [`change-feed.ts`](src/client/change-feed.ts) | Browser plugin, file metadata, and per-Session change feed |
@@ -144,6 +151,7 @@ None; this package neither assembles nor sends a provider request.
 - **Unbounded generation queue** — a `changes` generation buffers every contained observation until its consumer pulls; a stalled consumer grows Host memory for the life of the stream.
 - **`maxEntries` bounds the answer, not the listing** — `list` asks `ctx.fs.listDir` for every child and cuts the array afterwards, so a directory far above the cap still costs the Host the whole listing (on `fs-local`, one stat per child); bounding that work needs a limit on the filesystem seam's `listDir`.
 - **Dead feeds retain metadata** — after the Host ends `changes` or the stream fails terminally, open values retain their last state until reopened.
+- **Extraction quality is the converter's** — the service runs `textutil`, `soffice`, `pandoc`, or `catdoc` as external binaries and refuses non-UTF-8 output; layout, tables, and images degrade per each tool, and `.xls`/`.ppt`/iWork suffixes stay unviewable because no listed converter claims them.
 
 <a id="dev-note"></a>
 ### Dev Note
