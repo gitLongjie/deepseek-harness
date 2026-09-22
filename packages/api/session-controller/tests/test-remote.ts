@@ -91,6 +91,7 @@ export interface TestSessionRemoteDefaults {
   readonly nativeOpen?: boolean
   readonly saveDefaultModelSelection?: (selection: AgentModelSelection) => void | Promise<void>
   readonly openPath?: (path: string, signal: AbortSignal) => Promise<void>
+  readonly openDirectory?: (path: string, signal: AbortSignal) => Promise<void>
   readonly revealPath?: (path: string, signal: AbortSignal) => Promise<void>
   readonly canOpenPath?: () => boolean
 }
@@ -285,6 +286,7 @@ function installControllers(
       },
       {
         ...defaults.openPath === undefined ? {} : { openPath: defaults.openPath },
+        ...defaults.openDirectory === undefined ? {} : { openDirectory: defaults.openDirectory },
         ...defaults.revealPath === undefined ? {} : { revealPath: defaults.revealPath },
         ...defaults.canOpenPath === undefined ? {} : { canOpenPath: defaults.canOpenPath },
       },

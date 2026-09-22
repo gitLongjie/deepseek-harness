@@ -336,13 +336,13 @@ describe('the settings Remote namespace a configuration page calls', () => {
         id, trust: 'user', path: `/presets/${id}/agent.cordis.yml`,
       }),
     } as never)
-    const openPath = vi.fn((_path: string, _signal: AbortSignal) => Promise.resolve())
-    const openable = new SettingsController(ctx, { nativeOpen: true }, { openPath })
+    const openDirectory = vi.fn((_path: string, _signal: AbortSignal) => Promise.resolve())
+    const openable = new SettingsController(ctx, { nativeOpen: true }, { openDirectory })
     expect(openable.canOpenAgentPresetDirectory()).toBe(true)
     const signal = new AbortController().signal
     await expect(openable.openAgentPresetDirectory('mine', signal))
       .resolves.toEqual({ opened: true })
-    expect(openPath).toHaveBeenCalledWith('/presets/mine', signal)
+    expect(openDirectory).toHaveBeenCalledWith('/presets/mine', signal)
 
     const headless = new Context()
     headless.provide('agentPresets', {
@@ -358,7 +358,7 @@ describe('the settings Remote namespace a configuration page calls', () => {
 
   it('covers native-open detection defaults and explicit overrides', () => {
     const fromInjectedOpener = new SettingsController(new Context(), {}, {
-      openPath: () => Promise.resolve(),
+      openDirectory: () => Promise.resolve(),
     })
     expect((fromInjectedOpener as unknown as { canOpenPath: () => boolean }).canOpenPath()).toBe(true)
 
@@ -418,13 +418,13 @@ describe('the settings Remote namespace a configuration page calls', () => {
       }),
     } as never)
     const abort = new AbortController()
-    const openPath = vi.fn()
+    const openDirectory = vi.fn()
       .mockImplementationOnce(async () => {
         abort.abort(new Error('cancelled'))
         throw new Error('opening stopped')
       })
       .mockRejectedValueOnce('desktop unavailable')
-    const controller = new SettingsController(ctx, { nativeOpen: true }, { openPath })
+    const controller = new SettingsController(ctx, { nativeOpen: true }, { openDirectory })
 
     await expect(controller.openAgentPresetDirectory('first', abort.signal))
       .rejects.toMatchObject({ code: 'gateway/cancelled' })

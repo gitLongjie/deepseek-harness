@@ -92,7 +92,7 @@ function mount(overrides: Partial<WorkspaceBrowserProps> = {}) {
     forkSession: vi.fn(),
     renameWorkspace: vi.fn(async () => {}),
     deleteWorkspace: vi.fn(async () => {}),
-    openWorkspacePath: vi.fn(async () => {}),
+    openWorkspaceDirectory: vi.fn(async () => {}),
     archiveSession: vi.fn(async () => {}),
     insertWorkspaceBefore: vi.fn(async () => {}),
     createWorkspace: vi.fn(async () => workspace('created', [])),
@@ -1487,6 +1487,29 @@ describe('WorkspaceBrowser', () => {
     expect(outsideDrop.defaultPrevented).toBe(true)
     fireEvent.dragEnd(one)
     expect(b.store.getSnapshot().sessionOrderByAccount.alpha).toEqual(['two', 'one'])
+  })
+
+  it('opens the Workspace directory from the row menu and swallows a refused handoff', async () => {
+    const openWorkspaceDirectory = vi.fn(async (_path: string) => {})
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const browser = mount({
+        useWorkspaces: hook(workspaceState([workspace('alpha', [], 'Alpha')])),
+        openWorkspaceDirectory,
+      })
+      fireEvent.click(screen.getByRole('button', { name: '工作区“Alpha”的操作' }))
+      fireEvent.click(screen.getByRole('menuitem', { name: '在资源管理器中打开' }))
+      expect(openWorkspaceDirectory).toHaveBeenCalledExactlyOnceWith('/projects/alpha')
+
+      // A refused handoff is reported, not surfaced as an unhandled rejection.
+      openWorkspaceDirectory.mockRejectedValueOnce(new Error('desktop unavailable'))
+      fireEvent.click(screen.getByRole('button', { name: '工作区“Alpha”的操作' }))
+      fireEvent.click(screen.getByRole('menuitem', { name: '在资源管理器中打开' }))
+      await waitFor(() => {
+        expect(warn).toHaveBeenCalledWith('workspace directory reveal rejected:', expect.any(Error))
+      })
+      expect(browser.store.getSnapshot().groupBy).toBe('workspace')
+    } finally { warn.mockRestore() }
   })
 
   it('renames a workspace through the row menu dialog', async () => {

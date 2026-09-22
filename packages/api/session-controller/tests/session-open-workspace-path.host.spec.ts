@@ -157,6 +157,21 @@ it('reports Host file-manager metadata and dispatches reveal separately from def
   } finally { await ctx.fiber.dispose() }
 })
 
+it('dispatches the directory action to the file-manager handoff instead of the default application', async () => {
+  const ctx = await context()
+  const openPath = vi.fn(async (_path: string, _signal: AbortSignal) => {})
+  const openDirectory = vi.fn(async (_path: string, _signal: AbortSignal) => {})
+  const controller = createSessionTestController(ctx, {
+    defaultModelSelection: () => ({ provider: 'p', model: 'm' }), cwd: '/default', openPath, openDirectory,
+  })
+  try {
+    const signal = new AbortController().signal
+    await controller.openWorkspacePath({ path: '/workspace/project', action: 'directory' }, signal)
+    expect(openDirectory).toHaveBeenCalledWith('/workspace/project', signal)
+    expect(openPath).not.toHaveBeenCalled()
+  } finally { await ctx.fiber.dispose() }
+})
+
 it('uses the native reveal adapter without a test override and respects unsupported desktop metadata', async () => {
   const ctx = await context()
   const reveal = vi.spyOn(nativeCommand, 'revealNativePath').mockResolvedValue(undefined)

@@ -14,7 +14,7 @@ import Schema from '@deepseek-ai/schemastery'
 import type {} from '@deepseek-ai/dsh-agent-presets'
 import {
   canOpenNativePath,
-  openNativePath,
+  openNativeDirectory,
   openNativeTextFile,
 } from '@deepseek-ai/dsh-native-command'
 import type { SettingsDescriptor, SettingsPathOp, SettingsProvider } from '@deepseek-ai/dsh-settings'
@@ -45,7 +45,7 @@ function isAborted(signal: AbortSignal): boolean {
 
 /** Host integrations replaceable by direct unit tests. */
 export interface SettingsControllerInternals {
-  readonly openPath?: (path: string, signal: AbortSignal) => Promise<void>
+  readonly openDirectory?: (path: string, signal: AbortSignal) => Promise<void>
   readonly openTextFile?: (path: string, signal: AbortSignal) => Promise<void>
   readonly canOpenPath?: () => boolean
 }
@@ -88,7 +88,7 @@ declare module '@deepseek-ai/cordis' {
 export class SettingsController extends TypertRemoteService {
   static Config: Schema<Config> = Schema.object({ nativeOpen: Schema.boolean() })
 
-  private readonly openPath: (path: string, signal: AbortSignal) => Promise<void>
+  private readonly openDirectory: (path: string, signal: AbortSignal) => Promise<void>
   private readonly openTextFile: (path: string, signal: AbortSignal) => Promise<void>
   private readonly canOpenPath: () => boolean
 
@@ -100,10 +100,10 @@ export class SettingsController extends TypertRemoteService {
    */
   constructor(ctx: Context, config: Config = {}, internals: SettingsControllerInternals = {}) {
     super(ctx, 'settingsController', { namespace: 'settings' })
-    this.openPath = internals.openPath ?? openNativePath
+    this.openDirectory = internals.openDirectory ?? openNativeDirectory
     this.openTextFile = internals.openTextFile ?? openNativeTextFile
     this.canOpenPath = internals.canOpenPath
-      ?? (() => config.nativeOpen ?? (internals.openPath !== undefined || canOpenNativePath()))
+      ?? (() => config.nativeOpen ?? (internals.openDirectory !== undefined || canOpenNativePath()))
     ctx.plugin(CredentialsController)
   }
 
@@ -249,7 +249,7 @@ export class SettingsController extends TypertRemoteService {
     const directory = dirname(preset.path)
     if (!this.canOpenPath()) return { opened: false, path: directory }
     try {
-      await this.openPath(directory, signal)
+      await this.openDirectory(directory, signal)
       return { opened: true }
     } catch (error: unknown) {
       if (signal.aborted) throw new RemoteError('gateway/cancelled', 'path open was aborted', {})

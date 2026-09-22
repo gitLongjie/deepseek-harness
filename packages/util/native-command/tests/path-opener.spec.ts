@@ -17,7 +17,7 @@ vi.mock('node:child_process', () => ({ execFile: execFileMock }))
 
 import { release as osRelease } from 'node:os'
 import { describe, expect, it, vi } from 'vitest'
-import { canOpenNativePath, nativeFileManager, revealNativePath, openNativePath, openNativeTextFile, type PathOpenerRunner } from '../src/index.ts'
+import { canOpenNativePath, nativeFileManager, revealNativePath, openNativeDirectory, openNativePath, openNativeTextFile, type PathOpenerRunner } from '../src/index.ts'
 
 const signal = () => new AbortController().signal
 
@@ -166,6 +166,80 @@ describe('native path opener', () => {
       message: 'open failed', cause: commandError, code: 1,
       stdout: 'partial output', stderr: 'failure details',
     })
+  })
+
+  it('spawns Explorer without the console-hiding flag that would suppress its window', async () => {
+    execFileMock.mockImplementation((_command, _args, _options, callback) => { callback(null, '', '') })
+    const before = execFileMock.mock.calls.length
+    await openNativeDirectory('C:\\work\\dir', signal(), { platform: 'win32' })
+    await revealNativePath('C:\\work\\dir\\file.txt', signal(), { platform: 'win32' })
+    expect(execFileMock.mock.calls.slice(before).map(([command, , options]) => [command, options.windowsHide]))
+      .toEqual([['explorer.exe', false], ['explorer.exe', false]])
+  })
+})
+
+describe('native directory opener', () => {
+  it('opens with macOS open(1)', async () => {
+    const run = vi.fn<PathOpenerRunner>(async () => ({ stdout: '', stderr: '' }))
+    await openNativeDirectory('/Users/test/project', signal(), { platform: 'darwin', run })
+    expect(run).toHaveBeenCalledWith('open', ['/Users/test/project'], expect.any(AbortSignal))
+  })
+
+  it('opens with the Linux file manager', async () => {
+    const run = vi.fn<PathOpenerRunner>(async () => ({ stdout: '', stderr: '' }))
+    await openNativeDirectory('/tmp/project', signal(), {
+      platform: 'linux', osRelease: '6.8.0-generic', env: {}, run,
+    })
+    expect(run).toHaveBeenCalledWith('xdg-open', ['/tmp/project'], expect.any(AbortSignal))
+  })
+
+  it('hands a Windows directory to Explorer instead of the shell default verb', async () => {
+    const run = vi.fn<PathOpenerRunner>(async () => ({ stdout: '', stderr: '' }))
+    await openNativeDirectory('C:\\work\\my project', signal(), { platform: 'win32', run })
+    // `Invoke-Item` resolves the `Directory` class default verb, which a host
+    // may leave naming no command at all.
+    expect(run).toHaveBeenCalledExactlyOnceWith(
+      'explorer.exe', ['C:\\work\\my project'], expect.any(AbortSignal), { windowsHide: false })
+  })
+
+  it('translates a WSL directory before Explorer opens it', async () => {
+    const run = vi.fn<PathOpenerRunner>(async command => command === 'wslpath'
+      ? { stdout: '\\\\wsl.localhost\\Ubuntu\\home\\test dir\r\n', stderr: '' }
+      : { stdout: '', stderr: '' })
+    await openNativeDirectory('/home/test dir', signal(), {
+      platform: 'linux', osRelease: '5.15.153.1-microsoft-standard-WSL2', env: {}, run,
+    })
+    expect(run.mock.calls.map(([command, args]) => [command, args])).toEqual([
+      ['wslpath', ['-w', '/home/test dir']],
+      ['explorer.exe', ['\\\\wsl.localhost\\Ubuntu\\home\\test dir']],
+    ])
+  })
+
+  it('accepts Explorer exit 1 and preserves every other failure', async () => {
+    const run = vi.fn<PathOpenerRunner>(async () => { throw Object.assign(new Error('delegated'), { code: 1 }) })
+    await expect(openNativeDirectory('C:\\work\\dir', signal(), { platform: 'win32', run }))
+      .resolves.toBeUndefined()
+
+    run.mockRejectedValueOnce(Object.assign(new Error('launch failed'), { code: 2 }))
+    await expect(openNativeDirectory('C:\\work\\dir', signal(), { platform: 'win32', run }))
+      .rejects.toMatchObject({ code: 2 })
+  })
+
+  it('never consults the browser for a directory named like a rendered document', async () => {
+    const run = vi.fn<PathOpenerRunner>(async () => ({ stdout: '', stderr: '' }))
+    await openNativeDirectory('/w/page.html', signal(), { platform: 'darwin', run })
+    expect(run).toHaveBeenCalledExactlyOnceWith('open', ['/w/page.html'], expect.any(AbortSignal))
+  })
+
+  it('rejects unsupported platforms and cancellation', async () => {
+    await expect(openNativeDirectory('/x', signal(), { platform: 'freebsd' as NodeJS.Platform }))
+      .rejects.toThrow('unsupported on freebsd')
+
+    const abort = new AbortController()
+    abort.abort(new Error('closed'))
+    const run = vi.fn<PathOpenerRunner>(async () => { throw new Error('terminated') })
+    await expect(openNativeDirectory('C:\\work\\dir', abort.signal, { platform: 'win32', run }))
+      .rejects.toThrow('closed')
   })
 })
 
@@ -338,7 +412,13 @@ describe('native file manager', () => {
     const internals = { platform, env: {}, osRelease: 'generic', run }
     expect(nativeFileManager(internals)).toBe(manager)
     await revealNativePath(path, signal(), internals)
-    expect(run).toHaveBeenCalledExactlyOnceWith(command, args, expect.any(AbortSignal))
+    // Explorer is the one handoff whose command must be allowed to raise its window.
+    if (manager === 'explorer') {
+      expect(run).toHaveBeenCalledExactlyOnceWith(
+        command, args, expect.any(AbortSignal), { windowsHide: false })
+    } else {
+      expect(run).toHaveBeenCalledExactlyOnceWith(command, args, expect.any(AbortSignal))
+    }
   })
 
   it('selects a translated WSL path in Explorer and never starts a Linux file manager', async () => {
@@ -411,5 +491,6 @@ it.each([
 ])('preserves special characters in the Explorer target %s', async (path, target) => {
   const run = vi.fn<PathOpenerRunner>().mockResolvedValue({ stdout: '', stderr: '' })
   await revealNativePath(path, signal(), { platform: 'win32', run })
-  expect(run).toHaveBeenCalledWith('explorer.exe', ['/select,', target], expect.any(AbortSignal))
+  expect(run).toHaveBeenCalledWith(
+    'explorer.exe', ['/select,', target], expect.any(AbortSignal), { windowsHide: false })
 })

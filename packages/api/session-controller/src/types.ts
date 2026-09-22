@@ -360,8 +360,12 @@ export interface SessionCancelValue {
 
 /** Request to open one path prepared by a Session-aware caller on the Host desktop. */
 export interface SessionOpenWorkspacePathRequest {
-  /** File-manager navigation when requested; omission uses the default application. */
-  readonly action?: 'reveal'
+  /**
+   * File-manager navigation when requested; omission uses the default
+   * application. `reveal` selects the path in its parent folder, while
+   * `directory` opens the path itself as a folder.
+   */
+  readonly action?: 'reveal' | 'directory'
   /** Path after best-effort Session workspace resolution, in Host filesystem syntax. */
   readonly path: string
 }

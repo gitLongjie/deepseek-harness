@@ -8,8 +8,9 @@
  * `@deepseek-ai/dsh-native-command` (argv, never a shell). Application
  * adapters spawn detached with a credential-scrubbed environment and their
  * declared Windows visibility policy ({@link launchDetachedApp}); `shell-open`
- * launches (the file managers) go through the same package's path opener —
- * the OS shell's open verb — instead of a direct spawn.
+ * launches (the file managers) go through the same package's directory opener
+ * — the platform file manager, not a direct spawn of the application's own
+ * executable.
  */
 
 import { spawn } from 'node:child_process'
@@ -17,7 +18,7 @@ import { readdir, readFile, stat } from 'node:fs/promises'
 import { homedir, platform as osPlatform } from 'node:os'
 import { dirname, isAbsolute, join } from 'node:path'
 import {
-  canOpenNativePath, openNativePath, runNativeCommand, type NativeCommandRunner,
+  canOpenNativePath, openNativeDirectory, runNativeCommand, type NativeCommandRunner,
 } from '@deepseek-ai/dsh-native-command'
 import { scrubbedParentEnv } from '@deepseek-ai/dsh-subprocess'
 import {
@@ -691,16 +692,16 @@ function isMissingExecutable(error: unknown): boolean {
 }
 
 /**
- * Open one directory through the OS shell's open verb under the launch watch
+ * Open one directory through the platform file manager under the launch watch
  * window: the opener command completing inside the window decides the
  * outcome, and an opener still running when it closes counts as launched and
- * keeps running (a cold `powershell.exe` start can outlive the window; its
- * late settlement is swallowed because the request already answered).
+ * keeps running (a cold file-manager start can outlive the window; its late
+ * settlement is swallowed because the request already answered).
  */
 function runShellOpen(
   path: string, watchMs: number, internals: ResolvedInternals,
 ): Promise<OpenInAppLaunchOutcome> {
-  const opening = openNativePath(path, new AbortController().signal, {
+  const opening = openNativeDirectory(path, new AbortController().signal, {
     platform: internals.platform, run: internals.run, env: internals.env,
   })
   return new Promise((resolve) => {

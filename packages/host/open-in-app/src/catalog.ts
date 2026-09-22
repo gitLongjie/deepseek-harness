@@ -17,11 +17,10 @@ export const PATH_TOKEN = '{path}'
  * launcher detached with the directory substituted into (or appended to) its
  * argv. Its optional environment entries overlay the credential-scrubbed
  * parent environment; `windowsHide` is reserved for CLI adapters whose child
- * process opens the visible GUI. `shell-open` hands the directory to the
- * operating system shell's open verb through `dsh-native-command`'s path
- * opener — the channel the file managers use, because they are the OS default
- * for a directory and a direct `explorer.exe <dir>` spawn does not reliably
- * raise a window.
+ * process opens the visible GUI. `shell-open` hands the directory to
+ * `dsh-native-command`'s directory opener — the platform file manager, which
+ * raises a folder window without depending on the `Directory` class's
+ * host-mutable default verb or on a spawn that would hide the window.
  */
 export type OpenInAppLaunch =
   | {

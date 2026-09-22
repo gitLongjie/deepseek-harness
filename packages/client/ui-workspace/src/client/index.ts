@@ -122,8 +122,8 @@ export function apply(ctx: Context): void {
     },
     renameWorkspace: async (workspaceId, title) => { await workspaces.rename(workspaceId, title) },
     deleteWorkspace: async (workspaceId) => { await workspaces.delete(workspaceId) },
-    openWorkspacePath: async (path) => {
-      const result = await ctx.remote.session.openWorkspacePath({ path })
+    openWorkspaceDirectory: async (path) => {
+      const result = await ctx.remote.session.openWorkspacePath({ path, action: 'directory' })
       if (!result.ok) throw new Error(result.error.message)
     },
     insertWorkspaceBefore: async (workspaceId, beforeWorkspaceId) => {

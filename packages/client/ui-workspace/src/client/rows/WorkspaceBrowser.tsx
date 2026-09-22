@@ -166,17 +166,13 @@ function workspaceGroupHalf(e: { clientY: number; currentTarget: HTMLElement }):
   return e.clientY < rect.top + rect.height / 2 ? 'before' : 'after'
 }
 
-function workspaceDirectoryPath(path: string): string {
-  return `${path.replace(/[\/]+$/, '')}/.`
-}
-
 type SessionTreeProps = Pick<
   WorkspaceBrowserProps,
   'useSessionPendingInteraction' | 'startSession' | 'open' | 'forkSession'
   | 'insertWorkspaceBefore' | 't' | 'usePanelInfo'
 > & {
   /** Open a Workspace directory in the host's file manager. */
-  openWorkspacePath: (path: string) => Promise<void>
+  openWorkspaceDirectory: (path: string) => Promise<void>
   /** Always-mounted Session list snapshot. */
   list: SessionListState
   /** Host account home for POSIX hover-path abbreviation. */
@@ -215,7 +211,7 @@ function SessionTree({
   archivedSessionIds,
   workspaceReady, usePanelInfo,
   onRenameRequest, onDeleteRequest, onSessionRename, onSessionArchive,
-  insertWorkspaceBefore, openWorkspacePath,
+  insertWorkspaceBefore, openWorkspaceDirectory,
   groupExpansion, setGroupExpanded,
   setSessionOrder, home, t,
   revealSessionId, onSessionRevealed,
@@ -440,7 +436,7 @@ function SessionTree({
                         ? undefined
                         : workspaces.find(workspace => workspace.workspaceId === group.workspaceId)?.path
                       if (directory !== undefined) {
-                        void openWorkspacePath(workspaceDirectoryPath(directory)).catch((reason: unknown) => {
+                        void openWorkspaceDirectory(directory).catch((reason: unknown) => {
                           console.warn('workspace directory reveal rejected:', reason)
                         })
                       }
@@ -724,7 +720,7 @@ export function WorkspaceBrowser({
   forkSession,
   renameWorkspace,
   deleteWorkspace,
-  openWorkspacePath,
+  openWorkspaceDirectory,
   insertWorkspaceBefore,
   archiveSession,
   createWorkspace,
@@ -1238,7 +1234,7 @@ export function WorkspaceBrowser({
                 startSession={startSession}
                 open={open}
                 insertWorkspaceBefore={insertWorkspaceBefore}
-                openWorkspacePath={openWorkspacePath}
+                openWorkspaceDirectory={openWorkspaceDirectory}
                 revealSessionId={revealSessionId}
                 onSessionRevealed={acknowledgeSessionReveal}
                 home={home}

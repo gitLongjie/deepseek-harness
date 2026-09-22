@@ -5,7 +5,8 @@
  * The default intent prefers the default browser for documents it renders when
  * the platform can name one, then falls back to the default application. WSL
  * translates every path for the Windows desktop instead of assuming a Linux
- * GUI. The text-editor intent never consults the browser.
+ * GUI. The text-editor intent never consults the browser. The directory intent
+ * hands the path to the platform file manager.
  * @module @deepseek-ai/dsh-native-command/path-opener
  */
 
@@ -79,8 +80,11 @@ async function openInBrowser(
   return false
 }
 
-/** Native path-open intent; macOS distinguishes text editing from file association. */
-type PathOpenIntent = 'default' | 'text-editor'
+/**
+ * Native path-open intent: the default application (or a named browser for a
+ * rendered document), text editing, or the platform file manager.
+ */
+type PathOpenIntent = 'default' | 'text-editor' | 'directory'
 
 /** PowerShell single-quoted literal (doubles embedded quotes). */
 function powershellLiteral(path: string): string {
@@ -99,8 +103,40 @@ function isWsl(internals: PathOpenerInternals): boolean {
   return (internals.osRelease ?? osRelease()).toLowerCase().includes('microsoft')
 }
 
-/** Open one Windows-resolvable path through its registered desktop application. */
-async function openWindowsPath(path: string, signal: AbortSignal, run: PathOpenerRunner): Promise<void> {
+/**
+ * Hand argv to Explorer, tolerating its exit 1: Explorer reports that code
+ * after delegating to the desktop process that already owns the window.
+ *
+ * The command carries `windowsHide: false` because the runner's default hides
+ * the first window its child creates — which is the folder window Explorer
+ * exists to raise.
+ */
+async function runExplorer(
+  args: readonly string[], signal: AbortSignal, run: PathOpenerRunner,
+): Promise<void> {
+  try {
+    await run('explorer.exe', args, signal, { windowsHide: false })
+  } catch (error: unknown) {
+    signal.throwIfAborted()
+    if (!(error instanceof Error) || !('code' in error) || error.code !== 1) throw error
+  }
+}
+
+/**
+ * Open one Windows-resolvable path on its desktop.
+ *
+ * A directory goes to Explorer itself. The shell's default verb for the
+ * `Directory` class is a host-mutable registry value that may name no command
+ * at all, so `Invoke-Item` on a directory is silently a no-op on such a host;
+ * Explorer takes the path directly and always raises the folder.
+ */
+async function openWindowsPath(
+  path: string, signal: AbortSignal, run: PathOpenerRunner, intent: PathOpenIntent,
+): Promise<void> {
+  if (intent === 'directory') {
+    await runExplorer([path], signal, run)
+    return
+  }
   await run('powershell.exe', [
     '-NoProfile',
     '-Command',
@@ -109,12 +145,14 @@ async function openWindowsPath(path: string, signal: AbortSignal, run: PathOpene
 }
 
 /** Translate a WSL path before handing it to the Windows desktop. */
-async function openWslPath(path: string, signal: AbortSignal, run: PathOpenerRunner): Promise<void> {
+async function openWslPath(
+  path: string, signal: AbortSignal, run: PathOpenerRunner, intent: PathOpenIntent,
+): Promise<void> {
   const translated = await run('wslpath', ['-w', path], signal)
   signal.throwIfAborted()
   const windowsPath = translated.stdout.replace(/[\r\n]+$/, '')
   if (windowsPath === '') throw new Error('wslpath returned no Windows path')
-  await openWindowsPath(windowsPath, signal, run)
+  await openWindowsPath(windowsPath, signal, run, intent)
 }
 
 /** Dispatch one shell-free platform command for the requested open intent. */
@@ -138,13 +176,13 @@ async function openNativePathWithIntent(
   }
 
   if (platform === 'win32') {
-    await openWindowsPath(path, signal, run)
+    await openWindowsPath(path, signal, run, intent)
     return
   }
 
   if (platform === 'linux') {
     if (wsl) {
-      await openWslPath(path, signal, run)
+      await openWslPath(path, signal, run, intent)
       return
     }
     await run('xdg-open', [path], signal)
@@ -186,6 +224,20 @@ export function openNativePath(
   internals: PathOpenerInternals = {},
 ): Promise<void> {
   return openNativePathWithIntent(path, signal, 'default', internals)
+}
+
+/**
+ * Open a directory in the operating system's file manager.
+ * @param path - absolute or host-resolvable directory path (caller owns resolution).
+ * @param signal - caller/connection lifetime; abort terminates the native command.
+ * @param internals - Platform, environment, and runner hooks for deterministic tests.
+ */
+export function openNativeDirectory(
+  path: string,
+  signal: AbortSignal,
+  internals: PathOpenerInternals = {},
+): Promise<void> {
+  return openNativePathWithIntent(path, signal, 'directory', internals)
 }
 
 /**
@@ -246,13 +298,7 @@ export async function revealNativePath(
     }
     // Explorer parses commas itself; a file URI preserves commas and whitespace in the path.
     const target = pathToFileURL(windowsPath, { windows: true }).href.replaceAll(',', '%2C')
-    try {
-      await run('explorer.exe', ['/select,', target], signal)
-    } catch (error) {
-      signal.throwIfAborted()
-      // Explorer can exit 1 after delegating to the existing desktop process.
-      if (!(error instanceof Error) || !('code' in error) || error.code !== 1) throw error
-    }
+    await runExplorer(['/select,', target], signal, run)
     return
   }
   if (manager === 'directory') {
