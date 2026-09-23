@@ -187,9 +187,9 @@ describe('ui-settings-general apply', () => {
     const { c } = await client(mock, start)
     expect(c.connection.isLoopback).toBe(false)
     expect(ownEntries(c, 'settings.action')).toEqual([])
-    // Off-loopback settings stay process-local: no describe read, so the browser language stands.
+    // Off-loopback settings stay process-local: no describe read, so the product default stands.
     expect(c.mock.log.calls('settings/describe')).toEqual([])
-    expect(c.ctx.locale.getSnapshot().active).toBe('en')
+    expect(c.ctx.locale.getSnapshot().active).toBe('zh')
     await c.unload(SELF)
     await c.flush()
     for (const [name] of SEATS) expect(ownEntries(c, name)).toEqual([])

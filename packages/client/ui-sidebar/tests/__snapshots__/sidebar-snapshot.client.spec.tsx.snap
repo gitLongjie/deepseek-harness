@@ -17,6 +17,15 @@ exports[`sidebar shell snapshots > renders the collapsed rail after the crossfad
         class="iconButton toggle"
         type="button"
       >
+        <span
+          aria-hidden="true"
+          class="railMark"
+        >
+          <div
+            data-slot="sidebar.brand.mark"
+            style="display: contents;"
+          />
+        </span>
         <svg
           class="panelIcon"
           data-content="35f95b0c"
@@ -34,7 +43,7 @@ exports[`sidebar shell snapshots > renders the collapsed rail after the crossfad
       type="button"
     >
       <svg
-        data-content="31127fcc"
+        data-content="c0ce4dcc"
         fill="none"
         height="18"
         viewBox="0 0 16 16"
@@ -108,6 +117,14 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
           class="brandIdentity"
         >
           <span
+            class="brandMark"
+          >
+            <div
+              data-slot="sidebar.brand.mark"
+              style="display: contents;"
+            />
+          </span>
+          <span
             class="brandName"
           >
             <div
@@ -115,9 +132,18 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
               style="display: contents;"
             >
               <span
-                class="fallbackBrandName"
+                class="localBuildBrand"
               >
-                深度Work
+                <span
+                  class="localBuildTitle"
+                >
+                  深度Work
+                </span>
+                <span
+                  class="buildVersion"
+                >
+                  1.2.3-rc.4-abc1234-dirty
+                </span>
               </span>
             </div>
           </span>
@@ -145,7 +171,7 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
       type="button"
     >
       <svg
-        data-content="31127fcc"
+        data-content="c0ce4dcc"
         fill="none"
         height="14"
         viewBox="0 0 16 16"
@@ -224,6 +250,14 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
           class="brandIdentity"
         >
           <span
+            class="brandMark"
+          >
+            <div
+              data-slot="sidebar.brand.mark"
+              style="display: contents;"
+            />
+          </span>
+          <span
             class="brandName"
           >
             <div
@@ -231,9 +265,18 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
               style="display: contents;"
             >
               <span
-                class="fallbackBrandName"
+                class="localBuildBrand"
               >
-                深度Work
+                <span
+                  class="localBuildTitle"
+                >
+                  深度Work
+                </span>
+                <span
+                  class="buildVersion"
+                >
+                  1.2.3-rc.4-abc1234-dirty
+                </span>
               </span>
             </div>
           </span>
@@ -261,7 +304,7 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
       type="button"
     >
       <svg
-        data-content="31127fcc"
+        data-content="c0ce4dcc"
         fill="none"
         height="14"
         viewBox="0 0 16 16"

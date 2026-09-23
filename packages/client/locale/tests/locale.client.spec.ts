@@ -16,11 +16,10 @@ const make = (host?: StubSettingsScope<LocaleSettings>): {
 }
 
 /**
- * Pin the browser environment a fresh service reads its initial locale from.
- * This package's own specs stub the globals directly instead of using
- * `usePinnedBrowserLanguages` (dsh-client-test-runtime): they need the shapes
- * that helper deliberately cannot express — a missing `languages` list, a
- * list decoupled from `language`, and a non-browser run with no `window`.
+ * Pin the browser environment for specs that assert what a runtime does with
+ * it. The opening locale no longer reads the browser, so these pins exist to
+ * prove exactly that independence — every tag below must still open the
+ * product default.
  */
 const stubLanguages = (...tags: string[]): void => {
   vi.stubGlobal('navigator', { languages: tags, language: tags[0] ?? '' })
@@ -28,8 +27,10 @@ const stubLanguages = (...tags: string[]): void => {
 
 describe('LocaleRuntime', () => {
   beforeEach(() => {
-    // A Chinese browser is the baseline these specs assert their zh state on.
-    stubLanguages('zh-CN')
+    // An English browser is the baseline these specs assert their state on:
+    // the old browser-derived opening would land on en, the product default
+    // must not.
+    stubLanguages('en-US')
   })
 
   afterEach(() => {
@@ -158,10 +159,9 @@ describe('LocaleRuntime', () => {
   })
 
   it('persists an explicit pick of the provisional locale, so a shared DSH home agrees', () => {
-    // A browser naming no shipped language opens at DEFAULT_LOCALE (zh) with
-    // nothing stored. Choosing that same language in the menu must become
-    // durable, or an English browser sharing the home still opens English.
-    stubLanguages('fr-FR')
+    // The product default opens with nothing stored. Choosing that same
+    // language in the menu must become durable, or a reader whose stored
+    // preference another surface cleared still deserves the explicit record.
     const host = stubSettingsScope<LocaleSettings>()
     const { svc } = make(host)
     expect(svc.getLocale().active).toBe('zh')
@@ -288,7 +288,7 @@ describe('LocaleRuntime', () => {
     expect(host.set).not.toHaveBeenCalled()
   })
 
-  it('adopts a Host preference over the browser language without writing it back', () => {
+  it('adopts a Host preference over the product default without writing it back', () => {
     const host = stubSettingsScope<LocaleSettings>()
     const { svc, events } = make(host)
     host.publish({ status: 'ready', value: { preference: 'en' }, revision: 1, writable: true })
@@ -299,7 +299,7 @@ describe('LocaleRuntime', () => {
     expect(events).toHaveLength(1)
   })
 
-  it('an absent Host preference returns to the browser-derived locale', () => {
+  it('an absent Host preference returns to the product default', () => {
     const host = stubSettingsScope<LocaleSettings>()
     const { svc } = make(host)
     host.publish({ status: 'ready', value: { preference: 'en' }, revision: 1, writable: true })
@@ -318,40 +318,39 @@ describe('LocaleRuntime', () => {
     expect(host.listenerCount()).toBe(0)
   })
 
-  it('opens provisionally in the browser language, matching regional variants on their primary subtag', () => {
+  it('opens in Chinese whatever language the browser names', () => {
     stubLanguages('en-GB', 'zh-CN')
-    expect(make().svc.getLocale().active).toBe('en')
+    expect(make().svc.getLocale().active).toBe('zh')
     stubLanguages('zh-Hant-TW')
     expect(make().svc.getLocale().active).toBe('zh')
-    // An unshipped language walks the list to the first one this app ships.
     stubLanguages('fr-FR', 'en-US')
-    expect(make().svc.getLocale().active).toBe('en')
+    expect(make().svc.getLocale().active).toBe('zh')
     // Only `language` populated: an empty ordered list, and a host that
     // exposes no `languages` property at all.
     vi.stubGlobal('navigator', { languages: [], language: 'en-US' })
-    expect(make().svc.getLocale().active).toBe('en')
+    expect(make().svc.getLocale().active).toBe('zh')
     vi.stubGlobal('navigator', { language: 'en-US' })
-    expect(make().svc.getLocale().active).toBe('en')
-    // No shipped language anywhere in the browser's preferences: zh is the
-    // product default rather than an arbitrary near-match.
+    expect(make().svc.getLocale().active).toBe('zh')
+    // No shipped language anywhere in the browser's preferences: zh again.
     stubLanguages('fr-FR', 'de')
     expect(make().svc.getLocale().active).toBe('zh')
   })
 
-  it('re-evaluates browser languages as external definitions register and unload', () => {
+  it('never auto-switches on language-pack registration; an explicit pick does', () => {
     stubLanguages('pt-BR', 'zh-CN')
     const { svc } = make()
     expect(svc.getLocale().active).toBe('zh')
     const dispose = svc.addLanguage({ id: 'pt-BR', label: 'Português (Brasil)', fallback: 'en' })
+    expect(svc.getLocale().active).toBe('zh')
+    svc.setLocale('pt-BR')
     expect(svc.getLocale().active).toBe('pt-BR')
     dispose()
     expect(svc.getLocale().active).toBe('zh')
   })
 
-  it('runs outside a browser (node boots): the default decides and the machine language does not', () => {
+  it('runs outside a browser (node boots): the default decides', () => {
     vi.stubGlobal('window', undefined)
-    // Node exposes its own global navigator; without a window it must not
-    // reach the resolution at all.
+    // Node exposes its own global navigator; the resolution never reads it.
     stubLanguages('zh-CN')
     const { svc } = make()
     expect(svc.getLocale().active).toBe('zh')
@@ -359,18 +358,20 @@ describe('LocaleRuntime', () => {
     expect(svc.getLocale().active).toBe('zh')
   })
 
-  it('lets an explicit in-process preference replace the browser-derived value', () => {
+  it('lets an explicit in-process preference replace the opening default', () => {
     stubLanguages('en-US')
     const { svc } = make()
-    svc.setLocale('zh')
     expect(svc.getLocale().active).toBe('zh')
+    svc.setLocale('en')
+    expect(svc.getLocale().active).toBe('en')
   })
 
   it('serves Chinese as the opening locale with English as the dictionary fallback', () => {
-    // DEFAULT_LOCALE sets the locale the UI opens in with no usable browser
-    // signal; FALLBACK_LOCALE stays the en dictionary terminal every fallback
-    // chain reaches. The two are distinct: Chinese opens by default, but a zh
-    // reader still reaches en-only keys through the dictionary fallback.
+    // DEFAULT_LOCALE sets the locale the UI opens in with no stored
+    // preference; FALLBACK_LOCALE stays the en dictionary terminal every
+    // fallback chain reaches. The two are distinct: Chinese opens by default,
+    // but a zh reader still reaches en-only keys through the dictionary
+    // fallback.
     expect(DEFAULT_LOCALE).toBe('zh')
     expect(FALLBACK_LOCALE).toBe('en')
     vi.stubGlobal('window', undefined)

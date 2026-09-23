@@ -197,7 +197,7 @@ describe('candidates', () => {
       {
         name: 'src/',
         icon: 'folder',
-        section: 'Files & folders',
+        section: '文件与文件夹',
         value: JSON.stringify({ kind: 'file', fileKind: 'directory', label: 'src', mention: '@src/' }),
         drill: true,
       },
@@ -205,13 +205,13 @@ describe('candidates', () => {
         name: 'a b.md',
         description: 'docs',
         icon: 'file',
-        section: 'Files & folders',
+        section: '文件与文件夹',
       }),
       expect.objectContaining({
         name: 'Research',
-        description: '~/project · 1h',
+        description: '~/project · 1小时',
         icon: 'session',
-        section: 'Sessions',
+        section: '对话',
       }),
     ])
   })
@@ -305,7 +305,7 @@ describe('candidates', () => {
     await expect(source.candidates(session, request('same'))).resolves.toEqual([
       expect.objectContaining({
         name: 'same',
-        description: '(no cwd) · 3d',
+        description: '（无工作目录） · 3天',
       }),
     ])
   })
@@ -326,7 +326,7 @@ describe('candidates', () => {
     // A row absent from the list has no durable activity time to read.
     const { source } = await bench(files, sessions, { other: { updatedAt: UPDATED_AT } })
     await expect(source.candidates(session, request('unlisted'))).resolves.toEqual([
-      expect.objectContaining({ name: 'Unlisted run', description: '3d' }),
+      expect.objectContaining({ name: 'Unlisted run', description: '3天' }),
     ])
   })
 
@@ -345,7 +345,7 @@ describe('candidates', () => {
     }))
     const { source } = await bench(files, sessions, { 'just-now': { updatedAt: NOW - 1_000 } })
     await expect(source.candidates(session, request('just'))).resolves.toEqual([
-      expect.objectContaining({ name: 'Just now', description: 'now' }),
+      expect.objectContaining({ name: 'Just now', description: '刚刚' }),
     ])
   })
 
@@ -364,7 +364,7 @@ describe('candidates', () => {
     }))
     const { source } = await bench(files, sessions)
     await expect(source.candidates(session, request('sib'))).resolves.toEqual([
-      expect.objectContaining({ name: 'Sibling run', description: '3d' }),
+      expect.objectContaining({ name: 'Sibling run', description: '3天' }),
     ])
   })
 })
@@ -391,7 +391,7 @@ describe('directory header', () => {
   it('trails the workspace root down to the directory being listed', async () => {
     const { source } = await bench()
     expect(source.header?.(session, { query: 'src/module1/ind', drilled: true })).toEqual([
-      { label: 'Workspace', value: JSON.stringify({ kind: 'file', fileKind: 'directory', label: 'Workspace', mention: '@' }) },
+      { label: '工作区', value: JSON.stringify({ kind: 'file', fileKind: 'directory', label: '工作区', mention: '@' }) },
       { label: 'src', value: JSON.stringify({ kind: 'file', fileKind: 'directory', label: 'src', mention: '@src/' }) },
       {
         label: 'module1',

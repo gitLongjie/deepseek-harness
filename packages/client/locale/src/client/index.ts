@@ -96,21 +96,18 @@ declare module '@deepseek-ai/cordis' {
 }
 
 /**
- * English is both the locale the UI opens in when the browser names no registered
- * language (and for non-browser runs), and the dictionary consulted after the
- * active locale misses a key. One constant serves both because the shipped
- * `zh`/`en` dictionaries carry identical key sets, so neither direction can
- * leave a key unresolved; the residual case points at English rather than
- * zh because a browser naming no registered language is the reader least
- * likely to read Chinese.
+ * English is the dictionary terminal of every fallback chain: the active
+ * locale misses a key and the chain ends in the shipped `en` dictionary. The
+ * shipped `zh`/`en` dictionaries carry identical key sets, so the terminal
+ * can always resolve.
  */
 export const FALLBACK_LOCALE: BuiltInLocaleId = 'en'
 
 /**
- * The product's opening locale: the UI starts in Chinese when the browser
- * names no shipped language (and for non-browser runs). Distinct from
- * {@link FALLBACK_LOCALE}, which stays the dictionary terminal of every
- * fallback chain.
+ * The product's opening locale: the UI starts in Chinese unless a stored Host
+ * preference says otherwise. The browser's language does not decide — the
+ * product ships Chinese-first, and the Settings → General row owns any other
+ * choice.
  */
 export const DEFAULT_LOCALE: BuiltInLocaleId = 'zh'
 
@@ -176,8 +173,8 @@ export class LocaleRuntime {
   private listeners = new Set<() => void>()
   private readonly ctx: ClientContext
   private readonly host: SettingsScope<LocaleSettings> | undefined
-  /** Browser-derived locale standing wherever no explicit Host selection does. */
-  private provisional: LocaleId
+  /** The opening locale standing wherever no explicit Host selection does. */
+  private readonly provisional: LocaleId = DEFAULT_LOCALE
   /** Last explicit selection, including one awaiting an external registration. */
   private preference: LocaleId | undefined
 
@@ -192,7 +189,6 @@ export class LocaleRuntime {
     this.host = host
     for (const locale of BUILT_IN_LOCALES) this.catalog.set(localeKey(locale.id), locale)
     const locales = this.localeList()
-    this.provisional = resolveInitialLocale(locales)
     this.snapshot = Object.freeze({ active: this.provisional, locales, revision: 0 })
     if (host !== undefined) {
       ctx.effect(() => host.subscribe(() => { this.adopt(host) }), 'locale: settings scope adoption')
@@ -303,7 +299,6 @@ export class LocaleRuntime {
   private publishCatalog(): void {
     this.fallbackChains.clear()
     const locales = this.localeList()
-    this.provisional = resolveInitialLocale(locales)
     const active = this.resolveActive()
     this.publish(active, active !== this.snapshot.active, locales)
   }
@@ -499,40 +494,6 @@ export class LocaleRuntime {
       }
     }
   }
-}
-
-/**
- * The browser's own language wins over {@link DEFAULT_LOCALE}; an explicit
- * Host preference may replace this provisional value after plugin activation.
- */
-function resolveInitialLocale(locales: readonly LocaleDefinition[]): LocaleId {
-  return detectBrowserLocale(locales) ?? DEFAULT_LOCALE
-}
-
-/**
- * The first registered locale the browser asks for. Each browser tag first
- * matches a locale id exactly, then its primary subtag, so an exact regional
- * registration wins before a language-wide fallback.
- * `window` is the browser test, not `navigator`: Node exposes a global
- * `navigator` reporting the machine's own language, which must not decide the
- * locale for non-browser runs. `navigator.language` trails the ordered
- * `languages` list and covers hosts exposing only the single tag.
- * @param locales - definitions currently available to the browser.
- * @returns the first matching locale id, or undefined.
- */
-function detectBrowserLocale(locales: readonly LocaleDefinition[]): LocaleId | undefined {
-  if (typeof window === 'undefined') return undefined
-  // Embedders and older WebViews may omit the DOM-typed `languages` property.
-  const languages = (navigator as { readonly languages?: readonly string[] }).languages
-  for (const tag of [...(languages ?? []), navigator.language]) {
-    const requested = localeKey(tag)
-    const exact = locales.find(locale => localeKey(locale.id) === requested)
-    if (exact !== undefined) return exact.id
-    const primary = requested.split('-')[0]
-    const match = locales.find(locale => localeKey(locale.id).split('-')[0] === primary)
-    if (match !== undefined) return match.id
-  }
-  return undefined
 }
 
 /** Required services: slot registration plus the settings transport. */

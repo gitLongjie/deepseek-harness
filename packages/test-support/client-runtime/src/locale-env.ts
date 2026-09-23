@@ -1,9 +1,9 @@
 /**
- * Browser-language pin for specs that assert localized copy. A fresh
- * LocaleRuntime with no stored preference opens in the language `navigator`
- * asks for, and jsdom reports the runner's own (`en-US`) — so a spec asserting
- * the product's Chinese copy states the browser it assumes instead of
- * inheriting the machine's.
+ * Browser-language pin for specs that read `navigator` themselves. The
+ * LocaleRuntime no longer consults the browser for its opening locale (the
+ * product default stands until a stored preference lands), so this pin is
+ * inert for locale selection; it stays for suites that assert
+ * navigator-facing behavior or state the environment they assume.
  */
 import { afterEach, beforeEach } from 'vitest'
 

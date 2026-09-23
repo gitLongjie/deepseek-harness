@@ -3,7 +3,7 @@
  * `<html lang>` tracks the active locale.
  *
  * The served markup declares one language, but the resolved locale may differ
- * (browser detection, or a stored Host preference adopted after activation),
+ * (the product default, or a stored Host preference adopted after activation),
  * and it changes again whenever the user switches. Assistive technology and
  * browser features read this attribute, so a stale value misreports the
  * document language rather than merely looking untidy.
@@ -84,8 +84,8 @@ describe('document language', () => {
     expect(langOf()).toBe('zh-CN')
   })
 
-  it('follows an explicit Host preference that overrides browser detection', async () => {
-    // Stored preference wins over the zh browser pinned above.
+  it('follows an explicit Host preference that overrides the product default', async () => {
+    // Stored preference wins over the zh opening default.
     const { locale } = await bench('en')
     await vi.waitFor(() => { expect(locale.getLocale().active).toBe('en') })
     await vi.waitFor(() => { expect(langOf()).toBe('en') })
