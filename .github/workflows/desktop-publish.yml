@@ -49,11 +49,25 @@ jobs:
           TAG="v$(node -p "require('./apps/desktop/package.json').version")"
           echo "TAG=$TAG"
           # Reset so every platform uploads fresh assets; a missing release is
-          # fine. Retry the create briefly to absorb GitHub's delete -> create
-          # eventual consistency.
+          # fine. electron-builder skips assets whose name already exists on
+          # the release it finds, so a release that survives the delete leaves
+          # the previous build's installers in place (observed on the v1.2.9
+          # tag re-push). Both steps verify and fail loud instead.
           curl -s -X DELETE -H "Authorization: Bearer $GH_TOKEN" \
             "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/$TAG" -o /dev/null || true
-          for i in $(seq 1 8); do
+          code=200
+          for i in $(seq 1 12); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/$TAG")
+            [ "$code" = "404" ] && { echo "release deleted"; break; }
+            sleep 5
+          done
+          if [ "$code" != "404" ]; then
+            echo "the previous release survived deletion (HTTP $code); refusing to publish over it"
+            exit 1
+          fi
+          for i in $(seq 1 12); do
             code=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
               -H "Authorization: Bearer $GH_TOKEN" -H "Content-Type: application/json" \
               -d "{\"tag_name\":\"$TAG\",\"name\":\"$TAG\",\"body\":\"Release $TAG\",\"target_commitish\":\"$GITHUB_SHA\"}" \
@@ -62,11 +76,16 @@ jobs:
             [ "$code" = "201" ] && { echo "release created"; break; }
             sleep 5
           done
+          if [ "$code" != "201" ]; then
+            echo "the release create never succeeded (last HTTP $code)"
+            exit 1
+          fi
         env:
           GH_TOKEN: ${{ github.token }}
 
   build:
     name: ${{ matrix.os }}
+    needs: create-release
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     strategy:
