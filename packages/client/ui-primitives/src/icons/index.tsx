@@ -1010,3 +1010,20 @@ export const IconShieldOutline16 = ({ size = 16, className }: IconProps) => (
     <path d={SHIELD_OUTLINE_PATH} stroke="currentColor" strokeWidth={SHIELD_OUTLINE_STROKE} strokeLinejoin="round" />
   </svg>
 )
+
+/** The password-reveal eye: an open almond eye with an iris ring, stroked to read at 16px. */
+export const IconEyeOutline16 = ({ size = 16, className }: IconProps) => (
+  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M1.5 8C3 4.8 5.3 3.1 8 3.1C10.7 3.1 13 4.8 14.5 8C13 11.2 10.7 12.9 8 12.9C5.3 12.9 3 11.2 1.5 8Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+    <circle cx="8" cy="8" r="2.05" stroke="currentColor" strokeWidth="1.3" />
+  </svg>
+)
+
+/** The hidden state of {@link IconEyeOutline16}: the same eye dimmed behind a diagonal slash. */
+export const IconEyeOffOutline16 = ({ size = 16, className }: IconProps) => (
+  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M1.5 8C3 4.8 5.3 3.1 8 3.1C10.7 3.1 13 4.8 14.5 8C13 11.2 10.7 12.9 8 12.9C5.3 12.9 3 11.2 1.5 8Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" opacity="0.45" />
+    <circle cx="8" cy="8" r="2.05" stroke="currentColor" strokeWidth="1.3" opacity="0.45" />
+    <path d="M2.7 2.7L13.3 13.3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+  </svg>
+)

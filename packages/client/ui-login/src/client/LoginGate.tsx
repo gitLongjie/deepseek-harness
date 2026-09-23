@@ -6,7 +6,7 @@
 
 import { useId, useState, useSyncExternalStore } from 'react'
 import type { ReactNode } from 'react'
-import { Button, Input } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, IconEyeOffOutline16, IconEyeOutline16, Input } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { LoginKey } from './locales.ts'
 import type { LoginStore } from './login-store.ts'
 import css from './LoginGate.module.css'
@@ -35,6 +35,7 @@ export function LoginGate({ controller, brandIcon, t }: LoginGateProps): ReactNo
   )
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const usernameId = useId()
   const passwordId = useId()
   if (state.status !== 'ready' || state.session !== null) return null
@@ -49,8 +50,13 @@ export function LoginGate({ controller, brandIcon, t }: LoginGateProps): ReactNo
         <img src={brandIcon} width={48} height={48} className={css.logo} alt="" />
         <h1 className={css.title}>{t('pageTitle')}</h1>
         <p className={css.tagline}>{t('tagline')}</p>
-        <label className={css.field} htmlFor={usernameId}>
-          <span className={css.fieldLabel}>{t('username')}</span>
+        {/*
+          Each caption is a standalone label because the password field's
+          reveal button cannot live inside a label (a label must not contain
+          a button); both fields keep the same div.field frame.
+        */}
+        <div className={css.field}>
+          <label className={css.fieldLabel} htmlFor={usernameId}>{t('username')}</label>
           <Input
             id={usernameId}
             autoComplete="username"
@@ -58,17 +64,30 @@ export function LoginGate({ controller, brandIcon, t }: LoginGateProps): ReactNo
             value={username}
             onChange={(event) => { setUsername(event.currentTarget.value) }}
           />
-        </label>
-        <label className={css.field} htmlFor={passwordId}>
-          <span className={css.fieldLabel}>{t('password')}</span>
-          <Input
-            id={passwordId}
-            type="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(event) => { setPassword(event.currentTarget.value) }}
-          />
-        </label>
+        </div>
+        <div className={css.field}>
+          <label className={css.fieldLabel} htmlFor={passwordId}>{t('password')}</label>
+          <span className={css.passwordWrap}>
+            <Input
+              id={passwordId}
+              className={css.passwordInput}
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="current-password"
+              value={password}
+              onChange={(event) => { setPassword(event.currentTarget.value) }}
+            />
+            <button
+              type="button"
+              className={css.reveal}
+              aria-label={showPassword ? t('hidePassword') : t('showPassword')}
+              aria-pressed={showPassword}
+              title={showPassword ? t('hidePassword') : t('showPassword')}
+              onClick={() => { setShowPassword(visible => !visible) }}
+            >
+              {showPassword ? <IconEyeOffOutline16 /> : <IconEyeOutline16 />}
+            </button>
+          </span>
+        </div>
         {state.error !== null && <p className={css.error} role="alert">{state.error}</p>}
         <Button
           className={css.submit}

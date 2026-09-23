@@ -84,6 +84,19 @@ describe('LoginGate', () => {
     fireEvent.submit(screen.getByRole('button', { name: '登录' }).closest('form')!)
     await waitFor(() => { expect(screen.getByRole('alert').textContent).toBe('用户名或密码错误') })
   })
+
+  it('reveals and re-hides the password through the eye toggle', () => {
+    const controller = new LoginStore('https://claw.deepagens.com/api', inertAdapter, dummyApi)
+    controller.load()
+    render(<LoginGate controller={controller} brandIcon="/brand/acme.svg" t={t} />)
+    const password = screen.getByLabelText('密码') as HTMLInputElement
+    expect(password.getAttribute('type')).toBe('password')
+    fireEvent.click(screen.getByRole('button', { name: '显示密码' }))
+    expect(password.getAttribute('type')).toBe('text')
+    expect(screen.queryByRole('button', { name: '显示密码' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '隐藏密码' }))
+    expect(password.getAttribute('type')).toBe('password')
+  })
 })
 
 describe('SidebarAccount', () => {

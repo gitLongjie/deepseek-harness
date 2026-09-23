@@ -56,6 +56,50 @@
   color: var(--dsw-alias-content-subtle, #8a8a8f);
 }
 
+.passwordWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.passwordInput {
+  flex: 1;
+  min-width: 0;
+}
+
+.passwordWrap input {
+  padding-right: 30px;
+}
+
+.reveal {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary, #8a8a8f);
+  cursor: pointer;
+}
+
+.reveal:hover {
+  background: var(--dsw-alias-interactive-bg-hover, rgb(0 0 0 / 6%));
+  color: var(--dsw-alias-label-secondary, #5a5a5f);
+}
+
+.reveal:focus-visible {
+  outline: 2px solid var(--dsw-alias-brand-primary, #4b6bfb);
+  outline-offset: -2px;
+}
+
 .error {
   width: 100%;
   margin: 0 0 12px;
