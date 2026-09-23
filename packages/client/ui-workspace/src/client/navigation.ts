@@ -16,6 +16,9 @@ import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 export interface UiWorkspace {
   /**
    * Select a Session and show its Conversation as one UI navigation action.
+   * The knowledge and expert pages standing over the conversation area close
+   * with the navigation, including when the selected Session is the current
+   * one — a re-selection writes no `current` change for their watchers to see.
    * @param sessionId - listed or retained Session to display.
    */
   openSession(sessionId: SessionId): void
@@ -179,6 +182,13 @@ class UiWorkspaceService extends Service implements UiWorkspace {
   openSession(sessionId: SessionId): void {
     this.sessions.open(sessionId)
     this.ctx.layout.selectPanel(null)
+    // Re-selecting the current Session writes no `current` change, so the
+    // conversation-area pages' own session watchers never fire; the click
+    // still means "show the Conversation". Either page plugin is an optional
+    // mount, hence the per-use lookups (the pattern the pages use on each
+    // other in openPage).
+    ;(this.ctx.get('uiExpert') as unknown as { closePage(): void } | undefined)?.closePage()
+    ;(this.ctx.get('uiKnowledge') as unknown as { closePage(): void } | undefined)?.closePage()
   }
 
   async openWorkspace(workspaceId: WorkspaceId, beforeOpen?: (sessionId: SessionId) => void): Promise<void> {

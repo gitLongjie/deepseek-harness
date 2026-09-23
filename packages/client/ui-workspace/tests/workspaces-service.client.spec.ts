@@ -243,6 +243,26 @@ describe('UiWorkspaceService', () => {
     expect(b.sessions.open.mock.invocationCallOrder[0]).toBeLessThan(b.selectPanel.mock.invocationCallOrder[0]!)
   })
 
+  it('stands the conversation-area browser pages down when a Session opens, including the current one', () => {
+    const current = sid('current')
+    const b = bench({ sessions: sessionState([summary('current')], current) })
+    const closeExpert = vi.fn()
+    const closeKnowledge = vi.fn()
+    b.ctx.provide('uiExpert', { closePage: closeExpert } as never)
+    b.ctx.provide('uiKnowledge', { closePage: closeKnowledge } as never)
+
+    // Re-selecting the current Session changes no `current`, so the pages'
+    // own session watchers stay idle; the navigation must close them itself.
+    b.uiWorkspace.openSession(current)
+    expect(closeExpert).toHaveBeenCalledOnce()
+    expect(closeKnowledge).toHaveBeenCalledOnce()
+  })
+
+  it('opens a Session while either browser page plugin is absent', () => {
+    const b = bench()
+    expect(() => { b.uiWorkspace.openSession(sid('target')) }).not.toThrow()
+  })
+
   it('keeps the current panel when selecting a Session throws', () => {
     const b = bench()
     b.sessions.open.mockImplementationOnce(() => { throw new Error('selection failed') })
