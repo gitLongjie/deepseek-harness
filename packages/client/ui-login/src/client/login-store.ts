@@ -12,6 +12,15 @@ import type { ClientRemote } from '@deepseek-ai/dsh-api-remotes/client'
 /** localStorage key holding the persisted login session. */
 const SESSION_STORAGE_KEY = 'dsh.login.session'
 
+/** Settings namespace carrying the default Agent model selection. */
+const DEFAULT_MODEL_NS = 'agent-default-model'
+
+/**
+ * The provider route the login-seeded gateway catalog serves (`llm-deepseek`'s
+ * Deepagens row); every default-model adoption points at it.
+ */
+const DEEPAGENS_PROVIDER = 'deepagens'
+
 /** One authenticated session as the gate consumes it. */
 export interface LoginSession {
   /** Display name shown beside the avatar; the username when the server omits one. */
@@ -85,10 +94,10 @@ export interface LoginCredentialAdapter {
   clear(): Promise<void>
 }
 
-/** The Remote faces the store reaches for catalog sync. */
+/** The Remote faces the store reaches for catalog sync and default-model adoption. */
 export interface LoginApi {
   llm: Pick<ClientRemote['llm'], 'discoverModels'>
-  settings: Pick<ClientRemote['settings'], 'describe' | 'mutate'>
+  settings: Pick<ClientRemote['settings'], 'describe' | 'mutate' | 'replace'>
 }
 
 /** Coordinates sign-in requests and the persisted session behind one store. */
@@ -118,11 +127,13 @@ export class LoginStore {
   }
 
   /**
-   * Fetch the token-scoped model list from the gateway and persist it into the
+   * Fetch the token-scoped model list from the gateway, persist it into the
    * Deepagens provider settings (endpoint base plus catalog) so the selector
-   * and the Models page see the live gateway models as their own group; an
-   * unchanged catalog is left alone. Failures — a refused read or an
-   * unreachable gateway — keep whatever is already stored.
+   * and the Models page see the live gateway models as their own group, and
+   * point the default model at the first pulled model when the current
+   * default is not one they serve; an unchanged catalog is left alone.
+   * Failures — a refused read or an unreachable gateway — keep whatever is
+   * already stored.
    * @param apiKey - the API key the sign-in just issued.
    */
   private async syncCatalogFromGateway(apiKey: string): Promise<void> {
@@ -147,21 +158,63 @@ export class LoginStore {
       console.warn(`[ui-login] settings describe refused: ${described.error.message}`)
       return
     }
-    const ns = described.value.namespaces.find(view => view.ns === 'llm-deepagens')
+    const namespaces = described.value.namespaces
+    const ns = namespaces.find(view => view.ns === 'llm-deepagens')
     const stored = (ns?.value as { models?: unknown } | undefined)?.models
     if (stored !== undefined && modelsEquivalent(stored, catalogModels)) {
       console.warn(`[ui-login] gateway catalog unchanged (${catalogModels.length} models); keeping stored`)
+    } else {
+      const written = await this.api.settings.mutate('llm-deepagens', [
+        { op: 'set', path: ['baseURL'], value: `${this.baseUrl()}/v1` },
+        { op: 'set', path: ['models'], value: catalogModels },
+      ], ns?.revision)
+      if (!written.ok) {
+        console.warn(`[ui-login] deepagens catalog write refused: ${written.error.message}`)
+      } else {
+        console.warn(`[ui-login] refreshed deepagens catalog from gateway: ${catalogModels.length} models`)
+      }
+    }
+    if (catalogModels.length > 0) await this.adoptFirstGatewayModel(namespaces, catalogModels)
+  }
+
+  /**
+   * Point the default model selection at the first login-pulled model when the
+   * current selection is not one the pulled catalog serves — the installed
+   * default names the static DeepSeek route, which the account session never
+   * serves. A selection the pulled catalog already serves (the user's own
+   * pick, or an earlier adoption) is left alone. Best effort: a refused write
+   * keeps the previous default.
+   * @param namespaces - the settings describe's namespace views.
+   * @param models - the login-pulled catalog rows, in gateway order.
+   */
+  private async adoptFirstGatewayModel(
+    namespaces: readonly { ns: string; value: unknown; revision: number }[],
+    models: readonly { id: string }[],
+  ): Promise<void> {
+    const current = namespaces.find(view => view.ns === DEFAULT_MODEL_NS)
+    if (current === undefined) {
+      console.warn(`[ui-login] no "${DEFAULT_MODEL_NS}" namespace; default model left as composed`)
       return
     }
-    const written = await this.api.settings.mutate('llm-deepagens', [
-      { op: 'set', path: ['baseURL'], value: `${this.baseUrl()}/v1` },
-      { op: 'set', path: ['models'], value: catalogModels },
-    ], ns?.revision)
+    const selection = current.value as { provider?: unknown; model?: unknown } | undefined
+    const provider = typeof selection?.provider === 'string' ? selection.provider : undefined
+    const model = typeof selection?.model === 'string' ? selection.model : undefined
+    if (provider === DEEPAGENS_PROVIDER && model !== undefined
+      && models.some(candidate => candidate.id === model)) {
+      return
+    }
+    const first = models[0]
+    if (first === undefined) return
+    const written = await this.api.settings.replace(
+      DEFAULT_MODEL_NS,
+      { provider: DEEPAGENS_PROVIDER, model: first.id },
+      current.revision,
+    )
     if (!written.ok) {
-      console.warn(`[ui-login] deepagens catalog write refused: ${written.error.message}`)
+      console.warn(`[ui-login] default model write refused: ${written.error.message}`)
       return
     }
-    console.warn(`[ui-login] refreshed deepagens catalog from gateway: ${catalogModels.length} models`)
+    console.warn(`[ui-login] default model set to the first gateway model: ${first.id}`)
   }
 
   /** Hydrate the persisted session into the store (idempotent). */

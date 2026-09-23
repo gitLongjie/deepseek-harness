@@ -24,11 +24,11 @@ The endpoint must allow cross-origin calls from the app origin (CORS with JSON c
 
 ## Model Experience
 
-None, as the package contributes browser presentation and a credential handoff only; nothing here reaches a model request.
+Indirectly, through the settings namespaces a sign-in writes: the pulled gateway catalog lands in the `llm-deepagens` provider settings (its own selector group), and a default model the pulled catalog does not serve is re-pointed at its first model in `agent-default-model`; the package never assembles a provider request itself.
 
 #### KV Cache effect
 
-None; this package neither assembles nor sends a provider request.
+The default-model adoption happens before any session exists, so it changes which route a first session assembles rather than any request's content; later manual picks own their own cache effects.
 
 ## Known Limitations and Deferred Work
 

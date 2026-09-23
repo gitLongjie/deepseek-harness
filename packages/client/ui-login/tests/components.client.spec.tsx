@@ -18,6 +18,7 @@ const dummyApi: LoginApi = {
   settings: {
     describe: vi.fn().mockResolvedValue(okResult({ writable: true, hasDocument: false, namespaces: [] })),
     mutate: vi.fn().mockResolvedValue(okResult({ revision: 1 })),
+    replace: vi.fn().mockResolvedValue(okResult({ revision: 1 })),
   },
 }
 import { zh, type LoginKey } from '../src/client/locales.ts'

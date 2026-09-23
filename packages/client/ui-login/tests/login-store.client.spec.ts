@@ -19,9 +19,10 @@ const okResult = <T>(value: T): { ok: true; value: T } => ({ ok: true, value })
 const discoverMock = vi.fn().mockResolvedValue(okResult([]))
 const describeMock = vi.fn().mockResolvedValue(okResult({ writable: true, hasDocument: false, namespaces: [] }))
 const mutateMock = vi.fn().mockResolvedValue(okResult({ revision: 1 }))
+const replaceMock = vi.fn().mockResolvedValue(okResult({ revision: 1 }))
 const dummyApi: LoginApi = {
   llm: { discoverModels: discoverMock },
-  settings: { describe: describeMock, mutate: mutateMock },
+  settings: { describe: describeMock, mutate: mutateMock, replace: replaceMock },
 }
 
 afterEach(() => {

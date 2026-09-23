@@ -205,7 +205,7 @@ const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
   'packages/web/web-fetch-http': { kind: 'indirect', reason: 'The provider backend delegates model rendering to dsh-tool-web.' },
   'packages/web/web-search-exa': { kind: 'indirect', reason: 'The provider backend delegates model rendering to dsh-tool-web.' },
   'packages/workflow/workflow': { kind: 'indirect', reason: 'The service delegates parent and child model rendering to its consumer and engine.' },
-  'packages/client/ui-login': { kind: 'none', reason: 'Browser-side sign-in presentation; the credential handoff only writes provider routing inputs the LLM adapters already own.' },
+  'packages/client/ui-login': { kind: 'indirect', reason: 'Sign-in writes the gateway catalog and default-model settings namespaces; the adapters that read them own every model-facing request.' },
   'packages/market/market': { kind: 'indirect', reason: 'The service contract registers no prompt, tool schema, or event payload; CLI, gateway, and web consumers own every projection.' },
   'packages/market/market-local': { kind: 'indirect', reason: 'The provider delegates catalog and install rendering to the CLI, gateway, and web consumers.' },
   'packages/market/market-gateway': { kind: 'indirect', reason: 'The wire projection forwards calls verbatim; served clients own any model-facing effect.' },
