@@ -95,6 +95,11 @@ mac:
   # the Intel and Apple Silicon assets from colliding in the GitHub release.
   # Keep the artifact prefix ASCII (see the nsis note).
   artifactName: DeepagensWork-${version}-mac-${arch}.${ext}
+  # The app bundle under /Applications follows the platform executable name:
+  # an ASCII DeepagensWork.app matches the Windows install directory and keeps
+  # scripts and support paths stable, while productName (深度Work) stays the
+  # display name — CFBundleName, the window title, tray, and About copy.
+  executableName: DeepagensWork
   target:
     - target: dmg
       arch:

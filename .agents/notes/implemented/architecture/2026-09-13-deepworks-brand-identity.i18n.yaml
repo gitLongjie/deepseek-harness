@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-13-deepworks-brand-identity.md
-2026-09-13-deepworks-brand-identity.md: 9b2a4bc1eb01b918a2159d284f580b17842ab0a1
-2026-09-13-deepworks-brand-identity.zh.md: 7b1739263f0ae91d44bd56a29f81c822742e269c
+2026-09-13-deepworks-brand-identity.md: 4b7d9df7b7b7a08d4cc1425f31587e68ef6a2d07
+2026-09-13-deepworks-brand-identity.zh.md: 74c4bea4d5321339aaf464e7e4d4bdf2142eb15e

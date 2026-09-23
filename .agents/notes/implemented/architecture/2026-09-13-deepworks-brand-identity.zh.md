@@ -10,7 +10,7 @@ Status: implemented
 
 ## 决策
 
-`oem.config.json` 的 `productName`(深度Work)同时作为运行时显示名与安装器身份的唯一来源:`createElectronBuilderOemConfig` 不再硬编码产品名,`executableName`、`shortcutName`、`uninstallDisplayName` 与全部平台的 `artifactName` 都携带 OEM 名称。磁盘安装目录通过 `perMachine: true` 加 `build/installer.nsh` 中的 `customInit` 宏固定为 ASCII 的 `C:\Program Files\DeepagensWork`,非 ASCII 的显示名改名不会移动安装路径。打包包名 `name` 为 ASCII 的 `DeepagensWork`:electron-builder 由它推导 `APP_FILENAME` 做目录净化,ASCII 值保证显示名为非 ASCII 时该检查依然稳定。
+`oem.config.json` 的 `productName`(深度Work)同时作为运行时显示名与安装器身份的唯一来源:`createElectronBuilderOemConfig` 不再硬编码产品名,`executableName`、`shortcutName`、`uninstallDisplayName` 与全部平台的 `artifactName` 都携带 OEM 名称。磁盘安装目录通过 `perMachine: true` 加 `build/installer.nsh` 中的 `customInit` 宏固定为 ASCII 的 `C:\Program Files\DeepagensWork`,非 ASCII 的显示名改名不会移动安装路径。打包包名 `name` 为 ASCII 的 `DeepagensWork`:electron-builder 由它推导 `APP_FILENAME` 做目录净化,ASCII 值保证显示名为非 ASCII 时该检查依然稳定。macOS bundle 沿用同一拆分:`mac.executableName: DeepagensWork` 把 `/Applications/DeepagensWork.app` 定为 ASCII(electron-builder 由平台可执行名推导 bundle 名),`productName` 继续作为显示名负责 `CFBundleName`、窗口标题、托盘与"关于"文案,应用自身在两个平台都把 user-data 固定在 `DeepagensWork`。
 
 标志为云海 D(`apps/desktop/build/反白上下源文件.png`,454×454):ICO 含七帧 PNG(16–256),`icon.png` 为 512,`MewoLogo` 与 boot 页以 72×72 data URI 内嵌,`favicon.svg` 包裹同一 PNG。技术身份保持不变——`appId com.meowwork.app`、AUMID `ai.deepagens.worker`、发布仓库 `gitLongjie/miaoWorker`——改名对用户不可见,却会破坏更新检测与任务栏分组。
 
