@@ -12,7 +12,7 @@ Status: implemented
 
 ## Decision
 
-重置脚本现在对两端都做校验。DELETE 之后轮询 `GET /releases/tags/<tag>` 直到它返回 404；若一分钟后 release 仍在，脚本以退出码 1 结束，拒绝在其上发布。创建循环以 201 作为退出条件，没有任何一次成功时以退出码 1 结束。`build` job 增加 `needs: create-release`，上传只会面对刚建好的空 release，不再与它赛跑。
+重置脚本对两端都做校验，且删除按 release 的数字 id 进行。第一次 fail-loud 运行后的事实是：按 tag 的删除已经移除了 release，而按 tag 的查找在超过脚本整整一分钟轮询窗口之后仍持续应答 HTTP 200——按 tag 的这对接口无法区分"release 幸存"与"过期应答"。脚本先解析出 id，按 id 删除，轮询该 id 直到返回 404，否则以退出码 1 结束；创建循环以 201 为退出条件，没有任何一次成功时以退出码 1 结束。`build` job 增加 `needs: create-release`，上传只会面对刚建好的空 release，不再与它赛跑。
 
 ## Consequences
 

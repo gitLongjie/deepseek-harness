@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-23-release-reset-fails-loud.md
-2026-09-23-release-reset-fails-loud.md: a3efe2fcf19b24aff99f983d6aab87c1a9e2e7c1
-2026-09-23-release-reset-fails-loud.zh.md: b1c1f715d870242d7ca29aee5d6428266d1eb73e
+2026-09-23-release-reset-fails-loud.md: 7c145a1fcd0b42e236e243f4b192b7d0e1246840
+2026-09-23-release-reset-fails-loud.zh.md: 890366db231ec46781b5a2e8ec53ba305244d634

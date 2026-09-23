@@ -12,7 +12,7 @@ Re-publishing desktop v1.2.9 — force-pushing the tag onto a commit carrying on
 
 ## Decision
 
-The reset script verifies both ends. After the DELETE it polls `GET /releases/tags/<tag>` until it answers 404, and if the release is still present after a minute it exits 1 rather than publishing over it. After the create loop it requires a 201 as the loop's exit condition and exits 1 when no attempt succeeded. The `build` job gains `needs: create-release`, so an upload can only start against the fresh empty release instead of racing it.
+The reset script verifies both ends, and the delete goes by the release's numeric id. After the first fail-loud run, the by-tag lookup kept answering HTTP 200 for a release the by-tag delete had already removed — past the script's whole minute-long polling window — so the by-tag pair cannot distinguish a surviving release from a stale answer. The script resolves the id once, deletes by id, polls that id until it answers 404, and exits 1 if it never does; the create loop requires a 201 and exits 1 when no attempt succeeds. The `build` job gains `needs: create-release`, so an upload can only start against the fresh empty release instead of racing it.
 
 ## Consequences
 
