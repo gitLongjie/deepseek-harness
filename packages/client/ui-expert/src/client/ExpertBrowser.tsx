@@ -190,7 +190,15 @@ export function ExpertBrowser({
                         ))}
                       </ul>
                     )}
-                    <button type="button" className={css.hire} onClick={() => { hire(record.id) }}>
+                    {record.broken !== undefined && (
+                      <p className={css.broken} role="note">{t('card.broken', { reason: record.broken })}</p>
+                    )}
+                    <button
+                      type="button"
+                      className={css.hire}
+                      disabled={record.broken !== undefined}
+                      onClick={() => { hire(record.id) }}
+                    >
                       {t('card.hire')}
                     </button>
                   </li>

@@ -25,6 +25,14 @@ const ROWS: readonly ExpertRecord[] = [
   },
 ]
 
+/** A row the host reported unable to mount: visible, but not hireable. */
+const BROKEN_ROW: readonly ExpertRecord[] = [
+  {
+    id: 'gone-expert', name: '失效专家', category: 'marketing',
+    broken: 'the composition file agent.cordis.yml is missing',
+  },
+]
+
 function mount(overrides: Partial<ExpertBrowserProps> = {}) {
   // The spec stubs the GlobalStandardProps members the page never reads; the
   // cast mirrors the sibling component specs' seat stubs.
@@ -107,6 +115,25 @@ describe('ExpertBrowser', () => {
     fireEvent.click(hireButtons[1]!)
 
     expect(b.hire).toHaveBeenCalledWith('geo-optimizer')
+  })
+
+  it('keeps a broken expert visible but not hireable, with the health reason', async () => {
+    const b = mount({ load: vi.fn(async () => ({ experts: BROKEN_ROW })) })
+
+    await waitFor(() => {
+      expect(screen.getByText('失效专家')).toBeTruthy()
+    })
+
+    // The card carries the host's verdict: the market is the only surface
+    // that advertises the expert, so a row that cannot mount reports why
+    // here instead of hiring into a silent failure.
+    expect(screen.getByRole('note').textContent)
+      .toContain('该专家暂时无法聘用：the composition file agent.cordis.yml is missing')
+
+    const hireButton = screen.getByRole('button', { name: '聘用到新对话' })
+    expect((hireButton as HTMLButtonElement).disabled).toBe(true)
+    fireEvent.click(hireButton)
+    expect(b.hire).not.toHaveBeenCalled()
   })
 
   it('renders the error state with a retry that re-reads the market', async () => {

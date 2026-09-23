@@ -26,8 +26,15 @@ function stub(): RemoteStub {
           },
           // A shipped expert with richer card metadata.
           {
-            id: 'fresh-expert', trust: 'user' as const, isDefault: false,
+            id: 'fresh-expert', trust: 'system' as const, isDefault: false,
             name: '新装专家', category: '写作', icon: '✒️',
+          },
+          // A shipped expert whose composition cannot mount: the market keeps
+          // the row so its card can carry the health verdict.
+          {
+            id: 'gone-expert', trust: 'system' as const, isDefault: false,
+            name: '失效专家', category: '写作',
+            broken: 'the composition file agent.cordis.yml is missing',
           },
         ],
         authorable: true,
@@ -164,9 +171,12 @@ describe('ui-expert browser plugin', () => {
 
     const { experts } = await injected.load()
     // The roster is the market's only source: the mode preset never enters,
-    // and every admitted row is the deployment's own record.
-    expect(experts.map(expert => expert.id)).toEqual(['geo-optimizer', 'fresh-expert'])
+    // and every admitted row is the deployment's own record — broken rows
+    // included, so their cards can report why they cannot be hired.
+    expect(experts.map(expert => expert.id)).toEqual(['geo-optimizer', 'fresh-expert', 'gone-expert'])
     expect(experts.find(expert => expert.id === 'geo-optimizer')?.name).toBe('GEO 优化专家')
+    expect(experts.find(expert => expert.id === 'gone-expert')?.broken)
+      .toBe('the composition file agent.cordis.yml is missing')
     expect(remote.list).toHaveBeenCalledTimes(1)
 
     injected.hire('geo-optimizer')

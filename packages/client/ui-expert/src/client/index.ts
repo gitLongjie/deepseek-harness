@@ -73,6 +73,10 @@ function recordOf(preset: AgentPresetRow): ExpertRecord {
     ...(preset.tags !== undefined ? { tags: preset.tags } : {}),
     ...(preset.quickPrompts !== undefined ? { quickPrompts: preset.quickPrompts } : {}),
     ...(preset.icon !== undefined && preset.icon !== '' ? { icon: preset.icon } : {}),
+    // A row the host reported broken stays on the page: the market is the
+    // only surface that advertises it, so the card carries the health
+    // verdict instead of silently omitting an expert the deployment ships.
+    ...(preset.broken !== undefined ? { broken: preset.broken } : {}),
   }
 }
 

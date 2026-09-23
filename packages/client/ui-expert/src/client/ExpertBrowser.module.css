@@ -277,3 +277,20 @@
 .hire:hover {
   opacity: 0.9;
 }
+
+.hire:disabled {
+  background: var(--dsw-alias-fill-secondary, rgba(127, 127, 127, 0.12));
+  color: var(--dsw-alias-label-tertiary, rgba(127, 127, 127, 0.9));
+  cursor: not-allowed;
+}
+
+.broken {
+  margin: 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary, rgba(127, 127, 127, 0.9));
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}

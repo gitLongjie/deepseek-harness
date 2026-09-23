@@ -38,6 +38,14 @@ export interface ExpertRecord {
   readonly quickPrompts?: readonly string[]
   /** Curator badge beside the name, e.g. an invited-expert mark. */
   readonly badge?: string
+  /**
+   * The roster's health verdict, present when the preset's composition cannot
+   * mount. A broken expert's card stays on the page with its hire action
+   * disabled and this reason shown — the market is the only surface that
+   * advertises the expert, so hiding the row would report the misconfiguration
+   * to nobody.
+   */
+  readonly broken?: string
 }
 
 /**

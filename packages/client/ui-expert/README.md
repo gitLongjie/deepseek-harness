@@ -40,6 +40,8 @@ No config of its own: the page renders the roster the deployment ships — prese
 
 The section registers into the shell-declared `sidebar.experts` hole and the page into ui-conversation's `conversation.expert.browser` hole; removing a declaration leaves the registration waiting and the surface absent, which is the documented behavior of an unoccupied slot. Hiring while no conversation flow is bound stages nothing: the staging service no-ops without a seat to land the pick on, and the page still starts the session on the deployment default.
 
+A roster row the host reported broken (its composition cannot mount) keeps its card on the page with the hire action disabled and the health verdict shown: the market is the only surface that advertises the expert, so the misconfiguration reports here instead of hiring into a silent failure.
+
 -----
 
 <a id="understand-the-implementation"></a>
