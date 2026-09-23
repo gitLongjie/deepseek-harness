@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises'
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it, vi } from 'vitest'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
@@ -62,8 +63,11 @@ async function bench() {
   } as never)
   const pickDirectory = vi.fn(() => Promise.resolve({ ok: true as const, value: '/projects/picked' }))
   const directoryPicker = { pick: pickDirectory }
-  Object.assign(new TestRemote(ctx), { directoryPicker })
+  const openWorkspacePath = vi.fn(async () => ({ ok: true as const, value: { opened: true } }))
+  const session = { openWorkspacePath }
+  Object.assign(new TestRemote(ctx), { directoryPicker, session })
   ctx.provide('remote.directoryPicker', directoryPicker as never)
+  ctx.provide('remote.session', session as never)
   const locale = new LocaleRuntime(ctx)
   // These specs assert the shipped Chinese copy. There is no jsdom `window`
   // in this lane, so browser-language detection never runs and the locale
@@ -72,7 +76,7 @@ async function bench() {
   ctx.provide('locale', locale)
   return {
     ctx, slots: ctx.get('slots') as SlotRegistry, locale, create, rename,
-    open, clear, selectPanel, search, renameSession, binding, fork, pickDirectory,
+    open, clear, selectPanel, search, renameSession, binding, fork, pickDirectory, openWorkspacePath,
   }
 }
 
@@ -91,8 +95,31 @@ describe('ui-workspace apply', () => {
 
   it('declares the services it drives', () => {
     expect(inject).toEqual([
-      'slots', 'sessions', 'workspaces', 'locale', 'remote', 'remote.directoryPicker', 'layout',
+      'slots', 'sessions', 'workspaces', 'locale', 'remote', 'remote.directoryPicker',
+      'remote.session', 'layout',
     ])
+  })
+
+  it('declares every Remote namespace the plugin body reads', async () => {
+    // Cordis resolves `ctx.remote.<ns>` through the traced `remote` service,
+    // which throws `cannot get property "remote.<ns>" without inject` for a
+    // namespace the fiber did not declare. That throw happens when the callback
+    // runs, not at load, so a missing declaration stays invisible until a user
+    // clicks — and the unit bench cannot show it, because its Remote double is
+    // a plain object whose namespace properties never reach that guard.
+    // Deriving the requirement from the source keeps this honest: a copy of the
+    // declaration list cannot satisfy it.
+    const source = await readFile(new URL('../src/client/index.ts', import.meta.url), 'utf8')
+    const used = new Set(
+      [...source.matchAll(/\bctx\.remote\.([A-Za-z_$][\w$]*)/g)]
+        // `$host` / `$mount` / `$on` are members of the Remote service itself,
+        // not namespaces resolved through the injected service key.
+        .map(match => match[1]!)
+        .filter(name => !name.startsWith('$'))
+        .map(name => `remote.${name}`),
+    )
+    expect(used.size).toBeGreaterThan(0)
+    expect([...used].filter(name => !inject.includes(name))).toEqual([])
   })
 
   it('registers browser and pickers for declarations arriving before or after apply', async () => {
@@ -176,6 +203,23 @@ describe('ui-workspace apply', () => {
     dispose()
     expect(browser.hooks.directoryFlow.getSnapshot()).toBe(false)
     unsubscribe()
+  })
+
+  it('opens a Workspace directory through the Session Remote directory action', async () => {
+    const b = await bench()
+    declare(b.slots, 'sidebar.workspaces')
+    await b.ctx.plugin({ inject: [...inject], apply }).await()
+    const browser = (b.slots.entries('sidebar.workspaces')[0]!.inject as () => WorkspaceBrowserInjected)()
+
+    // The action is what makes the Host open the folder itself; without it the
+    // request degrades to the default-application handoff.
+    await browser.openWorkspaceDirectory('/projects/alpha')
+    expect(b.openWorkspacePath).toHaveBeenCalledExactlyOnceWith({ path: '/projects/alpha', action: 'directory' })
+
+    b.openWorkspacePath.mockResolvedValueOnce({
+      ok: false, error: new RemoteError('gateway/internal', 'desktop unavailable', {}),
+    } as never)
+    await expect(browser.openWorkspaceDirectory('/projects/alpha')).rejects.toThrow('desktop unavailable')
   })
 
   it('rejects the browser search callback on a Session Controller business error', async () => {

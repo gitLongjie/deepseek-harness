@@ -31,7 +31,11 @@ async function bench() {
   runtime.ctx.provide('layout', { selectPanel: vi.fn() })
   runtime.releaseWorkspaceSource()
   const directoryPicker = {}
-  const remote = new TestRemote(runtime.ctx)
+  // The directory action is not exercised here, but the plugin declares the
+  // namespace, and the real runtime refuses to mount a fiber whose required
+  // services are absent.
+  const session = { openWorkspacePath: vi.fn(async () => ({ ok: true as const, value: { opened: true } })) }
+  const remote = new TestRemote(runtime.ctx, { session })
   Object.assign(remote, { directoryPicker })
   runtime.ctx.provide('remote.directoryPicker', directoryPicker as never)
   const locale = new LocaleRuntime(runtime.ctx)
