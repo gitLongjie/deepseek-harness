@@ -56,9 +56,16 @@ function outlineEntries(outline: unknown): readonly unknown[] {
  * preview only where the window's own is empty (a mid-Turn window head, or a
  * turn whose loaded nodes carry no text); turns on one side only pass
  * through. Result ascends by turn.
+ *
+ * Machine turns are dropped: a goal continuation or background-subagent
+ * settlement opens the turn with an injected prompt that never becomes a
+ * human `user/message`, so both folds leave its prompt `''` forever. The
+ * newest turn is exempt while it is the newest — a just-started human turn
+ * has not landed its prompt yet, and the live machine turn stays navigable
+ * until something newer starts.
  * @param loaded - loaded-window rail items (timeline order).
  * @param outline - `turnOutline` projection value, treated as wire data.
- * @returns every known turn, ascending; a stable empty array when none.
+ * @returns every known human-initiated turn plus the live newest, ascending; a stable empty array when none.
  */
 export function mergeTurnRailItems(
   loaded: readonly TurnNavigationItem[],
@@ -85,5 +92,7 @@ export function mergeTurnRailItems(
     })
   }
   if (byTurn.size === 0) return EMPTY_ITEMS
-  return [...byTurn.values()].sort((left, right) => left.turn - right.turn)
+  const newest = Math.max(...byTurn.keys())
+  const items = [...byTurn.values()].filter(item => item.prompt !== '' || item.turn === newest)
+  return items.sort((left, right) => left.turn - right.turn)
 }
