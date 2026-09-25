@@ -1308,6 +1308,24 @@ describe('DeepSeekAdapter against a mock server', () => {
     })
   })
 
+  it('maps a quota-exhausted 403 from Chinese-language gateways to QUOTA, not AUTH', async () => {
+    const behavior: Behavior = {
+      kind: 'http-error',
+      status: 403,
+      body: JSON.stringify({
+        error: {
+          message: '用户额度不足, 剩余额度: ＄0.000000',
+          type: 'insufficient_user_quota',
+          code: 'insufficient_user_quota',
+        },
+      }),
+    }
+    const server = await mockServer([behavior])
+    const ctx = await harness(server.url)
+    const result = await assemble(ctx, { model: 'deepseek-v4-flash', messages: [] })
+    expect(result.finish).toMatchObject({ kind: 'error', failure: { code: QUOTA_EXCEEDED_CODE, status: 403 } })
+  })
+
   it('uses the HTTP status as the cause when an error response has no body', async () => {
     const server = await mockServer([{ kind: 'http-error', status: 500, body: '' }])
     const adapter = adapterOf({ baseURL: server.url })

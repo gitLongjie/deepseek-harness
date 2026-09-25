@@ -40,8 +40,11 @@ export function mapUsage(usage: PiUsage): TokenUsage {
 // If pi-ai ever forwards the original Error (or a fetch/dispatcher hook that lets
 // us capture the cause ourselves), classify on `code`/`cause` instead of text.
 function classifyPiAiError(message: string): string {
-  if (/\b(?:401|403)\b/.test(message)) return 'AUTH'
+  // Quota wording wins over the status-code check: quota-exhausted gateways
+  // commonly answer 402/403/429 (e.g. new-api returns 403 用户额度不足), and
+  // classifying those as AUTH would misreport a billing problem as a bad key.
   if (isQuotaExceededError(message)) return QUOTA_EXCEEDED_CODE
+  if (/\b(?:401|403)\b/.test(message)) return 'AUTH'
   if (/\b429\b|rate.?limit/i.test(message)) return 'RATE_LIMIT'
   // A rejected request body (gateway or provider size cap): resending the
   // same request cannot succeed, so it is invalid, not transient.

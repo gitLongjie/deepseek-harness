@@ -92,11 +92,15 @@ export function isContextWindowExceededError(detail: string): boolean {
  * @returns true only for terminal quota, balance, credit, budget, or usage-limit wording.
  */
 export function isQuotaExceededError(detail: string): boolean {
-  return /\binsufficient[\s_-]+(?:quota|balance|credits?)\b/i.test(detail)
+  return /\binsufficient[\s_-]+(?:user[\s_-]+)?(?:quota|balance|credits?)\b/i.test(detail)
     || /\b(?:quota|usage[\s_-]+limit)[\s_-]+(?:exceeded|exhausted|reached)\b/i.test(detail)
     || /\bexceed(?:ed|s)?[\s_-]+(?:(?:your|the)[\s_-]+)?(?:current[\s_-]+)?quota\b/i.test(detail)
     || /\b(?:balance|credits?)[\s_-]+(?:exhausted|depleted)\b/i.test(detail)
     || /\bout[\s_-]+of[\s_-]+(?:credits?|budget)\b/i.test(detail)
+    // Chinese-language gateways (new-api / one-api deployments) phrase quota
+    // exhaustion as 额度不足 "insufficient quota/credit" or 余额不足
+    // "insufficient balance" while returning HTTP 403.
+    || /(?:额度不足|余额不足|配额不足|欠费)/.test(detail)
 }
 
 /**
