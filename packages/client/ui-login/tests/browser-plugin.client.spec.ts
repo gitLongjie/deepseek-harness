@@ -83,7 +83,7 @@ describe('ui-login apply', () => {
   })
 
   it('registers the gate and the account row with a bound locale seat', async () => {
-    vi.stubEnv('DSH_CLIENT_LOGIN_URL', 'https://claw.deepagens.com/api/user/deepagens-claw/login')
+    vi.stubEnv('DSH_CLIENT_LOGIN_URL', 'https://claw.deepagens.com/api/claw/login')
     vi.stubEnv('DSH_CLIENT_BRAND_ICON', '/brand/oem-login.svg')
     vi.stubEnv('DSH_CLIENT_LOGIN_TAGLINE_ZH', '配置的登录副标题')
     vi.stubEnv('DSH_CLIENT_LOGIN_TAGLINE_EN', 'Configured login tagline')
@@ -111,7 +111,7 @@ describe('ui-login apply', () => {
   })
 
   it('writes the issued key and origin through the credentials domain', async () => {
-    vi.stubEnv('DSH_CLIENT_LOGIN_URL', 'https://claw.deepagens.com/api/user/deepagens-claw/login')
+    vi.stubEnv('DSH_CLIENT_LOGIN_URL', 'https://claw.deepagens.com/api/claw/login')
     const subject = await bench()
     declare(subject.slots)
     await subject.ctx.plugin({ inject: [...inject], apply }).await()
@@ -134,7 +134,7 @@ describe('ui-login apply', () => {
   })
 
   it('fills declarations made after apply and removes both occupants on teardown', async () => {
-    vi.stubEnv('DSH_CLIENT_LOGIN_URL', 'https://claw.deepagens.com/api/user/deepagens-claw/login')
+    vi.stubEnv('DSH_CLIENT_LOGIN_URL', 'https://claw.deepagens.com/api/claw/login')
     const subject = await bench()
     const disposeHoles = declare(subject.slots)
     disposeHoles()

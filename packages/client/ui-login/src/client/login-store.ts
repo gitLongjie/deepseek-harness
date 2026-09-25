@@ -1,16 +1,19 @@
 /**
- * Login session state over localStorage. The account server (the deployment's
- * Deepagens Claw gateway) issues the API key on sign-in; this plugin stores
- * the account profile locally and hands the key to the host credential layer,
- * so real authorization stays with the servers that accept the key.
+ * Login session state. Every launch replays the stored login pair against
+ * the account server (the deployment's Deepagens Claw gateway): success
+ * signs in without showing the gate, a refusal falls back to the sign-in
+ * card. The server issues the API key at each sign-in; the session itself
+ * stays in memory, only the pair is stored locally, and the key is handed
+ * to the host credential layer, so real authorization stays with the
+ * servers that accept the key.
  */
 
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { ClientRemote } from '@deepseek-ai/dsh-api-remotes/client'
 
-/** localStorage key holding the persisted login session. */
-const SESSION_STORAGE_KEY = 'dsh.login.session'
+/** localStorage key holding the login pair replayed at the next launch. */
+const PAIR_STORAGE_KEY = 'dsh.login.pair'
 
 /** Settings namespace carrying the default Agent model selection. */
 const DEFAULT_MODEL_NS = 'agent-default-model'
@@ -27,36 +30,33 @@ export interface LoginSession {
   account: string
   /** Absolute avatar URL, or null when the account has none. */
   avatar: string | null
-  /** API key the server issued; kept so a reload can refresh it on the next sign-in. */
+  /** API key the server issued at this sign-in; also handed to the host credential layer. */
   apiKey: string
 }
 
 /** Credential references this plugin writes while a session is signed in. */
 export const LOGIN_CREDENTIAL_REFS = ['DEEPSEEK_API_KEY', 'DEEPSEEK_BASE_URL'] as const
 
-/** State rendered by the login gate. */
-export interface LoginState {
-  status: 'idle' | 'ready'
-  /** Non-null once the user is signed in (hydrated from storage or a login). */
-  session: LoginSession | null
-  /** A sign-in request is in flight. */
-  busy: boolean
-  /** Failure text from the last sign-in attempt: a server message or a locale key. */
-  error: string | null
+/** The credential pair stored locally for the boot-time re-login. */
+export interface StoredLoginPair {
+  /** Account identifier as typed at the sign-in that stored it. */
+  username: string
+  /** Account password as typed at the sign-in that stored it. */
+  password: string
 }
 
 /**
- * Read the persisted session, tolerating every malformed shape as signed out.
- * @returns the stored session, or null when absent, malformed, or unavailable.
+ * Read the stored login pair, tolerating every malformed shape as absent.
+ * @returns the stored pair, or null when absent, malformed, or unavailable.
  */
-export function readStoredSession(): LoginSession | null {
+export function readStoredPair(): StoredLoginPair | null {
   if (typeof localStorage === 'undefined') return null
   let raw: string | null
   try {
-    raw = localStorage.getItem(SESSION_STORAGE_KEY)
+    raw = localStorage.getItem(PAIR_STORAGE_KEY)
   } catch {
-    // Storage refusal (private mode, quota) only means a fresh sign-in per
-    // visit; nothing else can reach the persisted fact.
+    // Storage refusal (private mode, quota) only means a manual sign-in this
+    // launch; nothing else can reach the persisted fact.
     return null
   }
   if (raw === null) return null
@@ -64,23 +64,36 @@ export function readStoredSession(): LoginSession | null {
   try {
     parsed = JSON.parse(raw)
   } catch {
-    // A corrupted value reads as signed out rather than bricking the gate.
+    // A corrupted value reads as absent rather than bricking the gate.
     return null
   }
   if (typeof parsed !== 'object' || parsed === null) return null
-  const { account, avatar, apiKey } = parsed as Record<string, unknown>
-  if (typeof account !== 'string' || account === '' || typeof apiKey !== 'string' || apiKey === '') return null
-  return {
-    account,
-    avatar: typeof avatar === 'string' && avatar !== '' ? avatar : null,
-    apiKey,
+  const { username, password } = parsed as Record<string, unknown>
+  if (typeof username !== 'string' || username === '' || typeof password !== 'string' || password === '') return null
+  return { username, password }
+}
+
+function writeStoredPair(pair: StoredLoginPair | null): void {
+  if (typeof localStorage === 'undefined') return
+  try {
+    if (pair === null) localStorage.removeItem(PAIR_STORAGE_KEY)
+    else localStorage.setItem(PAIR_STORAGE_KEY, JSON.stringify(pair))
+  } catch {
+    // Storage refusal only costs the next launch its silent re-login; the
+    // signed-in session itself lives in memory.
   }
 }
 
-function writeStoredSession(session: LoginSession | null): void {
-  if (typeof localStorage === 'undefined') return
-  if (session === null) localStorage.removeItem(SESSION_STORAGE_KEY)
-  else localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session))
+/** State rendered by the login gate. */
+export interface LoginState {
+  /** The boot-time re-login is in flight; the gate renders only its backdrop. */
+  restoring: boolean
+  /** Non-null while the user is signed in (set by a sign-in, dropped by sign-out). */
+  session: LoginSession | null
+  /** A sign-in request is in flight. */
+  busy: boolean
+  /** Failure text from the last sign-in attempt: a server message or a locale key. */
+  error: string | null
 }
 
 /** Host credential writes the store delegates after a session transition. */
@@ -104,7 +117,7 @@ export interface LoginApi {
 export class LoginStore {
   /** uSES-safe state source shared by the registered gate. */
   readonly store: SnapshotStore<LoginState> = createSnapshotStore<LoginState>({
-    status: 'idle', session: null, busy: false, error: null,
+    restoring: false, session: null, busy: false, error: null,
   })
 
   /**
@@ -217,18 +230,31 @@ export class LoginStore {
     console.warn(`[ui-login] default model set to the first gateway model: ${first.id}`)
   }
 
-  /** Hydrate the persisted session into the store (idempotent). */
-  load(): void {
-    const session = readStoredSession()
+  /**
+   * Replay the stored login pair through the sign-in path — the boot-time
+   * re-login every launch runs. Without a stored pair this is a no-op and
+   * the gate shows its card; a refused pair stays stored for the next
+   * launch and the gate shows the failure. The gate renders only its
+   * backdrop while this is in flight.
+   */
+  async restore(): Promise<void> {
+    const pair = readStoredPair()
+    if (pair === null) return
     this.store.update((state) => {
-      state.status = 'ready'
-      state.session = session
+      state.restoring = true
     })
+    try {
+      await this.login(pair.username, pair.password)
+    } finally {
+      this.store.update((state) => {
+        state.restoring = false
+      })
+    }
   }
 
   /**
    * POST one credential pair to the account server and persist success.
-   * Wire contract (Deepagens Claw `POST /api/user/deepagens-claw/login`):
+   * Wire contract (Deepagens Claw `POST /api/claw/login`):
    * JSON `{username, password}` in; `200` with `{success, message?, data?}`
    * out, where a successful `data` carries `{display_name?, avatar?, api_key}`;
    * `success: false` carries a `message` shown verbatim.
@@ -242,14 +268,17 @@ export class LoginStore {
       state.error = null
     })
     let response: Response
+    let raw: string
     try {
       response = await fetch(this.authUrl, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ username, password }),
       })
+      raw = await response.text()
     } catch {
-      // fetch rejects on network/DNS/CORS refusal; the page stays usable.
+      // fetch rejects on network/DNS/CORS refusal and a cut-off body; the
+      // page stays usable.
       this.store.update((state) => {
         state.busy = false
         state.error = 'networkUnreachable'
@@ -258,13 +287,15 @@ export class LoginStore {
     }
     let body: unknown = null
     try {
-      body = await response.json()
+      body = JSON.parse(raw)
     } catch {
       // A non-JSON body falls through to the status-based failure below.
+      console.warn(`[ui-login] login endpoint answered non-JSON (HTTP ${response.status}): ${replyExcerpt(raw)}`)
       body = null
     }
     const fields = typeof body === 'object' && body !== null ? body as Record<string, unknown> : {}
     if (fields.success !== true) {
+      console.warn(`[ui-login] login refused (HTTP ${response.status}): ${replyExcerpt(raw)}`)
       this.store.update((state) => {
         state.busy = false
         state.error = errorKeyOf(response, fields)
@@ -274,6 +305,7 @@ export class LoginStore {
     const data = typeof fields.data === 'object' && fields.data !== null ? fields.data as Record<string, unknown> : {}
     const apiKey = data.api_key
     if (typeof apiKey !== 'string' || apiKey === '') {
+      console.warn(`[ui-login] login reply carries no usable data.api_key (HTTP ${response.status}): ${replyExcerpt(raw)}`)
       this.store.update((state) => {
         state.busy = false
         state.error = 'invalidResponse'
@@ -304,7 +336,9 @@ export class LoginStore {
       console.warn('[ui-login] gateway catalog sync failed after sign-in:', error instanceof Error ? error.message : String(error))
     }
 
-    writeStoredSession(session)
+    // Store the pair for the next launch's silent re-login; a refused write
+    // only costs that launch its gate skip.
+    writeStoredPair({ username, password })
     this.store.update((state) => {
       state.busy = false
       state.session = session
@@ -312,15 +346,27 @@ export class LoginStore {
     return true
   }
 
-  /** Drop the persisted session, clear the written credentials, and return to the sign-in page. */
+  /** Drop the session, the stored pair, and the written credentials; return to the sign-in page. */
   logout(): void {
-    writeStoredSession(null)
+    writeStoredPair(null)
     void this.credentials.clear()
     this.store.update((state) => {
       state.session = null
       state.error = null
     })
   }
+}
+
+/**
+ * Cap a raw reply excerpt for the console log: an HTML error page or a large
+ * JSON dump must not flood it, while enough of the body survives to compare
+ * against the wire contract above.
+ * @param raw - the unprocessed response body text.
+ * @returns the trimmed body, truncated past 2000 characters.
+ */
+function replyExcerpt(raw: string): string {
+  const trimmed = raw.trim()
+  return trimmed.length <= 2000 ? trimmed : `${trimmed.slice(0, 2000)}...(truncated)`
 }
 
 /**

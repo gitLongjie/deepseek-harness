@@ -1,7 +1,9 @@
 /**
  * Full-page sign-in takeover. Registered as a `shell.overlay` entry by this
- * plugin's apply when the build carries an account endpoint; it renders
- * nothing once the session is signed in, so the app underneath stays intact.
+ * plugin's apply when the build carries an account endpoint; while the
+ * boot-time re-login runs it renders only the opaque backdrop, and it
+ * renders nothing once the session is signed in, so the app underneath
+ * stays intact.
  */
 
 import { useId, useState, useSyncExternalStore } from 'react'
@@ -26,7 +28,8 @@ export type LoginGateProps = LoginGateInjected & { t: (key: LoginKey) => string 
  * events (the overlay layer itself is click-through by design).
  * @param props.controller - the session store coordinator.
  * @param props.t - locale seat bound to the login namespace.
- * @returns the takeover, or null while signed in or not yet hydrated.
+ * @returns the backdrop while the boot re-login is in flight, null while
+ *   signed in, otherwise the takeover.
  */
 export function LoginGate({ controller, brandIcon, t }: LoginGateProps): ReactNode {
   const state = useSyncExternalStore(
@@ -38,7 +41,8 @@ export function LoginGate({ controller, brandIcon, t }: LoginGateProps): ReactNo
   const [showPassword, setShowPassword] = useState(false)
   const usernameId = useId()
   const passwordId = useId()
-  if (state.status !== 'ready' || state.session !== null) return null
+  if (state.restoring) return <div className={css.backdrop} role="presentation" />
+  if (state.session !== null) return null
   const onSubmit = (event: React.FormEvent): void => {
     event.preventDefault()
     if (state.busy || username === '' || password === '') return

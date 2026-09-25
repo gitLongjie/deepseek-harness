@@ -2,7 +2,9 @@
  * Login gate plugin, browser half. When the build carries an account-server
  * endpoint (`DSH_CLIENT_LOGIN_URL`), it registers the full-page sign-in
  * takeover into the layout's overlay seat and the account row (avatar +
- * display name + sign-out) into the sidebar's footer-action seat. A
+ * display name + sign-out) into the sidebar's footer-action seat. Every
+ * launch replays the stored login pair against the endpoint while the gate
+ * shows only a backdrop; a refusal falls back to the sign-in card. A
  * successful sign-in writes the issued key and the server origin into the
  * host credential layer through the existing `credentials.set` wire method.
  */
@@ -32,7 +34,7 @@ const NS = 'login'
  * overrides it with `DSH_CLIENT_LOGIN_URL`; setting that variable to an empty
  * string compiles the gate out entirely.
  */
-const DEFAULT_LOGIN_URL = 'https://claw.deepagens.com/api/user/deepagens-claw/login'
+const DEFAULT_LOGIN_URL = 'https://claw.deepagens.com/api/claw/login'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -94,7 +96,9 @@ export function apply(ctx: ClientContext): void {
     llm: remote.llm,
     settings: remote.settings,
   })
-  controller.load()
+  // Boot-time re-login: a stored pair is replayed against the endpoint while
+  // the gate shows only its backdrop; a refusal drops to the sign-in card.
+  void controller.restore()
   const t = ctx.locale.bind(NS) as (key: LoginKey) => string
   const brandIcon = process.env.DSH_CLIENT_BRAND_ICON ?? '/favicon.svg'
 

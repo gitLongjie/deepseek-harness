@@ -8,7 +8,7 @@ import {
   type LoginSession,
 } from '../src/client/login-store.ts'
 
-const AUTH_URL = 'https://claw.deepagens.com/api/user/deepagens-claw/login'
+const AUTH_URL = 'https://claw.deepagens.com/api/claw/login'
 
 function adapter(overrides: Partial<LoginCredentialAdapter> = {}): LoginCredentialAdapter & {
   calls: { applied: Array<{ session: LoginSession; baseUrl: string }>; cleared: number }
