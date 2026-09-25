@@ -51,3 +51,6 @@ apps/desktop/web/
 .desktop-release/
 apps/desktop/dist-electron/
 native/system/test/bin/
+
+# Local Mimosa security-scan hook state (rewritten per commit; never a review artifact).
+.mimosa/
