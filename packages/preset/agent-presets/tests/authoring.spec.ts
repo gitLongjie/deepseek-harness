@@ -121,7 +121,8 @@ describe('copying a preset', () => {
 
   it('travels the expert-card fields into the copy', async () => {
     await seedPreset(userRoot, 'source', {
-      metadata: 'category: marketing\ntags: [GEO, 报价]\nquickPrompts: [先诊断可见度]\nicon: 🔍\n',
+      metadata: 'category: marketing\ntags: [GEO, 报价]\nquickPrompts: [先诊断可见度]\nicon: 🔍\n'
+        + 'avatar: "data:image/svg+xml,%3Csvg%3E%3C/svg%3E"\n',
     })
 
     await ctx.agentPresets.copy('source', 'mine')
@@ -133,7 +134,24 @@ describe('copying a preset', () => {
       tags: ['GEO', '报价'],
       quickPrompts: ['先诊断可见度'],
       icon: '🔍',
+      avatar: 'data:image/svg+xml,%3Csvg%3E%3C/svg%3E',
     })
+  })
+
+  it('drops the source\'s curator attribution from the copy', async () => {
+    await seedPreset(userRoot, 'source', {
+      metadata: 'category: marketing\nsubtitle: 深度Work 官方\nbadge: 官方\n',
+    })
+
+    await ctx.agentPresets.copy('source', 'mine')
+
+    // Attribution says who wrote THIS card, so a fork left carrying it would
+    // credit the copy to someone who did not write it. The author fills these
+    // in afterwards; the metadata file survives because `category` travels.
+    const copy = (await ctx.agentPresets.list()).find(preset => preset.id === 'mine')
+    expect(copy?.subtitle).toBeUndefined()
+    expect(copy?.badge).toBeUndefined()
+    expect(copy?.category).toBe('marketing')
   })
 
   it('stores the display name the author supplied', async () => {

@@ -3862,7 +3862,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'AgentPreset',
-    declaration: 'export interface AgentPreset {\n    readonly id: string;\n    readonly trust: PresetTrust;\n    readonly path: string;\n    readonly name?: string;\n    readonly description?: string;\n    readonly order?: number;\n    readonly category?: string;\n    readonly tags?: readonly string[];\n    readonly quickPrompts?: readonly string[];\n    readonly icon?: string;\n    readonly broken?: string;\n}',
+    declaration: 'export interface AgentPreset {\n    readonly id: string;\n    readonly trust: PresetTrust;\n    readonly path: string;\n    readonly name?: string;\n    readonly description?: string;\n    readonly order?: number;\n    readonly category?: string;\n    readonly tags?: readonly string[];\n    readonly quickPrompts?: readonly string[];\n    readonly icon?: string;\n    readonly subtitle?: string;\n    readonly badge?: string;\n    readonly avatar?: string;\n    readonly broken?: string;\n}',
   },
   {
     name: 'AgentPresetComposition',
@@ -3886,7 +3886,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'AgentPresetRow',
-    declaration: 'export interface AgentPresetRow {\n    readonly id: string;\n    readonly trust: PresetTrust;\n    readonly isDefault: boolean;\n    readonly name?: string;\n    readonly description?: string;\n    readonly category?: string;\n    readonly tags?: readonly string[];\n    readonly quickPrompts?: readonly string[];\n    readonly icon?: string;\n    readonly broken?: string;\n}',
+    declaration: 'export interface AgentPresetRow {\n    readonly id: string;\n    readonly trust: PresetTrust;\n    readonly isDefault: boolean;\n    readonly name?: string;\n    readonly description?: string;\n    readonly category?: string;\n    readonly tags?: readonly string[];\n    readonly quickPrompts?: readonly string[];\n    readonly icon?: string;\n    readonly subtitle?: string;\n    readonly badge?: string;\n    readonly avatar?: string;\n    readonly broken?: string;\n}',
   },
   {
     name: 'AgentResolver',

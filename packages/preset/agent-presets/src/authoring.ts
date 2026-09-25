@@ -110,15 +110,21 @@ async function tightenModes(dir: string): Promise<void> {
  * not one file. Symlinks are dereferenced so the copy is self-contained
  * rather than a set of links back into the install it was copied from.
  *
- * The copied metadata is then rewritten: the source's description is kept
- * (the file is the author's to edit afterwards), but its name and roster
- * `order` are not — a copy presenting itself identically to its source, or
+ * The copied metadata is then rewritten. What travels is what describes the
+ * EXPERTISE: `description`, and the card-content fields `category`, `tags`,
+ * `quickPrompts`, `icon`, and `avatar` — a forked expert presents in the market
+ * exactly like its source, because those say what the expertise is, not which
+ * copy this is.
+ *
+ * What does not travel is what describes the AUTHOR, plus the roster identity:
+ * `name` and `order` (a copy presenting itself identically to its source, or
  * sorted into the shipped set's declared order, would make the roster stop
- * distinguishing them. The expert-card fields travel unchanged: a forked
- * expert presents the same category, tags, suggested prompts, and glyph as
- * its source, because those say what the expertise is, not which copy this
- * is. With no name given and no field to keep, the file is removed so the
- * copy publishes nothing rather than a blank.
+ * distinguishing them), and `subtitle`/`badge`, which are curator attribution —
+ * a fork left carrying its source's publisher and badge would credit the copy
+ * to someone who did not write it. The author fills those in afterwards.
+ *
+ * With no name given and no field to keep, the file is removed so the copy
+ * publishes nothing rather than a blank.
  * @param roots - the configured roots; the first `user` one receives the copy.
  * @param source - the resolved preset the copy starts from.
  * @param id - the new preset's id, which becomes its directory name.
@@ -155,6 +161,7 @@ export async function copyComposition(
       ...source.tags === undefined ? {} : { tags: source.tags },
       ...source.quickPrompts === undefined ? {} : { quickPrompts: source.quickPrompts },
       ...source.icon === undefined ? {} : { icon: source.icon },
+      ...source.avatar === undefined ? {} : { avatar: source.avatar },
     })
     const metadataPath = join(dir, METADATA_FILE)
     if (rendered === undefined) {

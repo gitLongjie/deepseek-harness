@@ -49,10 +49,31 @@ export interface PresetMetadata {
   /**
    * Short display glyph for an expert-style card, typically one emoji. A
    * preset-relative asset path would need a Host file channel the path-free
-   * roster does not offer; that, and data URIs, ride the marketplace install
-   * work instead.
+   * roster does not offer; a data URI goes in {@link avatar} instead.
    */
   readonly icon?: string
+  /**
+   * Attribution line under the card's name: author, publisher, or handle.
+   *
+   * Curator attribution rather than card content, which is why a copy drops it
+   * (see `copyComposition`): a fork presenting itself under its source's
+   * publisher would attribute the copy to someone who did not write it.
+   */
+  readonly subtitle?: string
+  /** Curator badge beside the card's name, e.g. an invited-expert mark. Dropped by a copy, like {@link subtitle}. */
+  readonly badge?: string
+  /**
+   * Card image: an HTTPS URL or a data URI, at most {@link AVATAR_CAP}. The
+   * card's avatar tile renders it over the glyph.
+   *
+   * A data URI is accepted here rather than only through a marketplace install
+   * because the roster already carries the whole card and the alternative is a
+   * Host file channel the path-free roster deliberately does not offer. Length
+   * is capped so one preset cannot bloat every roster read; no scheme is
+   * screened, because a preset is a composition this deployment already runs —
+   * anything a preset file could say, its composition could do anyway.
+   */
+  readonly avatar?: string
 }
 
 /** Display cap on published tags; the excess degrades silently. */
@@ -64,11 +85,42 @@ export const QUICK_PROMPT_CAP = 3
 /** Display cap, in UTF-16 code units, on the published glyph. */
 export const ICON_CAP = 16
 
+/** Display cap, in UTF-16 code units, on the published attribution line. */
+export const SUBTITLE_CAP = 64
+
+/** Display cap, in UTF-16 code units, on the published curator badge. */
+export const BADGE_CAP = 16
+
+/**
+ * Display cap, in UTF-16 code units, on the published card image.
+ *
+ * Generous enough for an inline SVG — the shipped experts' avatars are a few
+ * hundred code units — while keeping one preset from turning every roster read
+ * into a megabyte. The excess degrades to no image rather than a truncated
+ * one, since half a data URI renders as a broken image.
+ */
+export const AVATAR_CAP = 8192
+
 /** A non-empty trimmed string, or undefined for anything else. */
 function text(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined
   const trimmed = value.trim()
   return trimmed === '' ? undefined : trimmed
+}
+
+/**
+ * A non-empty trimmed string within `cap`, or undefined for anything else.
+ *
+ * Over-cap values degrade to absent rather than being cut down: these fields
+ * are single tokens (a glyph, a badge, an image reference), and a silently
+ * halved one is worse than a missing one.
+ * @param value - the parsed YAML value.
+ * @param cap - the longest value display may carry, in UTF-16 code units.
+ * @returns the usable value, or undefined.
+ */
+function cappedText(value: unknown, cap: number): string | undefined {
+  const trimmed = text(value)
+  return trimmed === undefined || trimmed.length > cap ? undefined : trimmed
 }
 
 /**
@@ -119,6 +171,9 @@ export async function readPresetMetadata(directory: string): Promise<PresetMetad
   const tags = strings(record.tags, TAG_CAP)
   const quickPrompts = strings(record.quickPrompts, QUICK_PROMPT_CAP)
   const icon = text(record.icon)
+  const subtitle = cappedText(record.subtitle, SUBTITLE_CAP)
+  const badge = cappedText(record.badge, BADGE_CAP)
+  const avatar = cappedText(record.avatar, AVATAR_CAP)
   return {
     ...name === undefined ? {} : { name },
     ...description === undefined ? {} : { description },
@@ -127,6 +182,9 @@ export async function readPresetMetadata(directory: string): Promise<PresetMetad
     ...tags === undefined ? {} : { tags },
     ...quickPrompts === undefined ? {} : { quickPrompts },
     ...icon === undefined ? {} : { icon },
+    ...subtitle === undefined ? {} : { subtitle },
+    ...badge === undefined ? {} : { badge },
+    ...avatar === undefined ? {} : { avatar },
   }
 }
 
@@ -146,6 +204,9 @@ export function renderPresetMetadata(metadata: PresetMetadata): string | undefin
   const tags = strings(metadata.tags, TAG_CAP)
   const quickPrompts = strings(metadata.quickPrompts, QUICK_PROMPT_CAP)
   const icon = text(metadata.icon)
+  const subtitle = cappedText(metadata.subtitle, SUBTITLE_CAP)
+  const badge = cappedText(metadata.badge, BADGE_CAP)
+  const avatar = cappedText(metadata.avatar, AVATAR_CAP)
   const document = {
     ...name === undefined ? {} : { name },
     ...description === undefined ? {} : { description },
@@ -154,6 +215,9 @@ export function renderPresetMetadata(metadata: PresetMetadata): string | undefin
     ...tags === undefined ? {} : { tags: [...tags] },
     ...quickPrompts === undefined ? {} : { quickPrompts: [...quickPrompts] },
     ...icon === undefined ? {} : { icon },
+    ...subtitle === undefined ? {} : { subtitle },
+    ...badge === undefined ? {} : { badge },
+    ...avatar === undefined ? {} : { avatar },
   }
   if (Object.keys(document).length === 0) return undefined
   return yaml.dump(document, { lineWidth: -1 })

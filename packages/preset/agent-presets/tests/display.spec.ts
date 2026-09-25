@@ -40,4 +40,21 @@ describe('isExpertPreset', () => {
   it('keeps a row without a category a session mode', () => {
     expect(isExpertPreset({})).toBe(false)
   })
+
+  it('marks a row that publishes card content without the committed marker', () => {
+    // An expert authored elsewhere — copied in, or delivered as an installed
+    // package — arrives without this deployment's committed `category`, so its
+    // card content is what has to identify it. Without this the row would be
+    // offered by the mode chip and never appear in the market at all.
+    expect(isExpertPreset({ tags: ['报价', '结算'] })).toBe(true)
+    expect(isExpertPreset({ quickPrompts: ['给这个品牌报个价'] })).toBe(true)
+  })
+
+  it('leaves a mode preset a mode however it decorates itself', () => {
+    // `description` is on every mode preset, and a glyph is a decoration one
+    // may reasonably add; neither may move a mode out of the picker.
+    expect(isExpertPreset({ description: '完整的编码 agent。' })).toBe(false)
+    expect(isExpertPreset({ icon: '🔧' })).toBe(false)
+    expect(isExpertPreset({ tags: [] })).toBe(false)
+  })
 })
