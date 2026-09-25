@@ -63,15 +63,19 @@ export const inject = [
   'slots', 'locale', 'remote', 'remote.agentPresets', 'sessions', 'layout', 'uiWorkspace', 'uiAgentPreset',
 ]
 
-/** Project one shipped roster row onto the market's card record. */
+/** Project one roster row onto the market's card record. */
 function recordOf(preset: AgentPresetRow): ExpertRecord {
   return {
     id: preset.id,
     name: preset.name ?? preset.id,
+    trust: preset.trust,
+    ...(preset.subtitle !== undefined ? { subtitle: preset.subtitle } : {}),
+    ...(preset.avatar !== undefined && preset.avatar !== '' ? { avatar: preset.avatar } : {}),
     ...(preset.description !== undefined ? { description: preset.description } : {}),
     ...(preset.category !== undefined ? { category: preset.category } : {}),
     ...(preset.tags !== undefined ? { tags: preset.tags } : {}),
     ...(preset.quickPrompts !== undefined ? { quickPrompts: preset.quickPrompts } : {}),
+    ...(preset.badge !== undefined ? { badge: preset.badge } : {}),
     ...(preset.icon !== undefined && preset.icon !== '' ? { icon: preset.icon } : {}),
     // A row the host reported broken stays on the page: the market is the
     // only surface that advertises it, so the card carries the health
@@ -89,7 +93,9 @@ function recordOf(preset: AgentPresetRow): ExpertRecord {
 export function apply(ctx: Context): void {
   const sessions = ctx.get('sessions') as ISessions
   const uiWorkspace = ctx.get('uiWorkspace') as unknown as { startSession(workspaceId?: unknown): void }
-  const uiAgentPreset = ctx.get('uiAgentPreset') as unknown as { stageNextSessionPreset(id: string): void }
+  const uiAgentPreset = ctx.get('uiAgentPreset') as unknown as {
+    stageNextSessionPreset(id: string): boolean
+  }
   const uiExpert = new UiExpertService(ctx, sessions, ctx.layout)
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-expert: dictionaries')
 
@@ -115,14 +121,28 @@ export function apply(ctx: Context): void {
       return { experts: shipped }
     },
     hire: (id: string) => {
+      // Stage BEFORE closing the page. A refused stage means nothing will
+      // compose the chat this hire promises, so leaving the page standing with
+      // the reason is the honest answer — closing first would drop the user
+      // into a chat running the deployment default, with nothing to explain it.
+      if (!uiAgentPreset.stageNextSessionPreset(id)) {
+        return ctx.locale.bind(NS)('card.hireUnavailable')
+      }
       // The explicit close keeps the intent local; the service's own session
       // watcher would close the page on the resulting navigation anyway.
       uiExpert.closePage()
-      // Stage BEFORE starting, mirroring the settings section's conversational
-      // authoring entry: the still-current session would refuse a swap, so the
-      // pick must be waiting when the flow creates or reuses the blank one.
-      uiAgentPreset.stageNextSessionPreset(id)
+      // The pick is already staged, so the flow creates or reuses the blank
+      // session and the seat composes it there. Staging first is what makes
+      // that possible: the still-current session would refuse a swap.
       uiWorkspace.startSession()
+      return undefined
+    },
+    remove: async (id: string) => {
+      const result = await ctx.remote.agentPresets.deletePreset(id)
+      // The refusal is the Host's own words — a shipped expert, or a directory
+      // outside the writable root — and it names which. Passing it through
+      // untranslated is the policy for wire errors.
+      return result.ok ? undefined : result.error.message
     },
   })
 

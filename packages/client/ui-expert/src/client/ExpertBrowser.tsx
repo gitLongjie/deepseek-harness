@@ -70,6 +70,7 @@ function avatarTone(id: string): string {
 export function ExpertBrowser({
   load,
   hire,
+  remove,
   t,
 }: ExpertBrowserProps) {
   // undefined = the market read is in flight; error switches the grid for a
@@ -79,6 +80,12 @@ export function ExpertBrowser({
   const [reloadToken, setReloadToken] = useState(0)
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState<string | null>(null)
+  // A refused hire or removal. One slot: both are card actions, and the answer
+  // belongs to whichever the user just took.
+  const [actionError, setActionError] = useState<string | null>(null)
+  // The card whose removal is armed. Removing deletes a preset directory, so
+  // it takes a second click; arming is per card and any other action clears it.
+  const [armedRemove, setArmedRemove] = useState<string | null>(null)
 
   useEffect(() => {
     const reader = new AbortController()
@@ -102,6 +109,28 @@ export function ExpertBrowser({
   )
   // A filter row only earns its place when the metadata actually classifies.
   const showFilters = categories.length > 0
+
+  // Removing the last expert of a category takes its chip with it, which would
+  // leave the grid filtered on an id nothing can match and no way back to 全部.
+  useEffect(() => {
+    if (category !== null && !categories.includes(category)) setCategory(null)
+  }, [category, categories])
+
+  /** Remove one armed card, then re-read the market so the grid matches disk. */
+  const confirmRemove = (id: string): void => {
+    setArmedRemove(null)
+    setActionError(null)
+    void remove(id).then(
+      (refused) => {
+        if (refused === undefined) {
+          setReloadToken(token => token + 1)
+          return
+        }
+        setActionError(refused)
+      },
+      (error: unknown) => { setActionError(messageOf(error)) },
+    )
+  }
 
   return (
     <div className={css.root}>
@@ -131,6 +160,10 @@ export function ExpertBrowser({
           <div className={css.state}><p className={css.stateText}>{t('empty.none')}</p></div>
         ) : (
           <>
+            {actionError !== null && (
+              <p className={css.actionError} role="alert">{actionError}</p>
+            )}
+
             {showFilters && (
               <nav className={css.filters} aria-label={t('page.title')}>
                 <button
@@ -193,14 +226,56 @@ export function ExpertBrowser({
                     {record.broken !== undefined && (
                       <p className={css.broken} role="note">{t('card.broken', { reason: record.broken })}</p>
                     )}
-                    <button
-                      type="button"
-                      className={css.hire}
-                      disabled={record.broken !== undefined}
-                      onClick={() => { hire(record.id) }}
-                    >
-                      {t('card.hire')}
-                    </button>
+                    <div className={css.cardActions}>
+                      <button
+                        type="button"
+                        className={css.hire}
+                        disabled={record.broken !== undefined}
+                        onClick={() => {
+                          setArmedRemove(null)
+                          setActionError(null)
+                          // A refusal means nothing will compose the chat this
+                          // hire promises; the page stays and says so.
+                          const refused = hire(record.id)
+                          if (refused !== undefined) setActionError(refused)
+                        }}
+                      >
+                        {t('card.hire')}
+                      </button>
+                      {/* Only the person's own expert is theirs to remove: a
+                          shipped one belongs to the deployment, and the
+                          settings section cannot offer the rest because it
+                          excludes expert-marked rows. */}
+                      {record.trust === 'user' && (armedRemove === record.id ? (
+                        <>
+                          <button
+                            type="button"
+                            className={css.removeConfirm}
+                            onClick={() => { confirmRemove(record.id) }}
+                          >
+                            {t('card.removeConfirm')}
+                          </button>
+                          <button
+                            type="button"
+                            className={css.cancel}
+                            onClick={() => { setArmedRemove(null) }}
+                          >
+                            {t('card.cancel')}
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          className={css.remove}
+                          onClick={() => {
+                            setActionError(null)
+                            setArmedRemove(record.id)
+                          }}
+                        >
+                          {t('card.remove')}
+                        </button>
+                      ))}
+                    </div>
                   </li>
                 ))}
               </ul>

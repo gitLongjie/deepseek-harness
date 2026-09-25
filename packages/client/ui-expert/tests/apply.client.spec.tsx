@@ -19,7 +19,7 @@ function stub(): RemoteStub {
         presets: [
           // A mode preset: no card metadata, never admitted to the market.
           { id: 'standard', trust: 'system' as const, isDefault: true, name: '标准模式' },
-          // A shipped expert: category is the committed expert marker.
+          // A shipped expert: `category` is the committed expert marker.
           {
             id: 'geo-optimizer', trust: 'system' as const, isDefault: false,
             name: 'GEO 优化专家', category: 'marketing',
@@ -28,6 +28,14 @@ function stub(): RemoteStub {
           {
             id: 'fresh-expert', trust: 'system' as const, isDefault: false,
             name: '新装专家', category: '写作', icon: '✒️',
+          },
+          // An expert installed into the user root. It publishes no `category`
+          // — this deployment never curated it — so its card content is the
+          // only thing that identifies it. Without the widened marker it would
+          // be offered by the mode chip and never appear here.
+          {
+            id: 'installed-expert', trust: 'user' as const, isDefault: false,
+            name: '装进来的专家', tags: ['报价'], quickPrompts: ['给这个品牌报个价'],
           },
           // A shipped expert whose composition cannot mount: the market keeps
           // the row so its card can carry the health verdict.
@@ -49,7 +57,12 @@ async function bench(remote: RemoteStub) {
   const locale = new LocaleRuntime(ctx)
   ctx.provide('locale', locale)
   const calls: string[] = []
-  const uiAgentPreset = { stageNextSessionPreset: vi.fn((id: string) => { calls.push(`stage:${id}`) }) }
+  // The double models the real service's contract: a bound flow ACCEPTS the
+  // pick and says so, which is what the hire action gates on before it closes
+  // the page and starts a session.
+  const uiAgentPreset = {
+    stageNextSessionPreset: vi.fn((id: string) => { calls.push(`stage:${id}`); return true }),
+  }
   ctx.provide('uiAgentPreset', uiAgentPreset as never)
   const uiWorkspace = { startSession: vi.fn(() => { calls.push('start') }) }
   ctx.provide('uiWorkspace', uiWorkspace as never)
@@ -172,9 +185,14 @@ describe('ui-expert browser plugin', () => {
     const { experts } = await injected.load()
     // The roster is the market's only source: the mode preset never enters,
     // and every admitted row is the deployment's own record — broken rows
-    // included, so their cards can report why they cannot be hired.
-    expect(experts.map(expert => expert.id)).toEqual(['geo-optimizer', 'fresh-expert', 'gone-expert'])
+    // included, so their cards can report why they cannot be hired. The
+    // installed expert is admitted on its card content alone, which is what
+    // makes an expert authored elsewhere a card rather than a session mode.
+    expect(experts.map(expert => expert.id))
+      .toEqual(['geo-optimizer', 'fresh-expert', 'installed-expert', 'gone-expert'])
     expect(experts.find(expert => expert.id === 'geo-optimizer')?.name).toBe('GEO 优化专家')
+    // The card carries the trust the removal affordance keys on.
+    expect(experts.find(expert => expert.id === 'installed-expert')?.trust).toBe('user')
     expect(experts.find(expert => expert.id === 'gone-expert')?.broken)
       .toBe('the composition file agent.cordis.yml is missing')
     expect(remote.list).toHaveBeenCalledTimes(1)
@@ -184,6 +202,32 @@ describe('ui-expert browser plugin', () => {
     // page must stand down so the session surface takes the area back.
     expect(b.calls).toEqual(['stage:geo-optimizer', 'start'])
     expect((b.ctx.get('uiExpert') as UiExpertService).view.getSnapshot().open).toBe(false)
+  })
+
+  it('refuses to start a chat when no conversation flow can receive the pick', async () => {
+    const b = await bench(stub())
+    declare(b.slots)
+    await b.ctx.plugin({ inject: [...inject], apply }).await()
+
+    // The staging service reports the pick found no seat. Starting anyway
+    // would open a chat running the deployment default while the page claims
+    // the expert was hired — the silent failure this refusal ends.
+    // mockImplementation, not mockReturnValue: the override must keep the
+    // stub's own call recording, which mockReturnValue would replace.
+    b.uiAgentPreset.stageNextSessionPreset.mockImplementation((id: string) => {
+      b.calls.push(`stage:${id}`)
+      return false
+    })
+    const page = b.slots.entries('conversation.expert.browser')[0]
+    const injected = (page?.inject as unknown as () => {
+      hire: (id: string) => string | undefined
+    })()
+
+    const refused = injected.hire('geo-optimizer')
+
+    expect(refused).toBeTruthy()
+    expect(b.calls).toEqual(['stage:geo-optimizer'])
+    expect(b.uiWorkspace.startSession).not.toHaveBeenCalled()
   })
 
   it('degrades to an empty market when the roster read refuses', async () => {

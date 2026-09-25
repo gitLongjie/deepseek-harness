@@ -68,6 +68,27 @@ export class AgentPresetSeatController {
   private staged: string | undefined
 
   /**
+   * Whether {@link staged} came from another screen rather than from this chip.
+   *
+   * A cross-surface stage is a hire: it names the composition the flow is
+   * ABOUT to start, so the session running at the moment the pick was made is
+   * not the one it is waiting for and must not consume it.
+   */
+  private stageIntroduce = false
+
+  /**
+   * The preset a pick through THIS seat last landed on a session.
+   *
+   * An expert is hired from the market rather than offered by the menu, so a
+   * placeholder carrying one is indistinguishable from a leftover by roster
+   * membership alone — which is what made a completed hire revert to the
+   * default on adoption. This is what tells the two apart: a composition this
+   * seat itself composed is that pick's, while one it never composed is
+   * another flow's leftover.
+   */
+  private honored: string | undefined
+
+  /**
    * Every healthy preset the last roster read reported, for naming a
    * composition the menu does not offer and for resolving the default.
    */
@@ -125,7 +146,10 @@ export class AgentPresetSeatController {
       return
     }
     const { presets, modeSelectionEnabled } = roster.value
-    if (!modeSelectionEnabled) this.staged = undefined
+    if (!modeSelectionEnabled) {
+      this.staged = undefined
+      this.stageIntroduce = false
+    }
     const options = presetOptions(presets)
     // The chip opens on the Host-effective default while the roster still
     // offers it as a mode; a default it no longer offers (deleted, or
@@ -187,6 +211,7 @@ export class AgentPresetSeatController {
    */
   stage(id: string, introduce = false): void {
     this.staged = id
+    this.stageIntroduce = introduce
     this.set({ ...this.naming(id), error: null, introduce })
   }
 
@@ -228,11 +253,17 @@ export class AgentPresetSeatController {
    * a preset its own menu cannot even offer.
    *
    * What is restored is only what these surfaces cannot have chosen. A pick
-   * made on this screen or the settings page is that flow's own answer and
-   * stays; a composition the menu has no row for — an expert hired from the
-   * market, a preset deleted since — is another flow's leftover. A staged pick
-   * returns immediately too: it IS what this flow asked for, and the applier
-   * owns switching the Session onto it.
+   * made on this screen, the settings page, or the expert market is that flow's
+   * own answer and stays; a composition this seat never composed — a preset
+   * deleted since, a chat another flow left behind — is a leftover. A staged
+   * pick returns immediately too: it IS what this flow asked for, and the
+   * applier owns switching the Session onto it.
+   *
+   * "This seat never composed" is the load-bearing half, and roster membership
+   * cannot express it: an expert is hired from the market rather than offered
+   * by the menu, so a placeholder carrying one looks exactly like a leftover.
+   * {@link honored} is what separates them, which is why a completed hire
+   * survives the next adoption instead of reverting to the default.
    * @param sessionId - the adopted placeholder, still blank.
    * @returns once the composition settled, or immediately when there is nothing to do.
    */
@@ -247,6 +278,13 @@ export class AgentPresetSeatController {
     if (defaultId === undefined) return
     const current = presetOf(session)
     if (current === defaultId) return
+    // A composition this seat's own pick landed — an expert hired from the
+    // market, which this menu cannot offer — is that pick's, not a leftover.
+    // Still-healthy is part of it: a preset deleted since the hire leaves a
+    // composition nothing can mount, so restoring the default is the only
+    // useful answer and the leftover rule applies again.
+    if (current !== undefined && current === this.honored
+      && this.entries.some(entry => entry.id === current)) return
     if (current !== undefined && this.options.some(option => option.id === current)) return
     const result = await this.ctx.remote.agentPresets.select(sessionId, defaultId)
     // A refusal means the Session stopped being the placeholder this flow
@@ -277,15 +315,24 @@ export class AgentPresetSeatController {
       return
     }
     if (session === undefined) return
-    // A started session's history was produced under its own composition; the
-    // host refuses the swap, so the stage is no longer meaningful.
-    if (!session.blank || presetOf(session) === staged) {
+    // A started session's history was produced under its own composition, and
+    // the host refuses the swap. That consumes a pick made on this chip, which
+    // targets the session it is showing; a pick staged from another screen (a
+    // hire) targets a session the flow has not started yet, so a session still
+    // running here is not the one it is waiting for and must not consume it.
+    if (presetOf(session) === staged) {
       this.staged = undefined
+      this.stageIntroduce = false
+      return
+    }
+    if (!session.blank) {
+      if (!this.stageIntroduce) this.staged = undefined
       return
     }
     this.set({ busy: true, error: null })
     const result = await this.ctx.remote.agentPresets.select(session.id, staged)
     this.staged = undefined
+    this.stageIntroduce = false
     if (!result.ok) {
       const { error } = result
       this.set({
@@ -303,6 +350,10 @@ export class AgentPresetSeatController {
       return
     }
     // Consumed: the next new session opens on the Host-effective default again.
+    // Recorded as this seat's own pick so that adopting this Session later as a
+    // New Session placeholder cannot restore the default over the composition
+    // the user just hired.
+    this.honored = result.value
     this.set({ busy: false, ...this.naming(result.value) })
   }
 }

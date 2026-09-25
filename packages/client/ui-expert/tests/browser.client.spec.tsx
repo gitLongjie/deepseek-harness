@@ -14,23 +14,28 @@ afterEach(cleanup)
 const t: ExpertBrowserProps['t'] = makeTranslate(zh, commonZh)
 
 const ROWS: readonly ExpertRecord[] = [
-  { id: 'standard', name: '标准模式', subtitle: '默认助手', description: '完整的编码 agent。' },
+  { id: 'standard', name: '标准模式', trust: 'system', subtitle: '默认助手', description: '完整的编码 agent。' },
   {
-    id: 'geo-optimizer', name: 'GEO 优化专家', subtitle: '可见度实验室', badge: '特邀专家',
+    id: 'geo-optimizer', name: 'GEO 优化专家', trust: 'system', subtitle: '可见度实验室', badge: '特邀专家',
     description: '诊断品牌在 AI 搜索中的可见度。', category: 'marketing',
     tags: ['GEO', '报价'], quickPrompts: ['先诊断可见度'], icon: '🔍',
   },
   {
-    id: 'painted', name: '插画师', avatar: 'data:image/svg+xml,%3Csvg%3E%3C/svg%3E',
+    id: 'painted', name: '插画师', trust: 'system', avatar: 'data:image/svg+xml,%3Csvg%3E%3C/svg%3E',
   },
 ]
 
 /** A row the host reported unable to mount: visible, but not hireable. */
 const BROKEN_ROW: readonly ExpertRecord[] = [
   {
-    id: 'gone-expert', name: '失效专家', category: 'marketing',
+    id: 'gone-expert', name: '失效专家', trust: 'system', category: 'marketing',
     broken: 'the composition file agent.cordis.yml is missing',
   },
+]
+
+/** An expert installed into the user root: the person's own, so removable. */
+const OWN_ROW: readonly ExpertRecord[] = [
+  { id: 'mine', name: '我的专家', trust: 'user', category: 'marketing' },
 ]
 
 function mount(overrides: Partial<ExpertBrowserProps> = {}) {
@@ -39,11 +44,17 @@ function mount(overrides: Partial<ExpertBrowserProps> = {}) {
   const props = {
     load: vi.fn(async () => ({ experts: ROWS })),
     hire: vi.fn(),
+    remove: vi.fn(async () => undefined),
     t,
     ...overrides,
   } as unknown as ExpertBrowserProps
   render(<ExpertBrowser {...props} />)
-  return { props, hire: props.hire as ReturnType<typeof vi.fn>, load: props.load as ReturnType<typeof vi.fn> }
+  return {
+    props,
+    hire: props.hire as ReturnType<typeof vi.fn>,
+    remove: props.remove as ReturnType<typeof vi.fn>,
+    load: props.load as ReturnType<typeof vi.fn>,
+  }
 }
 
 describe('ExpertBrowser', () => {
@@ -115,6 +126,76 @@ describe('ExpertBrowser', () => {
     fireEvent.click(hireButtons[1]!)
 
     expect(b.hire).toHaveBeenCalledWith('geo-optimizer')
+  })
+
+  it('reports a hire the conversation flow could not receive', async () => {
+    // The page closes on a successful hire, so a refusal is the only case
+    // where the user is still looking at the card that failed. Reporting it
+    // here is what stops a silent drop into an uncomposed chat.
+    const b = mount({ hire: vi.fn(() => '当前没有可以接收的对话，暂时无法聘用；请先在侧边栏打开一个对话再试。') })
+    await waitFor(() => {
+      expect(screen.getByText('GEO 优化专家')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getAllByRole('button', { name: '聘用到新对话' })[1]!)
+
+    expect(await screen.findByRole('alert')).toBeTruthy()
+    expect(screen.getByRole('alert').textContent).toContain('暂时无法聘用')
+    expect(b.hire).toHaveBeenCalledWith('geo-optimizer')
+  })
+
+  it('offers removal only for a user-root expert, and only after confirming', async () => {
+    const b = mount({ load: vi.fn(async () => ({ experts: OWN_ROW })) })
+    await waitFor(() => {
+      expect(screen.getByText('我的专家')).toBeTruthy()
+    })
+
+    // Removal deletes a preset directory, so the first click only arms it.
+    fireEvent.click(screen.getByRole('button', { name: '移除' }))
+    expect(b.remove).not.toHaveBeenCalled()
+
+    // Cancelling disarms without touching the roster.
+    fireEvent.click(screen.getByRole('button', { name: '取消' }))
+    expect(b.remove).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: '移除' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '移除' }))
+    fireEvent.click(screen.getByRole('button', { name: '确认移除' }))
+
+    await waitFor(() => {
+      expect(b.remove).toHaveBeenCalledWith('mine')
+    })
+    // The grid re-reads the roster so it matches what is left on disk.
+    expect(b.load).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps no removal affordance on an expert the deployment ships', async () => {
+    mount()
+    await waitFor(() => {
+      expect(screen.getByText('GEO 优化专家')).toBeTruthy()
+    })
+
+    // A shipped expert belongs to the deployment; an upgrade would restore it,
+    // so offering removal here would promise something the next start undoes.
+    expect(screen.queryByRole('button', { name: '移除' })).toBeNull()
+  })
+
+  it('surfaces a refused removal instead of dropping it', async () => {
+    const b = mount({
+      load: vi.fn(async () => ({ experts: OWN_ROW })),
+      remove: vi.fn(async () => 'agent-presets: preset "mine" cannot be written: it ships with the deployment'),
+    })
+    await waitFor(() => {
+      expect(screen.getByText('我的专家')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: '移除' }))
+    fireEvent.click(screen.getByRole('button', { name: '确认移除' }))
+
+    const alert = await screen.findByRole('alert')
+    expect(alert.textContent).toContain('ships with the deployment')
+    // A refusal leaves the roster alone, so the grid is not re-read.
+    expect(b.load).toHaveBeenCalledTimes(1)
   })
 
   it('keeps a broken expert visible but not hireable, with the health reason', async () => {

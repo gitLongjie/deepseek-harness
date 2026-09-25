@@ -22,6 +22,15 @@ export interface ExpertRecord {
   readonly id: string
   /** Display name. */
   readonly name: string
+  /**
+   * Trust of the root the preset was discovered under.
+   *
+   * The card uses it to decide whether it may offer removal: a shipped expert
+   * belongs to the deployment and an upgrade would restore it, while a
+   * user-root one is the person's own and has no other surface to remove it
+   * from once it is expert-marked.
+   */
+  readonly trust: 'system' | 'user'
   /** Attribution line under the name: author, publisher, or handle. */
   readonly subtitle?: string
   /** Avatar image (HTTPS URL or data URI); the avatar tile renders it over the glyph. */
@@ -89,11 +98,27 @@ export type ExpertBrowserInjected = {
   load: () => Promise<{ experts: readonly ExpertRecord[] }>
   /**
    * Hire one expert: stage its preset for the NEXT session and start that
-   * session. Closes the page; the session surface takes the conversation
-   * area back.
+   * session. Closes the page on success; the session surface takes the
+   * conversation area back.
+   *
+   * A refusal leaves the page standing and hands the caller the reason, so the
+   * card can report it. Hiring is the one action here that cannot be retried
+   * from the result alone — the page would already be gone.
    * @param id - the preset id the card's hire action forwards.
+   * @returns the refusal message, or undefined once the hire landed.
    */
-  hire: (id: string) => void
+  hire: (id: string) => string | undefined
+  /**
+   * Remove one user-root expert from the roster.
+   *
+   * Offered only for a card the deployment does not own. A shipped expert is
+   * the deployment's; the settings section owns the rest of the roster, but it
+   * excludes expert-marked rows, so without this the market would be the one
+   * surface that shows an installed expert and cannot remove it.
+   * @param id - the preset id to delete.
+   * @returns the refusal message, or undefined once it was removed.
+   */
+  remove: (id: string) => Promise<string | undefined>
 }
 
 /** Full page props: owner share + injected actions + the locale seat. */
