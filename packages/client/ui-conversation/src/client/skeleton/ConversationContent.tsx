@@ -4,6 +4,7 @@ import type { SessionSnapshot } from '@deepseek-ai/dsh-api-session-controller/cl
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import type { ConversationSlotProps, InputZone } from '../contract/slots.ts'
 import { HeroShell, WorkspaceChip, workspaceLabel } from './EmptyHero.tsx'
+import { HeroSkillBar, HeroSuggestions } from './HeroExtras.tsx'
 import css from './ConversationRoot.module.css'
 
 type ConversationContentProps = Omit<ConversationSlotProps, 'useSession' | 'useConversation'> & {
@@ -109,7 +110,7 @@ function WidthHandle(props: {
 export function ConversationContent({
   sessionId, session, phase, hero, useSessions, useSessionPendingInteraction,
   useWorkspaces, useInput, useComposerBlock, renderSlot, renderSlotChain,
-  selectWorkspace, t, onHandleStart, onHandleDrag, onHandleCommit, onHandleEnd,
+  selectWorkspace, inputActions, t, onHandleStart, onHandleDrag, onHandleCommit, onHandleEnd,
 }: ConversationContentProps) {
   const pendingInteraction = useSessionPendingInteraction(snapshot =>
     sessionId === undefined ? undefined : snapshot.get(sessionId))
@@ -237,12 +238,19 @@ export function ConversationContent({
         : hero ? { placeholder: t('placeholder.hero') } : {}),
   })
 
+  // Hero starter picks fill the live input machine's draft; without a machine
+  // (no session yet) the extras do not render at all.
+  const pickPrompt = (text: string): void => { inputActions?.setDraft(text) }
+  const heroExtras = hero && !inert && inputActions !== undefined
+
   const composerBar = (
     <div className={clsx(css.composerStack, hero && css.composerHero)}>
       {hero && <HeroShell t={t} renderSlot={renderSlot} />}
       {hero && heroWorkspaceRow}
       {zone !== undefined && renderSlot('conversation.input.dock', zone)}
+      {heroExtras && <HeroSkillBar t={t} onPick={pickPrompt} />}
       {inputBar}
+      {heroExtras && <HeroSuggestions t={t} onPick={pickPrompt} />}
     </div>
   )
 
