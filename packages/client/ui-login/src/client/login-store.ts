@@ -150,22 +150,16 @@ export class LoginStore {
    * @param apiKey - the API key the sign-in just issued.
    */
   private async syncCatalogFromGateway(apiKey: string): Promise<void> {
+    const gatewayBase = `${this.baseUrl()}/v1`
     const discovered = await this.api.llm.discoverModels('llm-deepagens', {
-      baseURL: `${this.baseUrl()}/v1`,
+      baseURL: gatewayBase,
       apiKey,
     })
     if (!discovered.ok) {
-      console.warn(`[ui-login] gateway model discovery refused: ${discovered.error.code}`)
-      return
+      // The message carries the endpoint's own verdict (HTTP status, key hint);
+      // the code alone says only that the Remote wrapper caught an LlmError.
+      console.warn(`[ui-login] gateway model discovery refused: ${discovered.error.code}: ${discovered.error.message}`)
     }
-    const catalogModels = discovered.value.map(m => ({
-      id: m.id,
-      name: m.name ?? m.id,
-      description: '',
-      contextWindow: m.contextWindow ?? 128_000,
-      maxTokens: m.maxTokens ?? 4096,
-      inputModalities: ['text'],
-    }))
     const described = await this.api.settings.describe()
     if (!described.ok) {
       console.warn(`[ui-login] settings describe refused: ${described.error.message}`)
@@ -173,21 +167,50 @@ export class LoginStore {
     }
     const namespaces = described.value.namespaces
     const ns = namespaces.find(view => view.ns === 'llm-deepagens')
-    const stored = (ns?.value as { models?: unknown } | undefined)?.models
-    if (stored !== undefined && modelsEquivalent(stored, catalogModels)) {
-      console.warn(`[ui-login] gateway catalog unchanged (${catalogModels.length} models); keeping stored`)
-    } else {
-      const written = await this.api.settings.mutate('llm-deepagens', [
-        { op: 'set', path: ['baseURL'], value: `${this.baseUrl()}/v1` },
-        { op: 'set', path: ['models'], value: catalogModels },
-      ], ns?.revision)
-      if (!written.ok) {
-        console.warn(`[ui-login] deepagens catalog write refused: ${written.error.message}`)
+    const stored = (ns?.value as { baseURL?: unknown; models?: unknown } | undefined)
+    // The sign-in already applied this gateway's credentials, so the route's
+    // endpoint must follow them even when the catalog read is refused: a base
+    // left over from an earlier gateway sends every later request for the
+    // fresh key to the wrong server.
+    const baseURLOp = stored?.baseURL === gatewayBase
+      ? []
+      : [{ op: 'set' as const, path: ['baseURL'], value: gatewayBase }]
+    // A catalog row carries only the capacities the gateway declared. Storing
+    // a fabricated window would pin a fake fact on every silent endpoint —
+    // absent capacities instead resolve at request time from the route's
+    // defaultContextWindow and maxTokens, and the Models page shows its
+    // provider-default placeholder.
+    let catalogModels: GatewayCatalogRow[] | undefined
+    let modelsOp: Array<{ op: 'set'; path: string[]; value: GatewayCatalogRow[] }> = []
+    if (discovered.ok) {
+      catalogModels = discovered.value.map((m): GatewayCatalogRow => ({
+        id: m.id,
+        name: m.name ?? m.id,
+        description: '',
+        ...m.contextWindow === undefined ? {} : { contextWindow: m.contextWindow },
+        ...m.maxTokens === undefined ? {} : { maxTokens: m.maxTokens },
+        inputModalities: ['text'],
+      }))
+      if (modelsEquivalent(stored?.models, catalogModels)) {
+        console.warn(`[ui-login] gateway catalog unchanged (${catalogModels.length} models); keeping stored`)
       } else {
-        console.warn(`[ui-login] refreshed deepagens catalog from gateway: ${catalogModels.length} models`)
+        modelsOp = [{ op: 'set', path: ['models'], value: catalogModels }]
       }
     }
-    if (catalogModels.length > 0) await this.adoptFirstGatewayModel(namespaces, catalogModels)
+    const operations = [...baseURLOp, ...modelsOp]
+    if (operations.length > 0) {
+      const written = await this.api.settings.mutate('llm-deepagens', operations, ns?.revision)
+      if (!written.ok) {
+        console.warn(`[ui-login] deepagens catalog write refused: ${written.error.message}`)
+      } else if (modelsOp.length > 0) {
+        console.warn(`[ui-login] refreshed deepagens catalog from gateway: ${catalogModels?.length ?? 0} models`)
+      } else {
+        console.warn(`[ui-login] re-pointed the deepagens endpoint at ${gatewayBase}; catalog kept`)
+      }
+    }
+    if (catalogModels !== undefined && catalogModels.length > 0) {
+      await this.adoptFirstGatewayModel(namespaces, catalogModels)
+    }
   }
 
   /**
@@ -379,6 +402,16 @@ function errorKeyOf(response: Response, body: Record<string, unknown>): string {
   const message = body.message
   if (typeof message === 'string' && message !== '') return message
   return response.status >= 500 || response.status === 0 ? 'networkUnreachable' : 'invalidResponse'
+}
+
+/** One catalog row this store persists for the login gateway's route. */
+type GatewayCatalogRow = {
+  readonly id: string
+  readonly name: string
+  readonly description: string
+  readonly contextWindow?: number
+  readonly maxTokens?: number
+  readonly inputModalities: ['text']
 }
 
 /**
