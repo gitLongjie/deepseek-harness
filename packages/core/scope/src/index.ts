@@ -14,8 +14,18 @@ export type { ScopeLayer } from './store.ts'
 /** An opaque, identity-compared scope key. */
 export type ScopeKey = object
 
-/** Context tag written by {@link createScope}. */
-const kScope = Symbol('dsh.scope')
+/**
+ * Context tag written by {@link createScope}.
+ *
+ * A global-registry symbol, not a module-local one: a deployment can
+ * materialize this package more than once in one process (an installed host's
+ * own copy beside a copy resolved through a profile's junctioned
+ * `node_modules`), and a private symbol would make one copy's `createScope`
+ * tag invisible to another copy's `scopeOf` — a scoped preset mount would
+ * reject its own composition. Cordis brands `Context.is` with `Symbol.for`
+ * for the same reason.
+ */
+const kScope = Symbol.for('dsh.scope')
 
 declare const ScopedBrand: unique symbol
 
@@ -26,17 +36,35 @@ declare const ScopedBrand: unique symbol
  */
 export type Scoped<T extends object> = object & { readonly [ScopedBrand]: T }
 
-/** The key associated with each carrier. Presence distinguishes an unkeyed carrier from a non-carrier. */
-const carrierKeys = new WeakMap<object, ScopeKey | undefined>()
-
 /**
- * The enclosing scope of each key. One relation powers both directions of
- * scope nesting: registration views inherit DOWN the chain (a child scope
- * sees its ancestors' layers — {@link ScopedLayers}), and event admission
- * extends UP it (a listener tagged with an ancestor receives events dispatched
- * to a descendant key — {@link scopeTarget}).
+ * The weak maps carrying scope ancestry and carrier identity, shared by every
+ * copy of this module in the process.
+ *
+ * Module-local state would fork the parent chain across copies the same way a
+ * private tag symbol would: one copy's `bindScopeParent` must stay readable by
+ * another copy's `scopeChainOf`, because the deployment that materializes two
+ * copies cannot be prevented here (see {@link kScope}). Holding the maps on
+ * `globalThis` behind a namespaced key keeps every copy observing one chain.
  */
-const scopeParents = new WeakMap<ScopeKey, ScopeKey>()
+interface ScopeGlobalState {
+  /**
+   * The enclosing scope of each key. One relation powers both directions of
+   * scope nesting: registration views inherit DOWN the chain (a child scope
+   * sees its ancestors' layers — {@link ScopedLayers}), and event admission
+   * extends UP it (a listener tagged with an ancestor receives events
+   * dispatched to a descendant key — {@link scopeTarget}).
+   */
+  readonly scopeParents: WeakMap<ScopeKey, ScopeKey>
+  /** The key associated with each carrier; see {@link carrierKeyOf}. */
+  readonly carrierKeys: WeakMap<object, ScopeKey | undefined>
+}
+
+const kStateKey = 'dsh.scope.state'
+const host = globalThis as unknown as Record<typeof kStateKey, ScopeGlobalState | undefined>
+const scopeState: ScopeGlobalState = (host[kStateKey] ??= {
+  scopeParents: new WeakMap(),
+  carrierKeys: new WeakMap(),
+})
 
 /** The privileged handle to move one scope key's parent link. */
 export interface ScopeParentBinding {
@@ -52,10 +80,10 @@ export interface ScopeParentBinding {
 
 /** Cycle-checked write shared by the bind and every rebind. */
 function linkScopeParent(key: ScopeKey, parent: ScopeKey): void {
-  for (let cursor: ScopeKey | undefined = parent; cursor !== undefined; cursor = scopeParents.get(cursor)) {
+  for (let cursor: ScopeKey | undefined = parent; cursor !== undefined; cursor = scopeState.scopeParents.get(cursor)) {
     if (cursor === key) throw new Error('dsh-scope: scope parent link would form a cycle')
   }
-  scopeParents.set(key, parent)
+  scopeState.scopeParents.set(key, parent)
 }
 
 /**
@@ -70,7 +98,7 @@ function linkScopeParent(key: ScopeKey, parent: ScopeKey): void {
  * @returns the binding that alone may re-link this key.
  */
 export function bindScopeParent(key: ScopeKey, parent: ScopeKey): ScopeParentBinding {
-  if (scopeParents.has(key)) {
+  if (scopeState.scopeParents.has(key)) {
     throw new Error('dsh-scope: scope key is already bound to a parent; re-linking requires the binding returned by the original bind')
   }
   linkScopeParent(key, parent)
@@ -87,7 +115,7 @@ export function bindScopeParent(key: ScopeKey, parent: ScopeKey): ScopeParentBin
  * @returns its parent key, or `undefined` for a root scope.
  */
 export function scopeParentOf(key: ScopeKey): ScopeKey | undefined {
-  return scopeParents.get(key)
+  return scopeState.scopeParents.get(key)
 }
 
 /**
@@ -97,7 +125,7 @@ export function scopeParentOf(key: ScopeKey): ScopeKey | undefined {
  */
 export function scopeChainOf(key: ScopeKey | undefined): ScopeKey[] {
   const chain: ScopeKey[] = []
-  for (let cursor = key; cursor !== undefined; cursor = scopeParents.get(cursor)) chain.push(cursor)
+  for (let cursor = key; cursor !== undefined; cursor = scopeState.scopeParents.get(cursor)) chain.push(cursor)
   return chain
 }
 
@@ -174,13 +202,13 @@ export function scopeTarget<T extends object>(base: T, key: ScopeKey | undefined
       if (baseFilter !== undefined && !baseFilter.call(base, ctx)) return false
       const tag = scopeOf(ctx)
       if (tag === undefined) return true
-      for (let cursor = key; cursor !== undefined; cursor = scopeParents.get(cursor)) {
+      for (let cursor = key; cursor !== undefined; cursor = scopeState.scopeParents.get(cursor)) {
         if (cursor === tag) return true
       }
       return false
     },
   }
-  carrierKeys.set(carrier, key)
+  scopeState.carrierKeys.set(carrier, key)
   return carrier as unknown as Scoped<T>
 }
 
@@ -190,7 +218,7 @@ export function scopeTarget<T extends object>(base: T, key: ScopeKey | undefined
  * @returns whether {@link scopeTarget} created it.
  */
 export function isScopeCarrier(value: unknown): value is Scoped<object> {
-  return typeof value === 'object' && value !== null && carrierKeys.has(value)
+  return typeof value === 'object' && value !== null && scopeState.carrierKeys.has(value)
 }
 
 /**
@@ -200,5 +228,5 @@ export function isScopeCarrier(value: unknown): value is Scoped<object> {
  */
 export function carrierKeyOf(value: unknown): ScopeKey | undefined {
   if (!isScopeCarrier(value)) return undefined
-  return carrierKeys.get(value)
+  return scopeState.carrierKeys.get(value)
 }

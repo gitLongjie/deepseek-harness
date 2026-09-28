@@ -72,6 +72,10 @@ The registration context determines both visibility and ownership: a registratio
 
 One relation powers both directions: registration views inherit DOWN the chain (a child scope sees its ancestors' layers), while event admission extends UP it (a listener tagged with an ancestor receives events dispatched to a descendant key). Binding is once — a key that already has a parent throws, and only the returned binding may re-link it — and every link rejects a cycle. `scopeChainOf` returns `[key, parent, …]` nearest-first.
 
+### Cross-instance identity
+
+A process can materialize this package more than once (an installed host's own copy beside a copy resolved through a profile's junctioned packages), so the scope tag is a global-registry symbol and the parent-chain and carrier state live behind a namespaced `globalThis` key. Every copy therefore observes one set of parent links: a mount composed through one copy and probed through another reads as scoped, never as unscoped.
+
 ### Event filtering
 
 `scopeTarget` composes the base's existing `Context.filter` with the scope predicate: an untagged listener is admitted; a tagged listener is admitted iff its tag is the dispatch key or an ancestor of it; `key === undefined` admits untagged listeners only. `{ global: true }` listeners bypass filtering. The `Scoped<T>` brand demands the carrier as the `this` type of a scope-filtered event, so dispatching with a bare subject is a compile error.

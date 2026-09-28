@@ -8,7 +8,7 @@
 
 ## 身份标识与分发载体
 
-`ScopeKey` 是一个不透明的对象身份标识。已交付的 agent loop（智能体循环）使用活跃的 `Agent` 对象作为自身的 key，但该原语从不检视该对象。
+`ScopeKey` 是一个不透明的对象身份标识。已交付的 agent loop（智能体循环）使用活跃的 `Agent` 对象作为自身的 key，但该原语从不检视该对象。标签符号与父链状态是进程全局的，因此部署所物化出的每份包副本都观察同一身份（见包 README 的跨实例身份一节）。
 
 ```ts type-equiv
 /** An opaque, identity-compared scope key. */
