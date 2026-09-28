@@ -178,7 +178,7 @@ describe('ui-expert browser plugin', () => {
     const page = b.slots.entries('conversation.expert.browser')[0]
     expect(page).toBeDefined()
     const injected = (page?.inject as unknown as () => {
-      load: () => Promise<{ experts: readonly { id: string; name?: string; broken?: string }[] }>
+      load: () => Promise<{ experts: readonly { id: string; name?: string; trust?: string; broken?: string }[] }>
       hire: (id: string) => void
     })()
 
