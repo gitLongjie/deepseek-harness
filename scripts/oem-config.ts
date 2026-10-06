@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 
 const GREETING_SLOTS = ['morning', 'noon', 'afternoon', 'evening', 'night'] as const
 const REQUIRED_CONFIG_KEYS = ['brandIcon', 'greetings', 'knowledgeBase', 'loginTagline', 'loginUrl', 'productName'] as const
-const OPTIONAL_CONFIG_KEYS = ['updateUrl'] as const
+const OPTIONAL_CONFIG_KEYS = ['gatewayProviderName', 'updateUrl'] as const
 const KNOWLEDGE_BASE_KEYS = ['apiKeyEnv', 'baseUrl', 'tenantId', 'webUiUrl'] as const
 
 /** One complete locale-specific set of blank-panel greetings. */
@@ -22,6 +22,12 @@ export interface OemConfig {
   readonly productName: string
   readonly brandIcon: string
   readonly loginUrl: string
+  /**
+   * The display name the Deepagens gateway provider route carries in provider
+   * directories and the Models settings card, or undefined for the adapter's
+   * own "Deepagens".
+   */
+  readonly gatewayProviderName?: string
   /**
    * The desktop auto-update feed, or undefined for deployments that must not
    * check for updates at all (the desktop updater and its menu entry stay off).
@@ -44,12 +50,16 @@ export function parseOemConfig(value: unknown, source: string): OemConfig {
   if (!isHttpUrl(loginUrl)) throw new Error(`${source}.loginUrl must be an HTTP or HTTPS URL`)
   const updateUrl = root.updateUrl === undefined ? undefined : nonEmptyString(root.updateUrl, `${source}.updateUrl`)
   if (updateUrl !== undefined && !isHttpsUrl(updateUrl)) throw new Error(`${source}.updateUrl must be an HTTPS URL`)
+  const gatewayProviderName = root.gatewayProviderName === undefined
+    ? undefined
+    : nonEmptyString(root.gatewayProviderName, `${source}.gatewayProviderName`)
   const loginTagline = objectWithKeys(root.loginTagline, ['en', 'zh'], `${source}.loginTagline`)
   const greetings = objectWithKeys(root.greetings, ['en', 'zh'], `${source}.greetings`)
   return {
     productName,
     brandIcon,
     loginUrl,
+    ...(gatewayProviderName === undefined ? {} : { gatewayProviderName }),
     ...(updateUrl === undefined ? {} : { updateUrl }),
     loginTagline: {
       zh: nonEmptyString(loginTagline.zh, `${source}.loginTagline.zh`),

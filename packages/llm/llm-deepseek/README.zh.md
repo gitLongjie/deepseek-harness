@@ -57,6 +57,8 @@ kind: "package-reference"
 | `maxTokens` | `256,000` | 单次请求输出上限；模型自身上限与显式请求值优先 |
 | `defaultContextWindow` | `1,000,000` | 无精确值模型的容量回退 |
 | `models` | V41 Flash + V4 Flash + V4 Pro + V4 Flash Vision Exp | 供发现消费方查看的建议性目录 |
+| `followGatewayCatalog` | `true` | 仅 Deepagens 路由：`false` 后登录流程不再在每次登录时改写 `baseURL`、替换 `models`、接管默认模型；对 DeepSeek 路由无意义 |
+| `deepagensDisplayName` | `Deepagens` | 仅 Deepagens 路由：提供方目录与模型卡片的显示名；回退到信任环境层的 `$DEEPAGENS_DISPLAY_NAME`（桌面启动器会把 OEM 文件的 `gatewayProviderName` 注入该层） |
 | `streamIdleTimeoutMs` | `300,000` | 单次流读取未完成的最大提供方空闲时间 |
 | `maxRequestFilesBytes` | `128 MiB` | file 模式请求图片字节预算，保留图片超过时请求以 `IMAGE_OFFLOAD_REQUIRED` 失败 |
 | `maxInlineRequestImageBytes` | `20 MiB` | 独立的 base64 回退高水位 |

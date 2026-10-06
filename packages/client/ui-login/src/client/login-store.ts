@@ -150,6 +150,21 @@ export class LoginStore {
    * @param apiKey - the API key the sign-in just issued.
    */
   private async syncCatalogFromGateway(apiKey: string): Promise<void> {
+    const described = await this.api.settings.describe()
+    if (!described.ok) {
+      console.warn(`[ui-login] settings describe refused: ${described.error.message}`)
+      return
+    }
+    const namespaces = described.value.namespaces
+    const ns = namespaces.find(view => view.ns === 'llm-deepagens')
+    const stored = (ns?.value as { baseURL?: unknown; models?: unknown; followGatewayCatalog?: unknown } | undefined)
+    // An explicit `false` hands the route to the user: the Models page's edits
+    // to the endpoint and catalog are this deployment's own facts now, so a
+    // sign-in must not re-point them at the gateway it happened to log into.
+    if (stored?.followGatewayCatalog === false) {
+      console.warn('[ui-login] deepagens catalog follow disabled; keeping the user-managed endpoint and catalog')
+      return
+    }
     const gatewayBase = `${this.baseUrl()}/v1`
     const discovered = await this.api.llm.discoverModels('llm-deepagens', {
       baseURL: gatewayBase,
@@ -160,14 +175,6 @@ export class LoginStore {
       // the code alone says only that the Remote wrapper caught an LlmError.
       console.warn(`[ui-login] gateway model discovery refused: ${discovered.error.code}: ${discovered.error.message}`)
     }
-    const described = await this.api.settings.describe()
-    if (!described.ok) {
-      console.warn(`[ui-login] settings describe refused: ${described.error.message}`)
-      return
-    }
-    const namespaces = described.value.namespaces
-    const ns = namespaces.find(view => view.ns === 'llm-deepagens')
-    const stored = (ns?.value as { baseURL?: unknown; models?: unknown } | undefined)
     // The sign-in already applied this gateway's credentials, so the route's
     // endpoint must follow them even when the catalog read is refused: a base
     // left over from an earlier gateway sends every later request for the

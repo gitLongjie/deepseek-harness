@@ -72,6 +72,13 @@ describe('OEM configuration', () => {
     expect(() => { parseOemConfig({ ...noUpdate, updateUrl: null }, 'fixture') }).toThrow(/updateUrl/)
   })
 
+  it('keeps the Deepagens display name optional but validated', () => {
+    expect(parseOemConfig(valid, 'fixture').gatewayProviderName).toBeUndefined()
+    expect(parseOemConfig({ ...valid, gatewayProviderName: 'brige' }, 'fixture').gatewayProviderName).toBe('brige')
+    expect(() => { parseOemConfig({ ...valid, gatewayProviderName: '  ' }, 'fixture') }).toThrow(/gatewayProviderName/)
+    expect(() => { parseOemConfig({ ...valid, gatewayProviderName: 3 }, 'fixture') }).toThrow(/gatewayProviderName/)
+  })
+
   it('keeps the repository OEM file parseable as the build source of truth', () => {
     const path = resolve(import.meta.dirname, '..', 'oem.config.json')
     expect(() => { parseOemConfig(JSON.parse(readFileSync(path, 'utf8')), path) }).not.toThrow()

@@ -57,6 +57,8 @@ A request selects the route with `provider: deepseek-official`; the model id pas
 | `maxTokens` | `256,000` | Per-request output cap; a model's own cap and explicit request values win |
 | `defaultContextWindow` | `1,000,000` | Capacity fallback for models without an exact value |
 | `models` | V41 Flash + V4 Flash + V4 Pro + V4 Flash Vision Exp | Advisory catalog shown by discovery consumers |
+| `followGatewayCatalog` | `true` | Deepagens route only: `false` stops the sign-in flow from re-pointing `baseURL`, replacing `models`, and adopting a gateway default model at each sign-in; meaningless on the DeepSeek route |
+| `deepagensDisplayName` | `Deepagens` | Deepagens route only: display name in provider directories and the Models card; falls back to `$DEEPAGENS_DISPLAY_NAME` from a trusted environment layer (the desktop launcher injects the OEM file's `gatewayProviderName` there) |
 | `streamIdleTimeoutMs` | `300,000` | Maximum provider idle time per outstanding stream read |
 | `maxRequestFilesBytes` | `128 MiB` | File-mode request-image byte budget; a request whose retained images exceed it fails with `IMAGE_OFFLOAD_REQUIRED` |
 | `maxInlineRequestImageBytes` | `20 MiB` | Independent base64 fallback high watermark |

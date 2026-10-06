@@ -28,7 +28,17 @@ export function readDesktopOemConfig(repoRoot, environment = process.env) {
     throw new Error('oem.config.json.updateUrl must be an HTTPS URL')
   }
   const knowledgeBase = readOemKnowledgeBase(oemConfig.knowledgeBase)
-  return { productName, brandIcon, updateUrl, knowledgeBase }
+  const gatewayProviderName = readOemGatewayProviderName(oemConfig.gatewayProviderName)
+  return { productName, brandIcon, updateUrl, knowledgeBase, gatewayProviderName }
+}
+
+/** Read the OEM Deepagens display name for packaging: absent stays absent. */
+function readOemGatewayProviderName(value) {
+  if (value === undefined) return undefined
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new Error('oem.config.json.gatewayProviderName must be a non-empty string')
+  }
+  return value
 }
 
 /**
@@ -116,6 +126,7 @@ export function createElectronBuilderOemConfig(productName, updateUrl, options =
         ...(updateUrl === undefined ? {} : { updateUrl }),
         ...(options.localUpdateFeed && updateUrl !== undefined ? { localUpdateTest: true } : {}),
         ...(options.knowledgeBase === undefined ? {} : { knowledgeBase: options.knowledgeBase }),
+        ...(options.gatewayProviderName === undefined ? {} : { gatewayProviderName: options.gatewayProviderName }),
       },
     },
   }

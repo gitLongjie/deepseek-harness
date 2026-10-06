@@ -128,6 +128,12 @@ describe('desktop builder identity', () => {
     expect(() => createElectronBuilderOemConfig('Worker', 'http://updates.example.test', {
       allowLoopbackHttp: true,
     })).toThrow(/updateUrl/)
+    expect(createElectronBuilderOemConfig('Worker', 'https://updates.example.test/desktop', {
+      gatewayProviderName: 'brige',
+    }).extraMetadata.dsh).toEqual({
+      updateUrl: 'https://updates.example.test/desktop',
+      gatewayProviderName: 'brige',
+    })
   })
 
   it('ships no update metadata when the OEM deployment has no feed', () => {

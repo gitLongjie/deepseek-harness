@@ -31,6 +31,11 @@ interface ApiMockOptions {
   /** The `baseURL` value the settings read reports; `undefined` leaves the field absent. */
   storedBaseURL?: unknown
   /**
+   * The `followGatewayCatalog` value the settings read reports; `undefined`
+   * leaves the field absent (the login flow's default, `true`, applies).
+   */
+  storedFollowGateway?: boolean
+  /**
    * The `agent-default-model` descriptor's resolved value the settings read
    * reports; `undefined` omits the namespace.
    */
@@ -71,11 +76,13 @@ function mockApi(options: ApiMockOptions = {}): {
           hasDocument: false,
           namespaces: [
             ...(options.storedModels !== undefined || options.storedBaseURL !== undefined
+              || options.storedFollowGateway !== undefined
               ? [{
                 ns: 'llm-deepagens',
                 value: {
                   ...options.storedBaseURL === undefined ? {} : { baseURL: options.storedBaseURL },
                   ...options.storedModels === undefined ? {} : { models: options.storedModels },
+                  ...options.storedFollowGateway === undefined ? {} : { followGatewayCatalog: options.storedFollowGateway },
                 },
                 revision: 0,
               }]
@@ -354,6 +361,24 @@ describe('LoginStore model handling', () => {
     const store = new LoginStore(AUTH_URL, adapter(), mock.api)
     await expect(store.login('u', 'p')).resolves.toBe(true)
     expect(store.store.getSnapshot().session?.account).toBe('User')
+  })
+
+  it('keeps the user-managed endpoint, catalog, and default when follow is disabled', async () => {
+    const mock = mockApi({
+      models: discovered,
+      storedModels: [{ id: 'old-model' }],
+      storedBaseURL: 'http://127.0.0.1:3000/v1',
+      storedFollowGateway: false,
+      storedDefault: { provider: 'deepseek-official', model: 'deepseek-flash' },
+    })
+    okLogin()
+
+    const store = new LoginStore(AUTH_URL, adapter(), mock.api)
+    await expect(store.login('u', 'p')).resolves.toBe(true)
+
+    expect(mock.discover).not.toHaveBeenCalled()
+    expect(mock.mutate).not.toHaveBeenCalled()
+    expect(mock.replace).not.toHaveBeenCalled()
   })
 
   it('skips the default adoption when discovery lists no models', async () => {

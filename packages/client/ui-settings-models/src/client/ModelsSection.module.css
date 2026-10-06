@@ -265,6 +265,16 @@
   color: var(--dsw-alias-label-secondary);
 }
 
+.toggleFieldLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
 .linkButton {
   box-sizing: border-box;
   display: inline-flex;

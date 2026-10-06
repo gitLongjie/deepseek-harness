@@ -2210,6 +2210,26 @@ describe('plugin registration and config', () => {
     ])
   })
 
+  it('carries the Deepagens display name from config, then the environment, then its own', async () => {
+    const mounted = async (config: Record<string, unknown> = {}) => {
+      const ctx = new Context()
+      await ctx.plugin(LlmRuntime)
+      await ctx.plugin(LlmDeepSeek, { protocol: 'chat-completions', baseURL: 'http://127.0.0.1:1', ...config })
+      return ctx
+    }
+    vi.stubEnv('DEEPAGENS_DISPLAY_NAME', 'Env Name')
+    const namedByEnv = await mounted()
+    expect(namedByEnv.llm.listProviders()).toEqual(expect.arrayContaining([{ id: 'deepagens', name: 'Env Name' }]))
+    expect(namedByEnv.llm.listConfigurableProviders()).toEqual(expect.arrayContaining([
+      { provider: 'deepagens', displayName: 'Env Name', settingsNs: 'llm-deepagens', settingsPath: [], editorFamily: 'deepseek' },
+    ]))
+    const namedByConfig = await mounted({ deepagensDisplayName: 'Cfg Name' })
+    expect(namedByConfig.llm.listProviders()).toEqual(expect.arrayContaining([{ id: 'deepagens', name: 'Cfg Name' }]))
+    vi.unstubAllEnvs()
+    const namedByDefault = await mounted()
+    expect(namedByDefault.llm.listProviders()).toEqual(expect.arrayContaining([{ id: 'deepagens', name: 'Deepagens' }]))
+  })
+
   it('loads keyless, keeps the catalog browsable, and fails the request actionably', async () => {
     vi.stubEnv('DEEPSEEK_API_KEY', '')
     const ctx = new Context()

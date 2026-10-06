@@ -39,6 +39,10 @@ import {
   type DesktopKnowledgeManifest,
 } from './desktop/knowledge-base.ts'
 import {
+  applyGatewayProviderNameEnvironment, resolveDesktopGatewayProviderName,
+  type DesktopProviderNameManifest,
+} from './desktop/provider-name.ts'
+import {
   findMissingPackagedResources,
   type MissingPackagedResource,
   type PackagedResourceLabel,
@@ -201,6 +205,15 @@ async function main(): Promise<void> {
     )
     if (knowledgeBase !== undefined) {
       applyKnowledgeBaseEnvironment(process.env, desktopKnowledgeBaseEnvironment(knowledgeBase))
+    }
+    // The OEM Deepagens display name joins the same trusted environment on the
+    // same if-unset terms, ahead of the layered snapshot freezing it.
+    const gatewayProviderName = resolveDesktopGatewayProviderName(
+      INSTALL_ANCHOR,
+      JSON.parse(readFileSync(join(app.getAppPath(), 'package.json'), 'utf8')) as DesktopProviderNameManifest,
+    )
+    if (gatewayProviderName !== undefined) {
+      applyGatewayProviderNameEnvironment(process.env, gatewayProviderName)
     }
     const environment = loadLayeredEnv('desktop')
     log(`desktop: booting (packaged=${String(app.isPackaged)}) execArgv=${JSON.stringify(process.execArgv)} node=${process.versions.node}`)

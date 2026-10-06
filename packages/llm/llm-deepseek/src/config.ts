@@ -39,6 +39,21 @@ export interface Config {
   defaultContextWindow?: number
   /** Advisory models shown by discovery consumers; defaults to V41 Flash, V4 Flash, V4 Pro, and V4 Flash Vision Exp. */
   models?: DeepSeekCatalogModel[]
+  /**
+   * Whether the sign-in gateway keeps owning this route's endpoint and catalog
+   * (default `true`). Only the Deepagens route consumes it: `false` stops the
+   * login flow from re-pointing `baseURL`, replacing `models`, and adopting a
+   * gateway default model at each sign-in. Meaningless on the DeepSeek route.
+   */
+  followGatewayCatalog?: boolean
+  /**
+   * Display name the Deepagens route carries in provider directories and the
+   * Models settings card; falls back to $DEEPAGENS_DISPLAY_NAME from a trusted
+   * environment layer (the desktop launcher injects the OEM file's
+   * `gatewayProviderName` there), then "Deepagens". Meaningless on the DeepSeek
+   * route.
+   */
+  deepagensDisplayName?: string
   /** Maximum provider idle time while one stream read is outstanding (default five minutes). */
   streamIdleTimeoutMs?: number
   /** Maximum accumulated file-referenced image bytes per chat request (default 128 MiB). */
@@ -86,6 +101,8 @@ export const Config: z<Config> = z.object({
   maxTokens: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(DEFAULT_MAX_TOKENS),
   defaultContextWindow: z.number().step(1).min(1).default(DEFAULT_CONTEXT_WINDOW),
   models: z.array(catalogModel).default(DEFAULT_MODELS),
+  followGatewayCatalog: z.boolean(),
+  deepagensDisplayName: z.string(),
   streamIdleTimeoutMs: z.number().min(Number.MIN_VALUE).max(MAX_TIMER_DELAY_MS).default(DEFAULT_STREAM_IDLE_TIMEOUT_MS),
   maxRequestFilesBytes: z.number().step(1).min(1).default(DEFAULT_MAX_REQUEST_FILES_BYTES),
   maxInlineRequestImageBytes: z.number().step(1).min(1).default(DEFAULT_MAX_INLINE_REQUEST_IMAGE_BYTES),

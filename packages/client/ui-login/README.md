@@ -28,6 +28,8 @@ The endpoint must allow cross-origin calls from the app origin (CORS with JSON c
 
 Indirectly, through the settings namespaces a sign-in writes: the pulled gateway catalog lands in the `llm-deepagens` provider settings (its own selector group), and a default model the pulled catalog does not serve is re-pointed at its first model in `agent-default-model`; the package never assembles a provider request itself.
 
+The Models page's Deepagens card carries a "follow the sign-in gateway catalog" switch backed by `llm-deepagens`'s `followGatewayCatalog` field (default on). An explicit `false` hands the route to the user: sign-ins stop re-pointing `baseURL`, replacing `models`, and adopting a gateway default model, so the card's edits survive every launch's catalog sync.
+
 #### KV Cache effect
 
 The default-model adoption happens before any session exists, so it changes which route a first session assembles rather than any request's content; later manual picks own their own cache effects.

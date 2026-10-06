@@ -133,6 +133,12 @@ export function apply(ctx: Context, config: Config): void {
   // endpoint and catalog the login flow seeds from the account server. It
   // shares the adapter class (chat completions over the gateway's /v1) and the
   // `DEEPSEEK_API_KEY` credential, but owns a separate settings namespace.
+  // The route's display name answers to the composition entry first, then the
+  // trusted environment layer (the desktop launcher injects the OEM file's
+  // `gatewayProviderName` there), then the route's own name.
+  const deepagensDisplayName = config.deepagensDisplayName
+    ?? launchEnvironmentOf(ctx).get('DEEPAGENS_DISPLAY_NAME')?.value
+    ?? 'Deepagens'
   let deepagensCurrent: () => Config = () => ({ models: [] })
   let deepagensRaw: Config | undefined
   let deepagensGood: ResolvedDeepSeekOptions | undefined
@@ -158,7 +164,7 @@ export function apply(ctx: Context, config: Config): void {
     resolveApiKey,
     resolveUserId,
     resolveAttachments: () => ctx.get('attachments'),
-    providerName: 'Deepagens',
+    providerName: deepagensDisplayName,
     prepareExtensions: (request) => {
       const extensions = ctx.get('deepseekLlmApiExtensions')
       return extensions?.prepare(request)
@@ -168,7 +174,7 @@ export function apply(ctx: Context, config: Config): void {
   ctx.llm.registerConfigurableProviders([
     {
       provider: DEEPAGENS_PROVIDER,
-      displayName: 'Deepagens',
+      displayName: deepagensDisplayName,
       settingsNs: DEEPAGENS_NS,
       settingsPath: [],
       // Same adapter class and section schema as the DeepSeek route, so the
