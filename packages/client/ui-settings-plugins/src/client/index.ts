@@ -23,6 +23,7 @@ import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import { AgentLoopCard } from './AgentLoopCard.tsx'
 import { BashCard } from './BashCard.tsx'
 import { ConfigurablePluginsTab } from './ConfigurablePluginsTab.tsx'
+import { H3VideoCard } from './H3VideoCard.tsx'
 import { PluginsSettingsSection } from './PluginsSettingsSection.tsx'
 import type { PluginsSettingsSectionInjected, PluginsSettingsTabEntry } from './PluginsSettingsSection.tsx'
 import { SubagentModelSelectionCard } from './SubagentModelSelectionCard.tsx'
@@ -30,6 +31,9 @@ import { WebSearchCard } from './WebSearchCard.tsx'
 import { AGENT_LOOP_NS, AgentLoopCardController } from './agent-loop-card-controller.ts'
 import { SHELL_NS, BashCardController } from './bash-card-controller.ts'
 import { ConfigurablePluginsTabController } from './tab-store.ts'
+import {
+  H3CardController, H3_ALL_FIELDS, H3_VIDEO_NS,
+} from './h3-video-card-controller.ts'
 import {
   SUBAGENT_MODEL_SELECTION_NS, SubagentModelSelectionCardController,
 } from './subagent-model-selection-card-controller.ts'
@@ -73,12 +77,20 @@ export function apply(ctx: ClientContext): void {
     ctx.settingsScope.bind({ namespace: SUBAGENT_MODEL_SELECTION_NS }),
     ctx,
   )
+  // One card over one namespace: the configurable tab dispatches a card per
+  // served namespace, so the H3 card carries every field — local ComfyUI,
+  // hosted MiniMax (the one writing a credential), then output with disk
+  // policy — in one staged form.
+  const h3 = new H3CardController(ctx.settingsScope.bind({ namespace: H3_VIDEO_NS }), H3_ALL_FIELDS, ctx)
 
   // The credential a card reports is not part of any settings section, so its
   // scope publishes nothing when one is written. This is the only signal that
   // a key written on another surface reached the Host.
   ctx.effect(
-    () => ctx.remote.$on('credentials/reference-updated', (ref) => { webSearch.refreshCredential(ref) }),
+    () => ctx.remote.$on('credentials/reference-updated', (ref) => {
+      webSearch.refreshCredential(ref)
+      h3.refreshCredential(ref)
+    }),
     'ui-settings-plugins: credential invalidations',
   )
   ctx.effect(
@@ -189,5 +201,11 @@ export function apply(ctx: ClientContext): void {
       locale: NS,
       inject: () => webSearch.inject(),
     }, WebSearchCard)
+    yield ctx.slots.register({
+      name: 'settings.plugin.item',
+      key: H3_VIDEO_NS,
+      locale: NS,
+      inject: () => h3.inject(),
+    }, H3VideoCard)
   })
 }

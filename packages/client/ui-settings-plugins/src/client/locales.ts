@@ -17,6 +17,26 @@ export type PluginsSettingsLocaleKey =
   | 'subagentModelSelectionPartial' | 'subagentModelSelectionUnavailable'
   | 'subagentModelSelectionUnavailableGroup' | 'subagentModelSelectionEmpty'
   | 'subagentModelSelectionRequired' | 'subagentModelSelectionConflict' | 'subagentModelSelectionOff'
+  | 'h3Title' | 'h3Description'
+  | 'h3MinimaxApiKey' | 'h3MinimaxApiKeyHint' | 'h3MinimaxApiKeySet' | 'h3MinimaxApiKeyUnset'
+  | 'h3ComfyUrl' | 'h3ComfyUrlHint'
+  | 'h3ComfyWorkflowPath' | 'h3ComfyWorkflowPathHint'
+  | 'h3ComfyInputDir' | 'h3ComfyInputDirHint'
+  | 'h3ComfyResolutions' | 'h3ComfyResolutionsHint'
+  | 'h3ComfyMaxConcurrency' | 'h3ComfyMaxConcurrencyHint'
+  | 'h3ComfyMinDuration' | 'h3ComfyMinDurationHint'
+  | 'h3ComfyMaxDuration' | 'h3ComfyMaxDurationHint'
+  | 'h3ComfyPollInterval' | 'h3ComfyPollIntervalHint'
+  | 'h3ComfyTaskTimeout' | 'h3ComfyTaskTimeoutHint'
+  | 'h3MinimaxApiKeyRef' | 'h3MinimaxApiKeyRefHint'
+  | 'h3MinimaxBaseUrl' | 'h3MinimaxBaseUrlHint'
+  | 'h3MinimaxModel' | 'h3MinimaxModelHint'
+  | 'h3MinimaxMaxConcurrency' | 'h3MinimaxMaxConcurrencyHint'
+  | 'h3MinimaxPollInterval' | 'h3MinimaxPollIntervalHint'
+  | 'h3MinimaxTaskTimeout' | 'h3MinimaxTaskTimeoutHint'
+  | 'h3OutputDir' | 'h3OutputDirHint'
+  | 'h3MinFreeSpaceMb' | 'h3MinFreeSpaceMbHint'
+  | 'h3EstimatedBytesPerSecond' | 'h3EstimatedBytesPerSecondHint'
 
 /** English copy. */
 export const en: Record<PluginsSettingsLocaleKey, string> = {
@@ -72,6 +92,48 @@ export const en: Record<PluginsSettingsLocaleKey, string> = {
   subagentModelSelectionRequired: 'Select at least one model before saving.',
   subagentModelSelectionConflict: 'Settings changed elsewhere. Discard your draft and try again.',
   subagentModelSelectionOff: 'Subagents use configured defaults or inherit the parent agent\'s model. Saved model choices are retained.',
+  h3Title: 'Video generation (H3)',
+  h3Description: 'Local ComfyUI, the hosted MiniMax API, and output policy. Blank fields keep the preset composition\'s values.',
+  h3MinimaxApiKey: 'API key',
+  h3MinimaxApiKeyHint: 'Stored outside the settings file. Leave blank to keep the current key.',
+  h3MinimaxApiKeySet: 'A key is configured.',
+  h3MinimaxApiKeyUnset: 'No key is configured.',
+  h3ComfyUrl: 'ComfyUI URL',
+  h3ComfyUrlHint: 'The local ComfyUI origin, for example http://127.0.0.1:8188.',
+  h3ComfyWorkflowPath: 'Workflow template',
+  h3ComfyWorkflowPathHint: 'Path to the API-format workflow JSON with "{{field}}" placeholders. Setting one enables the local backend.',
+  h3ComfyInputDir: 'Input directory',
+  h3ComfyInputDirHint: 'ComfyUI input directory; required for image-to-video with keyframes.',
+  h3ComfyResolutions: 'Resolutions',
+  h3ComfyResolutionsHint: 'Comma-separated tiers the local backend serves, for example 768P, 2K.',
+  h3ComfyMaxConcurrency: 'Concurrent generations',
+  h3ComfyMaxConcurrencyHint: 'How many local generations may run at once.',
+  h3ComfyMinDuration: 'Minimum seconds',
+  h3ComfyMinDurationHint: 'Shortest segment the local backend accepts.',
+  h3ComfyMaxDuration: 'Maximum seconds',
+  h3ComfyMaxDurationHint: 'Longest segment the local backend accepts.',
+  h3ComfyPollInterval: 'Poll interval (ms)',
+  h3ComfyPollIntervalHint: 'Milliseconds between ComfyUI history polls.',
+  h3ComfyTaskTimeout: 'Task timeout (ms)',
+  h3ComfyTaskTimeoutHint: 'Wall-clock bound on one local generation.',
+  h3MinimaxApiKeyRef: 'API key reference',
+  h3MinimaxApiKeyRefHint: 'Credential reference resolving the hosted key, for example MINIMAX_API_KEY. Setting one enables the remote backend.',
+  h3MinimaxBaseUrl: 'Base URL',
+  h3MinimaxBaseUrlHint: 'The hosted MiniMax API origin.',
+  h3MinimaxModel: 'Model',
+  h3MinimaxModelHint: 'MiniMax-H3 or MiniMax-H3-Max.',
+  h3MinimaxMaxConcurrency: 'Concurrent generations',
+  h3MinimaxMaxConcurrencyHint: 'How many remote generations may run at once.',
+  h3MinimaxPollInterval: 'Poll interval (ms)',
+  h3MinimaxPollIntervalHint: 'Milliseconds between remote task polls.',
+  h3MinimaxTaskTimeout: 'Task timeout (ms)',
+  h3MinimaxTaskTimeoutHint: 'Wall-clock bound on one remote generation.',
+  h3OutputDir: 'Output directory',
+  h3OutputDirHint: 'Where segments and assemblies land; supports ~. Blank uses the preset composition\'s directory.',
+  h3MinFreeSpaceMb: 'Free-space floor (MB)',
+  h3MinFreeSpaceMbHint: 'Free megabytes the output volume must keep beyond the size estimate.',
+  h3EstimatedBytesPerSecond: 'Bytes per second',
+  h3EstimatedBytesPerSecondHint: 'Size estimate per second of video for the disk preflight (768P ≈ 500000).',
 }
 
 /** Simplified Chinese copy. */
@@ -128,4 +190,46 @@ export const zh: Record<PluginsSettingsLocaleKey, string> = {
   subagentModelSelectionRequired: '保存前请至少选择一个模型。',
   subagentModelSelectionConflict: '设置已在其他位置更新。请放弃修改后重试。',
   subagentModelSelectionOff: '关闭后，Subagent 使用配置的默认模型或继承父 Agent 的模型；已选模型会保留。',
+  h3Title: '视频生成（H3）',
+  h3Description: '本地 ComfyUI、远端 MiniMax API 与输出策略。留空的字段沿用预设组合里的值。',
+  h3MinimaxApiKey: 'API 密钥',
+  h3MinimaxApiKeyHint: '不写入设置文件。留空表示保持现有密钥。',
+  h3MinimaxApiKeySet: '已配置密钥。',
+  h3MinimaxApiKeyUnset: '未配置密钥。',
+  h3ComfyUrl: 'ComfyUI 地址',
+  h3ComfyUrlHint: '本地 ComfyUI 地址，例如 http://127.0.0.1:8188。',
+  h3ComfyWorkflowPath: '工作流模板',
+  h3ComfyWorkflowPathHint: '带 "{{field}}" 占位符的 API 格式工作流 JSON 路径。设置后即启用本地后端。',
+  h3ComfyInputDir: '输入目录',
+  h3ComfyInputDirHint: 'ComfyUI 的 input 目录；图生视频（首末帧）时必填。',
+  h3ComfyResolutions: '分辨率',
+  h3ComfyResolutionsHint: '本地后端支持的档位，逗号分隔，例如 768P, 2K。',
+  h3ComfyMaxConcurrency: '并发生成数',
+  h3ComfyMaxConcurrencyHint: '本地同时进行的生成任务数。',
+  h3ComfyMinDuration: '最短秒数',
+  h3ComfyMinDurationHint: '本地后端接受的最短分镜时长。',
+  h3ComfyMaxDuration: '最长秒数',
+  h3ComfyMaxDurationHint: '本地后端接受的最长分镜时长。',
+  h3ComfyPollInterval: '轮询间隔（毫秒）',
+  h3ComfyPollIntervalHint: '两次 ComfyUI 历史轮询之间的毫秒数。',
+  h3ComfyTaskTimeout: '任务超时（毫秒）',
+  h3ComfyTaskTimeoutHint: '单个本地生成的墙钟上限。',
+  h3MinimaxApiKeyRef: '密钥引用',
+  h3MinimaxApiKeyRefHint: '解析远端密钥的凭据引用，例如 MINIMAX_API_KEY。设置后即启用远端后端。',
+  h3MinimaxBaseUrl: '接口地址',
+  h3MinimaxBaseUrlHint: 'MiniMax 托管 API 的地址。',
+  h3MinimaxModel: '模型',
+  h3MinimaxModelHint: 'MiniMax-H3 或 MiniMax-H3-Max。',
+  h3MinimaxMaxConcurrency: '并发生成数',
+  h3MinimaxMaxConcurrencyHint: '远端同时进行的生成任务数。',
+  h3MinimaxPollInterval: '轮询间隔（毫秒）',
+  h3MinimaxPollIntervalHint: '两次远端任务轮询之间的毫秒数。',
+  h3MinimaxTaskTimeout: '任务超时（毫秒）',
+  h3MinimaxTaskTimeoutHint: '单个远端生成的墙钟上限。',
+  h3OutputDir: '输出目录',
+  h3OutputDirHint: '分镜与成片的落盘位置；支持 ~。留空沿用预设组合的目录。',
+  h3MinFreeSpaceMb: '剩余空间下限（MB）',
+  h3MinFreeSpaceMbHint: '除估算体积外，输出卷必须保留的剩余兆字节数。',
+  h3EstimatedBytesPerSecond: '每秒字节数',
+  h3EstimatedBytesPerSecondHint: '磁盘预检按每秒视频的体积估算（768P 约 500000）。',
 }

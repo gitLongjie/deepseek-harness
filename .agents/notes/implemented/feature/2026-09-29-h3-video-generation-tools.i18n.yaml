@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-29-h3-video-generation-tools.md
+2026-09-29-h3-video-generation-tools.md: 2cd4012defd66a526f7e5419981bf40b93ad5bce
+2026-09-29-h3-video-generation-tools.zh.md: 4a641d0da37d88cc113f9b02eb2f4e11b6bc14b4

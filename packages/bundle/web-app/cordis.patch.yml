@@ -47,6 +47,12 @@
     - id: subagent-model-selection-settings
       name: '@deepseek-ai/dsh-tool-subagent/model-selection-settings'
 
+    # H3 video user settings: registers the `h3-video` namespace and publishes
+    # its live view. The Plugins page edits the namespace; a preset-mounted
+    # dsh-experimental-h3-video service layers it over its composition config.
+    - id: h3-video-settings
+      name: '@deepseek-ai/dsh-experimental-h3-video/settings'
+
     - id: message-feedback
       name: '@deepseek-ai/dsh-message-feedback'
       config:

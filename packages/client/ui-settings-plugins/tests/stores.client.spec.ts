@@ -19,6 +19,9 @@ import {
   type SubagentModelSelectionSettings,
 } from '../src/client/subagent-model-selection-card-controller.ts'
 import { WebSearchCardController, type WebSearchSettings } from '../src/client/web-search-card-controller.ts'
+import {
+  H3CardController, H3_ALL_FIELDS, type H3VideoSettings,
+} from '../src/client/h3-video-card-controller.ts'
 
 /** Make the stub behave like a Host that accepts every write. */
 function acceptWrites<T>(host: StubSettingsScope<T>): void {
@@ -1156,5 +1159,62 @@ describe('ConfigurablePluginsTabController', () => {
 
     expect(controller.inject().hooks.configurablePlugins.getSnapshot())
       .toEqual({ loaded: true, namespaces: [] })
+  })
+})
+
+describe('H3CardController', () => {
+  /** Credentials answers keyed for the H3 card's default reference. */
+  function minimaxCredentials(configured: boolean) {
+    const describe = vi.fn(() => Promise.resolve({
+      ok: true as const,
+      value: { MINIMAX_API_KEY: { configured, writable: true } },
+    }))
+    const set = vi.fn(() => Promise.resolve({ ok: true as const, value: undefined }))
+    return { ctx: ctxWith({ credentials: { describe, set } }), describe, set }
+  }
+
+  it('shows the section values and the default reference key state', async () => {
+    const host = stubSettingsScope<H3VideoSettings>()
+    const credentials = minimaxCredentials(true)
+    const controller = new H3CardController(host.scope, H3_ALL_FIELDS, credentials.ctx)
+    host.publish({ status: 'ready', writable: true, value: { comfyUrl: 'http://127.0.0.1:8188' }, user: {} })
+    await vi.waitFor(() => { expect(credentials.describe).toHaveBeenCalled() })
+
+    const state = () => controller.inject().hooks.h3Card.getSnapshot()
+    await vi.waitFor(() => { expect(state().apiKeyConfigured).toBe(true) })
+    expect(state().fields.comfyUrl).toMatchObject({ text: 'http://127.0.0.1:8188', overridden: false })
+  })
+
+  it('stages comma-separated resolutions as one list write', () => {
+    const host = stubSettingsScope<H3VideoSettings>()
+    const controller = new H3CardController(host.scope, H3_ALL_FIELDS)
+    acceptWrites(host)
+    host.publish({ status: 'ready', writable: true, value: {}, user: {} })
+    const face = controller.inject()
+
+    face.edit('comfyResolutions', ' 768P, 2K ')
+    expect(face.hooks.h3Card.getSnapshot().dirty).toBe(true)
+
+    face.save()
+    expect(host.set).toHaveBeenCalledWith('comfyResolutions', ['768P', '2K'])
+  })
+
+  it('writes the staged key through the credentials domain, never the settings section', async () => {
+    const host = stubSettingsScope<H3VideoSettings>()
+    const credentials = minimaxCredentials(false)
+    const controller = new H3CardController(host.scope, H3_ALL_FIELDS, credentials.ctx)
+    host.publish({ status: 'ready', writable: true, value: {}, user: {} })
+    const face = controller.inject()
+
+    face.edit('minimaxApiKey', ' mm-secret ')
+    credentials.describe.mockImplementation(() => Promise.resolve({
+      ok: true as const,
+      value: { MINIMAX_API_KEY: { configured: true, writable: true } },
+    }))
+    face.save()
+    await vi.waitFor(() => { expect(credentials.set).toHaveBeenCalled() })
+
+    expect(credentials.set).toHaveBeenCalledWith('MINIMAX_API_KEY', 'mm-secret')
+    expect(host.set).not.toHaveBeenCalledWith('minimaxApiKey', expect.anything())
   })
 })
