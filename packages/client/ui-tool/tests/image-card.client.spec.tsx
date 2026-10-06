@@ -233,6 +233,26 @@ describe('imageCardModel', () => {
     expect(imageCardModel(settled({ content: [{ type: 'text', text: ENVELOPE }] } as never))).toBeNull()
   })
 
+  it('labels another image-bearing tool from its envelope when it persisted no metadata', () => {
+    // A tool that writes several images writes one envelope per image; the card's
+    // single label takes the first declared path.
+    const model = imageCardModel(settled({
+      call: { name: 'video_asset_images', argsRaw: '{"plan_id":"vp-1"}' },
+      meta: undefined,
+      content: [
+        { type: 'text', text: '<path>character 马锅头 → /out/assets/vp-1-char-1.jpg</path>\n<type>image</type>\n<content>\nimage/jpeg image, 1024x1024 px, 114252 bytes\n</content>' },
+        { type: 'image', attachment: sampleImage },
+      ],
+    } as never))
+    expect(model?.label).toBe('character 马锅头 → /out/assets/vp-1-char-1.jpg')
+    // Without an envelope either, there is nothing to label the picture with.
+    expect(imageCardModel(settled({
+      call: { name: 'video_asset_images', argsRaw: '{}' },
+      meta: undefined,
+      content: [{ type: 'text', text: 'no envelope here' }, { type: 'image', attachment: sampleImage }],
+    } as never))).toBeNull()
+  })
+
   it('declines when no content block matches the image envelope', () => {
     // `singleResultText` accepts only a lone text block and an image read returns
     // two, so this derivation matches its own envelope by shape. Content another
@@ -257,8 +277,14 @@ describe('imageCardModel', () => {
     expect(withMeta?.label).toBe('shots/persisted.png')
   })
 
-  it('declines a call head that is not read_image', () => {
-    expect(imageCardModel(settled({ call: { name: 'read', argsRaw: ARGS } }))).toBeNull()
+  it('labels another image-bearing tool from its own envelope, and still declines a blank read_image path', () => {
+    // Any tool whose result carries images beside an envelope renders the card, so a
+    // generated material is visible in the conversation instead of only named by a
+    // path; the label comes from the envelope that tool wrote.
+    const other = imageCardModel(settled({ call: { name: 'video_keyframes', argsRaw: '{"plan_id":"vp-1"}' } }))
+    expect(other?.label).toBe('shots/card.png')
+    expect(other?.images).toEqual([{ attachment: sampleImage }])
+    // read_image keeps its own contract: a blank path argument declines.
     expect(imageCardModel(settled({ call: { name: 'read_image', argsRaw: '{"file_path":"  "}' } }))).toBeNull()
   })
 })
@@ -334,12 +360,6 @@ describe('ReadImageRow keyed toolview', () => {
     expect(emptySlot).toHaveBeenCalled()
     expect(view.container.querySelector('[data-images]')).toBeNull()
     expect(view.container.textContent).toContain('image/png image, 1496x260 px')
-  })
-
-  it('degrades to the text body when neither the slot nor the loader is supplied', () => {
-    const view = render(<ReadImageRow {...rowProps(settled(), undefined)} />)
-    toggleRow(view)
-    expect(view.container.querySelector('[data-images]')).toBeNull()
   })
 
   it('a running call renders the summary row alone', () => {

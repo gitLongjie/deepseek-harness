@@ -31,4 +31,10 @@ export function apply(ctx: ClientContext): void {
     name: 'tool.call.images',
     locale: 'conversation',
   }, MessageImages))
+  // The generic Tool row's gallery: any tool that returns images without owning a
+  // keyed view still shows them, so a generated material is visible in place.
+  ctx.slots.inject('tool.call.result-images', () => ctx.slots.register({
+    name: 'tool.call.result-images',
+    locale: 'conversation',
+  }, MessageImages))
 }

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render } from '@testing-library/react'
+import { cleanup, fireEvent, render, within } from '@testing-library/react'
 
 import type { RunningToolCall, ToolResultNode } from '@deepseek-ai/dsh-client-ui-chat/client'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
@@ -580,5 +580,37 @@ describe('GenericToolCard', () => {
     ))).toBe(false)
     expect(view.queryByText('Tool execution rejected by user')).toBeNull()
     expect(view.queryByText(/"path"/)).toBeNull()
+  })
+
+  it('shows the gallery of an image-bearing tool that owns no keyed view', () => {
+    // A generated material must be visible, not only named: the generic row renders
+    // any result carrying images through the slot its entry declares.
+    const attachment = {
+      attachmentId: 'sha256:material' as never, mediaType: 'image/jpeg' as const, bytes: 114_252, width: 1024, height: 1024,
+    }
+    const material = result({
+      call: { name: 'video_asset_images', argsRaw: '{"plan_id":"vp-1"}' },
+      meta: undefined,
+      content: [
+        { type: 'text', text: '<path>character 马锅头 → /out/assets/vp-1-char-1.jpg</path>\n<type>image</type>\n<content>\nimage/jpeg image, 1024x1024 px, 114252 bytes\n</content>' },
+        { type: 'image', attachment },
+      ],
+    })
+    const renderSlot = vi.fn(() => <div data-gallery />)
+    const view = render(
+      <GenericToolCard
+        {...props('video_asset_images', material)}
+        renderSlot={renderSlot as unknown as GenericToolCardProps['renderSlot']}
+      />,
+    )
+    fireEvent.click(within(view.container).getByText('工具调用'))
+    expect(renderSlot).toHaveBeenCalledWith('tool.call.result-images', expect.objectContaining({
+      images: [{ attachment }],
+      align: 'start',
+    }))
+    // Without the slot (a row rendered outside its entry) the card text remains.
+    const bare = render(<GenericToolCard {...props('video_asset_images', material)} />)
+    fireEvent.click(within(bare.container).getByText('工具调用'))
+    expect(within(bare.container).getByText(/character 马锅头/)).toBeTruthy()
   })
 })

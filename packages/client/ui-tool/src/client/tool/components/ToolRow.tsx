@@ -4,9 +4,9 @@ import {
   CodeBlock, DiffBlock, DisclosureRow, IconInspectOutline12, ReadBlock, SearchBlock, StateDot, TerminalBlock, WebBlock,
   diffTotals,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { PropsRenderSlots, TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
+import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import type { OpenFileOptions } from '@deepseek-ai/dsh-client-ui-chat/client'
-import type { MessageImageLoader } from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type { MessageImageLoader, MessageImageSource } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import { CHAT_DIFF_MAX_LINES, type DiffCardModel } from '../models/diff-card-model.ts'
 import { CHAT_READ_MAX_LINES, type ReadCardModel } from '../models/read-card-model.ts'
 import type { ImageCardModel } from '../models/image-card-model.ts'
@@ -61,11 +61,12 @@ export interface ToolRowProps {
    */
   image?: ImageCardModel | null | undefined
   /**
-   * Dispatch the image gallery through the tool-owned `tool.call.images`
-   * slot, supplied by the toolview that owns this row together with the
-   * session-authorized loader.
+   * Render this row's `image` card. The owning entry binds the slot it declared —
+   * `tool.call.images` for the read_image view, the generic row's
+   * `tool.call.result-images` otherwise — so the row itself names no slot and
+   * the tool layer still imports no attachment implementation.
    */
-  renderSlot?: PropsRenderSlots<'tool.call.images'>['renderSlot'] | undefined
+  renderImages?: ((images: readonly MessageImageSource[], loadImage: MessageImageLoader) => ReactNode) | undefined
   /** Session-authorized image URL loader for the gallery slot. */
   loadImage?: MessageImageLoader | undefined
   search?: SearchCardModel | null | undefined
@@ -124,7 +125,7 @@ export function ToolRow({
   diff,
   read,
   image,
-  renderSlot,
+  renderImages,
   loadImage,
   search,
   web,
@@ -145,7 +146,7 @@ export function ToolRow({
     : localizeTerminalCardModel(terminal, t)
   const diffBody = diff ?? null
   const readBody = read ?? null
-  const imageBody = image !== undefined && image !== null && renderSlot !== undefined && loadImage !== undefined
+  const imageBody = image !== undefined && image !== null && renderImages !== undefined && loadImage !== undefined
     ? image
     : null
   const searchBody = search ?? null
@@ -263,11 +264,7 @@ export function ToolRow({
                          only evidence an image was returned. */
                       <div className={css.imageBody}>
                         <div className={css.imageLabel}>{imageBody.label}</div>
-                        {renderSlot !== undefined && loadImage !== undefined && renderSlot('tool.call.images', {
-                          images: imageBody.images,
-                          loadImage,
-                          align: 'start',
-                        })}
+                        {renderImages !== undefined && loadImage !== undefined && renderImages(imageBody.images, loadImage)}
                         <div className={css.imageMeta}>{imageBody.text}</div>
                       </div>
                     )
