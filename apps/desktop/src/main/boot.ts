@@ -56,6 +56,25 @@ const PROFILE_ROOT_CONFIG = `# dsh profile root — an empty entry list. The tre
 /** The session-telemetry row id the DSH_TELEMETRY_DISABLED switch targets. */
 const TELEMETRY_ROW_ID = 'session-telemetry-otel'
 
+/**
+ * Whether this boot runs in an open checkout and must therefore heal the
+ * shared `$DSH_HOME/profiles/node_modules` farm. The branded dev executable
+ * reports `app.isPackaged` like the installed build and receives a
+ * `bareModuleBaseUrl`, but its checkout is a real filesystem tree whose
+ * preset roster resolves through the shared farm — skipping the heal there
+ * leaves the farm stale whenever the checkout gains a package, and discovery
+ * then reports every composition naming the new package unresolvable. Only a
+ * closed archive skips the heal: links cannot reach inside app.asar, and that
+ * runtime resolves bare plugins through the archive base instead. Segment
+ * comparison so an `app.asar.unpacked` twin does not read as the archive.
+ * @param bareModuleBaseUrl - the bare-module base URL this boot was given, if any.
+ * @returns true when the boot must heal the shared farm.
+ */
+export function healsSharedModuleFallback(bareModuleBaseUrl: string | undefined): boolean {
+  return bareModuleBaseUrl === undefined
+    || bareModuleBaseUrl.split(/[\\/]/).every(segment => segment !== 'app.asar')
+}
+
 /** Directory overrides for {@link ensureRootPluginLinks}, so tests never touch the real tree. */
 export interface RootPluginLinkDirs {
   /** The shared `$DSH_HOME/profiles/node_modules/@deepseek-ai` fallback directory. */
@@ -236,11 +255,12 @@ export interface DesktopBootResult {
  * @returns the settled root context and the shutdown controller.
  */
 export async function runDesktopBoot(options: DesktopBootOptions): Promise<DesktopBootResult> {
-  // Heal the shared module fallback only in the open runtime: a closed packaged
-  // runtime resolves bare plugins through bareModuleBaseUrl instead, because
-  // creating $DSH_HOME/profiles/node_modules symlinks inside app.asar is not
-  // reliable.
-  if (options.bareModuleBaseUrl === undefined) {
+  // Heal the shared module fallback in every open runtime, the branded dev
+  // executable included ({@link healsSharedModuleFallback}). Only a closed
+  // packaged runtime skips the heal and resolves bare plugins through
+  // bareModuleBaseUrl instead, because creating $DSH_HOME/profiles/node_modules
+  // links cannot reach inside app.asar.
+  if (healsSharedModuleFallback(options.bareModuleBaseUrl)) {
     await healProfilesModuleFallback({ installAnchor: INSTALL_ANCHOR })
     ensureRootPluginLinks()
   }

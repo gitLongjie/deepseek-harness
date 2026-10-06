@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { resolveInstallationModuleLinks } from '@deepseek-ai/dsh-app-boot'
-import { ensureRootPluginLinks, resolveMarketAnchorPatch, resolveOptionalBundlePatch, resolveTelemetryPatch } from '../src/main/boot.ts'
+import { ensureRootPluginLinks, healsSharedModuleFallback, resolveMarketAnchorPatch, resolveOptionalBundlePatch, resolveTelemetryPatch } from '../src/main/boot.ts'
 
 describe('resolveTelemetryPatch', () => {
   it('returns undefined when the switch is unset or the row is absent', () => {
@@ -118,6 +118,26 @@ describe('ensureRootPluginLinks', () => {
     expect(realpathSync.native(subagentLink))
       .toBe(realpathSync.native(closure.get('@deepseek-ai/dsh-subagent')!))
     expect(existsSync(join(rootAi, 'dsh-profile-only'))).toBe(true)
+  })
+})
+
+describe('healsSharedModuleFallback', () => {
+  it('heals a boot with no bare-module base', () => {
+    expect(healsSharedModuleFallback(undefined)).toBe(true)
+  })
+
+  it('heals the branded dev executable, whose checkout base is a real directory', () => {
+    // The branded dev exe reports app.isPackaged and receives a bare base, but
+    // its roster resolves through the shared farm, so it must keep healing.
+    expect(healsSharedModuleFallback('file:///E:/checkout/apps/desktop/')).toBe(true)
+  })
+
+  it('skips the closed archive the installed build runs from', () => {
+    expect(healsSharedModuleFallback('file:///C:/app/resources/app.asar/')).toBe(false)
+  })
+
+  it('treats an app.asar.unpacked twin as the open tree it is', () => {
+    expect(healsSharedModuleFallback('file:///C:/app/resources/app.asar.unpacked/')).toBe(true)
   })
 })
 
