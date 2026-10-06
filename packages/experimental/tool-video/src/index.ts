@@ -7,8 +7,9 @@
  * @module @deepseek-ai/dsh-experimental-tool-video
  */
 
+import { existsSync } from 'node:fs'
 import { copyFile, mkdir, readFile, rename, writeFile } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
+import { dirname, extname, join, basename } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { Agent } from '@deepseek-ai/dsh-agent'
@@ -20,6 +21,10 @@ import type {
 } from '@deepseek-ai/dsh-experimental-h3-video'
 import { CommandDefinitionId } from '@deepseek-ai/dsh-commands/brand'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
+import type { ContentBlock } from '@deepseek-ai/dsh-llm'
+// Type-only: resolves the optional ctx.attachments service declaration and its reference vocabulary.
+import type {} from '@deepseek-ai/dsh-attachment'
+import type { AttachmentId, ImageAttachmentRef, ImageMediaType } from '@deepseek-ai/dsh-attachment'
 // Type-only: resolves the required ctx.commands service declaration.
 import type {} from '@deepseek-ai/dsh-commands'
 import type { SessionId } from '@deepseek-ai/dsh-session'
@@ -136,12 +141,31 @@ const ASSEMBLE_VALUE_SCHEMA = {
   },
 } as const
 
+/**
+ * The durable image reference a material result carries, mirroring the shape the attachment
+ * service returns and the client's image card understands. Persisted beside the file path so a
+ * rendered material survives replay without re-reading the file.
+ */
+const IMAGE_ATTACHMENT_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    attachmentId: { type: 'string', required: true },
+    mediaType: { type: 'string', required: true, enum: ['image/png', 'image/jpeg', 'image/webp', 'image/gif'] },
+    bytes: { type: 'integer', required: true },
+    width: { type: 'integer', required: true },
+    height: { type: 'integer', required: true },
+    name: { type: 'string' },
+  },
+} as const
+
 const KEYFRAME_SCHEMA = {
   type: 'object',
   additionalProperties: false,
   properties: {
     segmentId: { type: 'string', required: true },
     keyframe: { type: 'string' },
+    attachment: IMAGE_ATTACHMENT_SCHEMA,
     state: { type: 'string', required: true, enum: ['generated', 'failed'] },
     error: { type: 'string' },
   },
@@ -165,6 +189,7 @@ const ASSET_IMAGE_SCHEMA = {
     name: { type: 'string', required: true },
     kind: { type: 'string', required: true },
     image: { type: 'string' },
+    attachment: IMAGE_ATTACHMENT_SCHEMA,
     state: { type: 'string', required: true, enum: ['generated', 'skipped', 'failed'] },
     error: { type: 'string' },
   },
@@ -189,6 +214,137 @@ function jsonOutput<const S extends ValueSchemaSpec>(schema: S): {
     schema,
     render: (_args: unknown, value: InferValue<S>) => [{ type: 'text', text: JSON.stringify(value) }],
   }
+}
+
+/**
+ * A declared output whose model-facing content is the images themselves rather than JSON, so a
+ * generated material is visible in the conversation and not only as a path.
+ * @param schema - the structured value schema.
+ * @param toBlocks - maps the value to its text and image content blocks.
+ * @returns the output declaration for a material tool.
+ */
+function imageOutput<const S extends ValueSchemaSpec>(
+  schema: S,
+  toBlocks: (value: InferValue<S>) => ContentBlock[],
+): {
+  schema: S
+  render: (_args: unknown, value: InferValue<S>) => ContentBlock[]
+} {
+  return { schema, render: (_args: unknown, value: InferValue<S>) => toBlocks(value) }
+}
+
+/** Media types the hosted image model returns, keyed by the extension the file was written with. */
+const IMAGE_MEDIA_TYPES: Readonly<Record<string, ImageMediaType>> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.gif': 'image/gif',
+}
+
+/**
+ * Commit one generated material image to the durable attachment store, so the tool result can
+ * carry the image itself beside its path.
+ * @param ctx - plugin context carrying the optional attachments service.
+ * @param filePath - absolute path of the generated image.
+ * @returns the durable reference, or undefined when no attachment store is mounted.
+ */
+async function saveImageAttachment(ctx: Context, filePath: string): Promise<ImageAttachmentRef | undefined> {
+  const attachments = ctx.get('attachments')
+  if (attachments === undefined) return undefined
+  const mediaType = IMAGE_MEDIA_TYPES[extname(filePath).toLowerCase()]
+  if (mediaType === undefined) return undefined
+  const data = await readFile(filePath)
+  return await attachments.saveImage({ data, mediaType, name: basename(filePath) })
+}
+
+/** The durable reference as the tool result schema carries it, before re-branding for a content block. */
+type MaterialAttachment = {
+  attachmentId: string
+  mediaType: ImageMediaType
+  bytes: number
+  width: number
+  height: number
+  name?: string
+}
+
+/**
+ * The model-facing envelope beside one material image: which material it is, where the file lives,
+ * and the image's measured size — the same block shape `read_image` writes, so one image-card
+ * derivation serves both tools.
+ * @param label - the segment or asset this image belongs to.
+ * @param filePath - absolute path of the image file.
+ * @param attachment - the durable reference carrying the measured size.
+ * @returns the envelope text.
+ */
+function materialEnvelope(label: string, filePath: string, attachment: MaterialAttachment): string {
+  return `<path>${label} → ${filePath}</path>
+<type>image</type>
+<content>
+${attachment.mediaType} image, ${attachment.width}x${attachment.height} px, ${attachment.bytes} bytes
+</content>`
+}
+
+/**
+ * Content blocks for one material image: its envelope plus the image, or a path-only line when the
+ * deployment has no attachment store to commit it to.
+ * @param label - the segment or asset this image belongs to.
+ * @param filePath - absolute path of the image file.
+ * @param attachment - the durable reference, absent without an attachment store.
+ * @returns the ordered content blocks for this material.
+ */
+function materialBlocks(label: string, filePath: string, attachment: MaterialAttachment | undefined): ContentBlock[] {
+  if (attachment === undefined) return [{ type: 'text', text: `${label} → ${filePath}` }]
+  const ref: ImageAttachmentRef = {
+    // The schema already validated the id as a non-empty string, so this re-brands the same
+    // value the store minted without taking a runtime dependency on the attachment package.
+    attachmentId: attachment.attachmentId as AttachmentId,
+    mediaType: attachment.mediaType,
+    bytes: attachment.bytes,
+    width: attachment.width,
+    height: attachment.height,
+    ...attachment.name !== undefined ? { name: attachment.name } : {},
+  }
+  return [
+    { type: 'text', text: materialEnvelope(label, filePath, attachment) },
+    { type: 'image', attachment: ref },
+  ]
+}
+
+/** Model-facing content for a keyframe run: each shot's image, then its failures and the notice. */
+function keyframeContent(value: InferValue<typeof KEYFRAME_VALUE_SCHEMA>): ContentBlock[] {
+  const blocks: ContentBlock[] = []
+  for (const keyframe of value.keyframes) {
+    const label = `segment ${keyframe.segmentId}`
+    if (keyframe.keyframe !== undefined) {
+      blocks.push(...materialBlocks(label, keyframe.keyframe, keyframe.attachment))
+    } else {
+      blocks.push({
+        type: 'text',
+        text: `${label}: ${keyframe.state}${keyframe.error !== undefined ? ` — ${keyframe.error}` : ''}`,
+      })
+    }
+  }
+  blocks.push({ type: 'text', text: value.notice })
+  return blocks
+}
+
+/** Model-facing content for an asset-image run: each asset's image, then its skips and the notice. */
+function assetImageContent(value: InferValue<typeof ASSET_IMAGE_VALUE_SCHEMA>): ContentBlock[] {
+  const blocks: ContentBlock[] = []
+  for (const asset of value.assets) {
+    const label = `${asset.kind} ${asset.name}`
+    if (asset.image !== undefined) {
+      blocks.push(...materialBlocks(label, asset.image, asset.attachment))
+    } else {
+      blocks.push({
+        type: 'text',
+        text: `${label}: ${asset.state}${asset.error !== undefined ? ` — ${asset.error}` : ''}`,
+      })
+    }
+  }
+  blocks.push({ type: 'text', text: value.notice })
+  return blocks
 }
 
 function callingAgent(agent: Agent | undefined, toolName: string): Agent {
@@ -222,16 +378,35 @@ function keyframesDir(outputDir: string): string {
   return artifactPath(outputDir, 'keyframes')
 }
 
-function canonicalKeyframeFile(outputDir: string, planId: string, segmentId: string): string {
-  return artifactPath(keyframesDir(outputDir), `${planId}-${segmentId}.png`)
-}
-
 function assetsDir(outputDir: string): string {
   return artifactPath(outputDir, 'assets')
 }
 
-function canonicalAssetFile(outputDir: string, planId: string, assetId: string): string {
-  return artifactPath(assetsDir(outputDir), `${planId}-${assetId}.png`)
+/** Extensions the hosted image model can return; the canonical name follows the real bytes. */
+const IMAGE_EXTENSIONS = ['.png', '.jpg', '.webp'] as const
+
+/**
+ * Canonical artifact base path (no extension) for a generated image; the extension follows what
+ * the image endpoint actually returned, so callers append `extname(generated)` when writing.
+ * @param dir - the artifact directory (`keyframes` or `assets`).
+ * @param planId - owning plan id.
+ * @param id - segment or asset id.
+ * @returns the extension-less absolute path.
+ */
+function imageArtifactBase(dir: string, planId: string, id: string): string {
+  return artifactPath(dir, `${planId}-${id}`)
+}
+
+/**
+ * Locate a previously generated image artifact by probing the extensions the endpoint can return.
+ * @param base - extension-less absolute path from {@link imageArtifactBase}.
+ * @returns the existing path, or undefined when no artifact was written yet.
+ */
+function findImageArtifact(base: string): string | undefined {
+  for (const extension of IMAGE_EXTENSIONS) {
+    if (existsSync(`${base}${extension}`)) return `${base}${extension}`
+  }
+  return undefined
 }
 
 /**
@@ -259,46 +434,60 @@ function keyframeRatio(ratio: VideoSegment['ratio']): '21:9' | '16:9' | '4:3' | 
 }
 
 /**
- * Attach a generated keyframe as the video request's first frame (image-to-video) when one exists;
- * otherwise the request stays text-to-video.
- * @param request - the base segment request.
- * @param keyframePath - canonical keyframe path for this segment.
- * @returns the request with the keyframe input appended when the file exists.
- */
-async function withKeyframe(request: SegmentRequest, keyframePath: string): Promise<SegmentRequest> {
-  try {
-    await readFile(keyframePath)
-  } catch {
-    return request
-  }
-  // Frame-image requests determine their ratio from the image (H3 content rule), so force adaptive.
-  return {
-    ...request,
-    ratio: 'adaptive',
-    inputs: [...request.inputs, { type: 'image', url: keyframePath, role: 'first_frame' }],
-  }
-}
-
-/**
- * Anchor a shot on the plan's reusable asset references (character/scene/prop images the user
- * provided) as reference-image conditioning — unless the shot already has a first/last frame, which
- * would conflict with reference conditioning on the backend.
- * @param request - the segment request (possibly keyframe-anchored).
+ * Assemble the final segment request: apply the keyframe and asset anchors under the H3
+ * conditioning rules. Frame conditioning (`first_frame`/`last_frame`) and reference conditioning
+ * are mutually exclusive on the backend, so when any reference material exists — plan asset
+ * anchors or authored reference inputs — the whole request unifies on full-reference: frame
+ * inputs degrade to `reference_image` instead of silently dropping the anchors. Reference
+ * conditioning also needs the prompt to label each attached item, so a contract line naming
+ * `<Picture N>`/`<Video N>`/`<Audio N>` in content order is appended to the prompt.
+ * @param segment - the plan segment.
  * @param plan - the plan carrying the asset anchors.
- * @returns the request with asset reference-image inputs appended when applicable.
+ * @param keyframeBase - extension-less canonical keyframe path for this segment.
+ * @returns the provider-ready request.
  */
-function withAssetReferences(request: SegmentRequest, plan: VideoPlan): SegmentRequest {
-  const references = (plan.assets ?? [])
-    .filter(asset => asset.reference !== undefined)
-    .map(asset => asset.reference as string)
-  if (references.length === 0) return request
-  const frameAnchored = request.inputs.some(input =>
-    input.type === 'image' && (input.role === 'first_frame' || input.role === 'last_frame'))
-  if (frameAnchored) return request
-  return {
-    ...request,
-    inputs: [...request.inputs, ...references.map(url => ({ type: 'image' as const, url, role: 'reference_image' as const }))],
+function buildSegmentRequest(segment: VideoSegment, plan: VideoPlan, keyframeBase: string): SegmentRequest {
+  const request = toSegmentRequest(segment)
+  const keyframePath = findImageArtifact(keyframeBase)
+  const anchoredAssets = (plan.assets ?? []).filter(asset => asset.reference !== undefined)
+  const hasReferenceInputs = request.inputs.some(input =>
+    input.type === 'video' || input.type === 'audio' || (input.type === 'image' && input.role === 'reference_image'))
+  if (!hasReferenceInputs && anchoredAssets.length === 0) {
+    // Frame mode when a keyframe exists; text-to-video otherwise.
+    if (keyframePath === undefined) return request
+    // Frame-image requests determine their ratio from the image (H3 content rule), so force adaptive.
+    return {
+      ...request,
+      ratio: 'adaptive',
+      inputs: [...request.inputs, { type: 'image', url: keyframePath, role: 'first_frame' }],
+    }
   }
+  const labeled: Array<{ input: SegmentInput; label: string }> = []
+  const counters = { picture: 0, video: 0, audio: 0 }
+  const add = (input: SegmentInput, description: string): void => {
+    if (input.type === 'image') {
+      labeled.push({ input, label: `<Picture ${++counters.picture}> ${description}` })
+    } else if (input.type === 'video') {
+      labeled.push({ input, label: `<Video ${++counters.video}> ${description}` })
+    } else {
+      labeled.push({ input, label: `<Audio ${++counters.audio}> ${description}` })
+    }
+  }
+  for (const input of request.inputs) {
+    if (input.type === 'image' && (input.role === 'first_frame' || input.role === 'last_frame')) {
+      add({ type: 'image', url: input.url, role: 'reference_image' }, input.role === 'first_frame' ? 'opening frame' : 'closing frame')
+    } else if (input.type !== 'text') {
+      add(input, input.role)
+    }
+  }
+  if (keyframePath !== undefined) add({ type: 'image', url: keyframePath, role: 'reference_image' }, 'opening keyframe')
+  for (const asset of anchoredAssets) {
+    add({ type: 'image', url: asset.reference as string, role: 'reference_image' }, `${asset.name} (${asset.kind})`)
+  }
+  const prompt = request.inputs.find(input => input.type === 'text')
+  const baseText = prompt?.type === 'text' ? prompt.text : ''
+  const text = `${baseText}\nReferences: ${labeled.map(entry => entry.label).join('; ')}`
+  return { ...request, inputs: [{ type: 'text', text }, ...labeled.map(entry => entry.input)] }
 }
 
 /** Validate a reference's type/role pairing and its source. */
@@ -545,7 +734,7 @@ export function apply(ctx: Context): void {
           additionalProperties: false,
           properties: {
             id: { type: 'string', required: true, description: 'Stable segment id, e.g. s1, s2.' },
-            prompt: { type: 'string', required: true, description: 'Shot description used as the generation prompt.' },
+            prompt: { type: 'string', required: true, description: 'Shot description used as the generation prompt. H3 generates audio in the same pass: state the ambience/SFX layer, wrap Chinese dialogue as <d>[Chinese] 逐字台词</d>, and write non_diegetic_music: N/A when no music is wanted.' },
             camera: { type: 'string', description: 'Camera movement guidance appended to the prompt.' },
             duration_seconds: { type: 'integer', required: true, description: 'Segment length in seconds (1..120).' },
             resolution: { type: 'string', required: true, enum: ['480P', '768P', '2K'], description: 'Resolution tier.' },
@@ -666,7 +855,7 @@ export function apply(ctx: Context): void {
       plan_id: { type: 'string', required: true, description: 'Plan id from video_plan.' },
       segment_ids: { type: 'array', items: { type: 'string' }, description: 'Segment ids to keyframe; defaults to every segment.' },
     },
-    output: jsonOutput(KEYFRAME_VALUE_SCHEMA),
+    output: imageOutput(KEYFRAME_VALUE_SCHEMA, keyframeContent),
     async execute(args, exec) {
       const outputDir = ctx.h3Video.outputDir
       const plan = await readPlan(outputDir, args.plan_id)
@@ -677,17 +866,30 @@ export function apply(ctx: Context): void {
           if (segment === undefined) throw new Error(`plan ${plan.id} has no segment ${JSON.stringify(id)}`)
           return segment
         })
-      const keyframes: Array<{ segmentId: string; keyframe?: string; state: 'generated' | 'failed'; error?: string }> = []
+      const keyframes: Array<{
+        segmentId: string
+        keyframe?: string
+        attachment?: ImageAttachmentRef
+        state: 'generated' | 'failed'
+        error?: string
+      }> = []
       for (const segment of selected) {
         const prompt = segment.camera !== undefined && segment.camera.length > 0
           ? `${segment.prompt} [Camera: ${segment.camera}]`
           : segment.prompt
         try {
           const generated = await ctx.h3Video.keyframe(prompt, keyframeRatio(segment.ratio), exec.signal)
-          const target = canonicalKeyframeFile(outputDir, plan.id, segment.id)
+          const base = imageArtifactBase(keyframesDir(outputDir), plan.id, segment.id)
+          const target = `${base}${extname(generated)}`
           await mkdir(dirname(target), { recursive: true })
           await rename(generated, target)
-          keyframes.push({ segmentId: segment.id, keyframe: target, state: 'generated' })
+          const attachment = await saveImageAttachment(ctx, target)
+          keyframes.push({
+            segmentId: segment.id,
+            keyframe: target,
+            ...attachment !== undefined ? { attachment } : {},
+            state: 'generated',
+          })
         } catch (error: unknown) {
           const message = error instanceof Error ? error.message : String(error)
           keyframes.push({ segmentId: segment.id, state: 'failed', error: message })
@@ -779,7 +981,7 @@ export function apply(ctx: Context): void {
       plan_id: { type: 'string', required: true, description: 'Plan id from video_plan.' },
       asset_ids: { type: 'array', items: { type: 'string' }, description: 'Asset ids to generate; defaults to every asset without a reference.' },
     },
-    output: jsonOutput(ASSET_IMAGE_VALUE_SCHEMA),
+    output: imageOutput(ASSET_IMAGE_VALUE_SCHEMA, assetImageContent),
     async execute(args, exec) {
       const outputDir = ctx.h3Video.outputDir
       const prior = await readPlan(outputDir, args.plan_id)
@@ -787,15 +989,25 @@ export function apply(ctx: Context): void {
       const assetIds = args.asset_ids
       const selected = (assetIds === undefined ? allAssets : allAssets.filter(asset => assetIds.includes(asset.id)))
         .filter(asset => asset.reference === undefined)
-      const results: Array<{ assetId: string; name: string; kind: string; image?: string; state: 'generated' | 'skipped' | 'failed'; error?: string }> = []
+      const results: Array<{
+        assetId: string
+        name: string
+        kind: string
+        image?: string
+        attachment?: ImageAttachmentRef
+        state: 'generated' | 'skipped' | 'failed'
+        error?: string
+      }> = []
       const assets: PlanAsset[] = [...(prior.assets ?? [])]
       for (const asset of selected) {
         try {
           const ratio = asset.kind === 'character' || asset.kind === 'prop' ? '1:1' : '16:9'
           const generated = await ctx.h3Video.keyframe(buildAssetPrompt(asset), ratio, exec.signal)
-          const target = canonicalAssetFile(outputDir, prior.id, asset.id)
+          const base = imageArtifactBase(assetsDir(outputDir), prior.id, asset.id)
+          const target = `${base}${extname(generated)}`
           await mkdir(dirname(target), { recursive: true })
           await rename(generated, target)
+          const attachment = await saveImageAttachment(ctx, target)
           const index = assets.findIndex(candidate => candidate.id === asset.id)
           const current = index !== -1 ? assets[index] : undefined
           if (current !== undefined) {
@@ -807,7 +1019,14 @@ export function apply(ctx: Context): void {
               reference: target,
             }
           }
-          results.push({ assetId: asset.id, name: asset.name, kind: asset.kind, image: target, state: 'generated' })
+          results.push({
+            assetId: asset.id,
+            name: asset.name,
+            kind: asset.kind,
+            image: target,
+            ...attachment !== undefined ? { attachment } : {},
+            state: 'generated',
+          })
         } catch (error: unknown) {
           const message = error instanceof Error ? error.message : String(error)
           results.push({ assetId: asset.id, name: asset.name, kind: asset.kind, state: 'failed', error: message })
@@ -861,9 +1080,10 @@ export function apply(ctx: Context): void {
         try {
           const { target, ref } = await ctx.h3Video.submit(
             backend,
-            withAssetReferences(
-              await withKeyframe(toSegmentRequest(combined), canonicalKeyframeFile(outputDir, plan.id, plan.segments[0]?.id ?? 's0')),
+            buildSegmentRequest(
+              combined,
               plan,
+              imageArtifactBase(keyframesDir(outputDir), plan.id, plan.segments[0]?.id ?? 's0'),
             ),
             exec.signal,
           )
@@ -892,9 +1112,10 @@ export function apply(ctx: Context): void {
           try {
             const { target, ref } = await ctx.h3Video.submit(
               backend,
-              withAssetReferences(
-                await withKeyframe(toSegmentRequest(segment), canonicalKeyframeFile(outputDir, plan.id, segment.id)),
+              buildSegmentRequest(
+                segment,
                 plan,
+                imageArtifactBase(keyframesDir(outputDir), plan.id, segment.id),
               ),
               exec.signal,
             )
@@ -996,7 +1217,10 @@ export function apply(ctx: Context): void {
             + '1) 先用 video_plan 把需求拆成带 id 的分镜（每段含 prompt、duration_seconds、resolution、ratio、backend，可选 references 参考素材）；'
             + '2) 把分镜呈现给用户确认（场景/镜头/提示词要点/时长/分辨率/路由与预估成本，并询问是否需要参考素材），未经确认不得渲染；'
             + '3) 确认后用 video_render 提交渲染并用 job_output 等待各段完成；'
-            + '4) 全部成功后 video_assemble 拼接成片，最后用 present 交付。'
+            + '4) 全部成功后 video_assemble 拼接成片，最后用 present 交付。\n'
+            + 'H3 音画同生（视频与音频同一次生成），写分镜 prompt 时要声明声音层：'
+            + '写清环境声与音效（overall_soundscape）；有中文对白时逐字写进 <d>[Chinese] 台词</d>，时长要容得下台词；'
+            + '不要配乐时显式写 non_diegetic_music: N/A（留空易出多余配乐），无对白镜头也要写环境声或静默。\n'
             + '本地失败时不得静默转远端 API：先说明失败原因并询问用户（远端按秒计费）后再用 remote。',
         }],
         source: { kind: 'user' },

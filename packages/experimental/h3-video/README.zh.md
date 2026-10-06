@@ -59,7 +59,7 @@ kind: "package-reference"
       model: 'MiniMax-H3'
 ```
 
-`apiKeyRef` 指定一个通过 `ctx.credentials` 在每次请求时解析的凭据名。把 key 存一次到受管凭据存储（或设为 `MINIMAX_API_KEY` 环境变量）；key 绝不写入 `cordis.yml`。测试场景也接受字面量 `apiKey`，但它会落在组合文件里。
+`apiKeyRef` 指定一个通过 `ctx.credentials` 在每次请求时解析的凭据名。把 key 存一次到受管凭据存储（或设为 `MINIMAX_API_KEY` 环境变量）；key 绝不写入 `cordis.yml`。测试场景也接受字面量 `apiKey`，但它会落在组合文件里。超出已知 `MiniMax-H3`/`MiniMax-H3-Max` 档位的 release id 需要在同一行补上 `resolutions` 和 `minDurationSeconds`/`maxDurationSeconds`。
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-experimental-h3-video)是每个字段及其 JSDoc 的权威来源。
 
@@ -118,7 +118,7 @@ provider 的下载直接落在 `outputDir`，由渲染任务改名为 `segments/
 | 文件 | 职责 |
 |---|---|
 | [`src/types.ts`](src/types.ts) | `SegmentRequest`、`TaskStatus`、`H3VideoProvider`、`ProviderCapabilities`、`H3TaskRef` 品牌类型 |
-| [`src/validation.ts`](src/validation.ts) | 两个 provider 共享的请求规则（文本条数、prompt 长度、时长/分辨率范围、首尾帧与参考输入互斥、比例规则） |
+| [`src/validation.ts`](src/validation.ts) | 两个 provider 共享的请求规则（文本条数、prompt 长度、时长/分辨率范围、首尾帧与参考输入互斥、首尾帧唯一、引用数量上限、比例规则） |
 | [`src/routing.ts`](src/routing.ts) | `resolve`——针对已配置后端的显式 `local`/`remote`/`auto` 选择 |
 | [`src/comfyui.ts`](src/comfyui.ts) | 本地 provider：模板填充、`/prompt` 队列、`/history` 轮询、`/view` 下载、`/interrupt` 取消 |
 | [`src/minimax-api.ts`](src/minimax-api.ts) | 托管 provider：V2 建任务、任务轮询、限时 URL 下载 |
@@ -133,7 +133,9 @@ provider 的下载直接落在 `outputDir`，由渲染任务改名为 `segments/
 
 ### 托管 API 表面
 
-托管 provider 镜像 MiniMax V2 视频 API：`POST /v2/video_generation` 建任务，轮询 `GET /v2/query/video_generation/{task_id}`，成功后把限时的媒体 URL 下载到 `outputDir`。`MiniMax-H3` 服务 4–15 秒、768P/2K；`MiniMax-H3-Max` 服务 5–15 秒、480P/768P。
+托管 provider 镜像 MiniMax V2 视频 API：`POST /v2/video_generation` 建任务，轮询 `GET /v2/query/video_generation/{task_id}`，成功后把限时的媒体 URL 下载到 `outputDir`。已发布档位覆盖已知 release——`MiniMax-H3` 服务 4–15 秒、768P/2K；`MiniMax-H3-Max` 服务 5–15 秒、480P/768P——但账号开通了哪个 release 是部署配置：`model` 接受任意 release id，没有已发布档位的 id 必须携带 `minimax.resolutions` 和 `minimax.minDurationSeconds`/`maxDurationSeconds`，否则服务在加载时响亮失败而不是猜测档位。
+
+参考输入遵循已发布的内容规则。本地文件以内联 base64 data URI 提交，超过单模态上限（图片 30 MB、视频 50 MB、音频 15 MB）会被拒绝；整个创建体在 base64 展开后超过 64 MB 也会被拒绝——把素材放到可访问的主机上改传 https URL（或 MiniMax 文件服务的 `mm_file://{file_id}`，按原样透传），而不是拆分它。
 
 </details>
 

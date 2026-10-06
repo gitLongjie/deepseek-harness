@@ -31,6 +31,9 @@ export type PluginsSettingsLocaleKey =
   | 'h3MinimaxApiKeyRef' | 'h3MinimaxApiKeyRefHint'
   | 'h3MinimaxBaseUrl' | 'h3MinimaxBaseUrlHint'
   | 'h3MinimaxModel' | 'h3MinimaxModelHint'
+  | 'h3MinimaxResolutions' | 'h3MinimaxResolutionsHint'
+  | 'h3MinimaxMinDuration' | 'h3MinimaxMinDurationHint'
+  | 'h3MinimaxMaxDuration' | 'h3MinimaxMaxDurationHint'
   | 'h3MinimaxMaxConcurrency' | 'h3MinimaxMaxConcurrencyHint'
   | 'h3MinimaxPollInterval' | 'h3MinimaxPollIntervalHint'
   | 'h3MinimaxTaskTimeout' | 'h3MinimaxTaskTimeoutHint'
@@ -121,7 +124,13 @@ export const en: Record<PluginsSettingsLocaleKey, string> = {
   h3MinimaxBaseUrl: 'Base URL',
   h3MinimaxBaseUrlHint: 'The hosted MiniMax API origin.',
   h3MinimaxModel: 'Model',
-  h3MinimaxModelHint: 'MiniMax-H3 or MiniMax-H3-Max.',
+  h3MinimaxModelHint: 'Model release id; an id without a built-in envelope needs the resolution and duration fields below.',
+  h3MinimaxResolutions: 'Resolutions',
+  h3MinimaxResolutionsHint: 'Comma list the model accepts, e.g. 768P, 2K; overrides the built-in envelope for the model.',
+  h3MinimaxMinDuration: 'Shortest segment (s)',
+  h3MinimaxMinDurationHint: 'Inclusive shortest segment the model accepts; overrides the built-in envelope.',
+  h3MinimaxMaxDuration: 'Longest segment (s)',
+  h3MinimaxMaxDurationHint: 'Inclusive longest segment the model accepts; overrides the built-in envelope.',
   h3MinimaxMaxConcurrency: 'Concurrent generations',
   h3MinimaxMaxConcurrencyHint: 'How many remote generations may run at once.',
   h3MinimaxPollInterval: 'Poll interval (ms)',
@@ -219,7 +228,13 @@ export const zh: Record<PluginsSettingsLocaleKey, string> = {
   h3MinimaxBaseUrl: '接口地址',
   h3MinimaxBaseUrlHint: 'MiniMax 托管 API 的地址。',
   h3MinimaxModel: '模型',
-  h3MinimaxModelHint: 'MiniMax-H3 或 MiniMax-H3-Max。',
+  h3MinimaxModelHint: '模型 release id；未内置档位的模型需填写下方分辨率与时长范围。',
+  h3MinimaxResolutions: '分辨率',
+  h3MinimaxResolutionsHint: '该模型接受的分辨率列表（逗号分隔，如 768P, 2K），覆盖该模型的内置档位。',
+  h3MinimaxMinDuration: '最短片段（秒）',
+  h3MinimaxMinDurationHint: '该模型接受的最短片段秒数（含），覆盖内置档位。',
+  h3MinimaxMaxDuration: '最长片段（秒）',
+  h3MinimaxMaxDurationHint: '该模型接受的最长片段秒数（含），覆盖内置档位。',
   h3MinimaxMaxConcurrency: '并发生成数',
   h3MinimaxMaxConcurrencyHint: '远端同时进行的生成任务数。',
   h3MinimaxPollInterval: '轮询间隔（毫秒）',

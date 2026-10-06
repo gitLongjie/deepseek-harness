@@ -51,12 +51,12 @@ kind: "package-reference"
 
 - **`video_plan(goal, segments, mode?, assets?, style?)`**——把对话需求结构化为带版本的分镜并持久化为 JSON 工件。传入已有 `plan_id` 则修订并递增版本。片段带有 id、镜头 prompt、可选运镜、时长、分辨率、比例、每段的 `local`/`remote`/`auto` 路由选择，以及可选 `references`（参考素材：图片作为 `first_frame`/`last_frame`/`reference_image`，视频作为 `reference_video`，音频作为 `reference_audio`，每个都是绝对路径或 http(s) URL）。引用角色会按其类型校验。`assets` 声明分镜引用的可复用角色/场景/道具锚点；`style` 是一行视觉风格指令。`mode` 默认为 `multi_shot`：整份分镜合成一条 H3 任务（总时长 ≤15 秒、统一分辨率/比例），镜头之间风格连贯；`per_segment` 则每段独立渲染再拼接，用于需要各自素材或后端的镜头。
 - **`video_assets(plan_id, assets, style?)`**——在询问用户素材后，记录可复用的素材锚点及其用户提供的参考图。每个素材引用必须是绝对路径或 http(s) URL。这些锚点会作为渲染的条件，保证角色/场景/道具跨镜头一致。
-- **`video_asset_images(plan_id, asset_ids?)`**——为没有参考图的素材生成参考图，按生产规范分类型：角色生成"正脸特写+三视图"设定参考图、场景生成无人物可复用的空镜建立镜头、道具生成中性参考图。每张落在 `outputDir/assets/<planId>-<assetId>.png` 并记录到计划。
-- **`video_keyframes(plan_id, segment_ids?)`**——为每个选中镜头生成一张关键帧图片（托管 image 模型），在生成视频前先定场景与视觉。关键帧落在 `outputDir/keyframes/<planId>-<segmentId>.png`，应展示给用户确认；没有关键帧的镜头按文生视频渲染。
-- **`video_render(plan_id, segment_ids?, backend?)`**——提交到路由后的后端并启动一个轮询到完成的后台任务。`multi_shot` 模式一个任务渲染整份分镜（`all` 片段 id）；`per_segment` 模式每个选中片段各一个任务。镜头以计划的素材参考图做 reference 锚定（本地经 ComfyUI `MiniMaxH3ReferenceToVideo` 节点服务），存在关键帧时再作为首帧图生视频；否则保持文生视频。返回带 job id 的提交记录；结果通过标准任务通知与 `job_output` 到达。视频/音频引用仍需远端 API（本地工作流只服务图片条件）。
+- **`video_asset_images(plan_id, asset_ids?)`**——为没有参考图的素材生成参考图，按生产规范分类型：角色生成"正脸特写+三视图"设定参考图、场景生成无人物可复用的空镜建立镜头、道具生成中性参考图。每张落在 `outputDir/assets/<planId>-<assetId>.png` 并记录到计划；结果同时携带图片本身与路径，因此生成的素材在对话里直接可见，而不只是一个路径。
+- **`video_keyframes(plan_id, segment_ids?)`**——为每个选中镜头生成一张关键帧图片（托管 image 模型），在生成视频前先定场景与视觉。关键帧落在 `outputDir/keyframes/<planId>-<segmentId>.png`，应展示给用户确认；结果携带图片本身，确认环节看到的是画面而不是路径。没有关键帧的镜头按文生视频渲染。
+- **`video_render(plan_id, segment_ids?, backend?)`**——提交到路由后的后端并启动一个轮询到完成的后台任务。`multi_shot` 模式一个任务渲染整份分镜（`all` 片段 id）；`per_segment` 模式每个选中片段各一个任务。锚定遵循 H3 的条件规则：首尾帧条件（`first_frame`/`last_frame`）与参考条件互斥，因此镜头一旦带任何参考素材（计划的素材锚点或手写 reference 输入）就统一走 full-reference（关键帧或手写帧输入降级为 `reference_image`，保留全部锚点而不是丢弃一部分），prompt 追加一行 `References: <Picture N> …` 契约，按内容顺序标注每个素材；图片条件本地经 ComfyUI `MiniMaxH3ReferenceToVideo` 节点服务。只有关键帧的镜头按首帧图生视频渲染；两者都没有则保持文生视频。返回带 job id 的提交记录；结果通过标准任务通知与 `job_output` 到达。视频/音频引用仍需远端 API（本地工作流只服务图片条件）。
 - **`video_assemble(plan_id, output_file?, ffmpeg_path?)`**——产出成片：`multi_shot` 直接返回单条已渲染片段（无需拼接）；`per_segment` 用 ffmpeg 按分镜顺序拼接。per-segment 默认输出为 `<outputDir>/final/<planId>.mp4`（DSH cache 目录）；传入 `output_file` 可把成品放到别处（如 workspace），并在其上调用 `present` 让用户收到成片。若某片段尚未渲染则失败并列出缺失项。
 
-预期流程是**素材优先**：先用 `video_plan` 起草分镜与素材清单（角色/场景/道具），【请用户提供参考图】并用 `video_assets` 记录（用户没图时用 `video_asset_images` 自动生成），再 `video_keyframes` 生成关键帧，把所有素材与分镜呈现给用户批准后渲染——远端后端按秒计费，未经用户明确同意绝不使用。用户也可以直接用 **`/video <描述>`** 斜杠指令唤起整条流程：它会入队一个用户回合，携带描述以及"要素材→确认→再渲染"的步骤说明。
+预期流程是**素材优先**：先用 `video_plan` 起草分镜与素材清单（角色/场景/道具），【请用户提供参考图】并用 `video_assets` 记录（用户没图时用 `video_asset_images` 自动生成），再 `video_keyframes` 生成关键帧，把所有素材与分镜呈现给用户批准后渲染——远端后端按秒计费，未经用户明确同意绝不使用。用户也可以直接用 **`/video <描述>`** 斜杠指令唤起整条流程：它会入队一个用户回合，携带描述以及"要素材→确认→再渲染"的步骤说明。H3 音画同生（音频与画面同一次生成），因此镜头 prompt 应声明声音层：环境声与音效基线、中文对白逐字写进 `<d>[Chinese] 台词</d>`、不要配乐时显式写 `non_diegetic_music: N/A`（该层留空容易多出背景音乐）；`/video` 回合会把这条要求带给模型。
 
 ### 成功与失败形态
 

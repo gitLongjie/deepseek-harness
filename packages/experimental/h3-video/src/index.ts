@@ -108,8 +108,17 @@ export interface MinimaxConfig {
   apiKeyRef?: string
   /** API origin. */
   baseUrl?: string
-  /** Model selection. */
+  /**
+   * Model release id the account has enabled. Known ids (`MiniMax-H3`, `MiniMax-H3-Max`) carry
+   * their published envelope; any other id requires `resolutions` and the duration range below.
+   */
   model?: string
+  /** Resolution tiers the release accepts; overrides the published envelope for `model`. */
+  resolutions?: string[]
+  /** Inclusive shortest segment the release accepts, in seconds. */
+  minDurationSeconds?: number
+  /** Inclusive longest segment the release accepts, in seconds. */
+  maxDurationSeconds?: number
   /** Image model used for keyframe generation (`image-01` or `image-01-live`). */
   imageModel?: string
   /** Milliseconds between task queries. */
@@ -171,7 +180,10 @@ export const Config = z.object({
     apiKey: z.string(),
     apiKeyRef: z.string(),
     baseUrl: z.string().default('https://api.minimax.cn'),
-    model: z.union(['MiniMax-H3', 'MiniMax-H3-Max'] as const).default('MiniMax-H3'),
+    model: z.string().default('MiniMax-H3'),
+    resolutions: z.array(z.union(RESOLUTIONS)),
+    minDurationSeconds: z.number().step(1).min(1),
+    maxDurationSeconds: z.number().step(1).min(1),
     imageModel: z.union(['image-01', 'image-01-live'] as const).default('image-01'),
     pollIntervalMs: z.number().min(1_000).default(10_000),
     taskTimeoutMs: z.number().min(60_000).default(1_800_000),
@@ -299,20 +311,34 @@ export function resolveOverlayConfig(base: Config, overlay: H3VideoSettingsSecti
   const minimaxOverlay: Partial<NonNullable<Config['minimax']>> = {}
   const minimaxBaseUrl = text(overlay.minimaxBaseUrl)
   const minimaxApiKeyRef = text(overlay.minimaxApiKeyRef)
+  const minimaxModel = text(overlay.minimaxModel)
   if (minimaxBaseUrl !== undefined) minimaxOverlay.baseUrl = minimaxBaseUrl
-  if (overlay.minimaxModel !== undefined) minimaxOverlay.model = overlay.minimaxModel
+  if (minimaxModel !== undefined) minimaxOverlay.model = minimaxModel
+  const minimaxResolutions = overlay.minimaxResolutions
+  if (minimaxResolutions !== undefined && minimaxResolutions.length > 0) {
+    minimaxOverlay.resolutions = minimaxResolutions
+  }
+  if (overlay.minimaxMinDurationSeconds !== undefined) minimaxOverlay.minDurationSeconds = overlay.minimaxMinDurationSeconds
+  if (overlay.minimaxMaxDurationSeconds !== undefined) minimaxOverlay.maxDurationSeconds = overlay.minimaxMaxDurationSeconds
   if (minimaxApiKeyRef !== undefined) minimaxOverlay.apiKeyRef = minimaxApiKeyRef
   if (overlay.minimaxPollIntervalMs !== undefined) minimaxOverlay.pollIntervalMs = overlay.minimaxPollIntervalMs
   if (overlay.minimaxTaskTimeoutMs !== undefined) minimaxOverlay.taskTimeoutMs = overlay.minimaxTaskTimeoutMs
   if (overlay.minimaxMaxConcurrency !== undefined) minimaxOverlay.maxConcurrency = overlay.minimaxMaxConcurrency
-  const outputDir = text(overlay.outputDir)
+  const outputDir = text(overlay.outputDir) ?? base.outputDir
+  const minFreeSpaceMb = overlay.minFreeSpaceMb ?? base.minFreeSpaceMb
+  const estimatedBytesPerSecond = overlay.estimatedBytesPerSecond ?? base.estimatedBytesPerSecond
+  const comfy = base.comfy === undefined && Object.keys(comfyOverlay).length === 0
+    ? undefined
+    : { ...base.comfy, ...comfyOverlay }
+  const minimax = base.minimax === undefined && Object.keys(minimaxOverlay).length === 0
+    ? undefined
+    : { ...base.minimax, ...minimaxOverlay }
   return {
-    ...base,
     ...(outputDir !== undefined ? { outputDir } : {}),
-    ...(overlay.minFreeSpaceMb !== undefined ? { minFreeSpaceMb: overlay.minFreeSpaceMb } : {}),
-    ...(overlay.estimatedBytesPerSecond !== undefined ? { estimatedBytesPerSecond: overlay.estimatedBytesPerSecond } : {}),
-    ...(Object.keys(comfyOverlay).length > 0 ? { comfy: { ...base.comfy, ...comfyOverlay } } : {}),
-    ...(Object.keys(minimaxOverlay).length > 0 ? { minimax: { ...base.minimax, ...minimaxOverlay } } : {}),
+    ...(minFreeSpaceMb !== undefined ? { minFreeSpaceMb } : {}),
+    ...(estimatedBytesPerSecond !== undefined ? { estimatedBytesPerSecond } : {}),
+    ...(comfy !== undefined ? { comfy } : {}),
+    ...(minimax !== undefined ? { minimax } : {}),
   }
 }
 
@@ -399,7 +425,6 @@ class LocalH3Video extends H3Video {
       const apiKey = mm.apiKey
       const apiKeyRef = mm.apiKeyRef
       const baseUrl = mm.baseUrl ?? 'https://api.minimax.cn'
-      const model = (mm.model ?? 'MiniMax-H3') as MiniMaxApiOptions['model']
       let apiKeySource: MiniMaxApiOptions['apiKey']
       if (typeof apiKey === 'string' && apiKey.length > 0) {
         apiKeySource = apiKey
@@ -424,7 +449,12 @@ class LocalH3Video extends H3Video {
       const videoOptions: MiniMaxApiOptions = {
         apiKey: apiKeySource,
         baseUrl,
-        model,
+        model: mm.model ?? 'MiniMax-H3',
+        ...(mm.resolutions !== undefined && mm.resolutions.length > 0
+          ? { resolutions: mm.resolutions as NonNullable<MiniMaxApiOptions['resolutions']> }
+          : {}),
+        ...(mm.minDurationSeconds !== undefined ? { minDurationSeconds: mm.minDurationSeconds } : {}),
+        ...(mm.maxDurationSeconds !== undefined ? { maxDurationSeconds: mm.maxDurationSeconds } : {}),
         outputDir,
         pollIntervalMs: mm.pollIntervalMs ?? 10_000,
         taskTimeoutMs: mm.taskTimeoutMs ?? 1_800_000,

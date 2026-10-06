@@ -44,6 +44,19 @@ function abortError(): Error {
 }
 
 /**
+ * Name the file extension from the downloaded image's magic bytes, since the endpoint's
+ * `response_format: 'url'` payload is JPEG by default regardless of the requested format.
+ * @param bytes - the downloaded image bytes.
+ * @returns `png`, `jpg`, or `webp`.
+ */
+function imageExtension(bytes: Uint8Array): string {
+  if (bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return 'png'
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'jpg'
+  if (bytes.length >= 12 && bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50) return 'webp'
+  return 'png'
+}
+
+/**
  * Build the hosted image provider over `POST /v1/image_generation`. The response is synchronous:
  * it returns downloadable image URLs, which are fetched into `outputDir` immediately because the
  * URLs expire after 24 hours.
@@ -93,7 +106,12 @@ export function createMiniMaxImageProvider(options: MiniMaxImageOptions): {
     const bytes = new Uint8Array(await fileResponse.arrayBuffer())
     if (signal.aborted) throw abortError()
     await mkdir(options.outputDir, { recursive: true })
-    const target = join(options.outputDir, `keyframe-${Date.now()}-${Math.floor(Math.random() * 1e6)}.png`)
+    // The endpoint returns JPEG unless asked otherwise, so the file extension follows the bytes
+    // rather than a fixed name: a `.png` label on JPEG bytes breaks image readers downstream.
+    const target = join(
+      options.outputDir,
+      `keyframe-${Date.now()}-${Math.floor(Math.random() * 1e6)}.${imageExtension(bytes)}`,
+    )
     await writeFile(target, bytes)
     return target
   }

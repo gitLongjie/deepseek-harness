@@ -46,8 +46,14 @@ export interface H3VideoSettingsSection {
   comfyMaxDurationSeconds?: number
   /** Hosted MiniMax API base URL. */
   minimaxBaseUrl?: string
-  /** Hosted MiniMax video model. */
-  minimaxModel?: 'MiniMax-H3' | 'MiniMax-H3-Max'
+  /** Hosted MiniMax video model release id; unknown ids need the envelope fields below. */
+  minimaxModel?: string
+  /** Resolutions the hosted model accepts; overrides the published envelope for the model. */
+  minimaxResolutions?: string[]
+  /** Shortest segment the hosted model accepts, in seconds. */
+  minimaxMinDurationSeconds?: number
+  /** Longest segment the hosted model accepts, in seconds. */
+  minimaxMaxDurationSeconds?: number
   /** Credential reference resolving the hosted API key; a value here enables the remote backend when the composition carries no key. */
   minimaxApiKeyRef?: string
   /** Hosted MiniMax poll interval in milliseconds. */
@@ -76,7 +82,10 @@ export const H3VideoSettingsSchema: z<H3VideoSettingsSection> = z.object({
   comfyMinDurationSeconds: z.number().step(1).min(1),
   comfyMaxDurationSeconds: z.number().step(1).min(1),
   minimaxBaseUrl: z.string(),
-  minimaxModel: z.union(['MiniMax-H3', 'MiniMax-H3-Max'] as const),
+  minimaxModel: z.string(),
+  minimaxResolutions: z.array(z.union(['480P', '768P', '2K'] as const)),
+  minimaxMinDurationSeconds: z.number().step(1).min(1),
+  minimaxMaxDurationSeconds: z.number().step(1).min(1),
   minimaxApiKeyRef: z.string(),
   minimaxPollIntervalMs: z.number().min(1_000),
   minimaxTaskTimeoutMs: z.number().min(60_000),

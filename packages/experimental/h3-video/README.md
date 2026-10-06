@@ -59,7 +59,7 @@ Adding the hosted backend is one more row referencing a credential; the key neve
       model: 'MiniMax-H3'
 ```
 
-`apiKeyRef` names a credential resolved through `ctx.credentials` on every request. Store the key once in the managed store (or as the `MINIMAX_API_KEY` environment variable); the key is never written into `cordis.yml`. A literal `apiKey` is also accepted for test setups, but it lands in the composition file.
+`apiKeyRef` names a credential resolved through `ctx.credentials` on every request. Store the key once in the managed store (or as the `MINIMAX_API_KEY` environment variable); the key is never written into `cordis.yml`. A literal `apiKey` is also accepted for test setups, but it lands in the composition file. A release id beyond the known `MiniMax-H3`/`MiniMax-H3-Max` envelopes additionally needs `resolutions` and `minDurationSeconds`/`maxDurationSeconds` on the same row.
 
 The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-experimental-h3-video) is the exhaustive source for every accepted field and its JSDoc.
 
@@ -118,7 +118,7 @@ This section explains the design decisions behind the seam and points at the cod
 | File | Role |
 |---|---|
 | [`src/types.ts`](src/types.ts) | `SegmentRequest`, `TaskStatus`, `H3VideoProvider`, `ProviderCapabilities`, the `H3TaskRef` brand |
-| [`src/validation.ts`](src/validation.ts) | Request rules shared by both providers (text count, prompt bounds, duration/resolution range, image-vs-reference exclusivity, ratio rules) |
+| [`src/validation.ts`](src/validation.ts) | Request rules shared by both providers (text count, prompt bounds, duration/resolution range, image-vs-reference exclusivity, frame uniqueness, reference-count caps, ratio rules) |
 | [`src/routing.ts`](src/routing.ts) | `resolve` — explicit `local`/`remote`/`auto` choice against configured backends |
 | [`src/comfyui.ts`](src/comfyui.ts) | Local provider: template filling, `/prompt` queue, `/history` polling, `/view` download, `/interrupt` cancel |
 | [`src/minimax-api.ts`](src/minimax-api.ts) | Hosted provider: V2 creation, task polling, time-limited URL download |
@@ -133,7 +133,9 @@ The local provider fills `"{{field}}"` placeholders in a JSON workflow template 
 
 ### Hosted API surface
 
-The hosted provider mirrors the MiniMax V2 video API: `POST /v2/video_generation` creates a task, `GET /v2/query/video_generation/{task_id}` is polled, and the succeeded task's time-limited media URL is downloaded into `outputDir`. `MiniMax-H3` serves 4–15s at 768P/2K; `MiniMax-H3-Max` serves 5–15s at 480P/768P.
+The hosted provider mirrors the MiniMax V2 video API: `POST /v2/video_generation` creates a task, `GET /v2/query/video_generation/{task_id}` is polled, and the succeeded task's time-limited media URL is downloaded into `outputDir`. The published envelopes cover the known releases — `MiniMax-H3` serves 4–15s at 768P/2K, `MiniMax-H3-Max` serves 5–15s at 480P/768P — but which release an account has enabled is deployment configuration: `model` accepts any release id, and an id without a published envelope must carry `minimax.resolutions` plus `minimax.minDurationSeconds`/`maxDurationSeconds`, or the service fails loud at load instead of guessing the envelope.
+
+Reference inputs follow the published content rules. A local file is inlined as a base64 data URI and refused past its per-modality cap (30 MB per image, 50 MB per video, 15 MB per audio clip); the whole creation body is refused past 64 MB after base64 expansion — host the material and pass an https URL (or a `mm_file://{file_id}` id from the MiniMax file service, which passes through as authored) instead of splitting it.
 
 </details>
 

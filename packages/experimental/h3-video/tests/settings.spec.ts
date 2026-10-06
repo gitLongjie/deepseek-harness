@@ -57,6 +57,28 @@ describe('resolveOverlayConfig', () => {
     const effective = resolveOverlayConfig(baseConfig(), { comfyResolutions: [] })
     expect(effective.comfy?.resolutions).toBeUndefined()
   })
+
+  it('layers the remote model envelope over the composition', () => {
+    const base = baseConfig({ minimax: { apiKeyRef: 'MINIMAX_API_KEY', model: 'MiniMax-H3' } })
+    const effective = resolveOverlayConfig(base, {
+      minimaxModel: 'MiniMax-H3.5',
+      minimaxResolutions: ['480P', '768P'],
+      minimaxMinDurationSeconds: 6,
+      minimaxMaxDurationSeconds: 12,
+    })
+    expect(effective.minimax?.model).toBe('MiniMax-H3.5')
+    expect(effective.minimax?.resolutions).toEqual(['480P', '768P'])
+    expect(effective.minimax?.minDurationSeconds).toBe(6)
+    expect(effective.minimax?.maxDurationSeconds).toBe(12)
+    expect(effective.minimax?.apiKeyRef).toBe('MINIMAX_API_KEY')
+  })
+
+  it('treats an empty remote model and resolution list as unset', () => {
+    const base = baseConfig({ minimax: { apiKeyRef: 'MINIMAX_API_KEY', model: 'MiniMax-H3' } })
+    const effective = resolveOverlayConfig(base, { minimaxModel: '', minimaxResolutions: [] })
+    expect(effective.minimax?.model).toBe('MiniMax-H3')
+    expect(effective.minimax?.resolutions).toBeUndefined()
+  })
 })
 
 /** A controllable view: the value it reports and the watchers it notifies. */

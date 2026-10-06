@@ -10,7 +10,9 @@ export class SegmentRequestError extends Error {}
 
 /**
  * Validate a segment request against one backend's capabilities and the MiniMax H3 content rules:
- * exactly one non-empty text item, image-only ratios stay adaptive, and durations inside range.
+ * exactly one non-empty text item, at most one first and one last frame, image-only ratios stay
+ * adaptive, durations inside range, and reference counts inside the published caps (9 images,
+ * 3 videos, 3 audios).
  * @param request - the caller-supplied request.
  * @param capabilities - the target backend's limits.
  * @throws SegmentRequestError - when the request violates a rule.
@@ -38,6 +40,22 @@ export function validateSegmentRequest(request: SegmentRequest, capabilities: Pr
     throw new SegmentRequestError(
       `duration ${request.durationSeconds}s is outside ${capabilities.minDurationSeconds}..${capabilities.maxDurationSeconds}s on ${capabilities.name}`,
     )
+  }
+  const countRole = (role: 'first_frame' | 'last_frame' | 'reference_image'): number =>
+    request.inputs.filter(input => input.type === 'image' && input.role === role).length
+  if (countRole('first_frame') > 1 || countRole('last_frame') > 1) {
+    throw new SegmentRequestError('at most one first_frame and one last_frame image is accepted per request')
+  }
+  if (countRole('reference_image') > 9) {
+    throw new SegmentRequestError('at most 9 reference_image inputs are accepted per request')
+  }
+  const countType = (type: 'video' | 'audio'): number =>
+    request.inputs.filter(input => input.type === type).length
+  if (countType('video') > 3) {
+    throw new SegmentRequestError('at most 3 reference_video inputs are accepted per request')
+  }
+  if (countType('audio') > 3) {
+    throw new SegmentRequestError('at most 3 reference_audio inputs are accepted per request')
   }
   const hasFrameImage = request.inputs.some(input =>
     input.type === 'image' && (input.role === 'first_frame' || input.role === 'last_frame'))

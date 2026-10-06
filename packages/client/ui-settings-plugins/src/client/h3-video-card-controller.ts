@@ -50,6 +50,12 @@ export interface H3VideoSettings {
   minimaxBaseUrl?: string
   /** Hosted MiniMax video model. */
   minimaxModel?: string
+  /** Resolutions the hosted model accepts; overrides the published envelope for the model. */
+  minimaxResolutions?: string[]
+  /** Shortest hosted segment, in seconds. */
+  minimaxMinDurationSeconds?: number
+  /** Longest hosted segment, in seconds. */
+  minimaxMaxDurationSeconds?: number
   /** Credential reference naming the hosted API key. */
   minimaxApiKeyRef?: string
   /** Hosted MiniMax poll interval in milliseconds. */
@@ -103,6 +109,9 @@ export const H3_REMOTE_FIELDS: readonly CardFieldSpec[] = [
   textField('minimaxApiKeyRef'),
   textField('minimaxBaseUrl'),
   textField('minimaxModel'),
+  listField('minimaxResolutions'),
+  numberField('minimaxMinDurationSeconds'),
+  numberField('minimaxMaxDurationSeconds'),
   numberField('minimaxMaxConcurrency'),
   numberField('minimaxPollIntervalMs'),
   numberField('minimaxTaskTimeoutMs'),

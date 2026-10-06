@@ -32,9 +32,7 @@ async function boot(base: H3VideoSettingsSection = {}): Promise<Context> {
   const ctx = new Context()
   const settingsFiber = ctx.plugin(MemorySettings)
   await settingsFiber.await()
-  // The namespace-object plugin boundary types config as a plain record; the
-  // section narrows on the apply side, so the fixture crosses with a cast.
-  const pluginFiber = ctx.plugin(settingsPlugin, base as unknown as Record<string, unknown>)
+  const pluginFiber = ctx.plugin(settingsPlugin, base)
   await pluginFiber.await()
   return ctx
 }

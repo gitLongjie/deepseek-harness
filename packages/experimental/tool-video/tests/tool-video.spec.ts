@@ -99,6 +99,15 @@ function callTool(ctx: Context, name: string, args: unknown, agent: Agent & { se
   })
 }
 
+/** The settled content blocks of one tool call, for asserting what the model and UI receive. */
+async function callToolContent(
+  ctx: Context, name: string, args: unknown, agent: Agent & { session: Session },
+): Promise<readonly { type: string; text?: string; attachment?: { attachmentId: string } }[]> {
+  const result = await callTool(ctx, name, args, agent)
+  if (result.isError) throw new Error(`${name} failed`)
+  return (result as unknown as { content: readonly { type: string; text?: string; attachment?: { attachmentId: string } }[] }).content
+}
+
 async function setup() {
   const ctx = new Context()
   await ctx.plugin(SystemPrompt)
@@ -110,6 +119,17 @@ async function setup() {
   const h3Video = h3VideoStub(outputDir, failSubmit)
   ctx.provide('jobs', jobs as never)
   ctx.provide('h3Video', h3Video as never)
+  // A durable image store, so a material result can carry the image itself.
+  ctx.provide('attachments', {
+    saveImage: async ({ mediaType, name }: { mediaType: string; name?: string }) => ({
+      attachmentId: `sha256:${name ?? 'material'}`,
+      mediaType,
+      bytes: 4,
+      width: 8,
+      height: 8,
+      ...name === undefined ? {} : { name },
+    }),
+  } as never)
   await ctx.plugin(tool)
   return { ctx, outputDir, jobs, failSubmit, h3Video }
 }
@@ -387,6 +407,65 @@ describe('dsh-experimental-tool-video', () => {
     expect(s2Request?.inputs.some(input => input.type === 'image')).toBe(false)
   })
 
+  it('unifies keyframe plus asset anchors on full-reference with a labeling contract', async () => {
+    const { ctx, outputDir, h3Video } = await setup()
+    const agent = agentWithSession()
+    const planned = await callTool(ctx, 'video_plan', {
+      ...PLAN_ARGS,
+      assets: [{ id: 'char-1', name: '小明', kind: 'character', reference: 'C:/Users/demo/xiaoming.png' }],
+    }, agent)
+    if (planned.isError) throw new Error('expected plan success')
+    const planId = (planned.value as { id: string }).id
+    const keyframe = join(outputDir, 'keyframes', `${planId}-s1.png`)
+    mkdirSync(dirname(keyframe), { recursive: true })
+    writeFileSync(keyframe, 'png')
+
+    const rendered = await callTool(ctx, 'video_render', { plan_id: planId, segment_ids: ['s1'] }, agent)
+    expect(rendered.isError).toBe(false)
+    const request = h3Video.requests[0]
+    // Frame conditioning cannot mix with reference conditioning, so the keyframe degrades to a
+    // reference_image instead of dropping the asset anchor.
+    expect(request?.inputs.some(input => input.type === 'image' && input.role === 'first_frame')).toBe(false)
+    const references = request?.inputs.filter((input): input is Extract<SegmentInput, { type: 'image' }> =>
+      input.type === 'image' && input.role === 'reference_image') ?? []
+    expect(references).toHaveLength(2)
+    expect(references.some(ref => ref.url === keyframe)).toBe(true)
+    expect(references.some(ref => ref.url === 'C:/Users/demo/xiaoming.png')).toBe(true)
+    // The prompt labels every attached item in content order for the multimodal contract.
+    const prompt = request?.inputs.find(input => input.type === 'text')
+    expect(prompt?.type === 'text' && prompt.text).toContain('References: <Picture 1> opening keyframe; <Picture 2> 小明 (character)')
+    // Full-reference keeps the authored ratio instead of forcing adaptive.
+    expect(request?.ratio).toBe('16:9')
+  })
+
+  it('degrades an authored first frame to reference_image when asset anchors exist', async () => {
+    const { ctx, h3Video } = await setup()
+    const agent = agentWithSession()
+    const planned = await callTool(ctx, 'video_plan', {
+      ...PLAN_ARGS,
+      assets: [{ id: 'scene-1', name: '山顶', kind: 'scene', reference: 'C:/Users/demo/summit.png' }],
+      segments: [{
+        ...PLAN_ARGS.segments[0],
+        references: [{ type: 'image', source: 'C:/Users/demo/first-frame.png', role: 'first_frame' }],
+      }],
+    }, agent)
+    if (planned.isError) throw new Error('expected plan success')
+    const planId = (planned.value as { id: string }).id
+
+    const rendered = await callTool(ctx, 'video_render', { plan_id: planId, segment_ids: ['s1'] }, agent)
+    expect(rendered.isError).toBe(false)
+    const request = h3Video.requests[0]
+    expect(request?.inputs.some(input => input.type === 'image' && input.role === 'first_frame')).toBe(false)
+    const references = request?.inputs.filter((input): input is Extract<SegmentInput, { type: 'image' }> =>
+      input.type === 'image' && input.role === 'reference_image') ?? []
+    expect(references).toHaveLength(2)
+    expect(references.some(ref => ref.url === 'C:/Users/demo/first-frame.png')).toBe(true)
+    expect(references.some(ref => ref.url === 'C:/Users/demo/summit.png')).toBe(true)
+    const prompt = request?.inputs.find(input => input.type === 'text')
+    expect(prompt?.type === 'text' && prompt.text).toContain('<Picture 1> opening frame')
+    expect(prompt?.type === 'text' && prompt.text).toContain('<Picture 2> 山顶 (scene)')
+  })
+
   it('video_assets records user-provided materials and render anchors shots on them', async () => {
     const { ctx, h3Video } = await setup()
     const agent = agentWithSession()
@@ -460,5 +539,35 @@ describe('dsh-experimental-tool-video', () => {
     expect(planAssets.find(asset => asset.id === 'char-1')?.reference).toBe(image)
     // And a render with no keyframes anchors on the generated asset reference.
     await callTool(ctx, 'video_render', { plan_id: planId }, agent)
+  })
+
+  it('returns generated keyframes as image blocks so the materials are visible', async () => {
+    const { ctx } = await setup()
+    const agent = agentWithSession()
+    const planned = await callTool(ctx, 'video_plan', PLAN_ARGS, agent)
+    if (planned.isError) throw new Error('expected plan success')
+    const planId = (planned.value as { id: string }).id
+
+    const content = await callToolContent(ctx, 'video_keyframes', { plan_id: planId }, agent)
+    // One envelope plus one image per segment, then the notice.
+    const images = content.filter(block => block.type === 'image')
+    expect(images).toHaveLength(2)
+    expect(images[0]?.attachment?.attachmentId).toContain(`${planId}-s1.png`)
+    expect(content.filter(block => block.type === 'text')).toHaveLength(3)
+  })
+
+  it('returns generated asset images as image blocks', async () => {
+    const { ctx } = await setup()
+    const agent = agentWithSession()
+    const planned = await callTool(ctx, 'video_plan', {
+      ...PLAN_ARGS,
+      assets: [{ id: 'char-1', name: '马锅头', kind: 'character', description: '藏族赶马人' }],
+    }, agent)
+    if (planned.isError) throw new Error('expected plan success')
+    const planId = (planned.value as { id: string }).id
+
+    const content = await callToolContent(ctx, 'video_asset_images', { plan_id: planId }, agent)
+    expect(content.filter(block => block.type === 'image')).toHaveLength(1)
+    expect(content[0]?.text).toContain('character 马锅头')
   })
 })

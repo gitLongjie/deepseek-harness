@@ -4,7 +4,7 @@
  */
 
 import { afterEach, describe, expect, it } from 'vitest'
-import { mkdtempSync, rmSync, readFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createMiniMaxApiProvider } from '../src/minimax-api.ts'
@@ -272,5 +272,100 @@ describe('createMiniMaxApiProvider', () => {
       fetchImpl: fetcher,
     })
     await expect(provider.submit(textRequest(), SIGNAL)).rejects.toThrow(/insufficient disk space/)
+  })
+
+  it('fails loud for a model id with no envelope and no explicit profile', () => {
+    const fetcher = mockFetch([])
+    const ctx = base(fetcher)
+    expect(() => createMiniMaxApiProvider({
+      apiKey: 'sk-test',
+      baseUrl: 'https://api.minimax.cn',
+      model: 'MiniMax-H3.5',
+      outputDir: ctx.outputDir,
+      pollIntervalMs: 5,
+      taskTimeoutMs: 10_000,
+      maxConcurrency: 3,
+      minFreeSpaceBytes: 0,
+      estimatedBytesPerSecond: 1,
+      fetchImpl: fetcher,
+    })).toThrow(/MiniMax-H3.5.*minimax.resolutions/)
+  })
+
+  it('serves an unlisted model id under its explicit envelope', () => {
+    const fetcher = mockFetch([])
+    const ctx = base(fetcher)
+    const provider = createMiniMaxApiProvider({
+      apiKey: 'sk-test',
+      baseUrl: 'https://api.minimax.cn',
+      model: 'MiniMax-H3.5',
+      resolutions: ['480P', '768P'],
+      minDurationSeconds: 6,
+      maxDurationSeconds: 12,
+      outputDir: ctx.outputDir,
+      pollIntervalMs: 5,
+      taskTimeoutMs: 10_000,
+      maxConcurrency: 3,
+      minFreeSpaceBytes: 0,
+      estimatedBytesPerSecond: 1,
+      fetchImpl: fetcher,
+    })
+    expect(provider.capabilities.resolutions).toEqual(['480P', '768P'])
+    expect(provider.capabilities.minDurationSeconds).toBe(6)
+    expect(provider.capabilities.maxDurationSeconds).toBe(12)
+  })
+
+  it('passes mm_file references through as authored', async () => {
+    const fetcher = mockFetch([
+      { path: '/v2/video_generation', handler: () => ({ status: 200, body: JSON.stringify({ task_id: 't-3' }) }) },
+    ])
+    const ctx = base(fetcher)
+    const provider = createMiniMaxApiProvider({
+      apiKey: 'sk-test',
+      baseUrl: 'https://api.minimax.cn',
+      model: 'MiniMax-H3',
+      outputDir: ctx.outputDir,
+      pollIntervalMs: 5,
+      taskTimeoutMs: 10_000,
+      maxConcurrency: 3,
+      minFreeSpaceBytes: 0,
+      estimatedBytesPerSecond: 1,
+      fetchImpl: fetcher,
+    })
+    const request = textRequest({
+      inputs: [
+        { type: 'text', text: 'a robot walking' },
+        { type: 'image', url: 'mm_file://file-abc123', role: 'reference_image' },
+      ],
+    })
+    await provider.submit(request, SIGNAL)
+    const createCall = fetcher.calls.find(call => call.path === '/v2/video_generation')
+    const body = JSON.parse(createCall?.init?.body as string) as { content: Array<{ type: string; image_url?: { url: string } }> }
+    expect(body.content[1]?.image_url?.url).toBe('mm_file://file-abc123')
+  })
+
+  it('refuses an inline local reference past its per-modality cap', async () => {
+    const fetcher = mockFetch([])
+    const ctx = base(fetcher)
+    const provider = createMiniMaxApiProvider({
+      apiKey: 'sk-test',
+      baseUrl: 'https://api.minimax.cn',
+      model: 'MiniMax-H3',
+      outputDir: ctx.outputDir,
+      pollIntervalMs: 5,
+      taskTimeoutMs: 10_000,
+      maxConcurrency: 3,
+      minFreeSpaceBytes: 0,
+      estimatedBytesPerSecond: 1,
+      fetchImpl: fetcher,
+    })
+    const audio = join(ctx.outputDir, 'voice-over.mp3')
+    writeFileSync(audio, Buffer.alloc(16 * 1024 * 1024, 1))
+    const request = textRequest({
+      inputs: [
+        { type: 'text', text: 'a robot walking' },
+        { type: 'audio', url: audio, role: 'reference_audio' },
+      ],
+    })
+    await expect(provider.submit(request, SIGNAL)).rejects.toThrow(/over the 15 MB audio cap/)
   })
 })

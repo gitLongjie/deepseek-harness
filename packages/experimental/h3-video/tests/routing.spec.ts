@@ -127,4 +127,52 @@ describe('validateSegmentRequest', () => {
     expect(() => { validateSegmentRequest(textRequest({ ratio: 'adaptive' }), REMOTE_CAPS) })
       .toThrow(/explicit ratio/)
   })
+
+  it('rejects repeated first/last frame inputs', () => {
+    const request = textRequest({
+      ratio: 'adaptive',
+      inputs: [
+        { type: 'text', text: 'a robot walking' },
+        { type: 'image', url: 'https://cdn.example/a.png', role: 'first_frame' },
+        { type: 'image', url: 'https://cdn.example/b.png', role: 'first_frame' },
+      ],
+    })
+    expect(() => { validateSegmentRequest(request, REMOTE_CAPS) }).toThrow(/at most one first_frame/)
+  })
+
+  it('accepts the reference-count caps and rejects one past them', () => {
+    const images = Array.from({ length: 9 }, (_, index) => ({
+      type: 'image' as const,
+      url: `https://cdn.example/i${index}.png`,
+      role: 'reference_image' as const,
+    }))
+    expect(() => {
+      validateSegmentRequest(textRequest({ inputs: [{ type: 'text', text: 'a robot walking' }, ...images] }), REMOTE_CAPS)
+    }).not.toThrow()
+    expect(() => {
+      validateSegmentRequest(textRequest({
+        inputs: [
+          { type: 'text', text: 'a robot walking' },
+          ...images,
+          { type: 'image', url: 'https://cdn.example/one-too-many.png', role: 'reference_image' },
+        ],
+      }), REMOTE_CAPS)
+    }).toThrow(/at most 9 reference_image/)
+    const fourVideos = Array.from({ length: 4 }, (_, index) => ({
+      type: 'video' as const,
+      url: `https://cdn.example/v${index}.mp4`,
+      role: 'reference_video' as const,
+    }))
+    expect(() => {
+      validateSegmentRequest(textRequest({ inputs: [{ type: 'text', text: 'a robot walking' }, ...fourVideos] }), REMOTE_CAPS)
+    }).toThrow(/at most 3 reference_video/)
+    const fourAudios = Array.from({ length: 4 }, (_, index) => ({
+      type: 'audio' as const,
+      url: `https://cdn.example/a${index}.mp3`,
+      role: 'reference_audio' as const,
+    }))
+    expect(() => {
+      validateSegmentRequest(textRequest({ inputs: [{ type: 'text', text: 'a robot walking' }, ...fourAudios] }), REMOTE_CAPS)
+    }).toThrow(/at most 3 reference_audio/)
+  })
 })

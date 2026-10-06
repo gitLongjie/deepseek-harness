@@ -25,7 +25,9 @@ type H3LabelKey =
   | 'h3ComfyMaxDuration' | 'h3ComfyMaxDurationHint' | 'h3ComfyPollInterval' | 'h3ComfyPollIntervalHint'
   | 'h3ComfyTaskTimeout' | 'h3ComfyTaskTimeoutHint'
   | 'h3MinimaxApiKeyRef' | 'h3MinimaxApiKeyRefHint' | 'h3MinimaxBaseUrl' | 'h3MinimaxBaseUrlHint'
-  | 'h3MinimaxModel' | 'h3MinimaxModelHint' | 'h3MinimaxMaxConcurrency' | 'h3MinimaxMaxConcurrencyHint'
+  | 'h3MinimaxModel' | 'h3MinimaxModelHint' | 'h3MinimaxResolutions' | 'h3MinimaxResolutionsHint'
+  | 'h3MinimaxMinDuration' | 'h3MinimaxMinDurationHint' | 'h3MinimaxMaxDuration' | 'h3MinimaxMaxDurationHint'
+  | 'h3MinimaxMaxConcurrency' | 'h3MinimaxMaxConcurrencyHint'
   | 'h3MinimaxPollInterval' | 'h3MinimaxPollIntervalHint' | 'h3MinimaxTaskTimeout' | 'h3MinimaxTaskTimeoutHint'
   | 'h3OutputDir' | 'h3OutputDirHint' | 'h3MinFreeSpaceMb' | 'h3MinFreeSpaceMbHint'
   | 'h3EstimatedBytesPerSecond' | 'h3EstimatedBytesPerSecondHint'
@@ -53,6 +55,9 @@ const FIELDS: readonly FieldSpec[] = [
   { id: 'h3-minimax-keyref', labelKey: 'h3MinimaxApiKeyRef', hintKey: 'h3MinimaxApiKeyRefHint', field: 'minimaxApiKeyRef' },
   { id: 'h3-minimax-baseurl', labelKey: 'h3MinimaxBaseUrl', hintKey: 'h3MinimaxBaseUrlHint', field: 'minimaxBaseUrl' },
   { id: 'h3-minimax-model', labelKey: 'h3MinimaxModel', hintKey: 'h3MinimaxModelHint', field: 'minimaxModel' },
+  { id: 'h3-minimax-resolutions', labelKey: 'h3MinimaxResolutions', hintKey: 'h3MinimaxResolutionsHint', field: 'minimaxResolutions' },
+  { id: 'h3-minimax-min-duration', labelKey: 'h3MinimaxMinDuration', hintKey: 'h3MinimaxMinDurationHint', numeric: true, field: 'minimaxMinDurationSeconds' },
+  { id: 'h3-minimax-max-duration', labelKey: 'h3MinimaxMaxDuration', hintKey: 'h3MinimaxMaxDurationHint', numeric: true, field: 'minimaxMaxDurationSeconds' },
   { id: 'h3-minimax-concurrency', labelKey: 'h3MinimaxMaxConcurrency', hintKey: 'h3MinimaxMaxConcurrencyHint', numeric: true, field: 'minimaxMaxConcurrency' },
   { id: 'h3-minimax-poll', labelKey: 'h3MinimaxPollInterval', hintKey: 'h3MinimaxPollIntervalHint', numeric: true, field: 'minimaxPollIntervalMs' },
   { id: 'h3-minimax-timeout', labelKey: 'h3MinimaxTaskTimeout', hintKey: 'h3MinimaxTaskTimeoutHint', numeric: true, field: 'minimaxTaskTimeoutMs' },

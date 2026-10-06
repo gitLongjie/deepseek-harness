@@ -23,8 +23,17 @@ export interface MiniMaxApiOptions {
   apiKey: ApiKeySource
   /** API origin, e.g. `https://api.minimax.cn`. */
   baseUrl: string
-  /** Model name: `MiniMax-H3` or `MiniMax-H3-Max`. */
-  model: 'MiniMax-H3' | 'MiniMax-H3-Max'
+  /** Model release id the account has enabled, e.g. `MiniMax-H3`. */
+  model: string
+  /**
+   * Resolution tiers this release accepts. Omitted falls back to the published envelope for a
+   * known release id; an id with no published envelope must carry one explicitly.
+   */
+  resolutions?: readonly SegmentRequest['resolution'][]
+  /** Inclusive shortest segment this release accepts; falls back like `resolutions`. */
+  minDurationSeconds?: number
+  /** Inclusive longest segment this release accepts; falls back like `resolutions`. */
+  maxDurationSeconds?: number
   /** Absolute directory that receives downloaded mp4 files. */
   outputDir: string
   /** Poll interval between task queries in milliseconds. */
@@ -48,6 +57,58 @@ interface VideoTaskJson {
   content?: { url?: string }
 }
 
+/**
+ * Published envelopes for known MiniMax releases. Which release an account has enabled — and what
+ * it accepts — is deployment configuration: an unlisted model id must carry an explicit
+ * `resolutions`/duration profile instead of guessing here.
+ */
+const PUBLISHED_ENVELOPES: Record<string, {
+  readonly resolutions: readonly SegmentRequest['resolution'][]
+  readonly minDurationSeconds: number
+  readonly maxDurationSeconds: number
+}> = {
+  'MiniMax-H3': { resolutions: ['768P', '2K'], minDurationSeconds: 4, maxDurationSeconds: 15 },
+  'MiniMax-H3-Max': { resolutions: ['480P', '768P'], minDurationSeconds: 5, maxDurationSeconds: 15 },
+}
+
+/**
+ * Resolve one model's serving envelope from the explicit profile or the published table.
+ * @param options - the provider options carrying the model id and optional explicit profile.
+ * @returns the capabilities the provider advertises.
+ * @throws Error - naming the model when neither an explicit profile nor a published envelope
+ * covers every field.
+ */
+function resolveCapabilities(options: MiniMaxApiOptions): ProviderCapabilities {
+  const published = PUBLISHED_ENVELOPES[options.model]
+  const resolutions = options.resolutions ?? published?.resolutions
+  const minDurationSeconds = options.minDurationSeconds ?? published?.minDurationSeconds
+  const maxDurationSeconds = options.maxDurationSeconds ?? published?.maxDurationSeconds
+  if (resolutions === undefined || minDurationSeconds === undefined || maxDurationSeconds === undefined) {
+    throw new Error(
+      `h3-video: model ${JSON.stringify(options.model)} has no published envelope; `
+      + 'configure minimax.resolutions and minimax.minDurationSeconds/maxDurationSeconds for it',
+    )
+  }
+  return {
+    name: 'minimax-api',
+    resolutions: [...resolutions],
+    minDurationSeconds,
+    maxDurationSeconds,
+    multimodalInputs: true,
+    maxConcurrency: options.maxConcurrency,
+  }
+}
+
+/** Published per-modality caps on one inline (base64) reference, in bytes. */
+const INLINE_REFERENCE_CAP_BYTES = {
+  image: 30 * 1024 * 1024,
+  video: 50 * 1024 * 1024,
+  audio: 15 * 1024 * 1024,
+} as const
+
+/** Published cap on the whole creation body after base64 expansion, in bytes. */
+const MAX_REQUEST_BYTES = 64 * 1024 * 1024
+
 function abortError(): Error {
   return Object.assign(new Error('H3 task cancelled'), { name: 'AbortError' })
 }
@@ -67,23 +128,7 @@ async function readAbortable(response: Response, signal: AbortSignal): Promise<u
  */
 export function createMiniMaxApiProvider(options: MiniMaxApiOptions): H3VideoProvider {
   const doFetch: FetchLike = options.fetchImpl ?? ((input, init) => fetch(input, init))
-  const capabilities: ProviderCapabilities = options.model === 'MiniMax-H3'
-    ? {
-      name: 'minimax-api',
-      resolutions: ['768P', '2K'],
-      minDurationSeconds: 4,
-      maxDurationSeconds: 15,
-      multimodalInputs: true,
-      maxConcurrency: options.maxConcurrency,
-    }
-    : {
-      name: 'minimax-api',
-      resolutions: ['480P', '768P'],
-      minDurationSeconds: 5,
-      maxDurationSeconds: 15,
-      multimodalInputs: true,
-      maxConcurrency: options.maxConcurrency,
-    }
+  const capabilities = resolveCapabilities(options)
 
   async function api(path: string, init: RequestInit, signal: AbortSignal): Promise<unknown> {
     const key = typeof options.apiKey === 'function' ? await options.apiKey() : options.apiKey
@@ -104,17 +149,26 @@ export function createMiniMaxApiProvider(options: MiniMaxApiOptions): H3VideoPro
 
   /**
    * Convert a local media path into a base64 data URI the hosted API accepts (keyframes are local
-   * files after download); http(s) URLs pass through unchanged.
+   * files after download); http(s) URLs and `mm_file://{file_id}` ids from the MiniMax file
+   * service pass through unchanged. A local file beyond the published per-modality cap fails
+   * before submission instead of sending a body the provider may reject.
    * @param source - the reference source as authored.
    * @param mediaType - MIME family for the data URI (`image`, `video`, or `audio`).
    * @returns the API-ready URL value.
    */
   async function toApiUrl(source: string, mediaType: 'image' | 'video' | 'audio'): Promise<string> {
-    if (/^https?:\/\//iu.test(source)) return source
+    if (/^(https?|mm_file):\/\//iu.test(source)) return source
     const { readFile } = await import('node:fs/promises')
     const { extname } = await import('node:path') as { extname: (path: string) => string }
-    const ext = extname(source).toLowerCase().replace('.', '') || 'bin'
     const bytes = await readFile(source)
+    const cap = INLINE_REFERENCE_CAP_BYTES[mediaType]
+    if (bytes.byteLength > cap) {
+      throw new Error(
+        `reference ${source} is ${Math.round(bytes.byteLength / 1024 / 1024)} MB, over the `
+        + `${Math.round(cap / 1024 / 1024)} MB ${mediaType} cap; host it and pass an https URL instead`,
+      )
+    }
+    const ext = extname(source).toLowerCase().replace('.', '') || 'bin'
     const base64 = bytes.toString('base64')
     return `data:${mediaType}/${ext};base64,${base64}`
   }
@@ -132,13 +186,21 @@ export function createMiniMaxApiProvider(options: MiniMaxApiOptions): H3VideoPro
         content.push({ type: 'audio_url', audio_url: { url: await toApiUrl(input.url, 'audio') }, role: input.role })
       }
     }
-    return JSON.stringify({
+    const body = JSON.stringify({
       model: options.model,
       content,
       resolution: request.resolution,
       duration: request.durationSeconds,
       ratio: request.ratio,
     })
+    const bodyBytes = Buffer.byteLength(body, 'utf8')
+    if (bodyBytes > MAX_REQUEST_BYTES) {
+      throw new Error(
+        `request body is ${Math.round(bodyBytes / 1024 / 1024)} MB after base64 expansion, over the `
+        + `${Math.round(MAX_REQUEST_BYTES / 1024 / 1024)} MB cap; host the references and pass https URLs instead`,
+      )
+    }
+    return body
   }
 
   /** Free bytes the output volume must keep for one segment before we commit a download. */
