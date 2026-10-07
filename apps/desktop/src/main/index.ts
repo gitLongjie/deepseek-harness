@@ -69,7 +69,7 @@ protocol.registerSchemesAsPrivileged([
 const DESKTOP_PRODUCT_NAME = resolveDesktopWindowTitle(app.getName())
 const DESKTOP_UPDATE_URL: string | undefined = readDesktopUpdateUrl()
 app.setName(DESKTOP_PRODUCT_NAME)
-if (process.platform === 'win32') app.setAppUserModelId('ai.deepagens.worker')
+if (process.platform === 'win32') app.setAppUserModelId('com.meowwork.app')
 // The userData directory stays on the ASCII exe id, not the localized display
 // name `setName` installs: users and support scripts navigate %APPDATA% by the
 // product's file-system id (DeepagensWork), and the display name belongs to the
