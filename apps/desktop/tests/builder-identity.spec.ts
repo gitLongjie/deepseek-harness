@@ -40,17 +40,16 @@ describe('desktop builder identity', () => {
 
   it('gives Windows and macOS release assets stable architecture-specific names', () => {
     expect(config).toMatch(
-      /^nsis:\s*$[\s\S]*?^\s+artifactName:\s+DeepagensWork-\$\{version\}-win-\$\{arch\}\.\$\{ext\}\s*$/m,
+      /^nsis:\s*$[\s\S]*?^\s+artifactName:\s+minda-\$\{version\}-win-\$\{arch\}\.\$\{ext\}\s*$/m,
     )
     expect(config).toMatch(
-      /^mac:\s*$[\s\S]*?^\s+artifactName:\s+DeepagensWork-\$\{version\}-mac-\$\{arch\}\.\$\{ext\}\s*$/m,
+      /^mac:\s*$[\s\S]*?^\s+artifactName:\s+minda-\$\{version\}-mac-\$\{arch\}\.\$\{ext\}\s*$/m,
     )
     expect(config).toMatch(
-      /^linux:\s*$[\s\S]*?^\s+artifactName:\s+DeepagensWork-\$\{version\}-linux-\$\{arch\}\.\$\{ext\}\s*$/m,
+      /^linux:\s*$[\s\S]*?^\s+artifactName:\s+minda-\$\{version\}-linux-\$\{arch\}\.\$\{ext\}\s*$/m,
     )
     expect(config).not.toContain('${productName}-${version}')
   })
-
   it('installs per-machine under the stable ASCII DeepagensWork directory', () => {
     expect(config).toMatch(/^  perMachine: true\s*$/m)
     expect(config).toMatch(/^  include: build\/installer\.nsh\s*$/m)

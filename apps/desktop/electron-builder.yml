@@ -78,7 +78,7 @@ nsis:
   # non-ASCII prefix puts unescaped characters in the GitHub request path and
   # electron-builder's safe-name fallback drops the arch suffix. Keep the
   # artifact prefix ASCII; the display names follow productName.
-  artifactName: DeepagensWork-${version}-win-${arch}.${ext}
+  artifactName: minda-${version}-win-${arch}.${ext}
   # Per-machine install so the assisted wizard defaults to Program Files, and
   # installer.nsh pins that default to the ASCII DeepagensWork directory: the
   # display names follow productName while the on-disk path stays stable
@@ -93,7 +93,7 @@ mac:
   # Both architectures are built in one job. The architecture suffix prevents
   # the Intel and Apple Silicon assets from colliding in the GitHub release.
   # Keep the artifact prefix ASCII (see the nsis note).
-  artifactName: DeepagensWork-${version}-mac-${arch}.${ext}
+  artifactName: minda-${version}-mac-${arch}.${ext}
   # The app bundle under /Applications follows the platform executable name:
   # an ASCII DeepagensWork.app matches the Windows install directory and keeps
   # scripts and support paths stable, while productName stays the display name
@@ -114,7 +114,7 @@ mac:
   identity: null
   notarize: false
 dmg:
-  artifactName: DeepagensWork-${version}-mac-${arch}.${ext}
+  artifactName: minda-${version}-mac-${arch}.${ext}
 linux:
   target:
     - AppImage
@@ -128,7 +128,7 @@ linux:
   # not exist). Pin a flat artifact name so both Linux targets write directly
   # under dist-electron/.
   # Keep the artifact prefix ASCII (see the nsis note).
-  artifactName: DeepagensWork-${version}-linux-${arch}.${ext}
+  artifactName: minda-${version}-linux-${arch}.${ext}
 publish:
   provider: github
   owner: gitLongjie

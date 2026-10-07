@@ -12,7 +12,7 @@ describe('desktop OEM development build', () => {
     expect(launcher).toContain('updateUrl: DESKTOP_UPDATE_URL } = readDesktopOemConfig(repoRoot)')
     expect(launcher).toContain('syncDesktopOemIcons(repoRoot, root)')
     expect(launcher).toContain('DSH_DESKTOP_UPDATE_URL: DESKTOP_UPDATE_URL')
-    expect(launcher).not.toContain("const DESKTOP_PRODUCT_NAME = '深度Works'")
+    expect(launcher).not.toContain("const DESKTOP_PRODUCT_NAME = '民大工作台'")
   })
 
   it('rebuilds client bundles before Vite consumes their compiled output', () => {
