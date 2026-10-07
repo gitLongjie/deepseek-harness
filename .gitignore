@@ -54,3 +54,11 @@ native/system/test/bin/
 
 # Local Mimosa security-scan hook state (rewritten per commit; never a review artifact).
 .mimosa/
+
+# Emitted compiler output beside sources: a build run without its project config writes
+# next to the .ts files instead of lib/types. Only shapes no authored file uses are
+# ignored — a declaration file at a src/ root is authored (css-modules.d.ts) and stays
+# visible, so a misbuild that emits one still shows up in git status.
+packages/*/*/src/*.js
+packages/*/*/src/*.js.map
+packages/*/*/src/*.d.ts.map
