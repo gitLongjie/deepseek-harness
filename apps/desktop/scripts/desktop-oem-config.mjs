@@ -1,5 +1,5 @@
 /** Desktop packaging projection for the repository OEM configuration. */
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 
 /** Read the OEM identity used by Electron's native surfaces. */
@@ -99,6 +99,18 @@ export function syncDesktopOemIcons(repoRoot, desktopRoot, environment = process
     mkdirSync(dirname(target), { recursive: true })
     writeFileSync(target, icon)
   }
+}
+
+/** Whether the optional ComfyUI staging directory carries a real program tree.
+ *
+ * A directory holding nothing but README files is the staging instructions,
+ * not a payload: packaging it would deploy an empty tree on first launch and
+ * mark it deployed, permanently blocking a later real payload on every
+ * machine that ran that build.
+ */
+export function hasComfyDistPayload(dir) {
+  if (!existsSync(dir)) return false
+  return readdirSync(dir).some(entry => !entry.toUpperCase().startsWith('README'))
 }
 
 /** Create the electron-builder overlay that carries the OEM product identity. */

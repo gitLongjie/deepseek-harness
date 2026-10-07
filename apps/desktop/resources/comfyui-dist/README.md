@@ -3,8 +3,11 @@
 Drop a ComfyUI **program tree** here to ship a local video backend with the
 installer. `scripts/deploy-app.mjs` picks the directory up automatically and
 packs it beside the app under `resources/comfyui-dist/` (electron-builder
-`extraResources`); an absent or empty directory packages without it and the
-shipped `h3-video-director` preset runs on the remote MiniMax backend only.
+`extraResources`); an absent directory — or one holding only this README —
+packages without it and the shipped `h3-video-director` preset runs on the
+remote MiniMax backend only. A README-only tree never packages: the first
+launch would deploy it and mark it deployed, blocking every later real
+payload on machines that ran such a build.
 
 What belongs here — program files only:
 

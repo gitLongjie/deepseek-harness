@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   createElectronBuilderOemConfig,
+  hasComfyDistPayload,
   readDesktopOemConfig,
   syncDesktopOemIcons,
 } from '../scripts/desktop-oem-config.mjs'
@@ -28,13 +29,13 @@ describe('desktop builder identity', () => {
   it('ships the product name used by the native shell', () => {
     expect(config).toMatch(/^appId:\s*com\.meowwork\.app\s*$/m)
     expect(config).not.toMatch(/^productName:/m)
-    expect(config).not.toContain('深度Works')
+    expect(config).not.toContain('民大工作台')
   })
 
   it('pins the application icon instead of Electron default artwork', () => {
     expect(config).toMatch(/^icon:\s*build\/icon\.png\s*$/m)
     expect(config).toMatch(/^\s+icon:\s*build\/icon\.ico\s*$/m)
-    expect(config).not.toContain('executableName: 深度Works')
+    expect(config).not.toContain('executableName: 民大工作台')
   })
 
   it('gives Windows and macOS release assets stable architecture-specific names', () => {
@@ -193,6 +194,18 @@ describe('desktop builder identity', () => {
     syncDesktopOemIcons(repoRoot, desktopRoot, { DSH_CLIENT_BRAND_ICON: '/brand/override.ico' })
     expect(readFileSync(join(desktopRoot, 'build', 'icon.ico'))).toEqual(override)
     expect(readFileSync(join(desktopRoot, 'build', 'tray.ico'))).toEqual(override)
+  })
+
+  it('ships the bundled ComfyUI tree only when staged beyond its README', () => {
+    const repoRoot = mkdtempSync(join(tmpdir(), 'dsh-comfy-dist-'))
+    roots.push(repoRoot)
+    const dist = join(repoRoot, 'resources', 'comfyui-dist')
+    expect(hasComfyDistPayload(dist)).toBe(false)
+    mkdirSync(dist, { recursive: true })
+    writeFileSync(join(dist, 'README.md'), 'staging instructions')
+    expect(hasComfyDistPayload(dist)).toBe(false)
+    mkdirSync(join(dist, 'ComfyUI'))
+    expect(hasComfyDistPayload(dist)).toBe(true)
   })
 
   it('rejects native icon overrides that are remote or not ICO data', () => {

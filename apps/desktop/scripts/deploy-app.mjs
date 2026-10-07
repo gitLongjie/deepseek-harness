@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 import {
   createElectronBuilderOemConfig,
+  hasComfyDistPayload,
   readDesktopOemConfig,
   syncDesktopOemIcons,
 } from './desktop-oem-config.mjs'
@@ -73,9 +74,10 @@ const { ASAR_UNPACK_GLOBS } = await import(
 // apps/desktop/resources/comfyui-dist and it ships beside the app under
 // resources/comfyui-dist; the first launch copies it into the user-writable
 // local-app-data directory the h3-video-director preset points at. An absent
-// directory packages without it (remote MiniMax backend only).
+// or README-only directory packages without it (remote MiniMax backend only)
+// so the first-launch deploy marker can never lock in an empty tree.
 const comfyDistDir = resolve(root, 'resources', 'comfyui-dist')
-const extraResources = existsSync(comfyDistDir)
+const extraResources = hasComfyDistPayload(comfyDistDir)
   ? [{ from: comfyDistDir, to: 'comfyui-dist' }]
   : undefined
 // Stage the local file dependency after the TypeScript build (which clears
