@@ -14,7 +14,7 @@ Status: implemented
 
 按 oh-story 的投影原则、用我们仓库的正规扩展点落一个视频工作台 v1：
 
-- **宿主半边**（`dsh-experimental-video-workbench`，web-app bundle 的 HOST 行）：两条只读路由。`GET /api/video-workbench/projects` 扫 `plans/*.json` 报告逐镜头落盘状态（multi_shot 折叠到合成 `all` 段，损坏计划降级为一条错误行）；`GET /api/video-workbench/file?path=` 服务单个白名单文件。`outputDir` 缺省即 `dshCachePath('video')`——与 h3-video 服务缺省同目录，标准部署零配置。
+- **宿主半边**（`dsh-video-workbench`，web-app bundle 的 HOST 行）：两条只读路由。`GET /api/video-workbench/projects` 扫 `plans/*.json` 报告逐镜头落盘状态（multi_shot 折叠到合成 `all` 段，损坏计划降级为一条错误行）；`GET /api/video-workbench/file?path=` 服务单个白名单文件。`outputDir` 缺省即 `dshCachePath('video')`——与 h3-video 服务缺省同目录，标准部署零配置。
 - **包含性**：请求路径先拆纯名字段（拒绝 `..`、盘符、`<>:"|?*` 与 NUL），逐段 `join` 到投影根下，`realpath` 双端解析后 `relative` 复查——目录内符号链接指向外部也被拒。扩展白名单（文本/图片/视频/音频），单文件 256 MB。
 - **浏览器半边**（`dsh-client-ui-video-workbench`，patch 的 client 行）：走布局的全局面板机制而不是 DOM portal——`sidebar.panellist` 一行（id `video-workbench`，ui-schedule-work 同款模式）+ keyed `main` 页面。左列项目目录，右侧关键帧缩略图 + 逐镜头状态 + 成片 `<video>`；打开时/每 10 秒/按钮刷新；文案走 `videoWorkbench` 字典命名空间。
 - **无写路径**：工作台对模型循环不可见（不挂工具、不发会话事件），浏览器拿到的唯一能力是读。渲染仍由 `tool-video` 的 `/video` 流程驱动。
@@ -38,6 +38,6 @@ Status: implemented
 ## References
 
 - oh-story-dsh 工作台模式参考：其 `packages/dsh-plugin/src/client/index.tsx`（槽位声明 + 投影）、`src/workspace-route.ts`（只读路由 + 白名单）、`src/client/workbench-presence.ts`（项目检测）
-- 本仓库实现：`packages/experimental/video-workbench/src/{index,projects,file-serve}.ts`、`packages/client/ui-video-workbench/src/client/{index,VideoWorkbenchPage,endpoints,locales}.ts`
+- 本仓库实现：`packages/video/video-workbench/src/{index,projects,file-serve}.ts`、`packages/client/ui-video-workbench/src/client/{index,VideoWorkbenchPage,endpoints,locales}.ts`
 - 组合：`packages/bundle/web-app/cordis.patch.yml`（HOST 行 `video-workbench` + client 行 `ui-video-workbench`）
 - 关联 note：`2026-10-06-h3-video-oh-story-alignment.md`（同日落的管线对齐）

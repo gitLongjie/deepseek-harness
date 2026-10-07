@@ -21,6 +21,7 @@ export const GROUPS_WITHOUT_SUBSYSTEM_PAGE: Readonly<Record<string, string>> = {
   hooks: 'External hook-protocol bridges over existing interception points, not a new Harness service.',
   sdk: 'Out-of-process protocol and client packages whose package READMEs own the SDK contracts.',
   util: 'Low-level primitives whose business semantics remain with their consuming subsystems.',
+  video: 'The ctx.h3Video seam documents its config, routing, and provider contract in the h3-video package README; no subsystem page owns types outside that package yet.',
 }
 
 /** Result of auditing package-group subsystem documentation. */

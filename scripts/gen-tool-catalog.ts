@@ -59,6 +59,9 @@ import * as ToolLsp from '@deepseek-ai/dsh-tool-lsp'
 import * as ToolSkill from '@deepseek-ai/dsh-tool-skill'
 import * as ToolSessionQuery from '@deepseek-ai/dsh-tool-session-query'
 import * as ToolJobs from '@deepseek-ai/dsh-tool-jobs'
+import * as ToolVideo from '@deepseek-ai/dsh-tool-video'
+import H3VideoService from '@deepseek-ai/dsh-h3-video'
+import CommandRuntime from '@deepseek-ai/dsh-commands'
 import BrowserUseRegistry from '@deepseek-ai/dsh-browser-use'
 import * as StagehandBrowserTools from '@deepseek-ai/dsh-experimental-browser-use-stagehand-native'
 import type TeamService from '@deepseek-ai/dsh-experimental-agent-team'
@@ -557,6 +560,27 @@ const TOOL_PACKAGES: ToolPackage[] = [
     },
     note:
       'The kind-agnostic background-job controller: background bash commands, PTY sends, and subagents are read, listed, and killed through the same three tools. Loading the plugin attaches the controller that arms producers\' `ctx.jobs.start()`.',
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-video',
+    dir: 'tool-video',
+    source: 'packages/video/tool-video/src/index.ts',
+    requires: ['ctx.tools', 'ctx.jobs', 'ctx.h3Video', 'ctx.commands', 'ctx.attachments (material images)'],
+    writes: ['tool/call', 'tool/result', 'durable attachment for generated keyframes and asset images', 'background h3-video jobs'],
+    async mount(ctx) {
+      // Schema harvest never submits a render, so the seam mounts with a
+      // placeholder local backend: the provider reads its workflow template at
+      // submit time, not at construction.
+      await ctx.plugin(LocalJobRegistry)
+      await ctx.plugin(CommandRuntime)
+      await ctx.plugin(H3VideoService, {
+        outputDir: 'catalog-probe-video-output',
+        comfy: { workflowPath: 'catalog-probe-workflow.json' },
+      })
+      await ctx.plugin(ToolVideo)
+    },
+    note:
+      'The H3 storyboard, keyframe, asset, render, and assembly tools plus the `/video` command. Generated materials ride the result as image blocks when a durable attachment store is mounted, which is why `ctx.attachments` is optional here rather than injected.',
   },
   {
     pkg: '@deepseek-ai/dsh-experimental-tool-agent-team',

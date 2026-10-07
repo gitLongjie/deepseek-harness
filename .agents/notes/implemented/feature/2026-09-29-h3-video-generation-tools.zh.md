@@ -12,9 +12,9 @@ DeepSeek Harness 此前无法从对话中生成视频。MiniMax H3 开源了可�
 
 由两个 experimental 包承载该能力。
 
-`@deepseek-ai/dsh-experimental-h3-video` 是能力接口：一个 `H3Video` 服务定义，包含三个角色。Provider 为 `createComfyUIProvider`（本地队列、模板填充、`/prompt` + `/history` 轮询、`/view` 下载、`/interrupt` 取消）与 `createMiniMaxApiProvider`（托管 V2 建任务、任务轮询、限时 URL 下载）。每个 provider 拥有自己的传输与文件下载；两者都不拥有重试策略或路由。路由是唯一的显式函数 `resolve`，按段选择 `local` / `remote` / `auto`，并总是在提交前用所选后端声明的能力校验请求。`assembleVideo` 用 ffmpeg 把有序片段文件拼接为统一的 h264/yuv420p/24fps mp4。所有可调项都是经过校验的 `Config` 字段。
+`@deepseek-ai/dsh-h3-video` 是能力接口：一个 `H3Video` 服务定义，包含三个角色。Provider 为 `createComfyUIProvider`（本地队列、模板填充、`/prompt` + `/history` 轮询、`/view` 下载、`/interrupt` 取消）与 `createMiniMaxApiProvider`（托管 V2 建任务、任务轮询、限时 URL 下载）。每个 provider 拥有自己的传输与文件下载；两者都不拥有重试策略或路由。路由是唯一的显式函数 `resolve`，按段选择 `local` / `remote` / `auto`，并总是在提交前用所选后端声明的能力校验请求。`assembleVideo` 用 ffmpeg 把有序片段文件拼接为统一的 h264/yuv420p/24fps mp4。所有可调项都是经过校验的 `Config` 字段。
 
-`@deepseek-ai/dsh-experimental-tool-video` 是消费者：`ctx.h3Video` 之上的三个模型面向工具。`video_plan` 把对话需求结构化为带版本的分镜，并以 JSON 工件持久化到输出目录；`video_render` 把每个选中片段提交到路由后的后端，并为每段启动一个 `h3-video` 类后台任务轮询到完成；`video_assemble` 按计划顺序读取确定性的 `segments/<planId>-<segmentId>.mp4` 文件并拼接。`h3-video` 任务类通过声明合并扩展 `JobKindMap`。
+`@deepseek-ai/dsh-tool-video` 是消费者：`ctx.h3Video` 之上的三个模型面向工具。`video_plan` 把对话需求结构化为带版本的分镜，并以 JSON 工件持久化到输出目录；`video_render` 把每个选中片段提交到路由后的后端，并为每段启动一个 `h3-video` 类后台任务轮询到完成；`video_assemble` 按计划顺序读取确定性的 `segments/<planId>-<segmentId>.mp4` 文件并拼接。`h3-video` 任务类通过声明合并扩展 `JobKindMap`。
 
 计划以文件存储，而非会话事件。`video/plan` 事件需要持久化目录与会话格式版本机制；取而代之，计划内容原样出现在 `video_plan` 工具结果中，会话回放可以重建模型所见的全部内容，工件本身位于 `outputDir/plans/` 下。
 
@@ -30,7 +30,7 @@ DeepSeek Harness 此前无法从对话中生成视频。MiniMax H3 开源了可�
 
 ## Testing
 
-Provider 测试基于 mock HTTP 服务器，覆盖提交、轮询、下载、失败原因、超时、取消与能力声明。工具测试驱动真实工具注册表，`jobs` 与 `h3Video` 为桩、`Session` 为真实实现；另有 loader 组合测试通过真实 Loader 启动 cordis.yml 并搭配 mock ComfyUI HTTP 服务器。手动 E2E 冒烟脚本（`packages/experimental/h3-video/scripts/e2e-smoke.mts`）用 text2img checkpoint 驱动真实 ComfyUI 服务器，完成提交 → 轮询 → 下载 → ffmpeg 拼接，产出有效的 4 秒 h264 文件。
+Provider 测试基于 mock HTTP 服务器，覆盖提交、轮询、下载、失败原因、超时、取消与能力声明。工具测试驱动真实工具注册表，`jobs` 与 `h3Video` 为桩、`Session` 为真实实现；另有 loader 组合测试通过真实 Loader 启动 cordis.yml 并搭配 mock ComfyUI HTTP 服务器。手动 E2E 冒烟脚本（`packages/video/h3-video/scripts/e2e-smoke.mts`）用 text2img checkpoint 驱动真实 ComfyUI 服务器，完成提交 → 轮询 → 下载 → ffmpeg 拼接，产出有效的 4 秒 h264 文件。
 
 ## Alternatives considered
 

@@ -14,7 +14,7 @@ Porting oh-story's client wholesale is neither feasible nor necessary: as an ext
 
 A video workbench v1 following oh-story's projection principles on this repository's regular extension points:
 
-- **Host half** (`dsh-experimental-video-workbench`, a HOST row of the web-app bundle): two read-only routes. `GET /api/video-workbench/projects` scans `plans/*.json` reporting per-shot on-disk state (multi_shot collapses onto the synthetic `all` segment; a corrupt plan degrades to one error row); `GET /api/video-workbench/file?path=` serves one whitelisted file. `outputDir` defaults to `dshCachePath('video')` — the same directory the h3-video service defaults to, so a stock deployment configures nothing.
+- **Host half** (`dsh-video-workbench`, a HOST row of the web-app bundle): two read-only routes. `GET /api/video-workbench/projects` scans `plans/*.json` reporting per-shot on-disk state (multi_shot collapses onto the synthetic `all` segment; a corrupt plan degrades to one error row); `GET /api/video-workbench/file?path=` serves one whitelisted file. `outputDir` defaults to `dshCachePath('video')` — the same directory the h3-video service defaults to, so a stock deployment configures nothing.
 - **Containment**: the requested path is first split into plain name segments (rejecting `..`, drive letters, `<>:"|?*`, and NUL), joined segment-by-segment under the projected root, resolved through `realpath` on both ends, and re-checked with `relative` — a symlink inside the directory pointing outside is refused too. Extension whitelist (text/image/video/audio), 256 MB per file.
 - **Browser half** (`dsh-client-ui-video-workbench`, a client row of the patch): the layout's global-panel mechanism, not a DOM portal — one `sidebar.panellist` row (id `video-workbench`, the ui-schedule-work pattern) plus the keyed `main` page. Catalog column on the left; keyframe thumbnails, per-shot state, and the final `<video>` on the right; refresh on open, every 10 seconds, and on the button; copy through the `videoWorkbench` dictionary namespace.
 - **No write path**: the workbench is invisible to the model loop (no tools, no session events); the browser's only capability is reading. Rendering still flows through `tool-video`'s `/video` pipeline.
@@ -38,6 +38,6 @@ A video workbench v1 following oh-story's projection principles on this reposito
 ## References
 
 - oh-story-dsh workbench pattern: its `packages/dsh-plugin/src/client/index.tsx` (slot declaration + projection), `src/workspace-route.ts` (read-only routes + whitelist), `src/client/workbench-presence.ts` (project detection)
-- This repository: `packages/experimental/video-workbench/src/{index,projects,file-serve}.ts`, `packages/client/ui-video-workbench/src/client/{index,VideoWorkbenchPage,endpoints,locales}.ts`
+- This repository: `packages/video/video-workbench/src/{index,projects,file-serve}.ts`, `packages/client/ui-video-workbench/src/client/{index,VideoWorkbenchPage,endpoints,locales}.ts`
 - Composition: `packages/bundle/web-app/cordis.patch.yml` (HOST row `video-workbench` + client row `ui-video-workbench`)
 - Related note: `2026-10-06-h3-video-oh-story-alignment.md` (the pipeline alignment landed the same day)

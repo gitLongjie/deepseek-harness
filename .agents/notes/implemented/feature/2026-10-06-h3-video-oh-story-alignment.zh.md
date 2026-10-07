@@ -39,4 +39,4 @@ Status: implemented
 
 - oh-story-dsh 的 MiniMax H3 adapter 参考：`packages/knowledge/drama/skills/short-drama-produce/references/providers/minimax-h3-video.md`（上游仓库）
 - oh-story-dsh 的 H3 提示词方言：`packages/knowledge/drama/skills/short-drama-video-prompts/references/minimax-h3.md`（上游仓库）
-- 本仓库实现：`packages/experimental/h3-video/src/minimax-api.ts`、`src/validation.ts`、`src/index.ts`、`src/settings.ts`、`packages/experimental/tool-video/src/index.ts`、`packages/client/ui-settings-plugins/src/client/h3-video-card-controller.ts`
+- 本仓库实现：`packages/video/h3-video/src/minimax-api.ts`、`src/validation.ts`、`src/index.ts`、`src/settings.ts`、`packages/video/tool-video/src/index.ts`、`packages/client/ui-settings-plugins/src/client/h3-video-card-controller.ts`

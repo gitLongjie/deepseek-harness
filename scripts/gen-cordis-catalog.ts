@@ -835,6 +835,16 @@ export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
   TerminalAttachmentId: 'Browser terminal input ownership is owned by packages/api/terminal-controller/README.md',
   TerminalFrame: 'Browser terminal stream frames are owned by packages/api/terminal-controller/README.md',
   WebTerminalId: 'Browser terminal identity is owned by packages/api/terminal-controller/README.md',
+  BackendChoice: 'video routing policy union is owned by packages/video/h3-video/README.md',
+  ProviderCapabilities: 'backend limits record is owned by packages/video/h3-video/README.md',
+  SegmentRequest: 'segment request contract is owned by packages/video/h3-video/README.md',
+  H3TaskRef: 'backend task reference is owned by packages/video/h3-video/README.md',
+  RoutedProvider: 'routed backend pair is owned by packages/video/h3-video/README.md',
+  TaskStatus: 'task observation result is owned by packages/video/h3-video/README.md',
+  KeyframeRequest: 'keyframe request contract is owned by packages/video/h3-video/README.md',
+  AssemblyOptions: 'assembly options are owned by packages/video/h3-video/README.md',
+  AssemblySegment: 'assembly input segment is owned by packages/video/h3-video/README.md',
+  H3VideoSettingsSection: 'settings section contract is owned by packages/video/h3-video/README.md',
 }
 
 /** Repository data policy consumed by the Cordis catalog projector. */

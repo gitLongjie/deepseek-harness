@@ -683,9 +683,9 @@ export interface Config {
 
 来源：[`packages/experimental/computer-use-cua-driver-mcp/src/index.ts:20`](../packages/experimental/computer-use-cua-driver-mcp/src/index.ts)
 
-<a id="deepseek-aidsh-experimental-h3-video"></a>
+<a id="deepseek-aidsh-h3-video"></a>
 
-## `@deepseek-ai/dsh-experimental-h3-video`
+## `@deepseek-ai/dsh-h3-video`
 
 ```ts config-catalog
 /** Validated configuration shape. */
@@ -777,7 +777,7 @@ export interface MinimaxConfig {
 }
 ```
 
-来源：[`packages/experimental/h3-video/src/index.ts:124`](../packages/experimental/h3-video/src/index.ts)
+来源：[`packages/video/h3-video/src/index.ts:124`](../packages/video/h3-video/src/index.ts)
 
 <a id="deepseek-aidsh-experimental-inspector"></a>
 
@@ -3848,7 +3848,7 @@ export interface Config {
 - `@deepseek-ai/dsh-experimental-auto-review` — 需要 `llm` · `permissionPresets` · `sessions` · `tools`（[`packages/experimental/auto-review/src/index.ts`](../packages/experimental/auto-review/src/index.ts)）
 - `@deepseek-ai/dsh-experimental-client-ui-agent-team`（[`packages/experimental/client-ui-agent-team/src/index.ts`](../packages/experimental/client-ui-agent-team/src/index.ts)）
 - `@deepseek-ai/dsh-experimental-computer-use-cua-driver-native` — requires `computerUse` · `tools` · `systemPrompt` ([`packages/experimental/computer-use-cua-driver-native/src/index.ts`](../packages/experimental/computer-use-cua-driver-native/src/index.ts))
-- `@deepseek-ai/dsh-experimental-tool-video` — 需要 `tools` · `jobs` · `h3Video` · `commands`（[`packages/experimental/tool-video/src/index.ts`](../packages/experimental/tool-video/src/index.ts)）
+- `@deepseek-ai/dsh-tool-video` — 需要 `tools` · `jobs` · `h3Video` · `commands`（[`packages/video/tool-video/src/index.ts`](../packages/video/tool-video/src/index.ts)）
 - `@deepseek-ai/dsh-fs-observation-policy`（[`packages/fs/fs-observation-policy/src/index.ts`](../packages/fs/fs-observation-policy/src/index.ts)）
 - `@deepseek-ai/dsh-fs-ssh` — 需要 `ssh` · `sandboxPolicy`（[`packages/ssh/fs-ssh/src/index.ts`](../packages/ssh/fs-ssh/src/index.ts)）
 - `@deepseek-ai/dsh-goal-round-driver` — 需要 `agents` · `goals` · `sessions`（[`packages/goal/goal-round-driver/src/index.ts`](../packages/goal/goal-round-driver/src/index.ts)）

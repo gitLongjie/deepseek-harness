@@ -39,4 +39,4 @@ The community [oh-story-dsh](https://github.com/zenstory-ai/oh-story-dsh) drama 
 
 - oh-story-dsh MiniMax H3 adapter reference: `packages/knowledge/drama/skills/short-drama-produce/references/providers/minimax-h3-video.md` (upstream repository)
 - oh-story-dsh H3 prompt dialect: `packages/knowledge/drama/skills/short-drama-video-prompts/references/minimax-h3.md` (upstream repository)
-- This repository: `packages/experimental/h3-video/src/minimax-api.ts`, `src/validation.ts`, `src/index.ts`, `src/settings.ts`, `packages/experimental/tool-video/src/index.ts`, `packages/client/ui-settings-plugins/src/client/h3-video-card-controller.ts`
+- This repository: `packages/video/h3-video/src/minimax-api.ts`, `src/validation.ts`, `src/index.ts`, `src/settings.ts`, `packages/video/tool-video/src/index.ts`, `packages/client/ui-settings-plugins/src/client/h3-video-card-controller.ts`

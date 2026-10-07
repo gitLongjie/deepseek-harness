@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-本包是视频工作台的浏览器半边：侧栏的一个全局面板行（id `video-workbench`，排在定时任务行旁边）与对应的 `main` 页面。页面列出宿主路由报告的视频项目——目标、模式、版本、逐镜头渲染状态——并在选中项目下展示关键帧缩略图与成片 `<video>` 播放。数据来自 [`@deepseek-ai/dsh-experimental-video-workbench`](../../experimental/video-workbench/README.zh.md) 的只读路由；本包除选择与刷新外不持有状态。
+本包是视频工作台的浏览器半边：侧栏的一个全局面板行（id `video-workbench`，排在定时任务行旁边）与对应的 `main` 页面。页面列出宿主路由报告的视频项目——目标、模式、版本、逐镜头渲染状态——并在选中项目下展示关键帧缩略图与成片 `<video>` 播放。数据来自 [`@deepseek-ai/dsh-video-workbench`](../../video/video-workbench/README.zh.md) 的只读路由；本包除选择与刷新外不持有状态。
 
 ## 目录
 
@@ -24,6 +24,8 @@ kind: "package-reference"
 - [`src/client/index.ts`](src/client/index.ts) 在槽位声明上账后注册 `sidebar.panellist` 行与 keyed `main` 条目，并把页面注入的加载器绑定到同源的项目列表路由。
 - [`src/client/VideoWorkbenchPage.tsx`](src/client/VideoWorkbenchPage.tsx) 渲染目录与详情两栏；列表在打开时、每 10 秒以及点击刷新按钮时刷新。媒体 URL 经宿主文件路由，并剥去投影根前缀。
 - 所有文案经 `videoWorkbench` 字典命名空间由 locale 持有（[`src/client/locales.ts`](src/client/locales.ts)）。
+
+**运行时不变量：** 不发布 companion。页面只持有自身的选择与最近一次拉取的列表，二者都是 React 局部状态，因此没有跨包边界、可供 companion 观察的拥有关系。
 
 <a id="model-experience"></a>
 ## Model Experience

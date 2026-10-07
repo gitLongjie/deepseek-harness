@@ -681,102 +681,6 @@ Depends on: [`McpClient`](../packages/mcp/mcp-client/src/index.ts)
 
 Source: [`packages/experimental/computer-use-cua-driver-mcp/src/index.ts:20`](../packages/experimental/computer-use-cua-driver-mcp/src/index.ts)
 
-<a id="deepseek-aidsh-experimental-h3-video"></a>
-
-## `@deepseek-ai/dsh-experimental-h3-video`
-
-```ts config-catalog
-/** Validated configuration shape. */
-export interface Config {
-  /**
-   * Directory receiving downloaded segments, plans, and final assemblies; `~` expands to the OS
-   * home. Omission defaults to the DSH cache `video` directory (`$DSH_HOME/cache/video`).
-   */
-  outputDir?: string
-  /**
-   * Hard floor of free megabytes the output volume must keep beyond the size estimate, in
-   * addition to `estimatedBytesPerSecond` × duration. A generation is refused before submission
-   * when the volume cannot hold both.
-   */
-  minFreeSpaceMb?: number
-  /**
-   * Size estimate per second of generated output, used with `minFreeSpaceMb` to refuse a download
-   * that would fill the disk. Tune to your model's bitrate (H3 768P ≈ 0.5 MB/s; 2K is higher).
-   */
-  estimatedBytesPerSecond?: number
-  /** Local ComfyUI deployment; absent disables the `local` choice. */
-  comfy?: ComfyConfig
-  /** Hosted MiniMax API; absent disables the `remote` choice. */
-  minimax?: MinimaxConfig
-}
-
-/** Local ComfyUI backend row. */
-export interface ComfyConfig {
-  /** ComfyUI server origin. */
-  url?: string
-  /** JSON workflow template path with `"{{field}}"` placeholders. */
-  workflowPath?: string
-  /** Placeholder names filled from each request field. */
-  promptField?: string
-  /** Resolution placeholder name. */
-  resolutionField?: string
-  /** Duration placeholder name. */
-  durationField?: string
-  /** Ratio placeholder name. */
-  ratioField?: string
-  /** Seed placeholder name. */
-  seedField?: string
-  /** Frame-count placeholder name; filled from the duration snapped to the H3 17k+5 grid. */
-  lengthField?: string
-  /**
-   * ComfyUI `input` directory (e.g. `D:/ComfyUI/ComfyUI/input`); required for image-to-video, where
-   * keyframe images are copied here and wired to the H3 node's first/last frame input.
-   */
-  inputDir?: string
-  /** Milliseconds between history polls. */
-  pollIntervalMs?: number
-  /** Wall-clock bound on one generation. */
-  taskTimeoutMs?: number
-  /** Concurrent generations served locally. */
-  maxConcurrency?: number
-  /** Resolution tiers this deployment serves. */
-  resolutions?: string[]
-  /** Minimum accepted seconds per segment. */
-  minDurationSeconds?: number
-  /** Maximum accepted seconds per segment. */
-  maxDurationSeconds?: number
-}
-
-/** Hosted MiniMax backend row. */
-export interface MinimaxConfig {
-  /**
-   * Literal account API key sent as bearer token. Prefer `apiKeyRef` so the secret lives in the
-   * managed credentials store; a literal here lands in the composition file.
-   */
-  apiKey?: string
-  /**
-   * Credential reference name resolved through `ctx.credentials` per request (e.g.
-   * `MINIMAX_API_KEY`, stored via the credentials store or that environment variable). Exactly one
-   * of `apiKey` and `apiKeyRef` enables the remote backend.
-   */
-  apiKeyRef?: string
-  /** API origin. */
-  baseUrl?: string
-  /** Model selection. */
-  model?: string
-  /** Image model used for keyframe generation (`image-01` or `image-01-live`). */
-  imageModel?: string
-  /** Milliseconds between task queries. */
-  pollIntervalMs?: number
-  /** Wall-clock bound on one remote task. */
-  taskTimeoutMs?: number
-  /** Concurrent remote generations. */
-  maxConcurrency?: number
-}
-```
-
-Source: [`packages/experimental/h3-video/src/index.ts:124`](../packages/experimental/h3-video/src/index.ts)
-
 <a id="deepseek-aidsh-experimental-inspector"></a>
 
 ## `@deepseek-ai/dsh-experimental-inspector`
@@ -1007,6 +911,111 @@ export interface Config {
 ```
 
 Source: [`packages/goal/goal/src/index.ts:172`](../packages/goal/goal/src/index.ts)
+
+<a id="deepseek-aidsh-h3-video"></a>
+
+## `@deepseek-ai/dsh-h3-video`
+
+```ts config-catalog
+/** Validated configuration shape. */
+export interface Config {
+  /**
+   * Directory receiving downloaded segments, plans, and final assemblies; `~` expands to the OS
+   * home. Omission defaults to the DSH cache `video` directory (`$DSH_HOME/cache/video`).
+   */
+  outputDir?: string
+  /**
+   * Hard floor of free megabytes the output volume must keep beyond the size estimate, in
+   * addition to `estimatedBytesPerSecond` × duration. A generation is refused before submission
+   * when the volume cannot hold both.
+   */
+  minFreeSpaceMb?: number
+  /**
+   * Size estimate per second of generated output, used with `minFreeSpaceMb` to refuse a download
+   * that would fill the disk. Tune to your model's bitrate (H3 768P ≈ 0.5 MB/s; 2K is higher).
+   */
+  estimatedBytesPerSecond?: number
+  /** Local ComfyUI deployment; absent disables the `local` choice. */
+  comfy?: ComfyConfig
+  /** Hosted MiniMax API; absent disables the `remote` choice. */
+  minimax?: MinimaxConfig
+}
+
+/** Local ComfyUI backend row. */
+export interface ComfyConfig {
+  /** ComfyUI server origin. */
+  url?: string
+  /** JSON workflow template path with `"{{field}}"` placeholders. */
+  workflowPath?: string
+  /** Placeholder names filled from each request field. */
+  promptField?: string
+  /** Resolution placeholder name. */
+  resolutionField?: string
+  /** Duration placeholder name. */
+  durationField?: string
+  /** Ratio placeholder name. */
+  ratioField?: string
+  /** Seed placeholder name. */
+  seedField?: string
+  /** Frame-count placeholder name; filled from the duration snapped to the H3 17k+5 grid. */
+  lengthField?: string
+  /**
+   * ComfyUI `input` directory (e.g. `D:/ComfyUI/ComfyUI/input`); required for image-to-video, where
+   * keyframe images are copied here and wired to the H3 node's first/last frame input.
+   */
+  inputDir?: string
+  /** Milliseconds between history polls. */
+  pollIntervalMs?: number
+  /** Wall-clock bound on one generation. */
+  taskTimeoutMs?: number
+  /** Concurrent generations served locally. */
+  maxConcurrency?: number
+  /** Resolution tiers this deployment serves. */
+  resolutions?: string[]
+  /** Minimum accepted seconds per segment. */
+  minDurationSeconds?: number
+  /** Maximum accepted seconds per segment. */
+  maxDurationSeconds?: number
+}
+
+/** Hosted MiniMax backend row. */
+export interface MinimaxConfig {
+  /**
+   * Literal account API key sent as bearer token. Prefer `apiKeyRef` so the secret lives in the
+   * managed credentials store; a literal here lands in the composition file.
+   */
+  apiKey?: string
+  /**
+   * Credential reference name resolved through `ctx.credentials` per request (e.g.
+   * `MINIMAX_API_KEY`, stored via the credentials store or that environment variable). Exactly one
+   * of `apiKey` and `apiKeyRef` enables the remote backend.
+   */
+  apiKeyRef?: string
+  /** API origin. */
+  baseUrl?: string
+  /**
+   * Model release id the account has enabled. Known ids (`MiniMax-H3`, `MiniMax-H3-Max`) carry
+   * their published envelope; any other id requires `resolutions` and the duration range below.
+   */
+  model?: string
+  /** Resolution tiers the release accepts; overrides the published envelope for `model`. */
+  resolutions?: string[]
+  /** Inclusive shortest segment the release accepts, in seconds. */
+  minDurationSeconds?: number
+  /** Inclusive longest segment the release accepts, in seconds. */
+  maxDurationSeconds?: number
+  /** Image model used for keyframe generation (`image-01` or `image-01-live`). */
+  imageModel?: string
+  /** Milliseconds between task queries. */
+  pollIntervalMs?: number
+  /** Wall-clock bound on one remote task. */
+  taskTimeoutMs?: number
+  /** Concurrent remote generations. */
+  maxConcurrency?: number
+}
+```
+
+Source: [`packages/video/h3-video/src/index.ts:133`](../packages/video/h3-video/src/index.ts)
 
 <a id="deepseek-aidsh-headless"></a>
 
@@ -1278,6 +1287,21 @@ export interface Config {
   defaultContextWindow?: number
   /** Advisory models shown by discovery consumers; defaults to V41 Flash, V4 Flash, V4 Pro, and V4 Flash Vision Exp. */
   models?: DeepSeekCatalogModel[]
+  /**
+   * Whether the sign-in gateway keeps owning this route's endpoint and catalog
+   * (default `true`). Only the Deepagens route consumes it: `false` stops the
+   * login flow from re-pointing `baseURL`, replacing `models`, and adopting a
+   * gateway default model at each sign-in. Meaningless on the DeepSeek route.
+   */
+  followGatewayCatalog?: boolean
+  /**
+   * Display name the Deepagens route carries in provider directories and the
+   * Models settings card; falls back to $DEEPAGENS_DISPLAY_NAME from a trusted
+   * environment layer (the desktop launcher injects the OEM file's
+   * `gatewayProviderName` there), then "Deepagens". Meaningless on the DeepSeek
+   * route.
+   */
+  deepagensDisplayName?: string
   /** Maximum provider idle time while one stream read is outstanding (default five minutes). */
   streamIdleTimeoutMs?: number
   /** Maximum accumulated file-referenced image bytes per chat request (default 128 MiB). */
@@ -3577,6 +3601,26 @@ export type ApprovalPolicy = 'ask' | 'never'
 
 Source: [`packages/interaction/user-approval/src/index.ts:128`](../packages/interaction/user-approval/src/index.ts)
 
+<a id="deepseek-aidsh-video-workbench"></a>
+
+## `@deepseek-ai/dsh-video-workbench`
+
+Requires: `webServer`
+
+```ts config-catalog
+/** Loader configuration: where the projected tree lives. */
+export interface Config {
+  /**
+   * Directory the workbench projects; `~` expands to the OS home. Omission defaults to the same
+   * DSH cache `video` directory the h3-video service uses (`$DSH_HOME/cache/video`), so a stock
+   * deployment needs no configuration to see its renders.
+   */
+  outputDir?: string
+}
+```
+
+Source: [`packages/video/video-workbench/src/index.ts:33`](../packages/video/video-workbench/src/index.ts)
+
 <a id="deepseek-aidsh-web"></a>
 
 ## `@deepseek-ai/dsh-web`
@@ -3831,6 +3875,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@deepseek-ai/dsh-client-ui-tool` ([`packages/client/ui-tool/src/index.ts`](../packages/client/ui-tool/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-trajectory` ([`packages/client/ui-trajectory/src/index.ts`](../packages/client/ui-trajectory/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-user-questions` ([`packages/client/ui-user-questions/src/index.ts`](../packages/client/ui-user-questions/src/index.ts))
+- `@deepseek-ai/dsh-client-ui-video-workbench` ([`packages/client/ui-video-workbench/src/index.ts`](../packages/client/ui-video-workbench/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-workflow-run` ([`packages/client/ui-workflow-run/src/index.ts`](../packages/client/ui-workflow-run/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-workspace` ([`packages/client/ui-workspace/src/index.ts`](../packages/client/ui-workspace/src/index.ts))
 - `@deepseek-ai/dsh-command-compact` — requires `commands` · `compaction` ([`packages/compaction/command-compact/src/index.ts`](../packages/compaction/command-compact/src/index.ts))
@@ -3844,7 +3889,6 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@deepseek-ai/dsh-experimental-auto-review` — requires `llm` · `permissionPresets` · `sessions` · `tools` ([`packages/experimental/auto-review/src/index.ts`](../packages/experimental/auto-review/src/index.ts))
 - `@deepseek-ai/dsh-experimental-client-ui-agent-team` ([`packages/experimental/client-ui-agent-team/src/index.ts`](../packages/experimental/client-ui-agent-team/src/index.ts))
 - `@deepseek-ai/dsh-experimental-computer-use-cua-driver-native` — requires `computerUse` · `tools` · `systemPrompt` ([`packages/experimental/computer-use-cua-driver-native/src/index.ts`](../packages/experimental/computer-use-cua-driver-native/src/index.ts))
-- `@deepseek-ai/dsh-experimental-tool-video` — requires `tools` · `jobs` · `h3Video` · `commands` ([`packages/experimental/tool-video/src/index.ts`](../packages/experimental/tool-video/src/index.ts))
 - `@deepseek-ai/dsh-fs-observation-policy` ([`packages/fs/fs-observation-policy/src/index.ts`](../packages/fs/fs-observation-policy/src/index.ts))
 - `@deepseek-ai/dsh-fs-ssh` — requires `ssh` · `sandboxPolicy` ([`packages/ssh/fs-ssh/src/index.ts`](../packages/ssh/fs-ssh/src/index.ts))
 - `@deepseek-ai/dsh-goal-round-driver` — requires `agents` · `goals` · `sessions` ([`packages/goal/goal-round-driver/src/index.ts`](../packages/goal/goal-round-driver/src/index.ts))
@@ -3874,6 +3918,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@deepseek-ai/dsh-tool-call-timeout-policy` — requires `tools` ([`packages/guard/timeout-policy/src/index.ts`](../packages/guard/timeout-policy/src/index.ts))
 - `@deepseek-ai/dsh-tool-cordis` — requires `tools` · `systemPrompt` · `dynamicCordisRunner` · `cordisInspect` ([`packages/extensions/tool-cordis/src/index.ts`](../packages/extensions/tool-cordis/src/index.ts))
 - `@deepseek-ai/dsh-tool-subagent-control` — requires `tools` · `subagents` ([`packages/subagent/tool-subagent-control/src/index.ts`](../packages/subagent/tool-subagent-control/src/index.ts))
+- `@deepseek-ai/dsh-tool-video` — requires `tools` · `jobs` · `h3Video` · `commands` ([`packages/video/tool-video/src/index.ts`](../packages/video/tool-video/src/index.ts))
 - `@deepseek-ai/dsh-user-questions` ([`packages/interaction/user-questions/src/index.ts`](../packages/interaction/user-questions/src/index.ts))
 - `@deepseek-ai/dsh-webhook` — requires `agents` · `agentDefaultModel` · `agentPresets` · `permissionPresets` · `sessionTitle` · `workspaceRegistry` ([`packages/webhook/webhook/src/index.ts`](../packages/webhook/webhook/src/index.ts))
 - `@deepseek-ai/dsh-workspace` — requires `storageDomain` · `sessionPersistence` ([`packages/workspace/workspace/src/index.ts`](../packages/workspace/workspace/src/index.ts))

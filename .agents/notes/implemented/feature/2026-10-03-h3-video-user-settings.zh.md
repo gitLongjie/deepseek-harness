@@ -14,7 +14,7 @@ H3 视频的每个可调项——ComfyUI 地址与工作流模板、MiniMax 接�
 
 沿现有 seam 做三段拆分：
 
-- **宿主入口**（`@deepseek-ai/dsh-experimental-h3-video/settings`，web-app bundle 的一行）：在扁平、全可选的 schema（`comfyUrl`、`comfyWorkflowPath`、`minimaxApiKeyRef`、`outputDir`、`minFreeSpaceMb`……）上注册 `h3-video` 设置命名空间，并把实时分节发布为宿主面服务 `h3VideoSettings`。设置界面的工作不依赖任何预设是否挂载；视图比会话活得久。
+- **宿主入口**（`@deepseek-ai/dsh-h3-video/settings`，web-app bundle 的一行）：在扁平、全可选的 schema（`comfyUrl`、`comfyWorkflowPath`、`minimaxApiKeyRef`、`outputDir`、`minFreeSpaceMb`……）上注册 `h3-video` 设置命名空间，并把实时分节发布为宿主面服务 `h3VideoSettings`。设置界面的工作不依赖任何预设是否挂载；视图比会话活得久。
 - **预设内服务**：`LocalH3Video` 经导出的 `resolveOverlayConfig(base, section)` 解析生效配置——存在且非空的设置生效，缺席的沿用组合值，两个后端锚点也随覆盖传递（`comfyWorkflowPath` 启用本地，`minimaxApiKeyRef` 启用远端）——并在每次提交变化时经 `view.watch` 重建后端。服务解析像 `credentials` 一样穿过预设的 `h3Video` isolate realm；scope 句柄做不到这一点，这正是视图以服务形态存在的原因。
 - **客户端卡片**（`ui-settings-plugins`，按命名空间作 key）：整个命名空间一张卡——插件配置 tab 按每个被服务命名空间派发一张卡，所以分组以卡内有序字段（本地、远端、输出）呈现，而不是多张卡。MiniMax 密钥沿用 web-search 先例：随表单暂存，通过凭据域按分节引用的名称写入，绝不存进设置文档。
 

@@ -39,6 +39,7 @@ This table connects model-visible tool names to the plugin package and service s
 | `@deepseek-ai/dsh-tool-subagent` | `list_subagent_models`, `subagent` | `ctx.tools`, `ctx.subagents`, `ctx.systemPrompt`, `ctx.llm for model discovery and selected-route validation` | `tool/call`, `tool/result`, `child session events through the chosen provider` | `subagent`, `subagent_fork` | The registered delegation name is the load-time `toolName` config (default `subagent`); the default schema above has model selection off, while the discovery schema is shown as the fixed companion available in an enabled Session. Web presets sample the Plugins preference for each new top-level Session and preserve that decision for its child Sessions; `subagent_fork` remains fixed-route. Each instance independently controls whether it reads model-selection settings and its background behavior through `modelSelectionSettings`, `backgroundMode`, and `enableRunInBackground`. |
 | `@deepseek-ai/dsh-tool-subagent-control` | `interrupt_agent`, `list_agents`, `send_message` | `ctx.tools`, `ctx.subagents`, `ctx.agents and ctx.sessionProjections (list_agents only)` | `tool/call`, `tool/result`, `child session events through ctx.subagents` | - | The globally named control tools over continuable background subagents: provider-bound `tool-subagent` instances register distinct delegation tools, while this package registers `send_message` and `interrupt_agent` once, plus `list_agents` from its separately loaded `/list-agents` plugin (whose catalog rows use the sessionProjections and live Agent registries). |
 | `@deepseek-ai/dsh-tool-jobs` | `job_kill`, `job_list`, `job_output` | `ctx.tools`, `ctx.jobs`, `ctx.systemPrompt` | `tool/call`, `tool/result`, `user/message via agent.inject() for background completion notices` | - | The kind-agnostic background-job controller: background bash commands, PTY sends, and subagents are read, listed, and killed through the same three tools. Loading the plugin attaches the controller that arms producers' `ctx.jobs.start()`. |
+| `@deepseek-ai/dsh-tool-video` | `video_assemble`, `video_asset_images`, `video_assets`, `video_keyframes`, `video_plan`, `video_render` | `ctx.tools`, `ctx.jobs`, `ctx.h3Video`, `ctx.commands`, `ctx.attachments (material images)` | `tool/call`, `tool/result`, `durable attachment for generated keyframes and asset images`, `background h3-video jobs` | - | The H3 storyboard, keyframe, asset, render, and assembly tools plus the `/video` command. Generated materials ride the result as image blocks when a durable attachment store is mounted, which is why `ctx.attachments` is optional here rather than injected. |
 | `@deepseek-ai/dsh-experimental-tool-agent-team` | `interrupt_agent`, `list_agents`, `send_message`, `spawn_teammate`, `team_task_create`, `team_task_get`, `team_task_list`, `team_task_update`, `wait_agent` | `ctx.tools`, `ctx.systemPrompt`, `ctx.agentTeams`, `an exact live Team member Agent` | `tool/call`, `team/member`, `team/message/queued`, `team/message/delivered`, `team/task`, `tool/result` | - | All nine tools are scoped to implicit Team Leads and durable teammates. The shipped dsh-base bundle keeps the package disabled; the documented Agent Teams profile patch enables it while disabling the legacy continuable-child control names. |
 | `@deepseek-ai/dsh-tool-todo` | `todo_write` | `ctx.tools`, `owning Agent session` | `tool/call`, `todo/write`, `tool/result` | - | todo_write is session-owned state; UIs render the latest todo/write event as a checklist. `allowParallelInProgress` is required with no default, so the catalog states its choice: `true`, whose description invites several `in_progress` items. A deployment choosing `false` receives the same tool with a description asking for exactly one active task. |
 | `@deepseek-ai/dsh-tool-workflow` | `workflow` | `ctx.tools`, `ctx.workflowEngine`, `ctx.systemPrompt`, `a calling Agent (exec.agent parents the script children)` | `tool/call`, `tool/result` | - | - |
@@ -2126,6 +2127,371 @@ Read a background job. Stream jobs return only output since the previous read; f
 Source: [`packages/jobs/tool-jobs/src/index.ts`](../packages/jobs/tool-jobs/src/index.ts)
 
 The kind-agnostic background-job controller: background bash commands, PTY sends, and subagents are read, listed, and killed through the same three tools. Loading the plugin attaches the controller that arms producers' `ctx.jobs.start()`.
+
+<a id="deepseek-aidsh-tool-video"></a>
+
+## `@deepseek-ai/dsh-tool-video`
+
+### `video_assemble`
+
+Concatenate a plan's rendered segments in storyboard order with ffmpeg into one mp4. Fails listing any segment that has not been rendered yet.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "plan_id": {
+      "type": "string",
+      "description": "Plan id from video_plan."
+    },
+    "output_file": {
+      "type": "string",
+      "description": "Absolute output mp4 path; defaults to outputDir/final/<planId>.mp4."
+    },
+    "ffmpeg_path": {
+      "type": "string",
+      "description": "ffmpeg executable; defaults to ffmpeg on PATH."
+    }
+  },
+  "required": [
+    "plan_id"
+  ]
+}
+```
+
+Source: [`packages/video/tool-video/src/index.ts`](../packages/video/tool-video/src/index.ts)
+
+### `video_asset_images`
+
+Generate the reference image for plan assets that have none, via the hosted image model, using the production spec for each kind: characters get a turnaround reference sheet (front close-up + front/side/back full views), scenes get a reusable establishing shot without people, props get a neutral reference image. Saves each to outputDir/assets and records it on the plan, so rendering anchors on a generated visual instead of text alone. Present the images to the user for confirmation.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "plan_id": {
+      "type": "string",
+      "description": "Plan id from video_plan."
+    },
+    "asset_ids": {
+      "type": "array",
+      "description": "Asset ids to generate; defaults to every asset without a reference.",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "plan_id"
+  ]
+}
+```
+
+Source: [`packages/video/tool-video/src/index.ts`](../packages/video/tool-video/src/index.ts)
+
+### `video_assets`
+
+Record the reusable asset anchors (characters/scenes/props) and their user-provided reference images on an existing plan, after asking the user for materials. Each asset reference must be an absolute local path or http(s) URL of an image the user supplied.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "plan_id": {
+      "type": "string",
+      "description": "Plan id from video_plan."
+    },
+    "assets": {
+      "type": "array",
+      "description": "Asset anchors with user-provided reference images; names must match the storyboard references exactly.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "character",
+              "scene",
+              "prop"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "reference": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind"
+        ]
+      }
+    },
+    "style": {
+      "type": "string",
+      "description": "One-line visual style directive injected into generation prompts."
+    }
+  },
+  "required": [
+    "plan_id"
+  ]
+}
+```
+
+Source: [`packages/video/tool-video/src/index.ts`](../packages/video/tool-video/src/index.ts)
+
+### `video_keyframes`
+
+Generate one still keyframe per selected segment (remote image model), establishing the scene and visual identity BEFORE video generation. Save keyframes to outputDir/keyframes and return their paths; present them to the user for confirmation, then render.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "plan_id": {
+      "type": "string",
+      "description": "Plan id from video_plan."
+    },
+    "segment_ids": {
+      "type": "array",
+      "description": "Segment ids to keyframe; defaults to every segment.",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "plan_id"
+  ]
+}
+```
+
+Source: [`packages/video/tool-video/src/index.ts`](../packages/video/tool-video/src/index.ts)
+
+### `video_plan`
+
+Structure the current conversation request into a versioned storyboard plan and persist it. The agent writes the shots; this tool validates and stores them. Pass an existing plan_id to revise it.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "goal": {
+      "type": "string",
+      "description": "One-line goal the plan serves."
+    },
+    "plan_id": {
+      "type": "string",
+      "description": "Existing plan id to revise; omit to create a new plan."
+    },
+    "mode": {
+      "type": "string",
+      "description": "multi_shot (default) folds all segments into one coherent H3 task (≤15s, uniform resolution/ratio); per_segment renders each shot independently then concats. Use per_segment when a shot needs its own material or backend.",
+      "enum": [
+        "multi_shot",
+        "per_segment"
+      ]
+    },
+    "assets": {
+      "type": "array",
+      "description": "Reusable asset anchors (characters/scenes/props) confirmed with the user; each may carry a user-provided reference image path or URL. The storyboard must reference these names exactly.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "character",
+              "scene",
+              "prop"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "reference": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind"
+        ]
+      }
+    },
+    "style": {
+      "type": "string",
+      "description": "One-line visual style directive injected into generation prompts."
+    },
+    "segments": {
+      "type": "array",
+      "description": "Ordered storyboard shots; assembly follows this order.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Stable segment id, e.g. s1, s2."
+          },
+          "prompt": {
+            "type": "string",
+            "description": "Shot description used as the generation prompt. H3 generates audio in the same pass: state the ambience/SFX layer, wrap Chinese dialogue as <d>[Chinese] 逐字台词</d>, and write non_diegetic_music: N/A when no music is wanted."
+          },
+          "camera": {
+            "type": "string",
+            "description": "Camera movement guidance appended to the prompt."
+          },
+          "duration_seconds": {
+            "type": "integer",
+            "description": "Segment length in seconds (1..120)."
+          },
+          "resolution": {
+            "type": "string",
+            "description": "Resolution tier.",
+            "enum": [
+              "480P",
+              "768P",
+              "2K"
+            ]
+          },
+          "ratio": {
+            "type": "string",
+            "description": "Aspect ratio.",
+            "enum": [
+              "adaptive",
+              "21:9",
+              "16:9",
+              "4:3",
+              "1:1",
+              "3:4",
+              "9:16"
+            ]
+          },
+          "backend": {
+            "type": "string",
+            "description": "Routing policy for this segment.",
+            "enum": [
+              "local",
+              "remote",
+              "auto"
+            ]
+          },
+          "references": {
+            "type": "array",
+            "description": "Optional reference materials conditioning this segment (served by the remote API; local ComfyUI is text-only).",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "description": "Material kind.",
+                  "enum": [
+                    "image",
+                    "video",
+                    "audio"
+                  ]
+                },
+                "source": {
+                  "type": "string",
+                  "description": "Absolute path or http(s) URL of the material."
+                },
+                "role": {
+                  "type": "string",
+                  "description": "How the material conditions generation (image: first_frame/last_frame/reference_image; video: reference_video; audio: reference_audio).",
+                  "enum": [
+                    "first_frame",
+                    "last_frame",
+                    "reference_image",
+                    "reference_video",
+                    "reference_audio"
+                  ]
+                }
+              },
+              "required": [
+                "type",
+                "source",
+                "role"
+              ]
+            }
+          }
+        },
+        "required": [
+          "id",
+          "prompt",
+          "duration_seconds",
+          "resolution",
+          "ratio",
+          "backend"
+        ]
+      }
+    }
+  },
+  "required": [
+    "goal",
+    "segments"
+  ]
+}
+```
+
+Source: [`packages/video/tool-video/src/index.ts`](../packages/video/tool-video/src/index.ts)
+
+### `video_render`
+
+Submit one plan's segments (or a subset) to the chosen H3 backend and start one background job per segment that polls generation to completion. Returns submission records with job ids; collect results with job_output.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "plan_id": {
+      "type": "string",
+      "description": "Plan id from video_plan."
+    },
+    "segment_ids": {
+      "type": "array",
+      "description": "Segment ids to render; defaults to every segment.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "backend": {
+      "type": "string",
+      "description": "Backend override for all selected segments.",
+      "enum": [
+        "local",
+        "remote",
+        "auto"
+      ]
+    }
+  },
+  "required": [
+    "plan_id"
+  ]
+}
+```
+
+Source: [`packages/video/tool-video/src/index.ts`](../packages/video/tool-video/src/index.ts)
+
+The H3 storyboard, keyframe, asset, render, and assembly tools plus the `/video` command. Generated materials ride the result as image blocks when a durable attachment store is mounted, which is why `ctx.attachments` is optional here rather than injected.
 
 <a id="deepseek-aidsh-experimental-tool-agent-team"></a>
 

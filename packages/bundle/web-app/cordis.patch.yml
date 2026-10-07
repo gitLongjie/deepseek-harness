@@ -49,14 +49,14 @@
 
     # H3 video user settings: registers the `h3-video` namespace and publishes
     # its live view. The Plugins page edits the namespace; a preset-mounted
-    # dsh-experimental-h3-video service layers it over its composition config.
+    # dsh-h3-video service layers it over its composition config.
     - id: h3-video-settings
-      name: '@deepseek-ai/dsh-experimental-h3-video/settings'
+      name: '@deepseek-ai/dsh-h3-video/settings'
 
     # Video workbench, host half: the read-only projects/file routes over the
     # h3-video output directory. The ui-video-workbench browser row renders it.
     - id: video-workbench
-      name: '@deepseek-ai/dsh-experimental-video-workbench'
+      name: '@deepseek-ai/dsh-video-workbench'
 
     - id: message-feedback
       name: '@deepseek-ai/dsh-message-feedback'

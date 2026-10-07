@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package is the browser half of the video workbench: one global panel row in the sidebar (id `video-workbench`, beside the scheduled-work row) and the matching `main` page. The page lists the video projects the host routes report — goal, mode, revision, per-shot rendering state — and shows the selected project's keyframe thumbnails and its final assembly in a `<video>` element. Data arrives from [`@deepseek-ai/dsh-experimental-video-workbench`](../../experimental/video-workbench/README.md)'s read-only routes; this package holds no state beyond selection and refresh.
+This package is the browser half of the video workbench: one global panel row in the sidebar (id `video-workbench`, beside the scheduled-work row) and the matching `main` page. The page lists the video projects the host routes report — goal, mode, revision, per-shot rendering state — and shows the selected project's keyframe thumbnails and its final assembly in a `<video>` element. Data arrives from [`@deepseek-ai/dsh-video-workbench`](../../video/video-workbench/README.md)'s read-only routes; this package holds no state beyond selection and refresh.
 
 ## Table of Contents
 
@@ -23,6 +23,8 @@ This package is the browser half of the video workbench: one global panel row in
 - [`src/client/index.ts`](src/client/index.ts) registers the `sidebar.panellist` row and the keyed `main` entry once their slot declarations are on the ledger, and binds the page's injected loader to the same-origin projects route.
 - [`src/client/VideoWorkbenchPage.tsx`](src/client/VideoWorkbenchPage.tsx) renders the catalog and detail panes; the listing refreshes on open, every 10 seconds, and on the refresh button. Media URLs go through the host file route with the projected root stripped.
 - All copy is locale-owned through the `videoWorkbench` dictionary namespace ([`src/client/locales.ts`](src/client/locales.ts)).
+
+**Runtime invariant:** No companion is published. The page holds only its selection and the last fetched listing, both React-local, so no owned relationship crosses a package boundary for a companion to observe.
 
 ## Model Experience
 
