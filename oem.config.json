@@ -2,7 +2,7 @@
   "productName": "深度Work",
   "gatewayProviderName": "brige",
   "brandIcon": "/favicon.ico",
-  "loginUrl": "http://127.0.0.1:3000/api/claw/login",
+  "loginUrl": "http://127.0.0.1:31000/api/claw/login",
   "updateUrl": "https://github.com/gitLongjie/deepseek-harness/releases/latest/download",
   "knowledgeBase": {
     "baseUrl": "http://localhost:8080/api/v1",
