@@ -53,6 +53,11 @@
     - id: h3-video-settings
       name: '@deepseek-ai/dsh-experimental-h3-video/settings'
 
+    # Video workbench, host half: the read-only projects/file routes over the
+    # h3-video output directory. The ui-video-workbench browser row renders it.
+    - id: video-workbench
+      name: '@deepseek-ai/dsh-experimental-video-workbench'
+
     - id: message-feedback
       name: '@deepseek-ai/dsh-message-feedback'
       config:
@@ -385,6 +390,12 @@
     # editor dialog, and run records over the scheduleWork Remote.
     - id: ui-schedule-work
       name: '@deepseek-ai/dsh-client-ui-schedule-work'
+
+    # The video workbench page: the sidebar panel row plus the project catalog
+    # over the h3-video output directory (the video-workbench host rows below
+    # serve the read-only listing and file routes it renders from).
+    - id: ui-video-workbench
+      name: '@deepseek-ai/dsh-client-ui-video-workbench'
 
     # Background jobs: the session-header list over the jobsBySession mirror.
     - id: ui-jobs
