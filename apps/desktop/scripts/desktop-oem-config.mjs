@@ -115,7 +115,7 @@ export function createElectronBuilderOemConfig(productName, updateUrl, options =
     // the configured OEM display name. The package `name` stays the ASCII
     // DeepagensWork identity: electron-builder derives APP_FILENAME from it to
     // sanitize the install directory, and an ASCII name keeps that check stable
-    // while the display name is non-ASCII (中央民族大学工作台).
+    // while the display name is non-ASCII (民大工作台).
     productName,
     extraMetadata: {
       name: 'DeepagensWork',

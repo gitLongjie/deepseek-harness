@@ -67,7 +67,7 @@ win:
   # Windows Explorer, the taskbar, and Task Manager read the executable's
   # embedded icon rather than BrowserWindow's runtime icon.
   icon: build/icon.ico
-  executableName: 中央民族大学工作台
+  executableName: 民大工作台
   target:
     - target: nsis
       arch:
@@ -76,11 +76,11 @@ nsis:
   # electron-publish uploads release assets under this name verbatim: a
   # non-ASCII prefix puts unescaped characters in the GitHub request path and
   # electron-builder's safe-name fallback drops the arch suffix. Keep the
-  # artifact prefix ASCII; the display name stays 中央民族大学工作台.
+  # artifact prefix ASCII; the display name stays 民大工作台.
   artifactName: DeepagensWork-${version}-win-${arch}.${ext}
   # Per-machine install so the assisted wizard defaults to Program Files, and
   # installer.nsh pins that default to the ASCII DeepagensWork directory: the
-  # display name stays 中央民族大学工作台 while the on-disk path stays stable
+  # display name stays 民大工作台 while the on-disk path stays stable
   # across OEM renames.
   perMachine: true
   include: build/installer.nsh
@@ -88,8 +88,8 @@ nsis:
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  shortcutName: 中央民族大学工作台
-  uninstallDisplayName: 中央民族大学工作台
+  shortcutName: 民大工作台
+  uninstallDisplayName: 民大工作台
 mac:
   # Both architectures are built in one job. The architecture suffix prevents
   # the Intel and Apple Silicon assets from colliding in the GitHub release.
@@ -97,7 +97,7 @@ mac:
   artifactName: DeepagensWork-${version}-mac-${arch}.${ext}
   # The app bundle under /Applications follows the platform executable name:
   # an ASCII DeepagensWork.app matches the Windows install directory and keeps
-  # scripts and support paths stable, while productName (中央民族大学工作台)
+  # scripts and support paths stable, while productName (民大工作台)
   # stays the display name — CFBundleName, the window title, tray, and About
   # copy.
   executableName: DeepagensWork

@@ -1,5 +1,5 @@
 {
-  "productName": "中央民族大学工作台",
+  "productName": "民大工作台",
   "gatewayProviderName": "brige",
   "brandIcon": "/favicon.ico",
   "loginUrl": "http://127.0.0.1:31000/api/claw/login",
