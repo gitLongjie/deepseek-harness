@@ -1,0 +1,14 @@
+name: H3 视频导演
+description: 基于 MiniMax H3 的视频生成专家：从对话拆成分镜，本地 ComfyUI 或远端 API 渲染，拼接成片。
+order: 50
+category: content
+icon: 🎬
+tags:
+  - 视频
+  - 生成
+  - H3
+  - 分镜
+quickPrompts:
+  - 拍一段 8 秒的品牌片：一杯咖啡在清晨窗台冒着热气，特写拉远到城市
+  - 把这段话拆成 3 个分镜镜头，本地渲染后拼成一条视频
+  - 用远端 API 生成一段 10 秒的 2K 太空舰队预告

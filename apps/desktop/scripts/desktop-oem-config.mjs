@@ -141,6 +141,20 @@ export function createElectronBuilderOemConfig(productName, updateUrl, options =
     }
     config.asarUnpack = [...options.asarUnpack]
   }
+  // Optional out-of-asar payload directories (from → to under the installer's
+  // resources/), e.g. the ComfyUI distribution that ships beside the app.
+  if (options.extraResources !== undefined) {
+    if (!Array.isArray(options.extraResources)
+      || options.extraResources.length === 0
+      || !options.extraResources.every(entry =>
+        entry !== null && typeof entry === 'object'
+        && typeof entry.from === 'string' && entry.from !== ''
+        && typeof entry.to === 'string' && entry.to !== ''
+        && !entry.to.includes('..') && !entry.from.includes('..'))) {
+      throw new Error('the extraResources overlay must be a non-empty array of { from, to } pairs')
+    }
+    config.extraResources = options.extraResources.map(({ from, to }) => ({ from, to }))
+  }
   return {
     ...config,
     ...(options.output === undefined ? {} : { directories: { output: options.output } }),

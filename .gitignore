@@ -50,6 +50,10 @@ apps/desktop/.release/
 apps/desktop/web/
 .desktop-release/
 apps/desktop/dist-electron/
+# The optional ComfyUI installer payload: machine-local program trees (GBs)
+# stay out of git; only the directory's README documents the contract.
+apps/desktop/resources/comfyui-dist/*
+!apps/desktop/resources/comfyui-dist/README.md
 native/system/test/bin/
 
 # Local Mimosa security-scan hook state (rewritten per commit; never a review artifact).

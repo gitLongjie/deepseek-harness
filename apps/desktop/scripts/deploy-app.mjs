@@ -6,7 +6,7 @@
  * uploads to the configured GitHub provider.
  */
 import { spawnSync } from 'node:child_process'
-import { cpSync, mkdirSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 import {
@@ -68,6 +68,16 @@ run('node', ['scripts/build-render-transport.mjs'], { cwd: root })
 const { ASAR_UNPACK_GLOBS } = await import(
   new URL('../dist/main/desktop/packaged-resources.js', import.meta.url).href
 )
+// The ComfyUI distribution is an optional out-of-asar payload: drop a ComfyUI
+// program tree (python_embeded + ComfyUI sources, NO model weights) at
+// apps/desktop/resources/comfyui-dist and it ships beside the app under
+// resources/comfyui-dist; the first launch copies it into the user-writable
+// local-app-data directory the h3-video-director preset points at. An absent
+// directory packages without it (remote MiniMax backend only).
+const comfyDistDir = resolve(root, 'resources', 'comfyui-dist')
+const extraResources = existsSync(comfyDistDir)
+  ? [{ from: comfyDistDir, to: 'comfyui-dist' }]
+  : undefined
 // Stage the local file dependency after the TypeScript build (which clears
 // dist/) so electron-builder can include it in app.asar.
 const dshImStage = resolve(root, 'dist', 'dsh-im-package')
@@ -96,6 +106,7 @@ writeFileSync(builderConfigPath, `${JSON.stringify(createElectronBuilderOemConfi
   output: process.env.DSH_DESKTOP_LOCAL_UPDATE_OUTPUT,
   version: process.env.DSH_DESKTOP_BUILD_VERSION,
   asarUnpack: ASAR_UNPACK_GLOBS,
+  extraResources,
 }), null, 2)}\n`)
 const ebArgs = ['--config', builderConfigPath]
 if (dirMode) ebArgs.push('--dir')
