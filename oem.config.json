@@ -1,5 +1,5 @@
 {
-  "productName": "深度Work",
+  "productName": "中央民族大学工作台",
   "gatewayProviderName": "brige",
   "brandIcon": "/favicon.ico",
   "loginUrl": "http://127.0.0.1:31000/api/claw/login",
@@ -10,23 +10,23 @@
     "webUiUrl": "http://localhost:8080"
   },
   "loginTagline": {
-    "zh": "云海扬帆，事事有着落",
-    "en": "Set sail on the sea of clouds, and everything lands."
+    "zh": "美美与共，知行合一",
+    "en": "Beauty in diversity, knowledge in action."
   },
   "greetings": {
     "zh": {
-      "morning": "晨光初起，扬帆正好",
-      "noon": "午间小泊，蓄满风力",
-      "afternoon": "午后风起，云海正阔",
-      "evening": "暮色渐浓，归帆满载",
-      "night": "夜深了，剩下的交给星光"
+      "morning": "晨光入校，问学正当时",
+      "noon": "午间小驻，养精蓄锐",
+      "afternoon": "午后笃行，知行合一",
+      "evening": "暮色渐浓，满载而归",
+      "night": "夜深了，今日耕耘明日成林"
     },
     "en": {
-      "morning": "The early sail catches the wind.",
-      "noon": "A short nap at anchor recharges the sails.",
-      "afternoon": "Afternoon wind rises — sails at full stretch.",
-      "evening": "Dusk settles in — the sails come home full.",
-      "night": "Leave the rest to the stars. Rest well."
+      "morning": "Morning light over the campus — a fine hour for learning.",
+      "noon": "A midday pause to recharge.",
+      "afternoon": "Afternoon strides — knowledge in action.",
+      "evening": "Dusk gathers; the day's harvest comes home.",
+      "night": "Deep into the night — today's efforts grow into tomorrow."
     }
   }
 }
