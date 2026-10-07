@@ -28,11 +28,11 @@ const TEMPLATE_TARGET = join('models', 'h3-t2v-api-template.json')
 /**
  * Resolve the user-writable ComfyUI deployment directory.
  * @param localAppData - the LOCALAPPDATA directory; `undefined` off Windows.
- * @returns `<localAppData>/DeepagensWork/comfyui`, or `undefined` when the
+ * @returns `<localAppData>/MindaWork/comfyui`, or `undefined` when the
  * platform names no local-app-data directory and deployment cannot run.
  */
 export function comfyuiLocalDir(localAppData: string | undefined): string | undefined {
-  return localAppData === undefined ? undefined : join(localAppData, 'DeepagensWork', 'comfyui')
+  return localAppData === undefined ? undefined : join(localAppData, 'MindaWork', 'comfyui')
 }
 
 /** Options for {@link deployBundledComfyUI}. */

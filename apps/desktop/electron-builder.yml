@@ -80,7 +80,7 @@ nsis:
   # artifact prefix ASCII; the display names follow productName.
   artifactName: minda-${version}-win-${arch}.${ext}
   # Per-machine install so the assisted wizard defaults to Program Files, and
-  # installer.nsh pins that default to the ASCII DeepagensWork directory: the
+  # installer.nsh pins that default to the ASCII MindaWork directory: the
   # display names follow productName while the on-disk path stays stable
   # across OEM renames.
   perMachine: true
@@ -95,10 +95,10 @@ mac:
   # Keep the artifact prefix ASCII (see the nsis note).
   artifactName: minda-${version}-mac-${arch}.${ext}
   # The app bundle under /Applications follows the platform executable name:
-  # an ASCII DeepagensWork.app matches the Windows install directory and keeps
+  # an ASCII MindaWork.app matches the Windows install directory and keeps
   # scripts and support paths stable, while productName stays the display name
   # — CFBundleName, the window title, tray, and About copy.
-  executableName: DeepagensWork
+  executableName: MindaWork
   target:
     - target: dmg
       arch:

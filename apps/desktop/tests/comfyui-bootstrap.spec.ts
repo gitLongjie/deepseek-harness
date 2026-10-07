@@ -32,7 +32,7 @@ function layout(withDist: boolean): { appRoot: string; resourcesDir: string; loc
 describe('comfyuiLocalDir', () => {
   it('nests under the named local-app-data directory', () => {
     expect(comfyuiLocalDir(join('C:', 'Users', 'a', 'AppData', 'Local')))
-      .toBe(join('C:', 'Users', 'a', 'AppData', 'Local', 'DeepagensWork', 'comfyui'))
+      .toBe(join('C:', 'Users', 'a', 'AppData', 'Local', 'MindaWork', 'comfyui'))
   })
 
   it('is undefined without a local-app-data directory', () => {

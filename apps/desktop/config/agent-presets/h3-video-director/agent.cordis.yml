@@ -115,8 +115,8 @@
         # elsewhere.
         comfy:
           url: 'http://127.0.0.1:8188'
-          workflowPath: '~/AppData/Local/DeepagensWork/comfyui/models/h3-t2v-api-template.json'
-          inputDir: '~/AppData/Local/DeepagensWork/comfyui/input'
+          workflowPath: '~/AppData/Local/MindaWork/comfyui/models/h3-t2v-api-template.json'
+          inputDir: '~/AppData/Local/MindaWork/comfyui/input'
           promptField: 'prompt'
           seedField: 'seed'
           lengthField: 'length'
