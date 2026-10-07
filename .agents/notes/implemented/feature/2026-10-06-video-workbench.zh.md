@@ -37,7 +37,7 @@ Status: implemented
 
 ## References
 
-- oh-story-dsh 工作台模式参考：其 `packages/dsh-plugin/src/client/index.tsx`（槽位声明 + 投影）、`src/workspace-route.ts`（只读路由 + 白名单）、`src/client/workbench-presence.ts`（项目检测）
+- oh-story-dsh 工作台模式参考（上游仓库）：其 `dsh-plugin/src/client/index.tsx`（槽位声明 + 投影）、`dsh-plugin/src/workspace-route.ts`（只读路由 + 白名单）、`dsh-plugin/src/client/workbench-presence.ts`（项目检测）
 - 本仓库实现：`packages/video/video-workbench/src/{index,projects,file-serve}.ts`、`packages/client/ui-video-workbench/src/client/{index,VideoWorkbenchPage,endpoints,locales}.ts`
 - 组合：`packages/bundle/web-app/cordis.patch.yml`（HOST 行 `video-workbench` + client 行 `ui-video-workbench`）
 - 关联 note：`2026-10-06-h3-video-oh-story-alignment.md`（同日落的管线对齐）

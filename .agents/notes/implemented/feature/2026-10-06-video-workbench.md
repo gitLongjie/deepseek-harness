@@ -37,7 +37,7 @@ A video workbench v1 following oh-story's projection principles on this reposito
 
 ## References
 
-- oh-story-dsh workbench pattern: its `packages/dsh-plugin/src/client/index.tsx` (slot declaration + projection), `src/workspace-route.ts` (read-only routes + whitelist), `src/client/workbench-presence.ts` (project detection)
+- oh-story-dsh workbench pattern (upstream repository): its `dsh-plugin/src/client/index.tsx` (slot declaration + projection), `dsh-plugin/src/workspace-route.ts` (read-only routes + whitelist), `dsh-plugin/src/client/workbench-presence.ts` (project detection)
 - This repository: `packages/video/video-workbench/src/{index,projects,file-serve}.ts`, `packages/client/ui-video-workbench/src/client/{index,VideoWorkbenchPage,endpoints,locales}.ts`
 - Composition: `packages/bundle/web-app/cordis.patch.yml` (HOST row `video-workbench` + client row `ui-video-workbench`)
 - Related note: `2026-10-06-h3-video-oh-story-alignment.md` (the pipeline alignment landed the same day)

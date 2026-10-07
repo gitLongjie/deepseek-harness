@@ -35,10 +35,10 @@ video 分组把一次对话变成用 MiniMax H3 渲染的成片。一个服务�
 <a id="related-documentation"></a>
 ## 相关文档
 
-- [H3 视频生成工具](../../.agents/notes/implemented/feature/2026-09-29-h3-video-generation-tools.md) —— 接口、provider、工具与素材优先流程。
-- [H3 视频用户设置](../../.agents/notes/implemented/feature/2026-10-03-h3-video-user-settings.md) —— `./settings` 宿主入口及其对组合配置的覆盖。
-- [H3 生成对齐 oh-story-dsh](../../.agents/notes/implemented/feature/2026-10-06-h3-video-oh-story-alignment.md) —— 能力档位、协议校验与 reference 条件。
-- [视频工作台](../../.agents/notes/implemented/feature/2026-10-06-video-workbench.md) —— 只读投影及其路径围堵规则。
+- [H3 视频生成工具](../../.agents/notes/implemented/feature/2026-09-29-h3-video-generation-tools.zh.md) —— 接口、provider、工具与素材优先流程。
+- [H3 视频用户设置](../../.agents/notes/implemented/feature/2026-10-03-h3-video-user-settings.zh.md) —— `./settings` 宿主入口及其对组合配置的覆盖。
+- [H3 生成对齐 oh-story-dsh](../../.agents/notes/implemented/feature/2026-10-06-h3-video-oh-story-alignment.zh.md) —— 能力档位、协议校验与 reference 条件。
+- [视频工作台](../../.agents/notes/implemented/feature/2026-10-06-video-workbench.zh.md) —— 只读投影及其路径围堵规则。
 
 -----
 
