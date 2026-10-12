@@ -1,0 +1,30 @@
+{
+  "name": "dsh-wechat",
+  "version": "0.1.0",
+  "description": "DeepSeek Harness plugin exposing the local personal WeChat desktop account: contacts, group members, message reading, and text sending.",
+  "type": "module",
+  "main": "./index.mjs",
+  "exports": {
+    ".": "./index.mjs",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.mjs",
+    "service",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "wechat",
+    "wechat-desktop"
+  ],
+  "license": "Apache-2.0",
+  "private": true,
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}
