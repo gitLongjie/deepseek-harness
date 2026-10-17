@@ -4,8 +4,9 @@
  * signs in without showing the gate, a refusal falls back to the sign-in
  * card. The server issues the API key at each sign-in; the session itself
  * stays in memory, only the pair is stored locally, and the key is handed
- * to the host credential layer, so real authorization stays with the
- * servers that accept the key.
+ * to the host credential layer under the gateway route's own reference, so
+ * real authorization stays with the servers that accept the key and a key
+ * stored for the DeepSeek route is never rewritten.
  */
 
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
@@ -34,8 +35,15 @@ export interface LoginSession {
   apiKey: string
 }
 
-/** Credential references this plugin writes while a session is signed in. */
-export const LOGIN_CREDENTIAL_REFS = ['DEEPSEEK_API_KEY', 'DEEPSEEK_BASE_URL'] as const
+/**
+ * Credential reference this plugin writes while a session is signed in: the
+ * Deepagens gateway route's own reference, never the DeepSeek route's
+ * `DEEPSEEK_API_KEY`. The gateway re-issues this key at every launch, and a
+ * shared reference made each launch overwrite the key a user stored for the
+ * DeepSeek route. The gateway endpoint needs no credential — the catalog sync
+ * writes it into the route's `llm-deepagens` settings section.
+ */
+export const GATEWAY_CREDENTIAL_REF = 'DEEPAGENS_API_KEY'
 
 /** The credential pair stored locally for the boot-time re-login. */
 export interface StoredLoginPair {
@@ -99,11 +107,11 @@ export interface LoginState {
 /** Host credential writes the store delegates after a session transition. */
 export interface LoginCredentialAdapter {
   /**
-   * Store the issued key and the server origin under the LLM credential
-   * references; a rejection aborts the sign-in.
+   * Store the issued key under the gateway route's credential reference; a
+   * rejection aborts the sign-in.
    */
-  apply(session: LoginSession, baseUrl: string): Promise<void>
-  /** Remove the references this plugin wrote; called on sign-out. */
+  apply(session: LoginSession): Promise<void>
+  /** Remove the reference this plugin wrote; called on sign-out. */
   clear(): Promise<void>
 }
 
@@ -348,7 +356,7 @@ export class LoginStore {
       apiKey,
     }
     try {
-      await this.credentials.apply(session, this.baseUrl())
+      await this.credentials.apply(session)
     } catch {
       this.store.update((state) => {
         state.busy = false

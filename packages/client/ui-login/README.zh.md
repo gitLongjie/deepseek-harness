@@ -18,7 +18,7 @@ kind: "package-reference"
 - `shell.overlay` —— 整页登录接管（品牌标、用户名/密码表单含密码显隐切换、服务器消息原文展示）。遮罩自行恢复指针事件，因为 overlay 层本身设计为点击穿透；遮罩还遵守桌面壳层发布的顶部保留区，使窗口标题栏保持可用。启动重放登录进行中时只渲染遮罩；已登录时不渲染任何内容。
 - `sidebar.footer.action` —— 已登录账号行：头像（缺失时以首字母回退）、宽栏模式显示昵称，下拉菜单提供退出登录。
 
-登录成功（线上契约：`POST {username, password}` → `{success, message?, data: {display_name?, avatar?, api_key}}`）后，会话保存在内存中，键入的账号密码对存入 `localStorage`，并通过既有的 `credentials.set` 线上方法写入 `DEEPSEEK_API_KEY` 与 `DEEPSEEK_BASE_URL`（端点 origin）——与模型设置页使用的同一可写层。写入被拒绝时登录响亮中止。退出登录会取消这两个引用并清除存储的账号密码对。
+登录成功（线上契约：`POST {username, password}` → `{success, message?, data: {display_name?, avatar?, api_key}}`）后，会话保存在内存中，键入的账号密码对存入 `localStorage`，并通过既有的 `credentials.set` 线上方法把网关密钥写入 `DEEPAGENS_API_KEY`——与模型设置页使用的同一可写层，但使用网关路由自己的引用。`DEEPSEEK_API_KEY` 刻意不动：它属于 DeepSeek 路由，而每次启动的重登录若写入它，就会覆盖用户在该处保存的密钥。网关端点不需要凭据条目，因为目录同步会把地址写进该路由的 `llm-deepagens` 设置段。写入被拒绝时登录响亮中止。退出登录只取消 `DEEPAGENS_API_KEY` 并清除存储的账号密码对，其余已存凭据保持不动。
 
 每次启动都会在界面定着前用存储的账号密码对重放登录端点：成功则直接进入主界面、不显示登录卡片；被拒绝（密码错误、服务不可达）则保留该账号密码对供下次启动重试，并回退到登录卡片、展示失败原因。
 

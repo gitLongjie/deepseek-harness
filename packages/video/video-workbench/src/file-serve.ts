@@ -7,9 +7,9 @@
  */
 
 import { createReadStream } from 'node:fs'
-import { readFile, realpath, stat } from 'node:fs/promises'
-import type { ServerResponse } from 'node:http'
+import { realpath, stat } from 'node:fs/promises'
 import { extname, join, relative } from 'node:path'
+import { Readable } from 'node:stream'
 
 /** Served extensions with their MIME types; anything else is refused. */
 const SERVED_TYPES: ReadonlyMap<string, string> = new Map([
@@ -27,9 +27,6 @@ const SERVED_TYPES: ReadonlyMap<string, string> = new Map([
   ['.mp3', 'audio/mpeg'],
   ['.wav', 'audio/wav'],
 ])
-
-/** Textual extensions read whole and buffered; everything else streams. */
-const TEXT_EXTENSIONS = new Set(['.json', '.md', '.txt'])
 
 /** Byte ceiling for one served file. */
 const MAX_FILE_BYTES = 256 * 1024 * 1024
@@ -106,58 +103,39 @@ export async function resolveWorkbenchFile(
   return { path: real, contentType, bytes }
 }
 
-/**
- * Answer one resolved file: a refusal maps to its 403/404/413 line, a text or media file streams
- * whole with its length and MIME type. Only `GET`/`HEAD` requests reach this function.
- * @param resolved - the resolver's verdict for the requested path.
- * @param head - whether only headers were requested.
- * @param res - the response to settle.
- */
-export function writeWorkbenchFile(
-  resolved: ResolvedFile | FileRefusal,
-  head: boolean,
-  res: ServerResponse,
-): void {
-  if ('reason' in resolved) {
-    if (resolved.reason === 'escape') {
-      res.writeHead(403, { 'content-type': 'text/plain; charset=utf-8' })
-      res.end('path escapes the video workbench directory')
-      return
-    }
-    if (resolved.reason === 'extension') {
-      res.writeHead(403, { 'content-type': 'text/plain; charset=utf-8' })
-      res.end(`unsupported file type ${resolved.value}`)
-      return
-    }
-    if (resolved.reason === 'too-large') {
-      res.writeHead(413, { 'content-type': 'text/plain; charset=utf-8' })
-      res.end(`file exceeds the ${Math.floor(MAX_FILE_BYTES / 1024 / 1024)} MB limit`)
-      return
-    }
-    res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' })
-    res.end('no such file in the video workbench directory')
-    return
-  }
-  res.writeHead(200, {
-    'content-type': resolved.contentType,
-    'content-length': String(resolved.bytes),
+/** One refusal of a service request as the response that answers it. */
+function refusal(status: number, message: string, method: string): Response {
+  return new Response(method === 'HEAD' ? null : message, {
+    status,
+    headers: { 'content-type': 'text/plain; charset=utf-8' },
   })
-  if (head) {
-    res.end()
-    return
-  }
-  createReadStream(resolved.path).pipe(res)
 }
 
 /**
- * Read one served text file whole. The listing route uses this for plan previews, where a
- * streamed body would force the client to buffer anyway.
- * @param outputDir - the projected output directory root.
- * @param relativePath - the file's path relative to the root.
- * @returns the file text, or undefined when refused.
+ * Answer one resolved file: a refusal maps to its 403/404/413 line, an admitted file streams
+ * whole with its length and MIME type. Only `GET`/`HEAD` reach this function.
+ * @param resolved - the resolver's verdict for the requested path.
+ * @param method - the request method; `HEAD` answers headers without a body.
+ * @returns the response to settle.
  */
-export async function readWorkbenchText(outputDir: string, relativePath: string): Promise<string | undefined> {
-  const resolved = await resolveWorkbenchFile(outputDir, relativePath)
-  if ('reason' in resolved || !TEXT_EXTENSIONS.has(extname(resolved.path).toLowerCase())) return undefined
-  return await readFile(resolved.path, 'utf8')
+export function workbenchFileResponse(resolved: ResolvedFile | FileRefusal, method: string): Response {
+  if ('reason' in resolved) {
+    if (resolved.reason === 'escape') {
+      return refusal(403, 'path escapes the video workbench directory', method)
+    }
+    if (resolved.reason === 'extension') {
+      return refusal(403, `unsupported file type ${resolved.value}`, method)
+    }
+    if (resolved.reason === 'too-large') {
+      return refusal(413, `file exceeds the ${String(Math.floor(MAX_FILE_BYTES / 1024 / 1024))} MB limit`, method)
+    }
+    return refusal(404, 'no such file in the video workbench directory', method)
+  }
+  const headers = {
+    'content-type': resolved.contentType,
+    'content-length': String(resolved.bytes),
+  }
+  if (method === 'HEAD') return new Response(null, { headers })
+  const body = Readable.toWeb(createReadStream(resolved.path)) as ReadableStream<Uint8Array>
+  return new Response(body, { headers })
 }

@@ -110,7 +110,7 @@ describe('ui-login apply', () => {
     expect(other().t('tagline')).toBe('配置的登录副标题')
   })
 
-  it('writes the issued key and origin through the credentials domain', async () => {
+  it('writes the issued key under the gateway reference and leaves the DeepSeek key alone', async () => {
     vi.stubEnv('DSH_CLIENT_LOGIN_URL', 'https://claw.deepagens.com/api/claw/login')
     const subject = await bench()
     declare(subject.slots)
@@ -122,14 +122,14 @@ describe('ui-login apply', () => {
       data: { display_name: '杰哥', avatar: '', api_key: 'sk-9' },
     }), { status: 200 })))
     await expect(face.controller.login('jiege', 'pw')).resolves.toBe(true)
-    expect(subject.calls.set).toEqual([
-      { ref: 'DEEPSEEK_API_KEY', value: 'sk-9' },
-      { ref: 'DEEPSEEK_BASE_URL', value: 'https://claw.deepagens.com' },
-    ])
+    // Exactly one reference, and it is the gateway route's: a launch-time
+    // re-login that wrote DEEPSEEK_API_KEY would replace the key a user stored
+    // for the DeepSeek route.
+    expect(subject.calls.set).toEqual([{ ref: 'DEEPAGENS_API_KEY', value: 'sk-9' }])
     face.controller.logout()
     await Promise.resolve()
     await Promise.resolve()
-    expect(subject.calls.unset).toEqual(['DEEPSEEK_API_KEY', 'DEEPSEEK_BASE_URL'])
+    expect(subject.calls.unset).toEqual(['DEEPAGENS_API_KEY'])
     vi.unstubAllGlobals()
   })
 

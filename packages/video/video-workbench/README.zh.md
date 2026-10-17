@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-本包是视频工作台的宿主半边：两条只读 web-server 路由，投影 h3-video 输出目录——即 `tool-video` 流水线写入计划、关键帧、分镜与成片的同一目录。`GET /api/video-workbench/projects` 列出计划工件及其落盘渲染状态；`GET /api/video-workbench/file?path=<相对路径>` 服务被限制在该目录内的单个白名单文件。浏览器半边（侧栏面板行与项目目录页）位于 [`@deepseek-ai/dsh-client-ui-video-workbench`](../../client/ui-video-workbench/README.zh.md)。当部署希望视频成片可在 Web 界面浏览、又不给浏览器任何写路径时选择它。
+本包是视频工作台的宿主半边：两条只读 Connection Fetch 路由，投影 h3-video 输出目录——即 `tool-video` 流水线写入计划、关键帧、分镜与成片的同一目录。`GET /api/video-workbench/projects` 列出计划工件及其落盘渲染状态；`GET /api/video-workbench/file?path=<相对路径>` 服务被限制在该目录内的单个白名单文件。浏览器半边（侧栏面板行与项目目录页）位于 [`@deepseek-ai/dsh-client-ui-video-workbench`](../../client/ui-video-workbench/README.zh.md)。当部署希望视频成片可在 Web 界面浏览、又不给浏览器任何写路径时选择它。
 
 ## 目录
 
@@ -31,14 +31,14 @@ kind: "package-reference"
 
 `outputDir` 缺省为 DSH cache 的 `video` 目录（`$DSH_HOME/cache/video`）——与 `h3-video` 服务的缺省一致——因此标准部署无需配置。视频服务配置了自定义目录时，用 `outputDir` 指过去（`~` 展开为系统用户目录）。
 
-两条路由只应答 `GET`/`HEAD`。文件服务只放行白名单扩展（`.json`/`.md`/`.txt`、图片、视频、音频），单文件上限 256 MB；请求路径被拆成纯名字段（无 `..`、无盘符），在投影根下拼接，并在符号链接解析后复查，因此目录之外的任何内容都不会被应答。损坏的计划变成列表里的一条错误行，而不是拖垮整个列表。
+两条路由只应答 `GET`/`HEAD`。它们注册在 Connection 的精确 Fetch 注册表上——即浏览器 `/api` 路由与桌面外壳进程内传输共用的分发入口——因此请求先经过 Connection 的 Host/Origin 围栏与浏览器认证才会到达路由。文件服务只放行白名单扩展（`.json`/`.md`/`.txt`、图片、视频、音频），单文件上限 256 MB；请求路径被拆成纯名字段（无 `..`、无盘符），在投影根下拼接，并在符号链接解析后复查，因此目录之外的任何内容都不会被应答。损坏的计划变成列表里的一条错误行，而不是拖垮整个列表。
 
 <a id="understand-the-implementation"></a>
 ## 理解实现
 
 - [`src/projects.ts`](src/projects.ts) 扫描 `plans/*.json`，逐项目报告版本、目标、模式、逐镜头渲染状态、关键帧路径与成片；multi_shot 计划折叠到合成的 `all` 段。
 - [`src/file-serve.ts`](src/file-serve.ts) 拥有包含性解析器、扩展白名单与流式响应。
-- [`src/index.ts`](src/index.ts) 经 `ctx.effect` 下的 `ctx.webServer.register` 注册两条路由，路由行的存活期与插件一致。
+- [`src/index.ts`](src/index.ts) 经 `ctx.effect` 把两条路由注册到 Connection 的精确 Fetch 注册表，路由行的存活期与插件一致。
 
 **运行时不变量：** 不发布 companion。两条路由每次请求都读取输出目录，不持有跨请求状态，因此没有被拥有的关系可供 companion 观察。
 
@@ -73,6 +73,6 @@ kind: "package-reference"
 <details>
 <summary>维护者的工作上下文——点击展开</summary>
 
-路由经 `ctx.effect` 下的 `ctx.webServer.register` 注册，行存活期与插件一致。文件服务的包含性检查顺序是：段白名单 → 扩展白名单 → `realpath` 双端解析 → `relative` 复查；调整任何一步前先读 `tests/workbench.spec.ts` 里对应的拒绝用例。双语对的 ToC 锚点必须保持英文 slug，两侧链接才会一致。
+路由经 `ctx.effect` 注册到 Connection 的精确 Fetch 注册表，行存活期与插件一致；只注册在 web-server 上的路由能应答浏览器，却永远应答不了桌面外壳——后者把 `/api` 走同一张注册表分发。文件服务的包含性检查顺序是：段白名单 → 扩展白名单 → `realpath` 双端解析 → `relative` 复查；调整任何一步前先读 `tests/workbench.spec.ts` 里对应的拒绝用例，载体分发读 `tests/transport.spec.ts`。双语对的 ToC 锚点必须保持英文 slug，两侧链接才会一致。
 
 </details>

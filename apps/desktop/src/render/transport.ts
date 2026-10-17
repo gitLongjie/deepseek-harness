@@ -75,14 +75,20 @@ export type RpcStreamOpen = (
  */
 export function createIpcStreamOpen(ipc: IpcBridge): RpcStreamOpen {
   return (endpoint, payload, signal) => {
-    // Frames may arrive before the open invoke's reply round-trips back, so
-    // the listeners attach first and buffer until the streamId is known.
+    // Every opener on this bridge hears every logical stream's frames, and an
+    // opener cannot tell its own from the others' until the open reply names
+    // it. It never has to: the host pumps one stream only after that stream's
+    // claim, which this opener sends after the reply, so a frame of its OWN
+    // stream can never arrive before its id. Frames named by another id are
+    // therefore dropped rather than buffered — a stream already pumping
+    // broadcasts throughout this open, and adopting one of its entries as this
+    // stream's own puts an entry ahead of this stream's opening cursor.
     const inbox: StreamFrame[] = []
     let streamId: string | undefined
     let wake: (() => void) | undefined
     let ended = false
     const enqueue = (frame: StreamFrame): void => {
-      if (streamId !== undefined && frame.streamId !== streamId) return
+      if (streamId === undefined || frame.streamId !== streamId) return
       if (frame.kind === 'end') ended = true
       inbox.push(frame)
       const w = wake
@@ -96,8 +102,8 @@ export function createIpcStreamOpen(ipc: IpcBridge): RpcStreamOpen {
     const offEnd = ipc.on('dsh:stream:end', (data) => {
       enqueue({ streamId: (data as { streamId: string }).streamId, kind: 'end' })
     })
-    // The host starts pushing only after the claim: assigning streamId before
-    // claiming guarantees every frame carries an id this closure recognizes.
+    // Assigning streamId before claiming keeps every frame of this stream on
+    // the accepting side of the filter above, from the first one on.
     const opened = ipc
       .invoke('dsh:stream:open', { endpoint, payload })
       .then(({ streamId: id }) => {

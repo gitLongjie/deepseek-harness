@@ -7,7 +7,7 @@ import type {} from '@deepseek-ai/dsh-settings'
 import { deepEqualJson } from '@deepseek-ai/dsh-util-values'
 import { getOrCreateAnonymousUserId, type AnonymousUserId } from '@deepseek-ai/dsh-anonymous-user-id'
 import { DeepSeekAdapter } from './adapter.ts'
-import { Config, resolveAdapterOptions } from './config.ts'
+import { Config, DEEPAGENS_API_KEY_ENV, resolveAdapterOptions } from './config.ts'
 import type { ResolvedDeepSeekOptions } from './config.ts'
 import { discoverModels } from './discovery.ts'
 
@@ -131,8 +131,10 @@ export function apply(ctx: Context, config: Config): void {
   })
   // ── Deepagens Claw gateway: a second OpenAI-compatible provider route whose
   // endpoint and catalog the login flow seeds from the account server. It
-  // shares the adapter class (chat completions over the gateway's /v1) and the
-  // `DEEPSEEK_API_KEY` credential, but owns a separate settings namespace.
+  // shares the adapter class (chat completions over the gateway's /v1) but owns
+  // a separate settings namespace and its own `DEEPAGENS_API_KEY` reference:
+  // the login re-issues that key on every launch, so resolving the DeepSeek
+  // route's `DEEPSEEK_API_KEY` would overwrite the key a user stores for it.
   // The route's display name answers to the composition entry first, then the
   // trusted environment layer (the desktop launcher injects the OEM file's
   // `gatewayProviderName` there), then the route's own name.
@@ -200,7 +202,11 @@ export function apply(ctx: Context, config: Config): void {
     // ending in /v1 and the gateway serves chat completions there, while the
     // shared Config schema defaults to `messages`, whose request path appends
     // a second /v1. The user layer still overrides this base.
-    settingsCtx.settings.installSection(ctx, DEEPAGENS_NS, Config, { models: [], protocol: 'chat-completions' }, {
+    settingsCtx.settings.installSection(ctx, DEEPAGENS_NS, Config, {
+      models: [],
+      protocol: 'chat-completions',
+      apiKeyEnv: DEEPAGENS_API_KEY_ENV,
+    }, {
       setSource: (source) => {
         deepagensCurrent = source
       },

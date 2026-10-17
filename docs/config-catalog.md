@@ -1273,7 +1273,12 @@ Requires: `llm`
 export interface Config {
   /** Wire protocol; defaults to messages. Configure through Cordis YAML. */
   protocol?: DeepSeekProtocol
-  /** Credential reference (environment-variable name) resolved per request; defaults to `DEEPSEEK_API_KEY`. */
+  /**
+   * Credential reference (environment-variable name) resolved per request;
+   * defaults to `DEEPSEEK_API_KEY`. The Deepagens route's composition base
+   * names `DEEPAGENS_API_KEY` instead, so the login flow's gateway key and a
+   * user-stored DeepSeek key never share one reference.
+   */
   apiKeyEnv?: string
   /** Endpoint base; falls back to $DEEPSEEK_BASE_URL from a trusted environment layer, then the public API. */
   baseURL?: string
@@ -1364,7 +1369,7 @@ export interface DeepSeekCatalogModel {
 
 Depends on: [`ModelModality`](../packages/llm/llm/src/index.ts) · [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts) · [`SystemPromptUpdate`](../packages/llm/llm/src/index.ts)
 
-Source: [`packages/llm/llm-deepseek/src/config.ts:25`](../packages/llm/llm-deepseek/src/config.ts)
+Source: [`packages/llm/llm-deepseek/src/config.ts:33`](../packages/llm/llm-deepseek/src/config.ts)
 
 <a id="deepseek-aidsh-llm-pi-ai"></a>
 
@@ -3605,7 +3610,7 @@ Source: [`packages/interaction/user-approval/src/index.ts:128`](../packages/inte
 
 ## `@deepseek-ai/dsh-video-workbench`
 
-Requires: `webServer`
+Requires: `connection`
 
 ```ts config-catalog
 /** Loader configuration: where the projected tree lives. */
@@ -3619,7 +3624,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/video/video-workbench/src/index.ts:33`](../packages/video/video-workbench/src/index.ts)
+Source: [`packages/video/video-workbench/src/index.ts:35`](../packages/video/video-workbench/src/index.ts)
 
 <a id="deepseek-aidsh-web"></a>
 

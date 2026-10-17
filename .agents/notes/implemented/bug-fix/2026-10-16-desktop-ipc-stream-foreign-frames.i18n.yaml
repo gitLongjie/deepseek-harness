@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-10-16-desktop-ipc-stream-foreign-frames.md
+2026-10-16-desktop-ipc-stream-foreign-frames.md: ddbc2e0a60ac986c481642b48fb90b9a6c449c11
+2026-10-16-desktop-ipc-stream-foreign-frames.zh.md: fcd92f2c162f91e4fed2cf3f4a8216bdb945d288
