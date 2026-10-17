@@ -5,8 +5,10 @@
  * display name + sign-out) into the sidebar's footer-action seat. Every
  * launch replays the stored login pair against the endpoint while the gate
  * shows only a backdrop; a refusal falls back to the sign-in card. A
- * successful sign-in writes the issued key and the server origin into the
- * host credential layer through the existing `credentials.set` wire method.
+ * successful sign-in writes the issued key into the host credential layer
+ * through the existing `credentials.set` wire method, under the gateway
+ * route's own reference (`DEEPAGENS_API_KEY`) rather than the DeepSeek
+ * route's `DEEPSEEK_API_KEY`.
  */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
@@ -22,7 +24,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { LoginGate } from './LoginGate.tsx'
 import { SidebarAccount } from './SidebarAccount.tsx'
 import { LoginStore } from './login-store.ts'
-import type { LoginCredentialAdapter } from './login-store.ts'
+import { GATEWAY_CREDENTIAL_REF, type LoginCredentialAdapter } from './login-store.ts'
 import { en, zh, type LoginKey } from './locales.ts'
 
 /** Dictionary namespace owned by this plugin. */
@@ -45,20 +47,20 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 
 /**
  * Credential adapter over the connection's credentials domain: the sign-in
- * result lands in the same writable layer the Models settings page uses.
+ * result lands in the same writable layer the Models settings page uses, but
+ * under the gateway route's own reference, so the DeepSeek route's stored key
+ * survives every launch-time re-login.
  */
 function credentialAdapter(remote: ClientRemote): LoginCredentialAdapter {
   const assertOk = (result: { ok: boolean; error?: { message: string } }): void => {
     if (!result.ok) throw new Error(result.error?.message ?? 'credential write refused')
   }
   return {
-    async apply(session, baseUrl) {
-      assertOk(await remote.credentials.set('DEEPSEEK_API_KEY', session.apiKey))
-      assertOk(await remote.credentials.set('DEEPSEEK_BASE_URL', baseUrl))
+    async apply(session) {
+      assertOk(await remote.credentials.set(GATEWAY_CREDENTIAL_REF, session.apiKey))
     },
     async clear() {
-      assertOk(await remote.credentials.unset('DEEPSEEK_API_KEY'))
-      assertOk(await remote.credentials.unset('DEEPSEEK_BASE_URL'))
+      assertOk(await remote.credentials.unset(GATEWAY_CREDENTIAL_REF))
     },
   }
 }

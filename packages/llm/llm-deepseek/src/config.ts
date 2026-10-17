@@ -12,6 +12,14 @@ import { DEFAULT_MAX_IMAGES_PER_REQUEST, DEFAULT_MAX_REQUEST_FILES_BYTES, DEFAUL
 
 const DEFAULT_API_KEY_ENV = 'DEEPSEEK_API_KEY'
 
+/**
+ * Credential reference the Deepagens gateway route resolves its key from. The
+ * gateway route owns that slot because the login flow re-issues the gateway's
+ * key on every launch; resolving `DEEPSEEK_API_KEY` would make each launch
+ * overwrite the key a user stored for the DeepSeek route.
+ */
+export const DEEPAGENS_API_KEY_ENV = 'DEEPAGENS_API_KEY'
+
 const MODEL_MODALITIES = ['text', 'image'] as const satisfies readonly ModelModality[]
 
 /**
@@ -25,7 +33,12 @@ const MODEL_MODALITIES = ['text', 'image'] as const satisfies readonly ModelModa
 export interface Config {
   /** Wire protocol; defaults to messages. Configure through Cordis YAML. */
   protocol?: DeepSeekProtocol
-  /** Credential reference (environment-variable name) resolved per request; defaults to `DEEPSEEK_API_KEY`. */
+  /**
+   * Credential reference (environment-variable name) resolved per request;
+   * defaults to `DEEPSEEK_API_KEY`. The Deepagens route's composition base
+   * names `DEEPAGENS_API_KEY` instead, so the login flow's gateway key and a
+   * user-stored DeepSeek key never share one reference.
+   */
   apiKeyEnv?: string
   /** Endpoint base; falls back to $DEEPSEEK_BASE_URL from a trusted environment layer, then the public API. */
   baseURL?: string

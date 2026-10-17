@@ -50,7 +50,7 @@ kind: "package-reference"
 | 字段 | 默认值 | 含义 |
 |---|---|---|
 | `protocol` | `messages` | Cordis YAML 中选择 `messages` 或 `chat-completions`；Web 不提供选择器 |
-| `apiKeyEnv` | `DEEPSEEK_API_KEY` | 按请求解析的凭据引用：先经凭据 seam，再到环境变量 |
+| `apiKeyEnv` | `DEEPSEEK_API_KEY` | 按请求解析的凭据引用：先经凭据 seam，再到环境变量；Deepagens 路由的组合基线改名为 `DEEPAGENS_API_KEY` |
 | `baseURL` | 按协议选择官方根地址 | 显式值优先，其次 `$DEEPSEEK_BASE_URL`，最后采用当前协议的官方端点 |
 | `thinking` | `enabled` | 部署策略；`disabled` 把所有请求锁定为 `off` |
 | `reasoningEffort` | `high` | 默认强度：`off`、`low`、`high` 或 `max` |
@@ -71,6 +71,8 @@ kind: "package-reference"
 | `fileRefreshMarginSeconds` | `3,600` | 低于此剩余复用期时替换 id |
 | `fileQuotaCleanupBatch` | `100` | 配额重试前删除的、归 harness 所有的最旧文件数 |
 | `retryPolicy` | normal，5 次重试 | 由 `dsh-llm-retry` 执行的提供方自有重试策略 |
+
+Deepagens 登录网关是第二条路由（`provider: deepagens`），使用自己的 `llm-deepagens` 设置段。它解析 `DEEPAGENS_API_KEY` 而非 `DEEPSEEK_API_KEY`：登录流程每次启动都会重发网关密钥，共用同一个引用会让每次启动覆盖用户为 DeepSeek 路由保存的密钥。仍把网关密钥存于 `DEEPSEEK_API_KEY` 的凭据库从此将它读作 DeepSeek 路由的密钥，下一次登录会把网关当前密钥写入 `DEEPAGENS_API_KEY`。
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-llm-deepseek)是每个受支持字段及其 JSDoc 的穷尽式真源。
 

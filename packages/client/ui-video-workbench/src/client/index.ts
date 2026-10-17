@@ -64,6 +64,13 @@ export const inject = ['slots', 'locale'] as const
 export function apply(ctx: Context): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-video-workbench: dictionaries')
 
+  // The panel row's label re-reads on every sidebar projection, so the
+  // localized name follows the active locale without re-registration.
+  const navLabel = (): string => {
+    const dictionary = ctx.locale.getSnapshot().active === 'en' ? en : zh
+    return dictionary.title
+  }
+
   const injected: VideoWorkbenchInjected = {
     loadSummary: async () => {
       const response = await fetch(WORKBENCH_PROJECTS_PATH, { headers: { accept: 'application/json' } })
@@ -77,7 +84,7 @@ export function apply(ctx: Context): void {
       name: 'sidebar.panellist',
       id: PANEL_ID,
       order: PANEL_ORDER,
-      label: en.title,
+      label: navLabel,
       locale: NS,
     },
     // Icon-only cell: the sidebar shell owns the row button and its label.

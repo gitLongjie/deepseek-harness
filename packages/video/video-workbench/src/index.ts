@@ -1,17 +1,19 @@
 /**
  * The video workbench, host half: a read-only projection of the h3-video output directory over
- * two web-server routes. `GET /api/video-workbench/projects` lists plan artifacts with their
- * on-disk rendering state; `GET /api/video-workbench/file?path=<relative>` serves one whitelisted
- * file (plan JSON, keyframe image, segment, or final assembly) confined to that directory. The
- * directory is the only source of truth — the pipeline writes, the workbench reads.
+ * two Connection Fetch routes. `GET /api/video-workbench/projects` lists plan artifacts with
+ * their on-disk rendering state; `GET /api/video-workbench/file?path=<relative>` serves one
+ * whitelisted file (plan JSON, keyframe image, segment, or final assembly) confined to that
+ * directory. The directory is the only source of truth — the pipeline writes, the workbench
+ * reads.
  * @module @deepseek-ai/dsh-video-workbench
  */
 
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { dshCachePath, expandHomePath } from '@deepseek-ai/dsh-home-paths'
-import type {} from '@deepseek-ai/dsh-host-webserver'
-import { resolveWorkbenchFile, writeWorkbenchFile } from './file-serve.ts'
+// Type-only: pulls the Connection host service merge (ctx.connection).
+import type {} from '@deepseek-ai/dsh-client-connection'
+import { resolveWorkbenchFile, workbenchFileResponse } from './file-serve.ts'
 import { scanProjects } from './projects.ts'
 
 export type {
@@ -20,14 +22,14 @@ export type {
   WorkbenchSummary,
 } from './projects.ts'
 export type { FileRefusal, ResolvedFile } from './file-serve.ts'
-export { resolveWorkbenchFile, writeWorkbenchFile } from './file-serve.ts'
+export { resolveWorkbenchFile, workbenchFileResponse } from './file-serve.ts'
 export { scanProjects } from './projects.ts'
 
 /** Stable Cordis plugin name. */
 export const name = 'video-workbench'
 
-/** Required services (cordis fiber inject): the browser HTTP carrier. */
-export const inject = ['webServer'] as const
+/** Required services (cordis fiber inject): the exact Fetch route registry every browser carrier dispatches through. */
+export const inject = ['connection'] as const
 
 /** Loader configuration: where the projected tree lives. */
 export interface Config {
@@ -50,8 +52,10 @@ const PROJECTS_PATH = '/api/video-workbench/projects'
 const FILE_PATH = '/api/video-workbench/file'
 
 /**
- * Register the two read-only routes. Registration goes through `ctx.effect` so the disposers the
- * web-server returns own the rows for exactly this plugin's lifetime.
+ * Register the two read-only routes on Connection's exact Fetch registry. Both carriers reach
+ * that registry — the browser's `/api` HTTP route and the desktop shell's in-process transport —
+ * whereas a web-server route is visible only to the first. Registration goes through `ctx.effect`
+ * so the disposers the registry returns own the rows for exactly this plugin's lifetime.
  * @param ctx - host plugin context.
  * @param config - loader-validated configuration.
  */
@@ -60,38 +64,26 @@ export function apply(ctx: Context, config: Config): void {
     ? dshCachePath('video')
     : expandHomePath(config.outputDir)
 
-  ctx.effect(() => ctx.webServer.register({
-    kind: 'exact',
+  ctx.effect(() => ctx.connection.fetch.register({
     path: PROJECTS_PATH,
-    handler: async (req, res) => {
-      if (req.method !== 'GET' && req.method !== 'HEAD') {
-        res.writeHead(405, { allow: 'GET, HEAD' })
-        res.end()
-        return
-      }
-      const summary = await scanProjects(outputDir)
-      const body = `${JSON.stringify(summary)}\n`
-      res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' })
-      res.end(req.method === 'HEAD' ? undefined : body)
+    methods: ['GET', 'HEAD'],
+    requestBody: 'buffered',
+    fetch: async (request) => {
+      const body = `${JSON.stringify(await scanProjects(outputDir))}\n`
+      return new Response(request.method === 'HEAD' ? null : body, {
+        headers: { 'content-type': 'application/json; charset=utf-8' },
+      })
     },
   }), 'video-workbench: projects route')
 
-  ctx.effect(() => ctx.webServer.register({
-    kind: 'exact',
+  ctx.effect(() => ctx.connection.fetch.register({
     path: FILE_PATH,
-    handler: async (req, res) => {
-      if (req.method !== 'GET' && req.method !== 'HEAD') {
-        res.writeHead(405, { allow: 'GET, HEAD' })
-        res.end()
-        return
-      }
-      const query = new URL(req.url ?? '', 'http://video-workbench.invalid').searchParams
-      const requested = query.get('path') ?? ''
-      const resolved = await resolveWorkbenchFile(outputDir, requested)
-      writeWorkbenchFile(resolved, req.method === 'HEAD', res)
+    methods: ['GET', 'HEAD'],
+    requestBody: 'buffered',
+    fetch: async (request) => {
+      const query = new URL(request.url).searchParams
+      const resolved = await resolveWorkbenchFile(outputDir, query.get('path') ?? '')
+      return workbenchFileResponse(resolved, request.method)
     },
   }), 'video-workbench: file route')
 }
-
-/** Plugin default export: the loader row carrying the routes' configuration. */
-export default { name, inject, Config, apply }

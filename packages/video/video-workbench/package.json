@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-video-workbench",
-  "description": "File-driven video workbench: read-only projection of the H3 video output directory over web-server routes",
+  "description": "File-driven video workbench: read-only projection of the H3 video output directory over Connection Fetch routes",
   "version": "0.1.0-alpha.1",
   "publishConfig": {
     "access": "public"
@@ -33,6 +33,7 @@
     "@deepseek-ai/cordis": "workspace:^"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^",
+    "@deepseek-ai/dsh-client-connection": "workspace:^"
   }
 }

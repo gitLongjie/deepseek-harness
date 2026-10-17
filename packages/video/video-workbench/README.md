@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The host half of the video workbench: two read-only web-server routes projecting the h3-video output directory — where the `tool-video` pipeline lands plans, keyframes, segments, and final assemblies. `GET /api/video-workbench/projects` lists plan artifacts with their on-disk rendering state; `GET /api/video-workbench/file?path=<relative>` serves one whitelisted file confined to that directory. The browser half — the sidebar panel row and the project catalog page — lives in [`@deepseek-ai/dsh-client-ui-video-workbench`](../../client/ui-video-workbench/README.md). Choose it when video renders should be browsable in the Web GUI without granting the browser a write path.
+The host half of the video workbench: two read-only Connection Fetch routes projecting the h3-video output directory — where the `tool-video` pipeline lands plans, keyframes, segments, and final assemblies. `GET /api/video-workbench/projects` lists plan artifacts with their on-disk rendering state; `GET /api/video-workbench/file?path=<relative>` serves one whitelisted file confined to that directory. The browser half — the sidebar panel row and the project catalog page — lives in [`@deepseek-ai/dsh-client-ui-video-workbench`](../../client/ui-video-workbench/README.md). Choose it when video renders should be browsable in the Web GUI without granting the browser a write path.
 
 ## Table of Contents
 
@@ -30,13 +30,13 @@ Load the package as a host plugin (the web-app bundle carries it). Configuration
 
 `outputDir` defaults to the DSH cache `video` directory (`$DSH_HOME/cache/video`) — the same default the `h3-video` service uses — so a stock deployment needs no configuration. Point it elsewhere with `outputDir` (`~` expands to the OS home) when the video service was configured to a custom directory.
 
-The routes answer `GET`/`HEAD` only. File serving admits whitelisted extensions (`.json`/`.md`/`.txt`, images, video, audio) up to 256 MB per file; the requested path is split into plain name segments (no `..`, no drive letters), joined under the projected root, and re-checked after symlink resolution, so nothing outside the directory is ever answered. A corrupt plan becomes one error row in the listing instead of failing it.
+The routes answer `GET`/`HEAD` only. They register on Connection's exact Fetch registry — the dispatch surface the browser's `/api` route and the desktop shell's in-process transport share — so requests pass Connection's Host/Origin fence and browser authentication before reaching them. File serving admits whitelisted extensions (`.json`/`.md`/`.txt`, images, video, audio) up to 256 MB per file; the requested path is split into plain name segments (no `..`, no drive letters), joined under the projected root, and re-checked after symlink resolution, so nothing outside the directory is ever answered. A corrupt plan becomes one error row in the listing instead of failing it.
 
 ## Understand the implementation
 
 - [`src/projects.ts`](src/projects.ts) scans `plans/*.json` and reports, per project, the revision, goal, mode, per-shot rendering state, keyframe paths, and the final assembly; multi-shot plans collapse onto their synthetic `all` segment.
 - [`src/file-serve.ts`](src/file-serve.ts) owns the containment resolver, the extension whitelist, and the streamed response.
-- [`src/index.ts`](src/index.ts) registers both routes through `ctx.webServer.register` under `ctx.effect`, so the rows live exactly as long as the plugin.
+- [`src/index.ts`](src/index.ts) registers both routes on Connection's exact Fetch registry under `ctx.effect`, so the rows live exactly as long as the plugin.
 
 **Runtime invariant:** No companion is published. Both routes read the output directory per request and hold no cross-request state, so there is no owned relationship for a companion to observe.
 
@@ -69,6 +69,6 @@ No effect: the package adds no system-prompt text and no per-request prefix.
 <details>
 <summary>Working context for maintainers — click to expand</summary>
 
-Routes register through `ctx.webServer.register` under `ctx.effect`, so the rows live exactly as long as the plugin. The file service's containment order is segment whitelist → extension whitelist → `realpath` on both ends → `relative` re-check; read the matching refusal cases in `tests/workbench.spec.ts` before changing any step. Bilingual ToC anchors keep English slugs so both sides' links agree.
+Routes register on Connection's exact Fetch registry under `ctx.effect`, so the rows live exactly as long as the plugin; a route registered only on the web server answers the browser and never the desktop shell, which dispatches `/api` through that registry. The file service's containment order is segment whitelist → extension whitelist → `realpath` on both ends → `relative` re-check; read the matching refusal cases in `tests/workbench.spec.ts` before changing any step, and `tests/transport.spec.ts` for the carrier dispatch. Bilingual ToC anchors keep English slugs so both sides' links agree.
 
 </details>

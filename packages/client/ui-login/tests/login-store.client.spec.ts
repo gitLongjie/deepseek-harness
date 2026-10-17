@@ -32,11 +32,11 @@ afterEach(() => {
 })
 
 function adapter(overrides: Partial<LoginCredentialAdapter> = {}): LoginCredentialAdapter & {
-  calls: { applied: Array<{ session: LoginSession; baseUrl: string }>; cleared: number }
+  calls: { applied: LoginSession[]; cleared: number }
 } {
-  const calls = { applied: [] as Array<{ session: LoginSession; baseUrl: string }>, cleared: 0 }
+  const calls = { applied: [] as LoginSession[], cleared: 0 }
   return Object.assign({
-    async apply(session: LoginSession, baseUrl: string) { calls.applied.push({ session, baseUrl }) },
+    async apply(session: LoginSession) { calls.applied.push(session) },
     async clear() { calls.cleared += 1 },
   }, overrides, { calls })
 }
@@ -86,7 +86,7 @@ describe('LoginStore', () => {
     await expect(store.login('jiege', 'pw')).resolves.toBe(true)
     expect(fetchMock).toHaveBeenCalledWith(AUTH_URL, expect.objectContaining({ method: 'POST' }))
     expect(credentials.calls.applied).toEqual([
-      { session: { account: '杰哥', avatar: 'https://claw.deepagens.com/avatar/1.png', apiKey: 'sk-1' }, baseUrl: 'https://claw.deepagens.com' },
+      { account: '杰哥', avatar: 'https://claw.deepagens.com/avatar/1.png', apiKey: 'sk-1' },
     ])
     expect(store.store.getSnapshot().session?.account).toBe('杰哥')
   })

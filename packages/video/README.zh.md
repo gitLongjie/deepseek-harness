@@ -26,7 +26,7 @@ video 分组把一次对话变成用 MiniMax H3 渲染的成片。一个服务�
 |---|---|---|
 | [`h3-video`](h3-video/README.zh.md) | 生成接口：`ctx.h3Video`、本地 ComfyUI 与托管 MiniMax provider、显式路由、ffmpeg 拼接，以及 `./settings` 入口 | `ctx.h3Video` |
 | [`tool-video`](tool-video/README.zh.md) | 面向模型的 `video_plan`、`video_keyframes`、`video_assets`、`video_asset_images`、`video_render`、`video_assemble` 工具与 `/video` 指令 | 注册到 `ctx.tools` |
-| [`video-workbench`](video-workbench/README.zh.md) | 把 H3 输出目录投影给 Web 界面的只读 web-server 路由 | — |
+| [`video-workbench`](video-workbench/README.zh.md) | 把 H3 输出目录投影给 Web 界面的只读 Connection Fetch 路由 | — |
 
 工作台的浏览器半边与其他 Web 插件放在一起：[`client/ui-video-workbench`](../client/ui-video-workbench/README.zh.md)。
 

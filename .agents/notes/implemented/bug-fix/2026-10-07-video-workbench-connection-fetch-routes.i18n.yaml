@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-10-07-video-workbench-connection-fetch-routes.md
+2026-10-07-video-workbench-connection-fetch-routes.md: 1f5541d59a0af6c51874150e705a3558a7498983
+2026-10-07-video-workbench-connection-fetch-routes.zh.md: fd4eb55e78d698ee556993e09a377f2926b6d91a

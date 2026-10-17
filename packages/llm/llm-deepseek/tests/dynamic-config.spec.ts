@@ -327,7 +327,11 @@ describe('request-level dynamic configuration', () => {
   })
 
   it('serves the deepagens gateway route over chat completions on its seeded /v1 endpoint', async () => {
-    vi.stubEnv('DEEPSEEK_API_KEY', 'gateway-key')
+    vi.stubEnv('DEEPAGENS_API_KEY', 'gateway-key')
+    // A key stored for the DeepSeek route must not authenticate the gateway
+    // route: the login flow re-issues the gateway's key at every launch, and a
+    // shared reference made that launch overwrite this one.
+    vi.stubEnv('DEEPSEEK_API_KEY', 'user-deepseek-key')
     const dir = await home()
     const server = await mockServer([{ kind: 'sse', events: textEvents }])
     const { ctx } = await boot(dir, { baseURL: server.url })
@@ -340,8 +344,10 @@ describe('request-level dynamic configuration', () => {
       models: [{ id: 'gateway-model', name: 'Gateway Model', inputModalities: ['text'] }],
     })
     expect((ctx.settings.get('llm-deepagens') as { protocol?: string }).protocol).toBe('chat-completions')
+    expect((ctx.settings.get('llm-deepagens') as { apiKeyEnv?: string }).apiKeyEnv).toBe('DEEPAGENS_API_KEY')
     await assemble(ctx, { provider: 'deepagens', model: 'gateway-model', messages: [] })
     expect(server.paths).toEqual(['/v1/chat/completions'])
+    expect(server.headers[0]?.authorization).toBe('Bearer gateway-key')
 
     // The base is below the user layer, so an explicit stored protocol wins.
     await ctx.settings.update('llm-deepagens', { protocol: 'messages' })

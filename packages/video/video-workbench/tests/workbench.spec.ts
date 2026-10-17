@@ -1,15 +1,16 @@
 /**
  * Video-workbench host tests: project discovery over a synthetic output tree, file resolution
- * refusals (escape, extension, missing, oversized), and the two routes' method and response
- * behavior through a stub web-server service.
+ * refusals (escape, extension, missing, oversized), and the two Fetch routes' method and response
+ * behavior through a stub Connection service.
  */
 
 import { afterEach, describe, expect, it } from 'vitest'
-import { mkdtempSync, rmSync, symlinkSync, writeFileSync, mkdirSync } from 'node:fs'
+import { mkdtempSync, rmSync, symlinkSync, truncateSync, writeFileSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
-import plugin from '../src/index.ts'
+import { dshCachePath } from '@deepseek-ai/dsh-home-paths'
+import * as plugin from '../src/index.ts'
 import { resolveWorkbenchFile } from '../src/file-serve.ts'
 import { scanProjects } from '../src/projects.ts'
 
@@ -137,114 +138,127 @@ describe('resolveWorkbenchFile', () => {
   })
 })
 
-/** Minimal web-server stub recording route registrations. */
-function webServerStub(): { routes: Map<string, (req: FakeReq, res: FakeRes) => Promise<void>> } {
-  const routes = new Map<string, (req: FakeReq, res: FakeRes) => Promise<void>>()
-  return {
-    routes,
-  }
-}
-
-interface FakeReq {
-  method: string
-  url: string
-}
-
-interface FakeRes {
-  status: number
-  headers: Record<string, unknown>
-  body: string
-  writeHead(status: number, headers?: Record<string, unknown>): FakeRes
-  write(chunk: string | Buffer): boolean
-  end(body?: string): void
-  on(event: string, listener: (...args: unknown[]) => void): FakeRes
-  once(event: string, listener: (...args: unknown[]) => void): FakeRes
-  emit(event: string, ...args: unknown[]): boolean
-}
-
-function fakeRes(): FakeRes {
-  const res: FakeRes = {
-    status: 0,
-    headers: {},
-    body: '',
-    writeHead(status, headers) {
-      res.status = status
-      res.headers = headers ?? {}
-      return res
-    },
-    write(chunk) {
-      res.body += typeof chunk === 'string' ? chunk : chunk.toString('utf8')
-      return true
-    },
-    end(body) {
-      if (body !== undefined) res.body += body
-    },
-    on(_event, listener) {
-      void listener
-      return res
-    },
-    once(_event, listener) {
-      void listener
-      return res
-    },
-    emit(_event, ..._args) {
-      return true
-    },
-  }
-  return res
+/** One registered exact Fetch route as the stub records it. */
+interface RegisteredRoute {
+  readonly path: string
+  readonly methods: readonly string[]
+  readonly requestBody: string
+  readonly fetch: (request: Request) => Promise<Response>
 }
 
 describe('routes', () => {
-  async function boot(outputDir: string): Promise<Map<string, (req: FakeReq, res: FakeRes) => Promise<void>>> {
-    const stub = webServerStub()
+  async function boot(outputDir?: string): Promise<Map<string, RegisteredRoute>> {
+    const routes = new Map<string, RegisteredRoute>()
     const ctx = new Context()
-    ctx.provide('webServer', {
-      register: (route: { kind: string; path: string; handler: (req: FakeReq, res: FakeRes) => Promise<void> }) => {
-        stub.routes.set(route.path, route.handler)
-        return () => stub.routes.delete(route.path)
+    ctx.provide('connection', {
+      fetch: {
+        register: (route: RegisteredRoute) => {
+          routes.set(route.path, route)
+          return async () => { routes.delete(route.path) }
+        },
       },
     } as never)
-    await ctx.plugin(plugin, { outputDir })
-    return stub.routes
+    await ctx.plugin(plugin, outputDir === undefined ? {} : { outputDir })
+    return routes
   }
 
-  it('lists projects as JSON', async () => {
+  /** One call against a registered route. */
+  async function call(
+    routes: Map<string, RegisteredRoute>,
+    path: string,
+    method = 'GET',
+  ): Promise<Response> {
+    const url = new URL(`http://127.0.0.1${path}`)
+    return await routes.get(url.pathname)!.fetch(new Request(url, { method }))
+  }
+
+  it('registers both routes as GET/HEAD Fetch routes on the Connection registry', async () => {
+    const routes = await boot(outputTree())
+    expect([...routes.keys()].sort()).toEqual([
+      '/api/video-workbench/file',
+      '/api/video-workbench/projects',
+    ])
+    for (const route of routes.values()) {
+      expect(route.methods).toEqual(['GET', 'HEAD'])
+      expect(route.requestBody).toBe('buffered')
+    }
+  })
+
+  it('defaults the projected directory to the DSH cache video path', async () => {
+    const home = outputTree()
+    const previous = process.env.DSH_HOME
+    process.env.DSH_HOME = home
+    try {
+      const projected = dshCachePath('video')
+      expect(projected).toBe(join(home, 'cache', 'video'))
+      writePlan(projected, PLAN)
+      const routes = await boot()
+      const summary = await (await call(routes, '/api/video-workbench/projects')).json() as {
+        outputDir: string
+        projects: Array<{ id: string }>
+      }
+      expect(summary.outputDir).toBe(projected)
+      expect(summary.projects[0]?.id).toBe('vp-1')
+    } finally {
+      if (previous === undefined) delete process.env.DSH_HOME
+      else process.env.DSH_HOME = previous
+    }
+  })
+
+  it('lists projects as JSON and answers HEAD without a body', async () => {
     const dir = outputTree()
     writePlan(dir, PLAN)
     const routes = await boot(dir)
-    const handler = routes.get('/api/video-workbench/projects')
-    expect(handler).toBeDefined()
-    const res = fakeRes()
-    await handler!({ method: 'GET', url: '/api/video-workbench/projects' }, res)
-    expect(res.status).toBe(200)
-    const summary = JSON.parse(res.body) as { projects: Array<{ id: string }> }
+    const response = await call(routes, '/api/video-workbench/projects')
+    expect(response.status).toBe(200)
+    expect(response.headers.get('content-type')).toBe('application/json; charset=utf-8')
+    const summary = await response.json() as { projects: Array<{ id: string }> }
     expect(summary.projects[0]?.id).toBe('vp-1')
+    const head = await call(routes, '/api/video-workbench/projects', 'HEAD')
+    expect(head.status).toBe(200)
+    expect(await head.text()).toBe('')
   })
 
-  it('refuses non-GET methods on both routes', async () => {
-    const dir = outputTree()
-    const routes = await boot(dir)
-    const res = fakeRes()
-    await routes.get('/api/video-workbench/projects')!({ method: 'POST', url: '' }, res)
-    expect(res.status).toBe(405)
-    await routes.get('/api/video-workbench/file')!({ method: 'DELETE', url: '' }, res)
-    expect(res.status).toBe(405)
-  })
-
-  it('serves a file from the projected directory and refuses an escape', async () => {
+  it('streams a served file and answers HEAD with its headers alone', async () => {
     const dir = outputTree()
     touch(dir, 'final/vp-1.mp4', 'abc')
     const routes = await boot(dir)
-    const handler = routes.get('/api/video-workbench/file')!
-    const ok = fakeRes()
-    await handler({ method: 'GET', url: '/api/video-workbench/file?path=final/vp-1.mp4' }, ok)
-    // The streamed body settles asynchronously; let the read stream drain before the cleanup.
-    await new Promise(resolve => setTimeout(resolve, 25))
+    const ok = await call(routes, '/api/video-workbench/file?path=final/vp-1.mp4')
     expect(ok.status).toBe(200)
-    expect(ok.headers['content-type']).toBe('video/mp4')
-    expect(ok.body).toBe('abc')
-    const denied = fakeRes()
-    await handler({ method: 'GET', url: '/api/video-workbench/file?path=../secrets.txt' }, denied)
-    expect(denied.status).toBe(403)
+    expect(ok.headers.get('content-type')).toBe('video/mp4')
+    expect(ok.headers.get('content-length')).toBe('3')
+    expect(await ok.text()).toBe('abc')
+    const head = await call(routes, '/api/video-workbench/file?path=final/vp-1.mp4', 'HEAD')
+    expect(head.status).toBe(200)
+    expect(head.headers.get('content-length')).toBe('3')
+    expect(await head.text()).toBe('')
+  })
+
+  it('refuses an escaping path, an unserved extension, and a missing file', async () => {
+    const dir = outputTree()
+    touch(dir, 'final/vp-1.exe', 'x')
+    const routes = await boot(dir)
+    const noPath = await call(routes, '/api/video-workbench/file')
+    expect(noPath.status).toBe(403)
+    const escaped = await call(routes, '/api/video-workbench/file?path=../secrets.txt')
+    expect(escaped.status).toBe(403)
+    expect(await escaped.text()).toContain('escapes the video workbench directory')
+    const unserved = await call(routes, '/api/video-workbench/file?path=final/vp-1.exe')
+    expect(unserved.status).toBe(403)
+    expect(await unserved.text()).toContain('unsupported file type .exe')
+    const headRefusal = await call(routes, '/api/video-workbench/file?path=final/vp-9.mp4', 'HEAD')
+    expect(headRefusal.status).toBe(404)
+    expect(await headRefusal.text()).toBe('')
+  })
+
+  it('refuses a file above the byte ceiling with 413', async () => {
+    const dir = outputTree()
+    touch(dir, 'final/vp-1.mp4')
+    // Sparse extension: the ceiling is read from the file's size, so the body is never written.
+    truncateSync(join(dir, 'final', 'vp-1.mp4'), 256 * 1024 * 1024 + 1)
+    const routes = await boot(dir)
+    const oversized = await call(routes, '/api/video-workbench/file?path=final/vp-1.mp4')
+    expect(oversized.status).toBe(413)
+    expect(await oversized.text()).toContain('256 MB limit')
   })
 })

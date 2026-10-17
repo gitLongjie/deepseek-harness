@@ -26,7 +26,7 @@ The video group turns a conversation into a rendered film with MiniMax H3. One s
 |---|---|---|
 | [`h3-video`](h3-video/README.md) | The generation seam: `ctx.h3Video`, local ComfyUI and hosted MiniMax providers, explicit routing, ffmpeg assembly, and the `./settings` entry | `ctx.h3Video` |
 | [`tool-video`](tool-video/README.md) | The model-facing `video_plan`, `video_keyframes`, `video_assets`, `video_asset_images`, `video_render`, and `video_assemble` tools plus the `/video` command | registers on `ctx.tools` |
-| [`video-workbench`](video-workbench/README.md) | Read-only web-server routes projecting the H3 output directory for the Web GUI | — |
+| [`video-workbench`](video-workbench/README.md) | Read-only Connection Fetch routes projecting the H3 output directory for the Web GUI | — |
 
 The browser half of the workbench lives with the other Web plugins: [`client/ui-video-workbench`](../client/ui-video-workbench/README.md).
 

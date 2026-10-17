@@ -1266,7 +1266,12 @@ Source: [`packages/kb/kb-weknora/src/index.ts:36`](../packages/kb/kb-weknora/src
 export interface Config {
   /** Wire protocol; defaults to messages. Configure through Cordis YAML. */
   protocol?: DeepSeekProtocol
-  /** Credential reference (environment-variable name) resolved per request; defaults to `DEEPSEEK_API_KEY`. */
+  /**
+   * Credential reference (environment-variable name) resolved per request;
+   * defaults to `DEEPSEEK_API_KEY`. The Deepagens route's composition base
+   * names `DEEPAGENS_API_KEY` instead, so the login flow's gateway key and a
+   * user-stored DeepSeek key never share one reference.
+   */
   apiKeyEnv?: string
   /** Endpoint base; falls back to $DEEPSEEK_BASE_URL from a trusted environment layer, then the public API. */
   baseURL?: string

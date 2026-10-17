@@ -630,15 +630,6 @@ importers:
       '@deepseek-ai/dsh-credentials':
         specifier: workspace:^
         version: link:../../packages/credentials/credentials
-      '@deepseek-ai/dsh-h3-video':
-        specifier: workspace:^
-        version: link:../../packages/video/h3-video
-      '@deepseek-ai/dsh-tool-video':
-        specifier: workspace:^
-        version: link:../../packages/video/tool-video
-      '@deepseek-ai/dsh-video-workbench':
-        specifier: workspace:^
-        version: link:../../packages/video/video-workbench
       '@deepseek-ai/dsh-experimental-webworker-runtime':
         specifier: workspace:^
         version: link:../../packages/experimental/webworker-runtime
@@ -654,6 +645,9 @@ importers:
       '@deepseek-ai/dsh-goal-round-driver':
         specifier: workspace:^
         version: link:../../packages/goal/goal-round-driver
+      '@deepseek-ai/dsh-h3-video':
+        specifier: workspace:^
+        version: link:../../packages/video/h3-video
       '@deepseek-ai/dsh-headless':
         specifier: workspace:^
         version: link:../../packages/bundle/headless
@@ -828,6 +822,9 @@ importers:
       '@deepseek-ai/dsh-tool-todo':
         specifier: workspace:^
         version: link:../../packages/todo/tool-todo
+      '@deepseek-ai/dsh-tool-video':
+        specifier: workspace:^
+        version: link:../../packages/video/tool-video
       '@deepseek-ai/dsh-tool-web':
         specifier: workspace:^
         version: link:../../packages/web/tool-web
@@ -843,6 +840,9 @@ importers:
       '@deepseek-ai/dsh-util-workspace-path':
         specifier: workspace:^
         version: link:../../packages/util/workspace-path
+      '@deepseek-ai/dsh-video-workbench':
+        specifier: workspace:^
+        version: link:../../packages/video/video-workbench
       '@deepseek-ai/dsh-web-app':
         specifier: workspace:^
         version: link:../../packages/bundle/web-app
@@ -2501,18 +2501,15 @@ importers:
       '@deepseek-ai/dsh-cordis-host-runner':
         specifier: workspace:^
         version: link:../../extensions/cordis-host-runner
-      '@deepseek-ai/dsh-h3-video':
-        specifier: workspace:^
-        version: link:../../video/h3-video
-      '@deepseek-ai/dsh-video-workbench':
-        specifier: workspace:^
-        version: link:../../video/video-workbench
       '@deepseek-ai/dsh-file-reference':
         specifier: workspace:^
         version: link:../../context/file-reference
       '@deepseek-ai/dsh-file-reference-local':
         specifier: workspace:^
         version: link:../../context/file-reference-local
+      '@deepseek-ai/dsh-h3-video':
+        specifier: workspace:^
+        version: link:../../video/h3-video
       '@deepseek-ai/dsh-host-directory-picker-auto':
         specifier: workspace:^
         version: link:../../host/directory-picker-auto
@@ -2576,6 +2573,9 @@ importers:
       '@deepseek-ai/dsh-tool-subagent':
         specifier: workspace:^
         version: link:../../subagent/tool-subagent
+      '@deepseek-ai/dsh-video-workbench':
+        specifier: workspace:^
+        version: link:../../video/video-workbench
       '@deepseek-ai/dsh-web-frontend':
         specifier: workspace:^
         version: link:../../../apps/web
@@ -12414,6 +12414,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-client-connection':
+        specifier: workspace:^
+        version: link:../../client/connection
 
   packages/web/tool-web:
     dependencies:
@@ -15252,10 +15255,12 @@ packages:
 
   '@modelcontextprotocol/server-everything@2026.7.4':
     resolution: {integrity: sha512-ydMW/M6rk9tK23b+U38trsNLHhd5eF+ntiv2Vr+RPMDhbiKY/IKrZU25ukvSXVPUBvy7TxTPWpeV4KcYcXg72w==}
+    deprecated: 'Date-based versions are no longer published. This package has resumed semantic versioning at 1.0.0: install the latest version.'
     hasBin: true
 
   '@modelcontextprotocol/server-filesystem@2026.7.10':
     resolution: {integrity: sha512-Mmjg4anFBD5OzbPnGJOA0jPPN8645ERhQk38HQLpSenx1ox9bfdPkmAzUnNjeQtqQGFLtKe13J20RtLBmUKMZA==}
+    deprecated: 'Date-based versions are no longer published. This package has resumed semantic versioning at 1.0.0: install the latest version.'
     hasBin: true
 
   '@modelcontextprotocol/server@2.0.0':

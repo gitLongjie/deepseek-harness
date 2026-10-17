@@ -50,7 +50,7 @@ A request selects the route with `provider: deepseek-official`; the model id pas
 | Field | Default | Meaning |
 |---|---|---|
 | `protocol` | `messages` | Choose `messages` or `chat-completions` in Cordis YAML; Web has no protocol selector |
-| `apiKeyEnv` | `DEEPSEEK_API_KEY` | Credential reference resolved per request through the credentials seam, then the environment |
+| `apiKeyEnv` | `DEEPSEEK_API_KEY` | Credential reference resolved per request through the credentials seam, then the environment; the Deepagens route's composition base names `DEEPAGENS_API_KEY` instead |
 | `baseURL` | Selected protocol’s official root | Explicit value, then `$DEEPSEEK_BASE_URL`, then the selected protocol default |
 | `thinking` | `enabled` | Deployment policy; `disabled` locks every request to `off` |
 | `reasoningEffort` | `high` | Default effort: `off`, `low`, `high`, or `max` |
@@ -71,6 +71,8 @@ A request selects the route with `provider: deepseek-official`; the model id pas
 | `fileRefreshMarginSeconds` | `3,600` | Remaining reuse lifetime below which an id is replaced |
 | `fileQuotaCleanupBatch` | `100` | Oldest harness-owned files removed before one quota retry |
 | `retryPolicy` | normal, 5 retries | Provider-owned retry policy executed by `dsh-llm-retry` |
+
+The Deepagens sign-in gateway is a second route (`provider: deepagens`) over its own `llm-deepagens` settings section. It resolves `DEEPAGENS_API_KEY` rather than `DEEPSEEK_API_KEY`, because the login flow re-issues the gateway's key at every launch: one shared reference made each launch overwrite the key a user stored for the DeepSeek route. A credential store that still holds the gateway's key under `DEEPSEEK_API_KEY` reads it as a DeepSeek-route key from now on, and the next sign-in writes the gateway's current key to `DEEPAGENS_API_KEY`.
 
 The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-llm-deepseek) is the exhaustive source for every accepted field and its JSDoc.
 
