@@ -23,6 +23,7 @@ import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import { AgentLoopCard } from './AgentLoopCard.tsx'
 import { BashCard } from './BashCard.tsx'
 import { ConfigurablePluginsTab } from './ConfigurablePluginsTab.tsx'
+import { GeoAdminCard } from './GeoAdminCard.tsx'
 import { H3VideoCard } from './H3VideoCard.tsx'
 import { PluginsSettingsSection } from './PluginsSettingsSection.tsx'
 import type { PluginsSettingsSectionInjected, PluginsSettingsTabEntry } from './PluginsSettingsSection.tsx'
@@ -31,6 +32,7 @@ import { WebSearchCard } from './WebSearchCard.tsx'
 import { AGENT_LOOP_NS, AgentLoopCardController } from './agent-loop-card-controller.ts'
 import { SHELL_NS, BashCardController } from './bash-card-controller.ts'
 import { ConfigurablePluginsTabController } from './tab-store.ts'
+import { GEO_ADMIN_NS, GeoAdminCardController } from './geo-admin-card-controller.ts'
 import {
   H3CardController, H3_ALL_FIELDS, H3_VIDEO_NS,
 } from './h3-video-card-controller.ts'
@@ -78,10 +80,14 @@ export function apply(ctx: ClientContext): void {
     ctx,
   )
   // One card over one namespace: the configurable tab dispatches a card per
-  // served namespace, so the H3 card carries every field — local ComfyUI,
-  // hosted MiniMax (the one writing a credential), then output with disk
-  // policy — in one staged form.
+  // served namespace, so the H3 card carries every field — local ComfyUI, the
+  // AutoDL token reference, hosted MiniMax (both credentials write outside the
+  // section), then output with disk policy — in one staged form.
   const h3 = new H3CardController(ctx.settingsScope.bind({ namespace: H3_VIDEO_NS }), H3_ALL_FIELDS, ctx)
+  // The 深度云海 card edits the publishing account the geo-admin tools sign in
+  // as; its password is a fixed credential reference, so the card needs no
+  // reference field of its own.
+  const geoAdmin = new GeoAdminCardController(ctx.settingsScope.bind({ namespace: GEO_ADMIN_NS }), ctx)
 
   // The credential a card reports is not part of any settings section, so its
   // scope publishes nothing when one is written. This is the only signal that
@@ -90,6 +96,7 @@ export function apply(ctx: ClientContext): void {
     () => ctx.remote.$on('credentials/reference-updated', (ref) => {
       webSearch.refreshCredential(ref)
       h3.refreshCredential(ref)
+      geoAdmin.refreshCredential(ref)
     }),
     'ui-settings-plugins: credential invalidations',
   )
@@ -207,5 +214,11 @@ export function apply(ctx: ClientContext): void {
       locale: NS,
       inject: () => h3.inject(),
     }, H3VideoCard)
+    yield ctx.slots.register({
+      name: 'settings.plugin.item',
+      key: GEO_ADMIN_NS,
+      locale: NS,
+      inject: () => geoAdmin.inject(),
+    }, GeoAdminCard)
   })
 }

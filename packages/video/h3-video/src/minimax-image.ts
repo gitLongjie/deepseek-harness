@@ -8,6 +8,7 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { diskFreeBytes } from './disk.ts'
+import { inlineMediaSource } from './inline.ts'
 import type { ApiKeySource } from './minimax-api.ts'
 
 /** HTTP fetch function injectable for tests; defaults to global fetch. */
@@ -37,6 +38,28 @@ export interface KeyframeRequest {
   ratio: '21:9' | '16:9' | '4:3' | '1:1' | '3:4' | '9:16'
   /** Optional deterministic seed for reproducible keyframes. */
   seed?: number
+  /**
+   * Character reference anchoring the generated still, sent as the image API's
+   * `subject_reference`: a public URL, or a local JPG/PNG path inlined as a data URI. One
+   * character per request, matching the API's published limit.
+   */
+  subjectReference?: string
+}
+
+/** Published cap on the image API's character reference, in bytes. */
+const SUBJECT_REFERENCE_CAP_BYTES = 10 * 1024 * 1024
+
+/**
+ * Turn one character reference into the API's `image_file` value.
+ * @param source - local path or public URL of the character image.
+ * @returns the URL or data URI the image API accepts.
+ */
+async function subjectImageFile(source: string): Promise<string> {
+  if (/^https?:\/\//u.test(source)) return source
+  if (!/\.(png|jpe?g)$/iu.test(source)) {
+    throw new Error(`subject reference ${source} must be a PNG or JPEG image, as the image API requires`)
+  }
+  return await inlineMediaSource(source, 'image', SUBJECT_REFERENCE_CAP_BYTES)
 }
 
 function abortError(): Error {
@@ -76,6 +99,9 @@ export function createMiniMaxImageProvider(options: MiniMaxImageOptions): {
       )
     }
     const key = typeof options.apiKey === 'function' ? await options.apiKey() : options.apiKey
+    const subjectReference = request.subjectReference === undefined
+      ? undefined
+      : await subjectImageFile(request.subjectReference)
     const response = await doFetch(`${options.baseUrl}/v1/image_generation`, {
       method: 'POST',
       headers: new Headers({ authorization: `Bearer ${key}`, 'content-type': 'application/json' }),
@@ -87,6 +113,9 @@ export function createMiniMaxImageProvider(options: MiniMaxImageOptions): {
         n: 1,
         aigc_watermark: false,
         ...request.seed !== undefined ? { seed: request.seed } : {},
+        ...subjectReference !== undefined
+          ? { subject_reference: [{ type: 'character', image_file: subjectReference }] }
+          : {},
       }),
       signal,
     })

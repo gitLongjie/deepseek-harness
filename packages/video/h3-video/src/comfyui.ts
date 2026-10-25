@@ -9,15 +9,20 @@
 import { mkdir, rename, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { diskFreeBytes } from './disk.ts'
+import type { FetchLike } from './http.ts'
 import { H3TaskRef, type H3VideoProvider, type ProviderCapabilities, type SegmentInput, type SegmentRequest, type TaskStatus } from './types.ts'
 
-/** HTTP fetch function injectable for tests; defaults to global fetch. */
-export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>
+export type { FetchLike } from './http.ts'
 
 /** Construction options for {@link createComfyUIProvider}. */
 export interface ComfyUIOptions {
-  /** ComfyUI server origin, e.g. `http://127.0.0.1:8188`. */
-  baseUrl: string
+  /** ComfyUI server origin, e.g. `http://127.0.0.1:8188`. Exactly one of `baseUrl` and `resolveBaseUrl` is set. */
+  baseUrl?: string
+  /**
+   * Resolve the ComfyUI origin per request, for a deployment whose server address is owned by a
+   * provisioned GPU instance rather than configuration.
+   */
+  resolveBaseUrl?: () => Promise<string>
   /** Absolute path of the JSON workflow template with `"{{field}}"` placeholders. */
   workflowPath: string
   /** Workflow placeholder filled with the text prompt. */
@@ -122,6 +127,19 @@ function failureReason(entry: HistoryEntry | undefined): string | undefined {
  */
 export function createComfyUIProvider(options: ComfyUIOptions): H3VideoProvider {
   const doFetch: FetchLike = options.fetchImpl ?? ((input, init) => fetch(input, init))
+  if (options.baseUrl === undefined && options.resolveBaseUrl === undefined) {
+    throw new Error('h3-video: the ComfyUI provider requires baseUrl or resolveBaseUrl')
+  }
+  const staticBaseUrl = (options.baseUrl ?? '').replace(/\/+$/u, '')
+  const dynamicBaseUrl = options.resolveBaseUrl
+  /**
+   * Resolve the origin for one provider operation. A provisioned instance is booted here, so the
+   * first submission of a render waits for the GPU rather than failing on a stale address.
+   * @returns the origin without a trailing slash.
+   */
+  const endpoint = async (): Promise<string> => dynamicBaseUrl === undefined
+    ? staticBaseUrl
+    : (await dynamicBaseUrl()).replace(/\/+$/u, '')
   const capabilities: ProviderCapabilities = {
     name: 'comfyui-local',
     resolutions: options.resolutions,
@@ -148,6 +166,7 @@ export function createComfyUIProvider(options: ComfyUIOptions): H3VideoProvider 
   async function submit(request: SegmentRequest, signal: AbortSignal): Promise<H3TaskRef> {
     const { readFile, copyFile } = await import('node:fs/promises')
     const { extname } = await import('node:path') as { extname: (path: string) => string }
+    const base = await endpoint()
     const required = options.minFreeSpaceBytes + Math.ceil(request.durationSeconds * options.estimatedBytesPerSecond)
     const free = await diskFreeBytes(options.outputDir)
     if (free !== undefined && free < required) {
@@ -159,26 +178,57 @@ export function createComfyUIProvider(options: ComfyUIOptions): H3VideoProvider 
     const graph = JSON.parse(template) as Record<string, { class_type: string; inputs: Record<string, unknown> }>
 
     /**
-     * Copy one local image into the ComfyUI input directory and return a fresh LoadImage node id.
+     * Send one image to the ComfyUI server's upload endpoint, for a deployment whose server has no
+     * input directory this process can write.
+     * @param bytes - image content.
+     * @param uploadName - file name to store under the server's input directory.
+     * @param signal - submission cancellation.
+     * @returns the name the LoadImage node references.
+     */
+    async function uploadThroughApi(bytes: Uint8Array, uploadName: string, signal: AbortSignal): Promise<string> {
+      const form = new FormData()
+      form.append('image', new Blob([new Uint8Array(bytes)]), uploadName)
+      form.append('type', 'input')
+      form.append('overwrite', 'true')
+      const response = await doFetch(`${base}/upload/image`, { method: 'POST', body: form, signal })
+      if (!response.ok) {
+        const body = await response.text().catch(() => '')
+        throw new Error(`ComfyUI /upload/image failed with HTTP ${response.status}: ${body.slice(0, 200)}`)
+      }
+      const uploaded = await readAbortableJson(response, signal) as { name?: unknown; subfolder?: unknown }
+      if (typeof uploaded.name !== 'string' || uploaded.name.length === 0) {
+        throw new Error('ComfyUI /upload/image returned no filename')
+      }
+      const subfolder = typeof uploaded.subfolder === 'string' ? uploaded.subfolder : ''
+      return subfolder.length > 0 ? `${subfolder}/${uploaded.name}` : uploaded.name
+    }
+
+    /**
+     * Make one local image reachable by the workflow and return a fresh LoadImage node id. A
+     * configured `inputDir` is written directly; otherwise the image goes through the server's
+     * upload endpoint, which is the only path when ComfyUI runs on a provisioned GPU instance.
      * @param source - absolute local path of the image.
      * @param prefix - uploaded filename prefix (`h3-frame-` for keyframes, `h3-ref-` for references).
+     * @param signal - submission cancellation.
      * @returns the id of the added LoadImage node.
      */
-    async function uploadInputImage(source: string, prefix: string): Promise<string> {
-      if (options.inputDir === undefined) {
-        throw new Error('h3-video: configure comfy.inputDir (ComfyUI/input) to use image-conditioned generation')
-      }
+    async function uploadInputImage(source: string, prefix: string, signal: AbortSignal): Promise<string> {
       if (!/^([a-zA-Z]:[\\/]|\/)/u.test(source)) {
         throw new Error('local image conditioning requires absolute local paths')
       }
-      const { mkdir } = await import('node:fs/promises')
+      const { readFile: readImage, mkdir } = await import('node:fs/promises')
       const { randomUUID } = await import('node:crypto')
-      await mkdir(options.inputDir, { recursive: true })
       let nextId = Math.max(...Object.keys(graph).map(Number), 0) + 1
       const uploadName = `${prefix}${randomUUID()}${extname(source) || '.png'}`
-      await copyFile(source, `${options.inputDir}/${uploadName}`)
+      let imageName = uploadName
+      if (options.inputDir !== undefined) {
+        await mkdir(options.inputDir, { recursive: true })
+        await copyFile(source, join(options.inputDir, uploadName))
+      } else {
+        imageName = await uploadThroughApi(await readImage(source), uploadName, signal)
+      }
       const loadId = String(nextId++)
-      graph[loadId] = { class_type: 'LoadImage', inputs: { image: uploadName } }
+      graph[loadId] = { class_type: 'LoadImage', inputs: { image: imageName } }
       return loadId
     }
 
@@ -192,7 +242,7 @@ export function createComfyUIProvider(options: ComfyUIOptions): H3VideoProvider 
       }
       const [, h3Node] = h3Entry
       for (const frame of frameImages) {
-        const loadId = await uploadInputImage(frame.url, 'h3-frame-')
+        const loadId = await uploadInputImage(frame.url, 'h3-frame-', signal)
         h3Node.inputs[frame.role] = [loadId, 0]
       }
     }
@@ -216,7 +266,7 @@ export function createComfyUIProvider(options: ComfyUIOptions): H3VideoProvider 
       delete h3Node.inputs.last_frame
       const links: Array<[string, number]> = []
       for (const reference of referenceImages) {
-        const loadId = await uploadInputImage(reference.url, 'h3-ref-')
+        const loadId = await uploadInputImage(reference.url, 'h3-ref-', signal)
         links.push([loadId, 0])
       }
       h3Node.inputs.ref_images = links
@@ -227,10 +277,10 @@ export function createComfyUIProvider(options: ComfyUIOptions): H3VideoProvider 
       [options.resolutionField]: request.resolution,
       [options.durationField]: request.durationSeconds,
       [options.ratioField]: request.ratio,
-      [options.seedField]: Math.floor(Math.random() * 2 ** 53),
+      [options.seedField]: request.seed ?? Math.floor(Math.random() * 2 ** 53),
       [options.lengthField ?? 'length']: snapH3Frames(request.durationSeconds),
     })
-    const response = await doFetch(`${options.baseUrl}/prompt`, {
+    const response = await doFetch(`${base}/prompt`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ prompt: JSON.parse(workflow) as unknown }),
@@ -250,10 +300,11 @@ export function createComfyUIProvider(options: ComfyUIOptions): H3VideoProvider 
 
   async function poll(ref: H3TaskRef, signal: AbortSignal): Promise<TaskStatus> {
     const promptId = String(ref)
+    const base = await endpoint()
     const started = submittedAt.get(promptId) ?? Date.now()
     const deadline = started + options.taskTimeoutMs
     for (;;) {
-      const response = await doFetch(`${options.baseUrl}/history/${encodeURIComponent(promptId)}`, { signal })
+      const response = await doFetch(`${base}/history/${encodeURIComponent(promptId)}`, { signal })
       if (!response.ok) throw new Error(`ComfyUI /history failed with HTTP ${response.status}`)
       const history = await readAbortableJson(response, signal) as Record<string, HistoryEntry>
       const entry = history[promptId]
@@ -274,7 +325,7 @@ export function createComfyUIProvider(options: ComfyUIOptions): H3VideoProvider 
             reason: `insufficient disk space on ${options.outputDir}: free ${Math.round(free / 1024 / 1024)} MB, need ${Math.round(required / 1024 / 1024)} MB`,
           }
         }
-        const viewUrl = `${options.baseUrl}/view?filename=${encodeURIComponent(media.filename ?? '')}&subfolder=${encodeURIComponent(media.subfolder ?? '')}&type=output`
+        const viewUrl = `${base}/view?filename=${encodeURIComponent(media.filename ?? '')}&subfolder=${encodeURIComponent(media.subfolder ?? '')}&type=output`
         const fileResponse = await doFetch(viewUrl, { signal })
         if (!fileResponse.ok) throw new Error(`ComfyUI /view failed with HTTP ${fileResponse.status}`)
         const bytes = new Uint8Array(await fileResponse.arrayBuffer())
@@ -314,7 +365,7 @@ export function createComfyUIProvider(options: ComfyUIOptions): H3VideoProvider 
     poll,
     async cancel(ref) {
       submittedAt.delete(String(ref))
-      await doFetch(`${options.baseUrl}/interrupt`, { method: 'POST' }).catch(() => undefined)
+      await doFetch(`${await endpoint()}/interrupt`, { method: 'POST' }).catch(() => undefined)
     },
   }
 }

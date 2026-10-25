@@ -24,6 +24,8 @@ type H3LabelKey =
   | 'h3ComfyMaxConcurrency' | 'h3ComfyMaxConcurrencyHint' | 'h3ComfyMinDuration' | 'h3ComfyMinDurationHint'
   | 'h3ComfyMaxDuration' | 'h3ComfyMaxDurationHint' | 'h3ComfyPollInterval' | 'h3ComfyPollIntervalHint'
   | 'h3ComfyTaskTimeout' | 'h3ComfyTaskTimeoutHint'
+  | 'h3GpuApiTokenRef' | 'h3GpuApiTokenRefHint'
+  | 'h3GpuApiToken' | 'h3GpuApiTokenHint' | 'h3GpuApiTokenSet' | 'h3GpuApiTokenUnset'
   | 'h3MinimaxApiKeyRef' | 'h3MinimaxApiKeyRefHint' | 'h3MinimaxBaseUrl' | 'h3MinimaxBaseUrlHint'
   | 'h3MinimaxModel' | 'h3MinimaxModelHint' | 'h3MinimaxResolutions' | 'h3MinimaxResolutionsHint'
   | 'h3MinimaxMinDuration' | 'h3MinimaxMinDurationHint' | 'h3MinimaxMaxDuration' | 'h3MinimaxMaxDurationHint'
@@ -52,6 +54,7 @@ const FIELDS: readonly FieldSpec[] = [
   { id: 'h3-comfy-max-duration', labelKey: 'h3ComfyMaxDuration', hintKey: 'h3ComfyMaxDurationHint', numeric: true, field: 'comfyMaxDurationSeconds' },
   { id: 'h3-comfy-poll', labelKey: 'h3ComfyPollInterval', hintKey: 'h3ComfyPollIntervalHint', numeric: true, field: 'comfyPollIntervalMs' },
   { id: 'h3-comfy-timeout', labelKey: 'h3ComfyTaskTimeout', hintKey: 'h3ComfyTaskTimeoutHint', numeric: true, field: 'comfyTaskTimeoutMs' },
+  { id: 'h3-gpu-keyref', labelKey: 'h3GpuApiTokenRef', hintKey: 'h3GpuApiTokenRefHint', field: 'gpuApiTokenRef' },
   { id: 'h3-minimax-keyref', labelKey: 'h3MinimaxApiKeyRef', hintKey: 'h3MinimaxApiKeyRefHint', field: 'minimaxApiKeyRef' },
   { id: 'h3-minimax-baseurl', labelKey: 'h3MinimaxBaseUrl', hintKey: 'h3MinimaxBaseUrlHint', field: 'minimaxBaseUrl' },
   { id: 'h3-minimax-model', labelKey: 'h3MinimaxModel', hintKey: 'h3MinimaxModelHint', field: 'minimaxModel' },
@@ -101,6 +104,18 @@ export function H3VideoCard(props: H3VideoCardProps) {
           configured={state.apiKeyConfigured ?? false}
           stateLabel={state.apiKeyConfigured === true ? t('h3MinimaxApiKeySet') : t('h3MinimaxApiKeyUnset')}
           onEdit={(text) => { props.edit('minimaxApiKey', text) }}
+        />
+      )}
+      {state.gpuApiToken !== undefined && (
+        <SecretField
+          id="plugin-config-h3-autodl-token"
+          label={t('h3GpuApiToken')}
+          hint={t('h3GpuApiTokenHint')}
+          disabled={!(state.gpuApiTokenWritable ?? true)}
+          text={state.gpuApiToken.text}
+          configured={state.gpuApiTokenConfigured ?? false}
+          stateLabel={state.gpuApiTokenConfigured === true ? t('h3GpuApiTokenSet') : t('h3GpuApiTokenUnset')}
+          onEdit={(text) => { props.edit('gpuApiToken', text) }}
         />
       )}
       {fields.map(({ spec, field }) => (

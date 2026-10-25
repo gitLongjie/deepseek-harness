@@ -943,7 +943,7 @@ export interface Config {
 
 /** Local ComfyUI backend row. */
 export interface ComfyConfig {
-  /** ComfyUI server origin. */
+  /** ComfyUI server origin; required unless `gpu` provisions one. */
   url?: string
   /** JSON workflow template path with `"{{field}}"` placeholders. */
   workflowPath?: string
@@ -976,6 +976,14 @@ export interface ComfyConfig {
   minDurationSeconds?: number
   /** Maximum accepted seconds per segment. */
   maxDurationSeconds?: number
+  /** Cloud GPU row; present and anchored, it supplies `url` from the provisioned instance. */
+  gpu?: GpuConfig
+  /**
+   * Local text-to-image row: the ComfyUI workflow that generates keyframes and asset stills on the
+   * same machine as the video. Present and anchored, it replaces the hosted image API, so stills
+   * cost GPU time instead of per-image billing.
+   */
+  image?: ComfyImageConfig
 }
 
 /** Hosted MiniMax backend row. */
@@ -1013,9 +1021,93 @@ export interface MinimaxConfig {
   /** Concurrent remote generations. */
   maxConcurrency?: number
 }
+
+/**
+ * Cloud GPU instance that serves the local ComfyUI backend, created on demand and stopped or
+ * released when generation stops. The implemented vendor is AutoDL's container-instance Pro API;
+ * `gpuSpecUuid` is the row's anchor — a row without it leaves the GPU unmanaged and keeps the
+ * static `comfy.url`.
+ */
+export interface GpuConfig {
+  /**
+   * Compute specification id. AutoDL ids follow the account's GPU table (`v-32g-p`, `pro6000-p`,
+   * `4090D`, …).
+   */
+  gpuSpecUuid?: string
+  /** Boot image uuid carrying the ComfyUI installation and H3 weights. */
+  imageUuid?: string
+  /**
+   * Account API token. Prefer `apiTokenRef` so the secret lives in the managed credential store; a
+   * literal here lands in the composition file.
+   */
+  apiToken?: string
+  /**
+   * Credential reference resolved through `ctx.credentials` on every request (e.g.
+   * `AUTODL_TOKEN`, stored via the credentials store or that environment variable).
+   */
+  apiTokenRef?: string
+  /** Vendor API origin. */
+  baseUrl?: string
+  /** Minimum CUDA code the scheduled host must satisfy (118 = 11.8). */
+  cudaVersion?: number
+  /** GPU count, 1–4. */
+  gpuAmount?: number
+  /** System-disk expansion in GB, 0–500. */
+  systemDiskGb?: number
+  /** Preferred data centers, in order; the vendor schedules when omitted. */
+  dataCenterList?: string[]
+  /** Instance name; an existing instance with this name is powered on instead of creating another. */
+  instanceName?: string
+  /** Command the vendor runs after boot; it must start the ComfyUI server on `servicePort`. */
+  startCommand?: string
+  /** Service port the vendor maps to the ComfyUI HTTP API. */
+  servicePort?: number
+  /** Milliseconds between instance status and readiness polls. */
+  pollIntervalMs?: number
+  /** Wall-clock bound on boot plus ComfyUI readiness, in milliseconds. */
+  bootTimeoutMs?: number
+  /** Readiness probe bound per attempt, in milliseconds. */
+  probeTimeoutMs?: number
+  /** Per-call vendor API bound, in milliseconds. */
+  requestTimeoutMs?: number
+  /** Idle milliseconds before `idleAction` runs; `0` leaves the instance up until an explicit call. */
+  idleTimeoutMs?: number
+  /** What idle handling does: power the instance off (keeps its disk), or release it. */
+  idleAction?: GpuIdleAction
+  /** Release the instance when the video service is disposed, instead of leaving it to the idle policy. */
+  releaseOnDispose?: boolean
+}
+
+/** Local text-to-image row over a ComfyUI workflow template. */
+export interface ComfyImageConfig {
+  /** JSON workflow template with `"{{prompt}}"`, `"{{seed}}"`, `"{{width}}"`, `"{{height}}"`. */
+  workflowPath?: string
+  /**
+   * Workflow used when the request carries a confirmed portrait: it gets the same placeholders plus
+   * `"{{reference}}"`, the uploaded image name, so the still is redrawn from that face.
+   */
+  referenceWorkflowPath?: string
+  /** Prompt placeholder name. */
+  promptField?: string
+  /** Reference-image placeholder name (reference workflow only). */
+  referenceField?: string
+  /** Seed placeholder name. */
+  seedField?: string
+  /** Width placeholder name. */
+  widthField?: string
+  /** Height placeholder name. */
+  heightField?: string
+  /** Milliseconds between history polls. */
+  pollIntervalMs?: number
+  /** Wall-clock bound on one still. */
+  taskTimeoutMs?: number
+}
+
+/** Idle handling applied when no generation is live for the configured window. */
+export type GpuIdleAction = 'power_off' | 'release'
 ```
 
-Source: [`packages/video/h3-video/src/index.ts:133`](../packages/video/h3-video/src/index.ts)
+Source: [`packages/video/h3-video/src/index.ts:253`](../packages/video/h3-video/src/index.ts)
 
 <a id="deepseek-aidsh-headless"></a>
 
@@ -3169,6 +3261,22 @@ export interface Config {
 
 Source: [`packages/fs/tool-fs-search/src/index.ts:73`](../packages/fs/tool-fs-search/src/index.ts)
 
+<a id="deepseek-aidsh-tool-geo-admin"></a>
+
+## `@deepseek-ai/dsh-tool-geo-admin`
+
+Requires: `tools` · `credentials`
+
+```ts config-catalog
+/** Plugin config: one cooperative budget shared by every publishing tool. */
+export interface Config {
+  /** Cooperative tool-call timeout budget (ms). Defaults to 30000. */
+  timeoutMs?: number
+}
+```
+
+Source: [`packages/geo/tool-geo-admin/src/index.ts:50`](../packages/geo/tool-geo-admin/src/index.ts)
+
 <a id="deepseek-aidsh-tool-goal"></a>
 
 ## `@deepseek-ai/dsh-tool-goal`
@@ -3624,7 +3732,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/video/video-workbench/src/index.ts:35`](../packages/video/video-workbench/src/index.ts)
+Source: [`packages/video/video-workbench/src/index.ts:41`](../packages/video/video-workbench/src/index.ts)
 
 <a id="deepseek-aidsh-web"></a>
 

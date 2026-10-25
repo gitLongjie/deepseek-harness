@@ -26,6 +26,9 @@ export const H3_VIDEO_NS = 'h3-video'
 /** Credential reference the MiniMax backend resolves when the section names none. */
 export const DEFAULT_MINIMAX_API_KEY_REF = 'MINIMAX_API_KEY'
 
+/** Credential reference the cloud GPU row resolves when the section names none. */
+export const DEFAULT_GPU_API_TOKEN_REF = 'AUTODL_TOKEN'
+
 /** The H3 fields this package's cards edit; field names mirror the Host namespace. */
 export interface H3VideoSettings {
   /** Local ComfyUI base URL. */
@@ -58,6 +61,8 @@ export interface H3VideoSettings {
   minimaxMaxDurationSeconds?: number
   /** Credential reference naming the hosted API key. */
   minimaxApiKeyRef?: string
+  /** Credential reference naming the AutoDL token the cloud GPU row uses. */
+  gpuApiTokenRef?: string
   /** Hosted MiniMax poll interval in milliseconds. */
   minimaxPollIntervalMs?: number
   /** Hosted MiniMax task timeout in milliseconds. */
@@ -102,6 +107,7 @@ export const H3_LOCAL_FIELDS: readonly CardFieldSpec[] = [
   numberField('comfyMaxDurationSeconds'),
   numberField('comfyPollIntervalMs'),
   numberField('comfyTaskTimeoutMs'),
+  textField('gpuApiTokenRef'),
 ]
 
 /** The hosted MiniMax card's fields. */
@@ -141,12 +147,18 @@ interface CredentialState {
 export interface H3CardState extends CardShell {
   /** This card's fields, keyed by field name. */
   fields: Record<string, CardFieldState>
-  /** The staged API key; present only on the remote card. */
+  /** The staged MiniMax API key. */
   apiKey?: CardFieldState
-  /** Whether the Host reports a credential configured for the referenced key. */
+  /** Whether the Host reports a credential configured for the referenced MiniMax key. */
   apiKeyConfigured?: boolean
-  /** Whether the credentials domain accepts a write for it; false disables the control. */
+  /** Whether the credentials domain accepts a write for the MiniMax key; false disables the control. */
   apiKeyWritable?: boolean
+  /** The staged AutoDL token. */
+  gpuApiToken?: CardFieldState
+  /** Whether the Host reports a credential configured for the referenced AutoDL token. */
+  gpuApiTokenConfigured?: boolean
+  /** Whether the credentials domain accepts a write for the AutoDL token; false disables the control. */
+  gpuApiTokenWritable?: boolean
 }
 
 /** The registration-side face one H3 card's slot entry injects. */
@@ -162,14 +174,15 @@ export class H3CardController {
   private readonly form: CardForm<H3VideoSettings>
   private readonly store: SnapshotStore<H3CardState>
   private readonly fieldNames: readonly string[]
-  private credential: CredentialState | undefined
+  private minimaxCredential: CredentialState | undefined
+  private gpuCredential: CredentialState | undefined
 
   /**
    * @param scope - the bound settings scope for the `h3-video` namespace.
    * @param fields - the field specs this card edits.
-   * @param ctx - the card plugin's context; required only by the remote card,
-   *   whose `remote.credentials` namespace answers for the key the section
-   *   references.
+   * @param ctx - the card plugin's context; required only when the card edits
+   *   credentials, whose `remote.credentials` namespace answers for the
+   *   references the section names.
    */
   constructor(
     private readonly scope: SettingsScope<H3VideoSettings>,
@@ -180,7 +193,10 @@ export class H3CardController {
     this.form = new CardForm(
       scope,
       [...fields],
-      this.ctx === undefined ? [] : [{ field: 'minimaxApiKey', write: text => this.writeKey(text) }],
+      this.ctx === undefined ? [] : [
+        { field: 'minimaxApiKey', write: (text: string) => this.writeCredential('minimax', text) },
+        { field: 'gpuApiToken', write: (text: string) => this.writeCredential('gpu', text) },
+      ],
     )
     this.store = this.form.bind(() => this.projection())
     if (this.ctx !== undefined) {
@@ -197,45 +213,72 @@ export class H3CardController {
       ...this.form.shell(),
       fields,
       apiKey: this.form.field('minimaxApiKey'),
-      apiKeyConfigured: this.credential?.configured ?? false,
-      apiKeyWritable: this.credential?.writable ?? true,
+      apiKeyConfigured: this.minimaxCredential?.configured ?? false,
+      apiKeyWritable: this.minimaxCredential?.writable ?? true,
+      gpuApiToken: this.form.field('gpuApiToken'),
+      gpuApiTokenConfigured: this.gpuCredential?.configured ?? false,
+      gpuApiTokenWritable: this.gpuCredential?.writable ?? true,
     }
   }
 
   /**
-   * Ask the credentials domain about the reference the section currently names.
-   * The answer is stored with the reference it describes: `minimaxApiKeyRef`
-   * can change between the request and its response, and two reads can settle
-   * out of order, so a response is published only while it still answers for
-   * the reference in force.
+   * Ask the credentials domain about the references the section currently names.
+   * Each answer is stored with the reference it describes: a reference field can
+   * change between the request and its response, and two reads can settle out of
+   * order, so a response is published only while it still answers for the
+   * reference in force.
    */
   private async readCredential(): Promise<void> {
     if (this.ctx === undefined) return
-    const ref = refOf(this.scope.getSnapshot())
-    if (this.credential?.ref !== ref) {
+    const snapshot = this.scope.getSnapshot()
+    const minimaxRef = refOf(snapshot)
+    const gpuRef = gpuRefOf(snapshot)
+    if (this.minimaxCredential?.ref !== minimaxRef) {
       // A new reference knows nothing yet; keeping the old answer would claim
       // the key is configured under a name nobody has checked.
-      this.credential = { ref, configured: false, writable: true }
+      this.minimaxCredential = { ref: minimaxRef, configured: false, writable: true }
       this.store.set(this.projection())
     }
-    const response = await this.ctx.remote.credentials.describe([ref])
-    if (!response.ok || ref !== refOf(this.scope.getSnapshot())) return
-    const view = response.value[ref]
+    if (this.gpuCredential?.ref !== gpuRef) {
+      this.gpuCredential = { ref: gpuRef, configured: false, writable: true }
+      this.store.set(this.projection())
+    }
+    const response = await this.ctx.remote.credentials.describe([minimaxRef, gpuRef])
+    if (!response.ok) return
+    const current = this.scope.getSnapshot()
+    if (minimaxRef === refOf(current)) this.applyCredential('minimax', minimaxRef, response.value[minimaxRef])
+    if (gpuRef === gpuRefOf(current)) this.applyCredential('gpu', gpuRef, response.value[gpuRef])
+  }
+
+  /**
+   * Publish one credential answer, unless it matches what the card already shows.
+   * @param which - the credential the answer describes.
+   * @param ref - the reference the answer describes.
+   * @param view - the Host's answer for that reference, when it returned one.
+   */
+  private applyCredential(
+    which: 'minimax' | 'gpu',
+    ref: string,
+    view: { configured: boolean; writable: boolean } | undefined,
+  ): void {
     const configured = view?.configured ?? false
     // An unknown reference is treated as writable: the control stays usable
     // and the Host is what refuses, rather than the card guessing a refusal.
     const writable = view?.writable ?? true
-    if (this.credential.configured === configured && this.credential.writable === writable) return
-    this.credential = { ref, configured, writable }
+    const current = which === 'minimax' ? this.minimaxCredential : this.gpuCredential
+    if (current?.ref === ref && current.configured === configured && current.writable === writable) return
+    if (which === 'minimax') this.minimaxCredential = { ref, configured, writable }
+    else this.gpuCredential = { ref, configured, writable }
     this.store.set(this.projection())
   }
 
   /**
-   * Re-read after the Host reports a change to the reference this card watches.
+   * Re-read after the Host reports a change to a reference this card watches.
    * @param ref - the reference the Host reports as changed.
    */
   refreshCredential(ref: string): void {
-    if (this.ctx === undefined || ref !== this.credential?.ref) return
+    if (this.ctx === undefined) return
+    if (ref !== this.minimaxCredential?.ref && ref !== this.gpuCredential?.ref) return
     void this.readCredential()
   }
 
@@ -248,26 +291,39 @@ export class H3CardController {
   }
 
   /**
-   * Write the staged key, then re-read whether the Host now holds one.
+   * Write one staged credential, then re-read whether the Host now holds it.
+   * @param which - the credential the save targets.
    * @param value - the staged credential literal.
    * @returns whether the Host reports a configured credential afterwards.
    */
-  private async writeKey(value: string): Promise<boolean> {
+  private async writeCredential(which: 'minimax' | 'gpu', value: string): Promise<boolean> {
     if (this.ctx === undefined) return false
+    const ref = which === 'minimax' ? refOf(this.scope.getSnapshot()) : gpuRefOf(this.scope.getSnapshot())
     // Refusals surface through the re-read below: the Host is the only
-    // authority on whether the key now exists.
-    await this.ctx.remote.credentials.set(refOf(this.scope.getSnapshot()), value)
+    // authority on whether the credential now exists.
+    await this.ctx.remote.credentials.set(ref, value)
     await this.readCredential()
-    return this.credential?.configured ?? false
+    const state = which === 'minimax' ? this.minimaxCredential : this.gpuCredential
+    return state?.configured ?? false
   }
 }
 
 /**
- * The credential reference the section names, or the provider's default.
+ * The MiniMax credential reference the section names, or the provider's default.
  * @param snapshot - the current scope snapshot.
  * @returns the reference to address.
  */
 function refOf(snapshot: SettingsScopeSnapshot<H3VideoSettings>): string {
   const declared = snapshot.value?.minimaxApiKeyRef
   return declared !== undefined && declared.length > 0 ? declared : DEFAULT_MINIMAX_API_KEY_REF
+}
+
+/**
+ * The AutoDL credential reference the section names, or the provider's default.
+ * @param snapshot - the current scope snapshot.
+ * @returns the reference to address.
+ */
+function gpuRefOf(snapshot: SettingsScopeSnapshot<H3VideoSettings>): string {
+  const declared = snapshot.value?.gpuApiTokenRef
+  return declared !== undefined && declared.length > 0 ? declared : DEFAULT_GPU_API_TOKEN_REF
 }

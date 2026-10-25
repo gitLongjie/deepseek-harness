@@ -1,20 +1,26 @@
 /**
- * Login session state. Every launch replays the stored login pair against
- * the account server (the deployment's Deepagens Claw gateway): success
- * signs in without showing the gate, a refusal falls back to the sign-in
- * card. The server issues the API key at each sign-in; the session itself
- * stays in memory, only the pair is stored locally, and the key is handed
- * to the host credential layer under the gateway route's own reference, so
- * real authorization stays with the servers that accept the key and a key
- * stored for the DeepSeek route is never rewritten.
+ * Login session state. A launch revalidates the API key the last sign-in
+ * issued with one `/v1/models` read against the account server (the
+ * deployment's Deepagens Claw gateway) and enters the app on acceptance; only
+ * a refused key — revoked, expired, or short of quota — replays the stored
+ * account pair through the sign-in path, which is what the server's login
+ * session budget charges for. The session itself stays in memory; the pair,
+ * the key, and the profile are stored locally, and the key is handed to the
+ * host credential layer under the gateway route's own reference, so real
+ * authorization stays with the servers that accept the key and a key stored
+ * for the DeepSeek route is never rewritten.
  */
 
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { ClientRemote } from '@deepseek-ai/dsh-api-remotes/client'
 
-/** localStorage key holding the login pair replayed at the next launch. */
-const PAIR_STORAGE_KEY = 'dsh.login.pair'
+/**
+ * localStorage key holding the launch-time login record. The name predates the
+ * key and profile it now carries; keeping it lets a build after an upgrade
+ * keep the silent sign-in instead of forcing one manual sign-in.
+ */
+const STORAGE_KEY = 'dsh.login.pair'
 
 /** Settings namespace carrying the default Agent model selection. */
 const DEFAULT_MODEL_NS = 'agent-default-model'
@@ -31,37 +37,45 @@ export interface LoginSession {
   account: string
   /** Absolute avatar URL, or null when the account has none. */
   avatar: string | null
-  /** API key the server issued at this sign-in; also handed to the host credential layer. */
+  /** API key this session runs on: the last sign-in's, revalidated at launch; also handed to the host credential layer. */
   apiKey: string
 }
 
 /**
  * Credential reference this plugin writes while a session is signed in: the
  * Deepagens gateway route's own reference, never the DeepSeek route's
- * `DEEPSEEK_API_KEY`. The gateway re-issues this key at every launch, and a
- * shared reference made each launch overwrite the key a user stored for the
- * DeepSeek route. The gateway endpoint needs no credential — the catalog sync
- * writes it into the route's `llm-deepagens` settings section.
+ * `DEEPSEEK_API_KEY`. The gateway issues this key at each sign-in, and a
+ * shared reference made a launch-time sign-in overwrite the key a user stored
+ * for the DeepSeek route. The gateway endpoint needs no credential — the
+ * catalog sync writes it into the route's `llm-deepagens` settings section.
  */
 export const GATEWAY_CREDENTIAL_REF = 'DEEPAGENS_API_KEY'
 
-/** The credential pair stored locally for the boot-time re-login. */
-export interface StoredLoginPair {
+/** The launch-time login record: the pair a refused key is replaced from, plus the last session facts. */
+export interface StoredLogin {
   /** Account identifier as typed at the sign-in that stored it. */
   username: string
   /** Account password as typed at the sign-in that stored it. */
   password: string
+  /** Key the last sign-in issued, revalidated at the next launch; absent on records written before key reuse. */
+  apiKey?: string
+  /** Display name the last sign-in reported; absent on records written before key reuse. */
+  account?: string
+  /** Avatar URL the last sign-in reported, or null when the account has none. */
+  avatar?: string | null
 }
 
 /**
- * Read the stored login pair, tolerating every malformed shape as absent.
- * @returns the stored pair, or null when absent, malformed, or unavailable.
+ * Read the stored login record, tolerating every malformed shape as absent.
+ * The pair is required; the key and profile are optional, so a record written
+ * before key reuse still parses and drives one pair replay.
+ * @returns the stored record, or null when absent, malformed, or unavailable.
  */
-export function readStoredPair(): StoredLoginPair | null {
+export function readStoredLogin(): StoredLogin | null {
   if (typeof localStorage === 'undefined') return null
   let raw: string | null
   try {
-    raw = localStorage.getItem(PAIR_STORAGE_KEY)
+    raw = localStorage.getItem(STORAGE_KEY)
   } catch {
     // Storage refusal (private mode, quota) only means a manual sign-in this
     // launch; nothing else can reach the persisted fact.
@@ -76,25 +90,29 @@ export function readStoredPair(): StoredLoginPair | null {
     return null
   }
   if (typeof parsed !== 'object' || parsed === null) return null
-  const { username, password } = parsed as Record<string, unknown>
+  const { username, password, apiKey, account, avatar } = parsed as Record<string, unknown>
   if (typeof username !== 'string' || username === '' || typeof password !== 'string' || password === '') return null
-  return { username, password }
+  const record: StoredLogin = { username, password }
+  if (typeof apiKey === 'string' && apiKey !== '') record.apiKey = apiKey
+  if (typeof account === 'string' && account !== '') record.account = account
+  if (typeof avatar === 'string' && avatar !== '') record.avatar = avatar
+  return record
 }
 
-function writeStoredPair(pair: StoredLoginPair | null): void {
+function writeStoredLogin(record: StoredLogin | null): void {
   if (typeof localStorage === 'undefined') return
   try {
-    if (pair === null) localStorage.removeItem(PAIR_STORAGE_KEY)
-    else localStorage.setItem(PAIR_STORAGE_KEY, JSON.stringify(pair))
+    if (record === null) localStorage.removeItem(STORAGE_KEY)
+    else localStorage.setItem(STORAGE_KEY, JSON.stringify(record))
   } catch {
-    // Storage refusal only costs the next launch its silent re-login; the
+    // Storage refusal only costs the next launch its silent sign-in; the
     // signed-in session itself lives in memory.
   }
 }
 
 /** State rendered by the login gate. */
 export interface LoginState {
-  /** The boot-time re-login is in flight; the gate renders only its backdrop. */
+  /** The boot-time session restore is in flight; the gate renders only its backdrop. */
   restoring: boolean
   /** Non-null while the user is signed in (set by a sign-in, dropped by sign-out). */
   session: LoginSession | null
@@ -269,25 +287,85 @@ export class LoginStore {
   }
 
   /**
-   * Replay the stored login pair through the sign-in path — the boot-time
-   * re-login every launch runs. Without a stored pair this is a no-op and
-   * the gate shows its card; a refused pair stays stored for the next
-   * launch and the gate shows the failure. The gate renders only its
-   * backdrop while this is in flight.
+   * Restore the last session at boot. A stored key that the gateway still
+   * accepts signs in without calling the login endpoint, so a launch costs no
+   * login session; a refused key, and every record written before key reuse,
+   * replays the stored pair through the sign-in path, which replaces the key.
+   * Without a stored record this is a no-op and the gate shows its card; a
+   * refused pair stays stored for the next launch and the gate shows the
+   * failure. The gate renders only its backdrop while this is in flight.
    */
   async restore(): Promise<void> {
-    const pair = readStoredPair()
-    if (pair === null) return
+    const stored = readStoredLogin()
+    if (stored === null) return
     this.store.update((state) => {
       state.restoring = true
     })
     try {
-      await this.login(pair.username, pair.password)
+      if (stored.apiKey !== undefined && await this.storedKeyAccepted(stored.apiKey)) {
+        await this.adoptStoredSession(stored, stored.apiKey)
+      } else {
+        await this.login(stored.username, stored.password)
+      }
     } finally {
       this.store.update((state) => {
         state.restoring = false
       })
     }
+  }
+
+  /**
+   * Ask the gateway whether the key the last sign-in issued is still accepted,
+   * which is the launch-time stand-in for a new sign-in. A refusal means a
+   * revoked, expired, or quota-exhausted key and the pair replay replaces it;
+   * an unreachable or failing gateway answers the same way, and the sign-in
+   * path then reports its own failure to the gate.
+   * @param apiKey - the key stored by the last successful sign-in.
+   * @returns whether `/v1/models` served the key.
+   */
+  private async storedKeyAccepted(apiKey: string): Promise<boolean> {
+    try {
+      const response = await fetch(`${this.baseUrl()}/v1/models`, {
+        headers: { authorization: `Bearer ${apiKey}` },
+      })
+      if (response.ok) return true
+      console.warn(`[ui-login] stored api key refused (HTTP ${response.status}); replaying the stored pair`)
+    } catch {
+      console.warn('[ui-login] gateway unreachable while revalidating the stored api key; replaying the stored pair')
+    }
+    return false
+  }
+
+  /**
+   * Enter the app with the revalidated key: write it to the credential layer
+   * under the gateway reference and refresh the gateway catalog, exactly as a
+   * fresh sign-in does, but without the login-endpoint call that the server
+   * charges a login session for.
+   * @param stored - the record the key and profile came from.
+   * @param apiKey - the key the gateway just accepted.
+   */
+  private async adoptStoredSession(stored: StoredLogin, apiKey: string): Promise<void> {
+    const session: LoginSession = {
+      account: stored.account ?? stored.username,
+      avatar: stored.avatar ?? null,
+      apiKey,
+    }
+    try {
+      await this.credentials.apply(session)
+    } catch {
+      this.store.update((state) => {
+        state.error = 'credentialWriteFailed'
+      })
+      return
+    }
+    try {
+      await this.syncCatalogFromGateway(apiKey)
+    } catch (error: unknown) {
+      console.warn('[ui-login] gateway catalog sync failed after key reuse:', error instanceof Error ? error.message : String(error))
+    }
+    this.store.update((state) => {
+      state.session = session
+    })
   }
 
   /**
@@ -374,9 +452,16 @@ export class LoginStore {
       console.warn('[ui-login] gateway catalog sync failed after sign-in:', error instanceof Error ? error.message : String(error))
     }
 
-    // Store the pair for the next launch's silent re-login; a refused write
-    // only costs that launch its gate skip.
-    writeStoredPair({ username, password })
+    // Store the pair for the next launch's silent sign-in and the key this
+    // sign-in issued for its revalidation; a refused write only costs that
+    // launch its gate skip.
+    writeStoredLogin({
+      username,
+      password,
+      apiKey: session.apiKey,
+      account: session.account,
+      avatar: session.avatar,
+    })
     this.store.update((state) => {
       state.busy = false
       state.session = session
@@ -384,9 +469,9 @@ export class LoginStore {
     return true
   }
 
-  /** Drop the session, the stored pair, and the written credentials; return to the sign-in page. */
+  /** Drop the session, the stored record, and the written credentials; return to the sign-in page. */
   logout(): void {
-    writeStoredPair(null)
+    writeStoredLogin(null)
     void this.credentials.clear()
     this.store.update((state) => {
       state.session = null

@@ -9,6 +9,7 @@ import { mkdir } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { pipeline } from 'node:stream/promises'
 import { diskFreeBytes } from './disk.ts'
+import { inlineMediaSource } from './inline.ts'
 import { H3TaskRef, type H3VideoProvider, type ProviderCapabilities, type SegmentRequest } from './types.ts'
 
 /** HTTP fetch function injectable for tests; defaults to global fetch. */
@@ -150,27 +151,13 @@ export function createMiniMaxApiProvider(options: MiniMaxApiOptions): H3VideoPro
   /**
    * Convert a local media path into a base64 data URI the hosted API accepts (keyframes are local
    * files after download); http(s) URLs and `mm_file://{file_id}` ids from the MiniMax file
-   * service pass through unchanged. A local file beyond the published per-modality cap fails
-   * before submission instead of sending a body the provider may reject.
+   * service pass through unchanged.
    * @param source - the reference source as authored.
    * @param mediaType - MIME family for the data URI (`image`, `video`, or `audio`).
    * @returns the API-ready URL value.
    */
   async function toApiUrl(source: string, mediaType: 'image' | 'video' | 'audio'): Promise<string> {
-    if (/^(https?|mm_file):\/\//iu.test(source)) return source
-    const { readFile } = await import('node:fs/promises')
-    const { extname } = await import('node:path') as { extname: (path: string) => string }
-    const bytes = await readFile(source)
-    const cap = INLINE_REFERENCE_CAP_BYTES[mediaType]
-    if (bytes.byteLength > cap) {
-      throw new Error(
-        `reference ${source} is ${Math.round(bytes.byteLength / 1024 / 1024)} MB, over the `
-        + `${Math.round(cap / 1024 / 1024)} MB ${mediaType} cap; host it and pass an https URL instead`,
-      )
-    }
-    const ext = extname(source).toLowerCase().replace('.', '') || 'bin'
-    const base64 = bytes.toString('base64')
-    return `data:${mediaType}/${ext};base64,${base64}`
+    return await inlineMediaSource(source, mediaType, INLINE_REFERENCE_CAP_BYTES[mediaType])
   }
 
   async function toBody(request: SegmentRequest): Promise<string> {

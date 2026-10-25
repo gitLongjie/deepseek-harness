@@ -1217,4 +1217,92 @@ describe('H3CardController', () => {
     expect(credentials.set).toHaveBeenCalledWith('MINIMAX_API_KEY', 'mm-secret')
     expect(host.set).not.toHaveBeenCalledWith('minimaxApiKey', expect.anything())
   })
+
+  it('reads and writes the AutoDL token under the default GPU reference', async () => {
+    const host = stubSettingsScope<H3VideoSettings>()
+    const describe = vi.fn(() => Promise.resolve({
+      ok: true as const,
+      value: {
+        MINIMAX_API_KEY: { configured: false, writable: true },
+        AUTODL_TOKEN: { configured: true, writable: true },
+      },
+    }))
+    const set = vi.fn(() => Promise.resolve({ ok: true as const, value: undefined }))
+    const controller = new H3CardController(host.scope, H3_ALL_FIELDS, ctxWith({ credentials: { describe, set } }))
+    host.publish({ status: 'ready', writable: true, value: {}, user: {} })
+    const state = () => controller.inject().hooks.h3Card.getSnapshot()
+    await vi.waitFor(() => { expect(state().gpuApiTokenConfigured).toBe(true) })
+
+    const face = controller.inject()
+    face.edit('gpuApiToken', ' adl-secret ')
+    face.save()
+    await vi.waitFor(() => { expect(set).toHaveBeenCalled() })
+
+    expect(set).toHaveBeenCalledWith('AUTODL_TOKEN', 'adl-secret')
+    expect(host.set).not.toHaveBeenCalledWith('gpuApiToken', expect.anything())
+  })
+
+  it('addresses the GPU token reference the section names', async () => {
+    const host = stubSettingsScope<H3VideoSettings>()
+    const describe = vi.fn(() => Promise.resolve({ ok: true as const, value: {} }))
+    new H3CardController(
+      host.scope,
+      H3_ALL_FIELDS,
+      ctxWith({ credentials: { describe, set: vi.fn() } }),
+    )
+    host.publish({ status: 'ready', writable: true, value: { gpuApiTokenRef: 'MY_ADL' }, user: {} })
+    await vi.waitFor(() => {
+      expect(describe).toHaveBeenCalledWith(['MINIMAX_API_KEY', 'MY_ADL'])
+    })
+  })
+
+  it('drops a credential answer for a reference the section no longer names', async () => {
+    const host = stubSettingsScope<H3VideoSettings>()
+    let release: (() => void) | undefined
+    const gate = new Promise<void>((resolve) => { release = resolve })
+    const describe = vi.fn(() => gate.then(() => ({
+      ok: true as const,
+      value: {
+        MINIMAX_API_KEY: { configured: false, writable: true },
+        AUTODL_TOKEN: { configured: true, writable: true },
+      },
+    })))
+    const controller = new H3CardController(
+      host.scope,
+      H3_ALL_FIELDS,
+      ctxWith({ credentials: { describe, set: vi.fn() } }),
+    )
+    host.publish({ status: 'ready', writable: true, value: {}, user: {} })
+    await vi.waitFor(() => { expect(describe).toHaveBeenCalled() })
+
+    // The section names another GPU reference before the first answer settles.
+    host.publish({ status: 'ready', writable: true, value: { gpuApiTokenRef: 'OTHER_ADL' }, user: {} })
+    release?.()
+    await vi.waitFor(() => { expect(describe).toHaveBeenCalledTimes(3) })
+    expect(controller.inject().hooks.h3Card.getSnapshot().gpuApiTokenConfigured).toBe(false)
+  })
+
+  it('re-reads when the Host reports either watched reference changed', async () => {
+    const host = stubSettingsScope<H3VideoSettings>()
+    const describe = vi.fn(() => Promise.resolve({
+      ok: true as const,
+      value: {
+        MINIMAX_API_KEY: { configured: false, writable: true },
+        AUTODL_TOKEN: { configured: false, writable: true },
+      },
+    }))
+    const controller = new H3CardController(
+      host.scope,
+      H3_ALL_FIELDS,
+      ctxWith({ credentials: { describe, set: vi.fn() } }),
+    )
+    host.publish({ status: 'ready', writable: true, value: {}, user: {} })
+    await vi.waitFor(() => { expect(describe).toHaveBeenCalled() })
+    const before = describe.mock.calls.length
+
+    controller.refreshCredential('UNRELATED')
+    expect(describe).toHaveBeenCalledTimes(before)
+    controller.refreshCredential('AUTODL_TOKEN')
+    await vi.waitFor(() => { expect(describe).toHaveBeenCalledTimes(before + 1) })
+  })
 })

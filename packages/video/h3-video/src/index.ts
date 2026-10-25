@@ -19,12 +19,17 @@ import { createMiniMaxApiProvider } from './minimax-api.ts'
 import type { MiniMaxApiOptions } from './minimax-api.ts'
 import { createMiniMaxImageProvider } from './minimax-image.ts'
 import type { KeyframeRequest, MiniMaxImageOptions } from './minimax-image.ts'
+import { createComfyUIImageProvider } from './comfy-image.ts'
+import { logRequest } from './log.ts'
 import { resolve as routeRequest } from './routing.ts'
 import type { BackendChoice, RoutedProvider } from './routing.ts'
 import { assembleVideo } from './assembly.ts'
 import type { AssemblyOptions, AssemblySegment } from './assembly.ts'
 import type { H3TaskRef, ProviderCapabilities, SegmentRequest, TaskStatus } from './types.ts'
 import type { H3VideoSettingsSection } from './settings.ts'
+import { createAutoDLClient, createAutoDLVendor } from './autodl.ts'
+import { GpuInstancePool } from './gpu.ts'
+import type { GpuIdleAction, GpuStatus } from './gpu.ts'
 
 export type {
   H3VideoProvider,
@@ -47,6 +52,21 @@ export { createMiniMaxApiProvider } from './minimax-api.ts'
 export type { MiniMaxApiOptions, ApiKeySource } from './minimax-api.ts'
 export { createMiniMaxImageProvider } from './minimax-image.ts'
 export type { KeyframeRequest, MiniMaxImageOptions } from './minimax-image.ts'
+export { createComfyUIImageProvider } from './comfy-image.ts'
+export type { ComfyImageOptions, ImageFetchLike } from './comfy-image.ts'
+export { AutoDLClient, AutoDLError, createAutoDLClient, createAutoDLVendor, normalizeGpuRunState, serviceDomainUrl } from './autodl.ts'
+export type { AutoDLClientOptions, AutoDLCreateSpec, AutoDLInstance, AutoDLSnapshot, AutoDLVendorOptions } from './autodl.ts'
+export { GpuInstancePool } from './gpu.ts'
+export type {
+  GpuDisposeOptions,
+  GpuIdleAction,
+  GpuInstanceState,
+  GpuPoolOptions,
+  GpuRunState,
+  GpuStatus,
+  GpuVendor,
+  GpuVendorInstance,
+} from './gpu.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -56,9 +76,65 @@ declare module '@deepseek-ai/cordis' {
 
 const RESOLUTIONS = ['480P', '768P', '2K'] as const
 
+/**
+ * Cloud GPU instance that serves the local ComfyUI backend, created on demand and stopped or
+ * released when generation stops. The implemented vendor is AutoDL's container-instance Pro API;
+ * `gpuSpecUuid` is the row's anchor — a row without it leaves the GPU unmanaged and keeps the
+ * static `comfy.url`.
+ */
+export interface GpuConfig {
+  /**
+   * Compute specification id. AutoDL ids follow the account's GPU table (`v-32g-p`, `pro6000-p`,
+   * `4090D`, …).
+   */
+  gpuSpecUuid?: string
+  /** Boot image uuid carrying the ComfyUI installation and H3 weights. */
+  imageUuid?: string
+  /**
+   * Account API token. Prefer `apiTokenRef` so the secret lives in the managed credential store; a
+   * literal here lands in the composition file.
+   */
+  apiToken?: string
+  /**
+   * Credential reference resolved through `ctx.credentials` on every request (e.g.
+   * `AUTODL_TOKEN`, stored via the credentials store or that environment variable).
+   */
+  apiTokenRef?: string
+  /** Vendor API origin. */
+  baseUrl?: string
+  /** Minimum CUDA code the scheduled host must satisfy (118 = 11.8). */
+  cudaVersion?: number
+  /** GPU count, 1–4. */
+  gpuAmount?: number
+  /** System-disk expansion in GB, 0–500. */
+  systemDiskGb?: number
+  /** Preferred data centers, in order; the vendor schedules when omitted. */
+  dataCenterList?: string[]
+  /** Instance name; an existing instance with this name is powered on instead of creating another. */
+  instanceName?: string
+  /** Command the vendor runs after boot; it must start the ComfyUI server on `servicePort`. */
+  startCommand?: string
+  /** Service port the vendor maps to the ComfyUI HTTP API. */
+  servicePort?: number
+  /** Milliseconds between instance status and readiness polls. */
+  pollIntervalMs?: number
+  /** Wall-clock bound on boot plus ComfyUI readiness, in milliseconds. */
+  bootTimeoutMs?: number
+  /** Readiness probe bound per attempt, in milliseconds. */
+  probeTimeoutMs?: number
+  /** Per-call vendor API bound, in milliseconds. */
+  requestTimeoutMs?: number
+  /** Idle milliseconds before `idleAction` runs; `0` leaves the instance up until an explicit call. */
+  idleTimeoutMs?: number
+  /** What idle handling does: power the instance off (keeps its disk), or release it. */
+  idleAction?: GpuIdleAction
+  /** Release the instance when the video service is disposed, instead of leaving it to the idle policy. */
+  releaseOnDispose?: boolean
+}
+
 /** Local ComfyUI backend row. */
 export interface ComfyConfig {
-  /** ComfyUI server origin. */
+  /** ComfyUI server origin; required unless `gpu` provisions one. */
   url?: string
   /** JSON workflow template path with `"{{field}}"` placeholders. */
   workflowPath?: string
@@ -91,6 +167,50 @@ export interface ComfyConfig {
   minDurationSeconds?: number
   /** Maximum accepted seconds per segment. */
   maxDurationSeconds?: number
+  /** Cloud GPU row; present and anchored, it supplies `url` from the provisioned instance. */
+  gpu?: GpuConfig
+  /**
+   * Local text-to-image row: the ComfyUI workflow that generates keyframes and asset stills on the
+   * same machine as the video. Present and anchored, it replaces the hosted image API, so stills
+   * cost GPU time instead of per-image billing.
+   */
+  image?: ComfyImageConfig
+}
+
+/** Local text-to-image row over a ComfyUI workflow template. */
+export interface ComfyImageConfig {
+  /** JSON workflow template with `"{{prompt}}"`, `"{{seed}}"`, `"{{width}}"`, `"{{height}}"`. */
+  workflowPath?: string
+  /**
+   * Workflow used when the request carries a confirmed portrait: it gets the same placeholders plus
+   * `"{{reference}}"`, the uploaded image name, so the still is redrawn from that face.
+   */
+  referenceWorkflowPath?: string
+  /** Prompt placeholder name. */
+  promptField?: string
+  /** Reference-image placeholder name (reference workflow only). */
+  referenceField?: string
+  /** Seed placeholder name. */
+  seedField?: string
+  /** Width placeholder name. */
+  widthField?: string
+  /** Height placeholder name. */
+  heightField?: string
+  /** Milliseconds between history polls. */
+  pollIntervalMs?: number
+  /** Wall-clock bound on one still. */
+  taskTimeoutMs?: number
+}
+
+/** Text-to-image backend behind keyframes and asset stills. */
+export interface ImageProvider {
+  /**
+   * Generate one still.
+   * @param request - prompt, ratio, and optional seed.
+   * @param signal - cancellation.
+   * @returns the absolute path of the written image.
+   */
+  generate(request: KeyframeRequest, signal: AbortSignal): Promise<string>
 }
 
 /** Hosted MiniMax backend row. */
@@ -160,7 +280,7 @@ export const Config = z.object({
   minFreeSpaceMb: z.number().step(1).min(0).default(1024),
   estimatedBytesPerSecond: z.number().min(1).default(2_000_000),
   comfy: z.object({
-    url: z.string().default('http://127.0.0.1:8188'),
+    url: z.string(),
     workflowPath: z.string(),
     promptField: z.string().default('prompt'),
     resolutionField: z.string().default('resolution'),
@@ -175,6 +295,38 @@ export const Config = z.object({
     resolutions: z.array(z.union(RESOLUTIONS)).default(['768P']),
     minDurationSeconds: z.number().step(1).min(1).default(4),
     maxDurationSeconds: z.number().step(1).min(1).default(10),
+    gpu: z.object({
+      gpuSpecUuid: z.string(),
+      imageUuid: z.string(),
+      apiToken: z.string(),
+      apiTokenRef: z.string(),
+      baseUrl: z.string().default('https://api.autodl.com'),
+      cudaVersion: z.number().step(1).min(0).default(118),
+      gpuAmount: z.number().step(1).min(1).max(4).default(1),
+      systemDiskGb: z.number().step(1).min(0).max(500).default(0),
+      dataCenterList: z.array(z.string()),
+      instanceName: z.string().default('dsh-h3-video'),
+      startCommand: z.string(),
+      servicePort: z.number().step(1).min(1).max(65_535).default(6006),
+      pollIntervalMs: z.number().min(1_000).default(10_000),
+      bootTimeoutMs: z.number().min(60_000).default(1_800_000),
+      probeTimeoutMs: z.number().min(1_000).default(15_000),
+      requestTimeoutMs: z.number().min(1_000).default(60_000),
+      idleTimeoutMs: z.number().step(1).min(0).default(1_800_000),
+      idleAction: z.union(['power_off', 'release'] as const).default('power_off'),
+      releaseOnDispose: z.boolean().default(false),
+    }),
+    image: z.object({
+      workflowPath: z.string(),
+      referenceWorkflowPath: z.string(),
+      promptField: z.string().default('prompt'),
+      referenceField: z.string().default('reference'),
+      seedField: z.string().default('seed'),
+      widthField: z.string().default('width'),
+      heightField: z.string().default('height'),
+      pollIntervalMs: z.number().min(500).default(3_000),
+      taskTimeoutMs: z.number().min(60_000).default(600_000),
+    }),
   }),
   minimax: z.object({
     apiKey: z.string(),
@@ -270,12 +422,12 @@ export abstract class H3Video extends Service {
   /**
    * Generate one still keyframe for a shot, establishing the scene before video generation. Uses
    * the hosted image model; local ComfyUI has no H3 text-to-image node.
-   * @param prompt - shot description, at most 1500 characters.
-   * @param ratio - output aspect ratio.
+   * @param request - shot description, aspect ratio, optional seed, and an optional character
+   * reference that keeps the still on the confirmed character.
    * @param signal - cancellation of the keyframe generation.
    * @returns the absolute path of the downloaded keyframe file.
    */
-  abstract keyframe(prompt: string, ratio: KeyframeRequest['ratio'], signal: AbortSignal): Promise<string>
+  abstract keyframe(request: KeyframeRequest, signal: AbortSignal): Promise<string>
 
   /**
    * Concatenate ordered segment files into one mp4.
@@ -284,6 +436,27 @@ export abstract class H3Video extends Service {
    * @returns the absolute path of the assembled mp4.
    */
   abstract assemble(segments: readonly AssemblySegment[], options: AssemblyOptions): Promise<string>
+
+  /**
+   * Read the cloud GPU backing the local backend. With a tracked instance the vendor state is
+   * re-read; otherwise the cached lifecycle view answers immediately.
+   * @returns the lifecycle view; `configured: false` when the composition carries no GPU row.
+   */
+  abstract gpuStatus(): Promise<GpuStatus>
+
+  /**
+   * Boot or reuse the cloud GPU and wait until ComfyUI answers. A routable local submission does
+   * this implicitly; calling it first surfaces boot failures before a render is submitted.
+   * @returns the lifecycle view once the instance is running.
+   */
+  abstract gpuUp(): Promise<GpuStatus>
+
+  /**
+   * Power the cloud GPU off, or release it and its disk. Cloud GPU time is billed while it runs.
+   * @param mode - `stop` keeps the instance for a later boot; `release` deletes it.
+   * @returns the lifecycle view after the operation.
+   */
+  abstract gpuDown(mode: 'stop' | 'release'): Promise<GpuStatus>
 }
 
 /**
@@ -318,6 +491,7 @@ export function resolveOverlayConfig(base: Config, overlay: H3VideoSettingsSecti
   const minimaxOverlay: Partial<NonNullable<Config['minimax']>> = {}
   const minimaxBaseUrl = text(overlay.minimaxBaseUrl)
   const minimaxApiKeyRef = text(overlay.minimaxApiKeyRef)
+  const gpuApiTokenRef = text(overlay.gpuApiTokenRef)
   const minimaxModel = text(overlay.minimaxModel)
   if (minimaxBaseUrl !== undefined) minimaxOverlay.baseUrl = minimaxBaseUrl
   if (minimaxModel !== undefined) minimaxOverlay.model = minimaxModel
@@ -334,9 +508,14 @@ export function resolveOverlayConfig(base: Config, overlay: H3VideoSettingsSecti
   const outputDir = text(overlay.outputDir) ?? base.outputDir
   const minFreeSpaceMb = overlay.minFreeSpaceMb ?? base.minFreeSpaceMb
   const estimatedBytesPerSecond = overlay.estimatedBytesPerSecond ?? base.estimatedBytesPerSecond
+  // The GPU row is nested under `comfy`, so the flat reference replaces just that field and keeps
+  // the composition's compute specification, image, and boot command.
+  const gpu = gpuApiTokenRef === undefined
+    ? base.comfy?.gpu
+    : { ...base.comfy?.gpu, apiTokenRef: gpuApiTokenRef }
   const comfy = base.comfy === undefined && Object.keys(comfyOverlay).length === 0
     ? undefined
-    : { ...base.comfy, ...comfyOverlay }
+    : { ...base.comfy, ...comfyOverlay, ...gpu !== undefined ? { gpu } : {} }
   const minimax = base.minimax === undefined && Object.keys(minimaxOverlay).length === 0
     ? undefined
     : { ...base.minimax, ...minimaxOverlay }
@@ -349,14 +528,64 @@ export function resolveOverlayConfig(base: Config, overlay: H3VideoSettingsSecti
   }
 }
 
+/**
+ * Resolve a credential reference into a per-request secret source.
+ * @param ctx - plugin context carrying the optional credentials service.
+ * @param ref - reference name, e.g. `AUTODL_TOKEN`.
+ * @param requirement - configuration field that named the reference, for the failure message.
+ * @returns a resolver reading the current secret on every call.
+ */
+function credentialSource(ctx: Context, ref: string, requirement: string): () => Promise<string> {
+  const credentials = ctx.get('credentials')
+  if (credentials === undefined) {
+    throw new Error(`h3-video: ${requirement} requires the credentials service (load @deepseek-ai/dsh-credentials-local)`)
+  }
+  const branded = credentialRef(ref)
+  return async () => {
+    const resolved = await credentials.resolve(branded)
+    if (resolved === undefined) {
+      throw new Error(`h3-video: credential ${ref} is not configured (store it via the credentials service or the ${ref} environment variable)`)
+    }
+    return resolved.value
+  }
+}
+
+/**
+ * Ask a ComfyUI origin whether it answers. The static local backend has no cloud GPU row to report
+ * its lifecycle, so a status call is the only way a caller learns whether it is serving.
+ * @param url - ComfyUI origin.
+ * @returns whether `/system_stats` answered within the probe bound.
+ */
+async function probeComfy(url: string): Promise<boolean> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => { controller.abort() }, 1_500)
+  timer.unref()
+  try {
+    const response = await fetch(`${url.replace(/\/+$/u, '')}/system_stats`, { signal: controller.signal })
+    return response.ok
+  } catch {
+    // Unreachable, refused, or timed out all mean the same thing to a caller: not serving now.
+    return false
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 /** The in-process {@link H3Video} over configured backends. */
 class LocalH3Video extends H3Video {
   static inject = [] as const
   static Config = Config
 
   private providersList: readonly RoutedProvider[] = []
-  private imageProvider: ReturnType<typeof createMiniMaxImageProvider> | undefined
+  private imageProvider: ImageProvider | undefined
   private outputDirectory: string = ''
+  private gpuPool: GpuInstancePool | undefined
+  /** Address the local backend was configured with, when no cloud GPU row supplies one. */
+  private staticComfyUrl: string | undefined
+  /** Which image backend keyframes use, for the request log. */
+  private imageProviderName: 'comfy-img2img' | 'comfy-txt2img' | 'minimax' = 'minimax'
+  /** Local task references still being polled; each one blocks idle GPU teardown. */
+  private readonly liveLocalTasks = new Set<string>()
 
   constructor(ctx: Context, config: Config) {
     super(ctx)
@@ -366,6 +595,7 @@ class LocalH3Video extends H3Video {
     // from its first request.
     const view = ctx.get('h3VideoSettings')
     this.build(view === undefined ? config : resolveOverlayConfig(config, view.get()))
+    ctx.effect(() => async () => { await this.gpuPool?.dispose() }, 'h3-video: gpu instance pool')
     if (view === undefined) return
     ctx.effect(
       () => view.watch((next) => {
@@ -401,11 +631,26 @@ class LocalH3Video extends H3Video {
       throw new Error('h3-video: configure at least one backend (set comfy.workflowPath and/or minimax.apiKey)')
     }
     const providers: RoutedProvider[] = []
+    const gpuPool = this.buildGpuPool(config)
     if (comfy !== undefined) {
       const workflowPath = comfy.workflowPath
       if (typeof workflowPath === 'string' && workflowPath.length > 0) {
+        if (gpuPool === undefined) {
+          // A wrong address here is invisible until a render fails, and a fallback would send the
+          // work to a machine the deployment never named — so an absent address fails at load,
+          // where the fix is obvious.
+          const configured = comfy.url
+          if (typeof configured !== 'string' || configured.length === 0) {
+            throw new Error(
+              'h3-video: comfy.url is required when no cloud GPU row supplies the address '
+              + '(set it to the ComfyUI origin, e.g. https://host:8443)',
+            )
+          }
+        }
         const options: ComfyUIOptions = {
-          baseUrl: comfy.url ?? 'http://127.0.0.1:8188',
+          ...(gpuPool === undefined
+            ? { baseUrl: comfy.url as string }
+            : { resolveBaseUrl: () => gpuPool.ensure() }),
           workflowPath: expandHomePath(workflowPath),
           promptField: comfy.promptField ?? 'prompt',
           resolutionField: comfy.resolutionField ?? 'resolution',
@@ -425,6 +670,30 @@ class LocalH3Video extends H3Video {
           estimatedBytesPerSecond,
         }
         providers.push({ choice: 'local', provider: createComfyUIProvider(options) })
+        if (gpuPool === undefined) this.staticComfyUrl = comfy.url as string
+        const imageWorkflow = comfy.image?.workflowPath
+        if (typeof imageWorkflow === 'string' && imageWorkflow.length > 0) {
+          // Stills on the same GPU as the video: no per-image billing, and one machine to keep up.
+          this.imageProvider = createComfyUIImageProvider({
+            baseUrl: comfy.url as string,
+            workflowPath: expandHomePath(imageWorkflow),
+            ...(typeof comfy.image?.referenceWorkflowPath === 'string' && comfy.image.referenceWorkflowPath.length > 0
+              ? { referenceWorkflowPath: expandHomePath(comfy.image.referenceWorkflowPath) }
+              : {}),
+            promptField: comfy.image?.promptField ?? 'prompt',
+            referenceField: comfy.image?.referenceField ?? 'reference',
+            seedField: comfy.image?.seedField ?? 'seed',
+            widthField: comfy.image?.widthField ?? 'width',
+            heightField: comfy.image?.heightField ?? 'height',
+            outputDir: join(outputDir, 'keyframes'),
+            pollIntervalMs: comfy.image?.pollIntervalMs ?? 3_000,
+            taskTimeoutMs: comfy.image?.taskTimeoutMs ?? 600_000,
+          })
+          this.imageProviderName = typeof comfy.image?.referenceWorkflowPath === 'string'
+            && comfy.image.referenceWorkflowPath.length > 0
+            ? 'comfy-img2img'
+            : 'comfy-txt2img'
+        }
       }
     }
     if (hasMinimax) {
@@ -436,20 +705,7 @@ class LocalH3Video extends H3Video {
       if (typeof apiKey === 'string' && apiKey.length > 0) {
         apiKeySource = apiKey
       } else if (typeof apiKeyRef === 'string' && apiKeyRef.length > 0) {
-        const credentials = this.ctx.get('credentials')
-        if (credentials === undefined) {
-          throw new Error('h3-video: minimax.apiKeyRef requires the credentials service (load @deepseek-ai/dsh-credentials-local)')
-        }
-        const ref = credentialRef(apiKeyRef)
-        apiKeySource = async () => {
-          const resolved = await credentials.resolve(ref)
-          if (resolved === undefined) {
-            throw new Error(
-              `h3-video: credential ${apiKeyRef} is not configured (store it via the credentials service or the ${apiKeyRef} environment variable)`,
-            )
-          }
-          return resolved.value
-        }
+        apiKeySource = credentialSource(this.ctx, apiKeyRef, 'minimax.apiKeyRef')
       } else {
         throw new Error('h3-video: minimax.apiKey or minimax.apiKeyRef is required to enable the remote backend')
       }
@@ -470,15 +726,105 @@ class LocalH3Video extends H3Video {
         estimatedBytesPerSecond,
       }
       providers.push({ choice: 'remote', provider: createMiniMaxApiProvider(videoOptions) })
-      this.imageProvider = createMiniMaxImageProvider({
-        apiKey: apiKeySource,
-        baseUrl,
-        model: (mm.imageModel ?? 'image-01') as MiniMaxImageOptions['model'],
-        outputDir: join(outputDir, 'keyframes'),
-        minFreeSpaceBytes,
-      })
+      // The local image workflow, when configured, already owns stills: the hosted image API then
+      // stays unused rather than shadowing it.
+      if (this.imageProvider === undefined) {
+        this.imageProvider = createMiniMaxImageProvider({
+          apiKey: apiKeySource,
+          baseUrl,
+          model: (mm.imageModel ?? 'image-01') as MiniMaxImageOptions['model'],
+          outputDir: join(outputDir, 'keyframes'),
+          minFreeSpaceBytes,
+        })
+        this.imageProviderName = 'minimax'
+      }
     }
     this.providersList = providers
+    // Swap the pool only after every provider built, so a rejected rebuild keeps serving the last
+    // good configuration. A superseded pool stops its timers but leaves the instance to the new
+    // pool's reuse key instead of billing a stop and an immediate boot.
+    const previousPool = this.gpuPool
+    this.gpuPool = gpuPool
+    if (previousPool !== undefined) void previousPool.dispose({ release: false })
+  }
+
+  /**
+   * Build the cloud GPU pool from the composition's `comfy.gpu` row.
+   * @param config - effective configuration.
+   * @returns the pool, or `undefined` when the row carries no anchor.
+   */
+  private buildGpuPool(config: Config): GpuInstancePool | undefined {
+    const comfy = config.comfy
+    const gpu = comfy?.gpu
+    if (comfy === undefined || gpu === undefined) return undefined
+    const gpuSpecUuid = gpu.gpuSpecUuid
+    if (typeof gpuSpecUuid !== 'string' || gpuSpecUuid.length === 0) return undefined
+    if (typeof comfy.url === 'string' && comfy.url.length > 0) {
+      throw new Error(
+        'h3-video: comfy.url and comfy.gpu are mutually exclusive; the ComfyUI address comes from the provisioned instance',
+      )
+    }
+    if (typeof comfy.inputDir === 'string' && comfy.inputDir.length > 0) {
+      throw new Error(
+        'h3-video: comfy.inputDir is a local path and cannot reach a provisioned GPU; drop it so keyframes upload through the ComfyUI API',
+      )
+    }
+    const imageUuid = gpu.imageUuid
+    if (typeof imageUuid !== 'string' || imageUuid.length === 0) {
+      throw new Error('h3-video: comfy.gpu.imageUuid is required alongside comfy.gpu.gpuSpecUuid')
+    }
+    let token: string | (() => Promise<string>)
+    if (typeof gpu.apiToken === 'string' && gpu.apiToken.length > 0) {
+      token = gpu.apiToken
+    } else if (typeof gpu.apiTokenRef === 'string' && gpu.apiTokenRef.length > 0) {
+      token = credentialSource(this.ctx, gpu.apiTokenRef, 'comfy.gpu.apiTokenRef')
+    } else {
+      throw new Error('h3-video: comfy.gpu.apiToken or comfy.gpu.apiTokenRef is required to provision a GPU instance')
+    }
+    const instanceName = gpu.instanceName ?? 'dsh-h3-video'
+    const servicePort = gpu.servicePort ?? 6006
+    const probeTimeoutMs = gpu.probeTimeoutMs ?? 15_000
+    const vendor = createAutoDLVendor({
+      client: createAutoDLClient({
+        token,
+        baseUrl: gpu.baseUrl ?? 'https://api.autodl.com',
+        timeoutMs: gpu.requestTimeoutMs ?? 60_000,
+      }),
+      spec: {
+        gpuSpecUuid,
+        imageUuid,
+        cudaVersion: gpu.cudaVersion ?? 118,
+        gpuAmount: gpu.gpuAmount ?? 1,
+        systemDiskGb: gpu.systemDiskGb ?? 0,
+        ...(gpu.dataCenterList !== undefined && gpu.dataCenterList.length > 0
+          ? { dataCenterList: gpu.dataCenterList }
+          : {}),
+        ...(typeof gpu.startCommand === 'string' && gpu.startCommand.length > 0
+          ? { startCommand: gpu.startCommand }
+          : {}),
+      },
+      instanceName,
+      servicePort,
+    })
+    return new GpuInstancePool({
+      vendor,
+      instanceName,
+      servicePort,
+      pollIntervalMs: gpu.pollIntervalMs ?? 10_000,
+      bootTimeoutMs: gpu.bootTimeoutMs ?? 1_800_000,
+      idleTimeoutMs: gpu.idleTimeoutMs ?? 1_800_000,
+      idleAction: gpu.idleAction ?? 'power_off',
+      releaseOnDispose: gpu.releaseOnDispose ?? false,
+      probe: async (url: string) => {
+        try {
+          const response = await fetch(`${url}/system_stats`, { signal: AbortSignal.timeout(probeTimeoutMs) })
+          return response.ok
+        } catch {
+          // A booting instance refuses connections or times out; readiness is the retry loop.
+          return false
+        }
+      },
+    })
   }
 
   override get providers(): readonly RoutedProvider[] {
@@ -489,11 +835,22 @@ class LocalH3Video extends H3Video {
     return this.outputDirectory
   }
 
-  override async keyframe(prompt: string, ratio: KeyframeRequest['ratio'], signal: AbortSignal): Promise<string> {
+  override async keyframe(request: KeyframeRequest, signal: AbortSignal): Promise<string> {
     if (this.imageProvider === undefined) {
-      throw new Error('h3-video: keyframe generation needs the remote backend (configure minimax.apiKey or minimax.apiKeyRef)')
+      throw new Error('h3-video: keyframe generation needs an image backend (set comfy.image.workflowPath for the local GPU, or minimax.apiKey for the hosted API)')
     }
-    return this.imageProvider.generate({ prompt, ratio }, signal)
+    const file = await this.imageProvider.generate(request, signal)
+    // The log records what the still was actually conditioned on: a missing portrait is the usual
+    // reason a character comes back invented, and this is where that shows up.
+    await logRequest(this.outputDirectory, 'keyframe', {
+      provider: this.imageProviderName,
+      subjectReference: request.subjectReference ?? null,
+      ratio: request.ratio,
+      seed: request.seed ?? null,
+      promptHead: request.prompt.slice(0, 160),
+      file,
+    })
+    return file
   }
 
   override diskFreeMegabytes(): Promise<number | undefined> {
@@ -520,20 +877,119 @@ class LocalH3Video extends H3Video {
     signal: AbortSignal,
   ): Promise<{ readonly target: RoutedProvider; readonly ref: H3TaskRef }> {
     const resolved = routeRequest(choice, this.providersList, request)
-    const ref = await resolved.provider.submit(request, signal)
+    await logRequest(this.outputDirectory, 'video', {
+      requested: choice,
+      resolved: resolved.choice,
+      ratio: request.ratio,
+      durationSeconds: request.durationSeconds,
+      inputs: request.inputs.map(input => input.type === 'text'
+        ? { type: 'text', head: input.text.slice(0, 120) }
+        : { type: input.type, role: input.role, source: input.url }),
+    })
+    // A routable local submission owns the cloud GPU: boot (or reuse) it before the workflow is
+    // enqueued, and hold the idle timer off until this task settles.
+    const pool = resolved.choice === 'local' ? this.gpuPool : undefined
+    if (pool !== undefined) {
+      await pool.ensure()
+      pool.taskStarted()
+    }
+    let ref: H3TaskRef
+    try {
+      ref = await resolved.provider.submit(request, signal)
+    } catch (error: unknown) {
+      if (pool !== undefined) pool.taskFinished()
+      throw error
+    }
+    if (pool !== undefined) this.liveLocalTasks.add(String(ref))
     return { target: { choice: resolved.choice, provider: resolved.provider }, ref }
   }
 
-  override poll(target: RoutedProvider, ref: H3TaskRef, signal: AbortSignal): Promise<TaskStatus> {
-    return target.provider.poll(ref, signal)
+  override async poll(target: RoutedProvider, ref: H3TaskRef, signal: AbortSignal): Promise<TaskStatus> {
+    try {
+      const status = await target.provider.poll(ref, signal)
+      if (status.state === 'succeeded' || status.state === 'failed') this.settleLocalTask(target, ref)
+      return status
+    } catch (error: unknown) {
+      // A poll that throws (cancellation, transport failure) also ends this task.
+      this.settleLocalTask(target, ref)
+      throw error
+    }
   }
 
-  override cancel(target: RoutedProvider, ref: H3TaskRef): Promise<void> {
-    return target.provider.cancel(ref)
+  override async cancel(target: RoutedProvider, ref: H3TaskRef): Promise<void> {
+    try {
+      await target.provider.cancel(ref)
+    } finally {
+      this.settleLocalTask(target, ref)
+    }
   }
 
   override assemble(segments: readonly AssemblySegment[], options: AssemblyOptions): Promise<string> {
     return assembleVideo(segments, options)
+  }
+
+  override async gpuStatus(): Promise<GpuStatus> {
+    if (this.gpuPool !== undefined) return await this.gpuPool.refresh()
+    const url = this.staticComfyUrl
+    if (url === undefined) return { configured: false, state: 'absent' }
+    // A static address is a real local backend even though no cloud GPU row manages it; reporting
+    // it as "not configured" reads as "no local backend", which sends callers to the paid API.
+    const reachable = await probeComfy(url)
+    return {
+      configured: true,
+      vendor: 'static',
+      serviceUrl: url,
+      state: reachable ? 'running' : 'stopped',
+      ...reachable ? {} : { error: `ComfyUI at ${url} did not answer` },
+    }
+  }
+
+  override async gpuUp(): Promise<GpuStatus> {
+    const pool = this.gpuPool
+    if (pool !== undefined) {
+      await pool.ensure()
+      return pool.current()
+    }
+    const url = this.staticComfyUrl
+    if (url === undefined) {
+      throw new Error('h3-video: no cloud GPU is configured (set comfy.gpu.gpuSpecUuid and its image, token, and start command)')
+    }
+    if (!await probeComfy(url)) {
+      throw new Error(
+        `h3-video: the static ComfyUI backend at ${url} is not reachable — start the instance, then retry`,
+      )
+    }
+    return {
+      configured: true,
+      vendor: 'static',
+      serviceUrl: url,
+      state: 'running',
+    }
+  }
+
+  override async gpuDown(mode: 'stop' | 'release'): Promise<GpuStatus> {
+    const pool = this.gpuPool
+    if (pool === undefined) {
+      if (this.staticComfyUrl !== undefined) {
+        throw new Error(
+          `h3-video: the local ComfyUI backend uses the static address ${this.staticComfyUrl}; `
+          + 'power that instance off where it runs, not through video_gpu',
+        )
+      }
+      throw new Error('h3-video: no cloud GPU is configured (set comfy.gpu.gpuSpecUuid and its image, token, and start command)')
+    }
+    return mode === 'release' ? await pool.release() : await pool.stop()
+  }
+
+  /**
+   * Release one settled local task's hold on the GPU idle timer; other backends have no instance.
+   * @param target - the routed provider that served the task.
+   * @param ref - the settled task reference.
+   */
+  private settleLocalTask(target: RoutedProvider, ref: H3TaskRef): void {
+    if (target.choice !== 'local') return
+    if (!this.liveLocalTasks.delete(String(ref))) return
+    this.gpuPool?.taskFinished()
   }
 }
 

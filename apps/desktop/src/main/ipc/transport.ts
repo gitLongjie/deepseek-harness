@@ -77,9 +77,13 @@ export async function dispatchTransportFetch(
   // channel's trust fence; browser markers never exist on this seam, so
   // nothing else is forwarded from the renderer.
   const contentType = req.headers?.['content-type']
+  // Media elements reach this carrier through the app-scheme protocol handler; without the range
+  // header the file route answers the whole body and the element cannot seek.
+  const range = req.headers?.range
   init.headers = {
     host: new URL(LOOPBACK_AUTHORITY).host,
     ...(contentType === undefined ? {} : { 'content-type': contentType }),
+    ...(range === undefined ? {} : { range }),
   }
   if (req.body !== undefined) init.body = req.body
   const handler = connection.createSharedFetchHandler('/api', connection.createChannelsFetchHandler({

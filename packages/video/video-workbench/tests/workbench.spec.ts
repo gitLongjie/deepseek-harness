@@ -5,14 +5,15 @@
  */
 
 import { afterEach, describe, expect, it } from 'vitest'
-import { mkdtempSync, rmSync, symlinkSync, truncateSync, writeFileSync, mkdirSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, truncateSync, writeFileSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import { dshCachePath } from '@deepseek-ai/dsh-home-paths'
 import * as plugin from '../src/index.ts'
-import { resolveWorkbenchFile } from '../src/file-serve.ts'
+import { parseRange, resolveWorkbenchFile } from '../src/file-serve.ts'
 import { scanProjects } from '../src/projects.ts'
+import { deleteAsset, deleteProject } from '../src/trash.ts'
 
 const tempDirs: string[] = []
 
@@ -23,7 +24,9 @@ afterEach(() => {
 function outputTree(): string {
   const dir = mkdtempSync(join(tmpdir(), 'video-workbench-'))
   tempDirs.push(dir)
-  return dir
+  const output = join(dir, 'video')
+  mkdirSync(output)
+  return output
 }
 
 function writePlan(dir: string, plan: Record<string, unknown>): void {
@@ -49,7 +52,179 @@ const PLAN = {
   ],
 }
 
+describe('deletions', () => {
+  it('retains images and clips referenced directly by another storyboard', async () => {
+    const dir = outputTree()
+    writePlan(dir, PLAN)
+    writePlan(dir, { ...PLAN, id: 'vp-2', segments: [{ ...PLAN.segments[0], references: [
+      { type: 'image', role: 'first_frame', source: join(dir, 'keyframes', 'vp-1-s1.png') },
+      { type: 'video', role: 'reference_video', source: join(dir, 'segments', 'vp-1-s1.mp4') },
+    ] }] })
+    touch(dir, 'keyframes/vp-1-s1.png')
+    touch(dir, 'segments/vp-1-s1.mp4')
+    const result = await deleteProject(dir, 'vp-1')
+    expect(result.files).toEqual([join('plans', 'vp-1.json')])
+    expect(existsSync(join(dir, 'keyframes', 'vp-1-s1.png'))).toBe(true)
+    expect(existsSync(join(dir, 'segments', 'vp-1-s1.mp4'))).toBe(true)
+  })
+
+  it('keeps a detached image used as an authored reference in the same plan', async () => {
+    const dir = outputTree()
+    const image = join(dir, 'assets', 'vp-1-cup.png')
+    writePlan(dir, { ...PLAN, assets: [{ id: 'cup', name: 'cup', kind: 'prop', reference: image }],
+      segments: [{ ...PLAN.segments[0], references: [{ type: 'image', role: 'first_frame', source: image }] }],
+    })
+    touch(dir, 'assets/vp-1-cup.png')
+    const result = await deleteAsset(dir, 'vp-1', 'cup')
+    expect(result.files).toEqual([])
+    expect(existsSync(image)).toBe(true)
+  })
+
+  it('restores images when the updated plan cannot be written', async () => {
+    const dir = outputTree()
+    const asset = { id: 'a', name: 'cup', kind: 'prop', reference: 'assets/cup.png' }
+    writePlan(dir, { ...PLAN, assets: [asset] })
+    touch(dir, 'assets/cup.png')
+    const original = readFileSync(join(dir, 'plans', 'vp-1.json'), 'utf8')
+    mkdirSync(join(dir, 'plans', 'vp-1.json.tmp'))
+    await expect(deleteAsset(dir, 'vp-1', 'a')).rejects.toThrow()
+    expect(readFileSync(join(dir, 'assets', 'cup.png'), 'utf8')).toBe('x')
+    expect(readFileSync(join(dir, 'plans', 'vp-1.json'), 'utf8')).toBe(original)
+  })
+
+  it('refuses to remove images when another plan has unreadable references', async () => {
+    const dir = outputTree()
+    writePlan(dir, PLAN)
+    touch(dir, 'plans/vp-2.json', 'null')
+    await expect(deleteProject(dir, 'vp-1')).rejects.toThrow(/invalid video document/u)
+    expect(existsSync(join(dir, 'plans', 'vp-1.json'))).toBe(true)
+  })
+  it('keeps images used by the library or another plan when deleting an episode', async () => {
+    const dir = outputTree()
+    const portrait = join(dir, 'assets', 'vp-1-char-1.png')
+    const asset = { id: 'char-1', name: '小明', kind: 'character', reference: portrait }
+    writePlan(dir, { ...PLAN, assets: [asset] })
+    writePlan(dir, { ...PLAN, id: 'vp-2', assets: [asset] })
+    touch(dir, 'assets/vp-1-char-1.png')
+    touch(dir, 'assets/library.json', JSON.stringify({ version: 1, assets: [asset] }))
+    await deleteProject(dir, 'vp-1')
+    expect(existsSync(portrait)).toBe(true)
+    const summary = await scanProjects(dir)
+    expect(summary.projects[0]?.assets[0]?.reference).toBeDefined()
+    await deleteAsset(dir, 'vp-2', 'char-1')
+    expect(existsSync(portrait)).toBe(true)
+  })
+
+  it('trashes directory-relative images when detaching an unshared asset', async () => {
+    const dir = outputTree()
+    writePlan(dir, { ...PLAN, assets: [{ id: 'a', name: 'cup', kind: 'prop', reference: 'assets/cup.png' }] })
+    touch(dir, 'assets/cup.png')
+    const result = await deleteAsset(dir, 'vp-1', 'a')
+    expect(result.files).toContain(join('assets', 'cup.png'))
+    expect(existsSync(join(dir, 'assets', 'cup.png'))).toBe(false)
+  })
+
+  it('leaves a failed deletion observable instead of reporting success', async () => {
+    const dir = outputTree()
+    writePlan(dir, PLAN)
+    touch(dir, 'segments/vp-1-s1.mp4')
+    // A file occupies the trash root, so mkdir must fail before any creative file moves.
+    touch(dir, 'video-trash', 'occupied')
+    // Use an output child whose sibling trash directory belongs to this fixture.
+    const child = join(dir, 'video')
+    writePlan(child, PLAN)
+    await expect(deleteProject(child, 'vp-1')).rejects.toThrow()
+    expect(existsSync(join(child, 'plans', 'vp-1.json'))).toBe(true)
+  })
+  it('moves a project and every artifact it owns into the trash', async () => {
+    const dir = outputTree()
+    writePlan(dir, PLAN)
+    touch(dir, 'segments/vp-1-s1.mp4')
+    touch(dir, 'keyframes/vp-1-s1.png')
+    touch(dir, 'final/vp-1.mp4', 'cut')
+    const result = await deleteProject(dir, 'vp-1')
+    expect(result.files).toEqual(expect.arrayContaining([
+      join('plans', 'vp-1.json'),
+      join('segments', 'vp-1-s1.mp4'),
+      join('keyframes', 'vp-1-s1.png'),
+      join('final', 'vp-1.mp4'),
+    ]))
+    // Nothing is unlinked: each moved file sits in the trash at its original relative position.
+    for (const file of result.files) expect(existsSync(join(result.trashDir, file))).toBe(true)
+    expect(existsSync(join(dir, 'plans', 'vp-1.json'))).toBe(false)
+    expect((await scanProjects(dir)).projects).toEqual([])
+  })
+
+  it('refuses an id that is not a project id', async () => {
+    const dir = outputTree()
+    await expect(deleteProject(dir, '../escape')).rejects.toThrow(/not a project id/u)
+  })
+
+  it('removes one asset from the plan and trashes the images it named', async () => {
+    const dir = outputTree()
+    const portrait = join(dir, 'assets', 'vp-1-char-1.png')
+    writePlan(dir, {
+      ...PLAN,
+      assets: [
+        { id: 'char-1', name: '小明', kind: 'character', reference: portrait },
+        { id: 'scene-1', name: '山顶', kind: 'scene', reference: join(dir, 'assets', 'vp-1-scene-1.png') },
+      ],
+    })
+    touch(dir, 'assets/vp-1-char-1.png')
+    const result = await deleteAsset(dir, 'vp-1', 'char-1')
+    expect(result.files).toEqual([join('assets', 'vp-1-char-1.png')])
+    expect(existsSync(portrait)).toBe(false)
+    const plan = JSON.parse(readFileSync(join(dir, 'plans', 'vp-1.json'), 'utf8')) as { assets?: Array<{ id: string }> }
+    expect(plan.assets?.map(asset => asset.id)).toEqual(['scene-1'])
+  })
+
+  it('refuses an asset id the plan does not carry', async () => {
+    const dir = outputTree()
+    writePlan(dir, PLAN)
+    await expect(deleteAsset(dir, 'vp-1', 'nope')).rejects.toThrow(/has no asset/u)
+  })
+})
+
 describe('scanProjects', () => {
+  it('isolates malformed plan documents and malformed segment entries', async () => {
+    const dir = outputTree()
+    writePlan(dir, PLAN)
+    touch(dir, 'plans/null.json', 'null')
+    touch(dir, 'plans/vp-2.json', JSON.stringify({ ...PLAN, id: 'vp-2', segments: [null] }))
+    const summary = await scanProjects(dir)
+    expect(summary.projects.map(project => project.id)).toEqual(['vp-1'])
+    expect(summary.errors).toHaveLength(2)
+  })
+
+  it('uses the pipeline default mode for plans with no recorded mode', async () => {
+    const dir = outputTree()
+    const { mode: _mode, ...legacy } = PLAN
+    writePlan(dir, legacy)
+    touch(dir, 'segments/vp-1-all.mp4')
+    const project = (await scanProjects(dir)).projects[0]
+    expect(project?.mode).toBe('multi_shot')
+    expect(project?.segments[0]?.id).toBe('all')
+    expect(project?.segments[0]?.rendered).toBe(true)
+  })
+
+  it('retains the authored storyboard and generation settings of a combined render', async () => {
+    const dir = outputTree()
+    writePlan(dir, { ...PLAN, mode: 'multi_shot' })
+    const project = (await scanProjects(dir)).projects[0]
+    expect(project?.segments[0]).toMatchObject({ id: 'all', shots: PLAN.segments })
+  })
+
+  it('uses the combined render as the completed video instead of an old assembly', async () => {
+    const dir = outputTree()
+    writePlan(dir, { ...PLAN, mode: 'multi_shot' })
+    touch(dir, 'final/vp-1.mp4', 'old assembly')
+    expect((await scanProjects(dir)).projects[0]?.final).toBeUndefined()
+    touch(dir, 'segments/vp-1-all.mp4', 'complete storyboard')
+    const project = (await scanProjects(dir)).projects[0]
+    expect(project?.final).toBe(join(dir, 'segments', 'vp-1-all.mp4'))
+    expect(project?.finalBytes).toBe('complete storyboard'.length)
+  })
+
   it('projects segments, keyframes, and the final assembly with their on-disk state', async () => {
     const dir = outputTree()
     writePlan(dir, PLAN)
@@ -66,8 +241,15 @@ describe('scanProjects', () => {
     expect(project?.final).toBe(join(dir, 'final', 'vp-1.mp4'))
     expect(project?.finalBytes).toBe('final-bytes'.length)
     expect(project?.segments).toEqual([
-      { id: 's1', rendered: true, keyframe: join(dir, 'keyframes', 'vp-1-s1.png') },
-      { id: 's2', rendered: false },
+      {
+        id: 's1',
+        prompt: 'opening',
+        shots: [PLAN.segments[0]],
+        rendered: true,
+        keyframe: join(dir, 'keyframes', 'vp-1-s1.png'),
+        file: join(dir, 'segments', 'vp-1-s1.mp4'),
+      },
+      { id: 's2', prompt: 'close', rendered: false, shots: [PLAN.segments[1]] },
     ])
   })
 
@@ -80,7 +262,14 @@ describe('scanProjects', () => {
     const project = summary.projects[0]
     expect(project?.mode).toBe('multi_shot')
     expect(project?.segments).toEqual([
-      { id: 'all', rendered: true, keyframe: join(dir, 'keyframes', 'vp-1-s1.jpg') },
+      {
+        id: 'all',
+        prompt: 'a 12s brand film\nopening\nclose',
+        shots: PLAN.segments,
+        rendered: true,
+        keyframe: join(dir, 'keyframes', 'vp-1-s1.jpg'),
+        file: join(dir, 'segments', 'vp-1-all.mp4'),
+      },
     ])
   })
 
@@ -101,6 +290,124 @@ describe('scanProjects', () => {
     const summary = await scanProjects(dir)
     expect(summary.projects).toEqual([])
     expect(summary.errors).toEqual([])
+  })
+
+  it('projects recorded assets with served images, prompt blocks, and library state', async () => {
+    const dir = outputTree()
+    const real = realpathSync(dir)
+    writePlan(dir, {
+      ...PLAN,
+      assets: [
+        {
+          id: 'char-1',
+          name: '小明',
+          kind: 'character',
+          prompt: '小明，短发工装',
+          description: '短发',
+          reference: 'assets/vp-1-char-1.png',
+          sheet: 'assets/vp-1-char-1-sheet.png',
+        },
+        {
+          id: 'scene-1',
+          name: '山顶',
+          kind: 'scene',
+          prompt: '',
+          description: '雪山垭口',
+          reference: join(dir, 'assets', 'vp-1-scene-1.jpg'),
+        },
+        { id: 'prop-1', name: '茶砖', kind: 'prop', description: '   ' },
+        { id: 'bad-1', name: 'vehicle', kind: 'vehicle' },
+        'not-an-object',
+        { name: 'no-id', kind: 'prop' },
+        { id: 'no-name', kind: 'prop' },
+        { id: 'weird', name: 'weird', kind: 'prop', prompt: 42, description: 7 },
+      ],
+    })
+    touch(dir, 'assets/vp-1-char-1.png')
+    touch(dir, 'assets/vp-1-char-1-sheet.png')
+    touch(dir, 'assets/vp-1-scene-1.jpg')
+    writeFileSync(
+      join(dir, 'assets', 'library.json'),
+      JSON.stringify({
+        version: 1,
+        assets: [{ name: '小明' }, { name: '茶砖' }, { name: '' }, { nope: true }, null],
+      }),
+    )
+    const summary = await scanProjects(dir)
+    expect(summary.projects[0]?.assets).toEqual([
+      {
+        id: 'char-1',
+        name: '小明',
+        kind: 'character',
+        prompt: '小明，短发工装',
+        description: '短发',
+        reference: join(real, 'assets', 'vp-1-char-1.png'),
+        sheet: join(real, 'assets', 'vp-1-char-1-sheet.png'),
+        saved: true,
+      },
+      {
+        id: 'scene-1',
+        name: '山顶',
+        kind: 'scene',
+        description: '雪山垭口',
+        reference: join(real, 'assets', 'vp-1-scene-1.jpg'),
+        saved: false,
+      },
+      { id: 'prop-1', name: '茶砖', kind: 'prop', saved: true },
+      { id: 'weird', name: 'weird', kind: 'prop', saved: false },
+    ])
+  })
+
+  it('drops asset images the file route could not serve', async () => {
+    const dir = outputTree()
+    const outside = outputTree()
+    writeFileSync(join(outside, 'outside.png'), 'x')
+    touch(dir, 'assets/script.exe')
+    writePlan(dir, {
+      ...PLAN,
+      assets: [
+        { id: 'a', name: 'a', kind: 'character', reference: join(outside, 'outside.png'), sheet: 'assets/missing.png' },
+        { id: 'b', name: 'b', kind: 'character', reference: '.', sheet: 42 },
+        { id: 'c', name: 'c', kind: 'character', reference: '', sheet: 'assets/script.exe' },
+      ],
+    })
+    const rows = (await scanProjects(dir)).projects[0]?.assets ?? []
+    expect(rows).toHaveLength(3)
+    expect(rows.every(row => row.reference === undefined && row.sheet === undefined)).toBe(true)
+  })
+
+  it('treats a missing or corrupt project library as unsaved', async () => {
+    const dir = outputTree()
+    writePlan(dir, { ...PLAN, assets: [{ id: 'char-1', name: '小明', kind: 'character' }] })
+    const savedOf = async (): Promise<boolean | undefined> =>
+      (await scanProjects(dir)).projects[0]?.assets[0]?.saved
+    expect(await savedOf()).toBe(false)
+
+    touch(dir, 'assets/library.json', '{not json')
+    expect(await savedOf()).toBe(false)
+
+    writeFileSync(join(dir, 'assets', 'library.json'), JSON.stringify({ assets: {} }))
+    expect(await savedOf()).toBe(false)
+  })
+})
+
+describe('parseRange', () => {
+  it('parses closed, open-ended, and suffix ranges inside the file', () => {
+    expect(parseRange(null, 10)).toEqual({ kind: 'none' })
+    expect(parseRange('bytes=0-3', 10)).toEqual({ kind: 'satisfiable', start: 0, end: 3 })
+    expect(parseRange('bytes=4-', 10)).toEqual({ kind: 'satisfiable', start: 4, end: 9 })
+    expect(parseRange('bytes=-3', 10)).toEqual({ kind: 'satisfiable', start: 7, end: 9 })
+    expect(parseRange('bytes=5-100', 10)).toEqual({ kind: 'satisfiable', start: 5, end: 9 })
+  })
+
+  it('ignores malformed and multi-range headers and refuses a past-end range', () => {
+    expect(parseRange('bytes=abc', 10)).toEqual({ kind: 'ignore' })
+    expect(parseRange('bytes=0-1,3-4', 10)).toEqual({ kind: 'ignore' })
+    expect(parseRange('bytes=-', 10)).toEqual({ kind: 'ignore' })
+    expect(parseRange('bytes=4-2', 10)).toEqual({ kind: 'ignore' })
+    expect(parseRange('bytes=-0', 10)).toEqual({ kind: 'ignore' })
+    expect(parseRange('bytes=10-', 10)).toEqual({ kind: 'unsatisfiable' })
+    expect(parseRange('bytes=0-', 0)).toEqual({ kind: 'unsatisfiable' })
   })
 })
 
@@ -167,20 +474,34 @@ describe('routes', () => {
     routes: Map<string, RegisteredRoute>,
     path: string,
     method = 'GET',
+    headers: Record<string, string> = {},
   ): Promise<Response> {
     const url = new URL(`http://127.0.0.1${path}`)
-    return await routes.get(url.pathname)!.fetch(new Request(url, { method }))
+    return await routes.get(url.pathname)!.fetch(new Request(url, { method, headers }))
   }
 
-  it('registers both routes as GET/HEAD Fetch routes on the Connection registry', async () => {
+  it('registers the read routes and the two deletion routes on the Connection registry', async () => {
     const routes = await boot(outputTree())
     expect([...routes.keys()].sort()).toEqual([
+      '/api/video-workbench/asset/delete',
       '/api/video-workbench/file',
+      '/api/video-workbench/project/delete',
       '/api/video-workbench/projects',
     ])
-    for (const route of routes.values()) {
-      expect(route.methods).toEqual(['GET', 'HEAD'])
+    for (const [path, route] of routes) {
       expect(route.requestBody).toBe('buffered')
+      expect(route.methods).toEqual(path.endsWith('/delete') ? ['POST'] : ['GET', 'HEAD'])
+    }
+  })
+
+  it.each(['null', '[]', '{broken', '{}'])('returns a JSON refusal for deletion body %s', async (body) => {
+    const routes = await boot(outputTree())
+    for (const path of ['/api/video-workbench/project/delete', '/api/video-workbench/asset/delete']) {
+      const response = await routes.get(path)!.fetch(new Request(`http://127.0.0.1${path}`, {
+        method: 'POST', body, headers: { 'content-type': 'application/json' },
+      }))
+      expect(response.status).toBe(400)
+      expect(await response.json()).toHaveProperty('error')
     }
   })
 
@@ -249,6 +570,36 @@ describe('routes', () => {
     const headRefusal = await call(routes, '/api/video-workbench/file?path=final/vp-9.mp4', 'HEAD')
     expect(headRefusal.status).toBe(404)
     expect(await headRefusal.text()).toBe('')
+  })
+
+  it('serves byte ranges for media and refuses a past-end range', async () => {
+    const dir = outputTree()
+    touch(dir, 'final/vp-1.mp4', 'abcdef')
+    const routes = await boot(dir)
+    const partial = await call(routes, '/api/video-workbench/file?path=final/vp-1.mp4', 'GET', { range: 'bytes=1-3' })
+    expect(partial.status).toBe(206)
+    expect(partial.headers.get('content-range')).toBe('bytes 1-3/6')
+    expect(partial.headers.get('content-length')).toBe('3')
+    expect(partial.headers.get('accept-ranges')).toBe('bytes')
+    expect(await partial.text()).toBe('bcd')
+
+    const head = await call(routes, '/api/video-workbench/file?path=final/vp-1.mp4', 'HEAD', { range: 'bytes=0-1' })
+    expect(head.status).toBe(206)
+    expect(await head.text()).toBe('')
+
+    expect(await (await call(routes, '/api/video-workbench/file?path=final/vp-1.mp4', 'GET', { range: 'bytes=4-' })).text())
+      .toBe('ef')
+    expect(await (await call(routes, '/api/video-workbench/file?path=final/vp-1.mp4', 'GET', { range: 'bytes=-2' })).text())
+      .toBe('ef')
+
+    const unsatisfiable = await call(routes, '/api/video-workbench/file?path=final/vp-1.mp4', 'GET', { range: 'bytes=99-' })
+    expect(unsatisfiable.status).toBe(416)
+    expect(unsatisfiable.headers.get('content-range')).toBe('bytes */6')
+
+    // A malformed range falls back to the whole file.
+    const malformed = await call(routes, '/api/video-workbench/file?path=final/vp-1.mp4', 'GET', { range: 'bytes=nope' })
+    expect(malformed.status).toBe(200)
+    expect(await malformed.text()).toBe('abcdef')
   })
 
   it('refuses a file above the byte ceiling with 413', async () => {

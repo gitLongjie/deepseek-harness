@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-本包提供 `ctx.h3Video` 服务：一个后端中立的视频片段生成接口，可用本地 ComfyUI 部署或托管 MiniMax V2 API 运行 MiniMax H3，按段在两者之间显式路由，并用 ffmpeg 把完成的片段拼接成片。面向模型的 `video_plan` / `video_render` / `video_assemble` 工具位于配套的 [`@deepseek-ai/dsh-tool-video`](../tool-video/README.zh.md) 包中。当某个组合需要把对话变成分镜、优先本地渲染并按需降级到托管 API 时选择它。
+本包提供 `ctx.h3Video` 服务：一个后端中立的视频片段生成接口，可用本地 ComfyUI 部署（本机或按需供给的云 GPU 实例）或托管 MiniMax V2 API 运行 MiniMax H3，按段在两者之间显式路由，并用 ffmpeg 把完成的片段拼接成片。面向模型的 `video_plan` / `video_render` / `video_assemble` / `video_gpu` 工具位于配套的 [`@deepseek-ai/dsh-tool-video`](../tool-video/README.zh.md) 包中。当某个组合需要把对话变成分镜、优先本地渲染并按需降级到托管 API 时选择它。
 
 ## 目录
 
@@ -63,16 +63,42 @@ kind: "package-reference"
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-h3-video)是每个字段及其 JSDoc 的权威来源。
 
+### 云 GPU 按需供给（AutoDL）
+
+本地后端可以自备机器。`comfy.gpu` 行在第一次本地提交时创建一台 AutoDL 容器实例，等待该实例暴露的 ComfyUI 服务就绪，并在生成结束后关机或释放实例。该行取代 `comfy.url`——地址来自实例——并且必须去掉 `comfy.inputDir`，因为关键帧改为通过 ComfyUI HTTP API 上传：
+
+```yaml
+comfy:
+  workflowPath: 'D:/ComfyUI/h3-workflow.json'
+  gpu:
+    gpuSpecUuid: 'v-32g-p'
+    imageUuid: 'image-comfyui-h3'
+    apiTokenRef: 'AUTODL_TOKEN'
+    instanceName: 'dsh-h3-video'
+    startCommand: 'bash /root/start-comfyui.sh'
+    servicePort: 6006
+    idleTimeoutMs: 1800000
+    idleAction: 'power_off'
+```
+
+启动镜像必须已经装好 ComfyUI、H3 权重以及 workflow 引用的模型；`startCommand` 每次开机都会执行，必须在 `servicePort` 上启动 ComfyUI。AutoDL 把该端口映射为实例的公网 `https://…:8443` 服务地址，池从实例快照读取该地址并持续探测 `/system_stats`，直到 ComfyUI 应答。`gpuSpecUuid` 是该行的锚点：缺省时 GPU 不受管理，沿用 `comfy.url`。
+
+默认复用实例。池按 `instanceName` 匹配账号下的实例，遇到已关机的实例会重新开机而不是再建一台，因此 `idleAction: 'power_off'` 在结束 GPU 计费的同时保留已安装环境与实例盘数据；`release` 则先关机再删除实例及其磁盘。厂商 token 每次请求都通过 `ctx.credentials` 解析，轮换或重新保存后无需重载组合即可生效；测试场景可写字面量 `apiToken`，但它会落在组合文件里。
+
+空闲计时从最后一个轮询任务结束时开始，而不是从提交 workflow 时开始，因此长渲染不会与计时器竞争；开机后提交失败的请求同样会启动计时。`idleTimeoutMs: 0` 关闭空闲处理，`idleAction` 选择关机还是释放，`releaseOnDispose: true` 在服务销毁时释放实例。实例上仍有生成任务时，显式 `stop` 与 `release` 会被拒绝；面向模型的 `video_gpu` 工具可开机、查询、关机或释放实例。
+
 ### 用户设置覆盖
 
-`./settings` 入口（`@deepseek-ai/dsh-h3-video/settings`）是一个宿主面插件行：注册 `h3-video` 设置命名空间，并把它的实时视图发布为 `h3VideoSettings` 服务。插件设置页编辑该命名空间；字段是组合配置中用户可调的那部分（扁平命名，如 `comfyUrl`、`comfyWorkflowPath`、`minimaxApiKeyRef`、`outputDir`、`minFreeSpaceMb`）。已挂载的服务把提交的分节覆盖在组合值之上——存在且非空的设置生效，缺席的沿用组合值——并在分节变化时重建后端，无需改动预设的组合文件。两个启用开关也随覆盖传递：`comfyWorkflowPath` 启用本地后端，`minimaxApiKeyRef` 启用远端后端，因此一个两者锚点都没有的组合可以完全从设置里启用。MiniMax 密钥本身通过凭据域写入；分节只记引用名。
+`./settings` 入口（`@deepseek-ai/dsh-h3-video/settings`）是一个宿主面插件行：注册 `h3-video` 设置命名空间，并把它的实时视图发布为 `h3VideoSettings` 服务。插件设置页编辑该命名空间；字段是组合配置中用户可调的那部分（扁平命名，如 `comfyUrl`、`comfyWorkflowPath`、`minimaxApiKeyRef`、`gpuApiTokenRef`、`outputDir`、`minFreeSpaceMb`）。已挂载的服务把提交的分节覆盖在组合值之上——存在且非空的设置生效，缺席的沿用组合值——并在分节变化时重建后端，无需改动预设的组合文件。两个启用开关也随覆盖传递：`comfyWorkflowPath` 启用本地后端，`minimaxApiKeyRef` 启用远端后端，因此一个两者锚点都没有的组合可以完全从设置里启用。MiniMax 密钥与 AutoDL Token 都通过凭据域写入；分节只记引用名（`gpuApiTokenRef` 只替换已有 `comfy.gpu` 行的 token 引用，算力规格、镜像与开机命令保持组合里的值）。
 
 ### 服务做什么
 
-- **提交**一个经过校验的片段请求到某一后端，返回不透明的任务引用。
+- **提交**一个经过校验的片段请求（可带本地工作流填充的采样种子）到某一后端，返回不透明的任务引用。
 - **轮询**该引用直到终态；成功时携带下载到本地的文件（远端 URL 有时效，因此托管结果都会抓取到 `outputDir`）。
 - **取消**进行中的任务（ComfyUI `POST /interrupt`，或中止轮询请求）。
-- **拼接**有序片段文件为单个 mp4，用 ffmpeg 重编码为统一的 h264/yuv420p/24fps 流，保证混合后端与分辨率也能干净拼接。
+- **生成静帧**：通过托管 image 模型为一个镜头生成关键帧，可选地以角色参考图作为 `subject_reference` 条件，使静帧在任何运动采样之前就保持确认过的面孔。
+- **供给**本地提交所需的云 GPU，跨片段复用，并按空闲策略关机或释放。
+- **拼接**有序片段文件为单个 mp4，用 ffmpeg 重编码为统一的 h264/yuv420p/24fps 流，保证混合后端与分辨率也能干净拼接，并把索引写在文件头部（`+faststart`），浏览器可以在下载完成前就开始播放。 拼接选项支持硬切、淡黑及画面与声音交叉淡化。转场需要 ffmpeg 同目录或 PATH 中的 ffprobe，统一尺寸与帧率，为无音轨片段补静音，并按提供的时长裁切或补足片段。交叉淡化扣除重叠时长，单次重叠不超过任一相邻片段时长的一半；转场失败会报错，不会退回硬切。
 
 路由按段显式选择——`local`、`remote` 或 `auto`（本地优先，按能力或可用性回退到远端）。任何调用路径都没有隐式默认。
 
@@ -111,7 +137,8 @@ provider 的下载直接落在 `outputDir`，由渲染任务改名为 `segments/
 
 - **能力接口，而非包装器。** `H3Video` 是服务定义；`createComfyUIProvider` 与 `createMiniMaxApiProvider` 是 provider；`tool-video` 是消费者。每个后端拥有自己的传输与文件下载，两者都不拥有重试策略或路由。
 - **显式解析。** `resolve` 是选择后端的唯一地点，并且总是在提交前针对所选后端声明的能力校验请求。
-- **配置即部署。** 每个可调项（端点、字段名、轮询间隔、超时、并发、分辨率/时长上限）都是经过校验的 `Config` 字段；没有任何硬编码常量。
+- **GPU 是生命周期，而非配置值。** `GpuInstancePool` 持有厂商实例并统计占用它的任务；ComfyUI provider 每次操作向池请求地址，而不是接收静态 URL。厂商通过 `GpuVendor` 提供实例操作，因此没有任何厂商字段进入池。
+- **配置即部署。** 每个可调项（端点、字段名、轮询间隔、超时、并发、分辨率/时长上限、实例规格、空闲策略）都是经过校验的 `Config` 字段；没有任何硬编码常量。
 
 ### 源码地图
 
@@ -120,7 +147,9 @@ provider 的下载直接落在 `outputDir`，由渲染任务改名为 `segments/
 | [`src/types.ts`](src/types.ts) | `SegmentRequest`、`TaskStatus`、`H3VideoProvider`、`ProviderCapabilities`、`H3TaskRef` 品牌类型 |
 | [`src/validation.ts`](src/validation.ts) | 两个 provider 共享的请求规则（文本条数、prompt 长度、时长/分辨率范围、首尾帧与参考输入互斥、首尾帧唯一、引用数量上限、比例规则） |
 | [`src/routing.ts`](src/routing.ts) | `resolve`——针对已配置后端的显式 `local`/`remote`/`auto` 选择 |
-| [`src/comfyui.ts`](src/comfyui.ts) | 本地 provider：模板填充、`/prompt` 队列、`/history` 轮询、`/view` 下载、`/interrupt` 取消 |
+| [`src/comfyui.ts`](src/comfyui.ts) | 本地 provider：模板填充、`/prompt` 队列、`/history` 轮询、`/view` 下载、`/interrupt` 取消、图像上传 |
+| [`src/autodl.ts`](src/autodl.ts) | AutoDL Pro API 客户端：token 头、查询参数 GET、信封错误，以及 GPU 厂商适配器 |
+| [`src/gpu.ts`](src/gpu.ts) | 厂商中立的实例池：按名复用、开机与就绪等待、空闲关机/释放、销毁 |
 | [`src/minimax-api.ts`](src/minimax-api.ts) | 托管 provider：V2 建任务、任务轮询、限时 URL 下载 |
 | [`src/assembly.ts`](src/assembly.ts) | ffmpeg concat 拼接为统一 mp4 |
 | [`src/index.ts`](src/index.ts) | `H3Video` 服务类及其默认导出插件接线 |
@@ -171,7 +200,8 @@ provider 代码完全运行在模型循环之外；模型只看到 `tool-video` 
 <a id="known-limitations-and-deferred-work"></a>
 
 - **计划以文件存储，而非会话事件。** `video/plan` 会话日志事件会牵扯持久化目录与会话格式版本机制，因此计划是 `outputDir` 下的 JSON 工件。会话回放会在 `tool/result` 中看到计划，但没有一等公民的投影。
-- **ComfyUI 图像条件需要 `comfy.inputDir`。** 本地工作流通过把每张图片复制进 ComfyUI input 目录并接进 H3 节点来服务关键帧与参考图条件，因此未配置该目录时图像条件请求会响亮失败。视频/音频引用仍路由到托管 API。
+- **ComfyUI 图像条件需要可写的图像通路。** 本地 provider 用两种方式让关键帧与参考图在 workflow 中可见：复制到配置的 `comfy.inputDir`，或在未配置目录时通过 ComfyUI `/upload/image` 端点上传。按需供给的 GPU 实例总是远端，因此走上传路径，并在加载时拒绝 `inputDir`。视频/音频引用仍路由到托管 API。
+- **只有 GPU 的 token 引用能从设置里改。** `comfy.gpu` 通过 `gpuApiTokenRef` 参与 `h3-video` 设置覆盖；算力规格、启动镜像、实例名与开机命令仍来自组合。token 值本身存放在凭据存储中。
 - **并发在接口处是建议性的。** `maxConcurrency` 通过 capabilities 供消费者参考；接口本身不做超出各后端行为的排队。
 
 <a id="dev-note"></a>

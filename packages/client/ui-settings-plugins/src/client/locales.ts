@@ -17,8 +17,13 @@ export type PluginsSettingsLocaleKey =
   | 'subagentModelSelectionPartial' | 'subagentModelSelectionUnavailable'
   | 'subagentModelSelectionUnavailableGroup' | 'subagentModelSelectionEmpty'
   | 'subagentModelSelectionRequired' | 'subagentModelSelectionConflict' | 'subagentModelSelectionOff'
+  | 'geoTitle' | 'geoDescription'
+  | 'geoBaseUrl' | 'geoBaseUrlHint' | 'geoBaseUrlPlaceholder'
+  | 'geoUsername' | 'geoUsernameHint'
+  | 'geoPassword' | 'geoPasswordHint' | 'geoPasswordSet' | 'geoPasswordUnset'
   | 'h3Title' | 'h3Description'
   | 'h3MinimaxApiKey' | 'h3MinimaxApiKeyHint' | 'h3MinimaxApiKeySet' | 'h3MinimaxApiKeyUnset'
+  | 'h3GpuApiToken' | 'h3GpuApiTokenHint' | 'h3GpuApiTokenSet' | 'h3GpuApiTokenUnset'
   | 'h3ComfyUrl' | 'h3ComfyUrlHint'
   | 'h3ComfyWorkflowPath' | 'h3ComfyWorkflowPathHint'
   | 'h3ComfyInputDir' | 'h3ComfyInputDirHint'
@@ -29,6 +34,7 @@ export type PluginsSettingsLocaleKey =
   | 'h3ComfyPollInterval' | 'h3ComfyPollIntervalHint'
   | 'h3ComfyTaskTimeout' | 'h3ComfyTaskTimeoutHint'
   | 'h3MinimaxApiKeyRef' | 'h3MinimaxApiKeyRefHint'
+  | 'h3GpuApiTokenRef' | 'h3GpuApiTokenRefHint'
   | 'h3MinimaxBaseUrl' | 'h3MinimaxBaseUrlHint'
   | 'h3MinimaxModel' | 'h3MinimaxModelHint'
   | 'h3MinimaxResolutions' | 'h3MinimaxResolutionsHint'
@@ -95,12 +101,27 @@ export const en: Record<PluginsSettingsLocaleKey, string> = {
   subagentModelSelectionRequired: 'Select at least one model before saving.',
   subagentModelSelectionConflict: 'Settings changed elsewhere. Discard your draft and try again.',
   subagentModelSelectionOff: 'Subagents use configured defaults or inherit the parent agent\'s model. Saved model choices are retained.',
+  geoTitle: '深度云海 publishing',
+  geoDescription: 'The GEO multi-site backend and the account the publishing tools sign in as. The password is stored outside the settings file.',
+  geoBaseUrl: 'Backend address',
+  geoBaseUrlHint: 'The web-admin-go origin, for example http://localhost:8001.',
+  geoBaseUrlPlaceholder: 'http://localhost:8001',
+  geoUsername: 'Account',
+  geoUsernameHint: 'The account the publishing tools sign in as; it needs the content.news permission on each target site.',
+  geoPassword: 'Password',
+  geoPasswordHint: 'Stored outside the settings file. Leave blank to keep the current password.',
+  geoPasswordSet: 'A password is configured.',
+  geoPasswordUnset: 'No password is configured.',
   h3Title: 'Video generation (H3)',
   h3Description: 'Local ComfyUI, the hosted MiniMax API, and output policy. Blank fields keep the preset composition\'s values.',
   h3MinimaxApiKey: 'API key',
   h3MinimaxApiKeyHint: 'Stored outside the settings file. Leave blank to keep the current key.',
   h3MinimaxApiKeySet: 'A key is configured.',
   h3MinimaxApiKeyUnset: 'No key is configured.',
+  h3GpuApiToken: 'AutoDL token',
+  h3GpuApiTokenHint: 'Stored outside the settings file; used only when the composition carries a comfy.gpu row. Leave blank to keep the current token.',
+  h3GpuApiTokenSet: 'A token is configured.',
+  h3GpuApiTokenUnset: 'No token is configured.',
   h3ComfyUrl: 'ComfyUI URL',
   h3ComfyUrlHint: 'The local ComfyUI origin, for example http://127.0.0.1:8188.',
   h3ComfyWorkflowPath: 'Workflow template',
@@ -121,6 +142,8 @@ export const en: Record<PluginsSettingsLocaleKey, string> = {
   h3ComfyTaskTimeoutHint: 'Wall-clock bound on one local generation.',
   h3MinimaxApiKeyRef: 'API key reference',
   h3MinimaxApiKeyRefHint: 'Credential reference resolving the hosted key, for example MINIMAX_API_KEY. Setting one enables the remote backend.',
+  h3GpuApiTokenRef: 'AutoDL token reference',
+  h3GpuApiTokenRefHint: 'Credential reference resolving the cloud GPU API token, for example AUTODL_TOKEN. Used only when the composition carries a comfy.gpu row.',
   h3MinimaxBaseUrl: 'Base URL',
   h3MinimaxBaseUrlHint: 'The hosted MiniMax API origin.',
   h3MinimaxModel: 'Model',
@@ -199,12 +222,27 @@ export const zh: Record<PluginsSettingsLocaleKey, string> = {
   subagentModelSelectionRequired: '保存前请至少选择一个模型。',
   subagentModelSelectionConflict: '设置已在其他位置更新。请放弃修改后重试。',
   subagentModelSelectionOff: '关闭后，Subagent 使用配置的默认模型或继承父 Agent 的模型；已选模型会保留。',
+  geoTitle: '深度云海发布',
+  geoDescription: 'GEO 多站点内容后台与发文工具登录的账号。密码不写入设置文件。',
+  geoBaseUrl: '后台地址',
+  geoBaseUrlHint: 'web-admin-go 的地址，例如 http://localhost:8001。',
+  geoBaseUrlPlaceholder: 'http://localhost:8001',
+  geoUsername: '账号',
+  geoUsernameHint: '发文工具登录的账号；需要在目标站点上具备 content.news 权限。',
+  geoPassword: '密码',
+  geoPasswordHint: '不写入设置文件。留空表示保持现有密码。',
+  geoPasswordSet: '已配置密码。',
+  geoPasswordUnset: '未配置密码。',
   h3Title: '视频生成（H3）',
   h3Description: '本地 ComfyUI、远端 MiniMax API 与输出策略。留空的字段沿用预设组合里的值。',
   h3MinimaxApiKey: 'API 密钥',
   h3MinimaxApiKeyHint: '不写入设置文件。留空表示保持现有密钥。',
   h3MinimaxApiKeySet: '已配置密钥。',
   h3MinimaxApiKeyUnset: '未配置密钥。',
+  h3GpuApiToken: 'AutoDL Token',
+  h3GpuApiTokenHint: '不写入设置文件；仅当组合里配置了 comfy.gpu 行时使用。留空表示保持现有 Token。',
+  h3GpuApiTokenSet: '已配置 Token。',
+  h3GpuApiTokenUnset: '未配置 Token。',
   h3ComfyUrl: 'ComfyUI 地址',
   h3ComfyUrlHint: '本地 ComfyUI 地址，例如 http://127.0.0.1:8188。',
   h3ComfyWorkflowPath: '工作流模板',
@@ -225,6 +263,8 @@ export const zh: Record<PluginsSettingsLocaleKey, string> = {
   h3ComfyTaskTimeoutHint: '单个本地生成的墙钟上限。',
   h3MinimaxApiKeyRef: '密钥引用',
   h3MinimaxApiKeyRefHint: '解析远端密钥的凭据引用，例如 MINIMAX_API_KEY。设置后即启用远端后端。',
+  h3GpuApiTokenRef: 'AutoDL Token 引用',
+  h3GpuApiTokenRefHint: '解析云 GPU API Token 的凭据引用，例如 AUTODL_TOKEN。仅当组合里配置了 comfy.gpu 行时使用。',
   h3MinimaxBaseUrl: '接口地址',
   h3MinimaxBaseUrlHint: 'MiniMax 托管 API 的地址。',
   h3MinimaxModel: '模型',

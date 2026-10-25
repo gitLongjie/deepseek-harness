@@ -6,6 +6,12 @@
 /** The projects-listing route the host plugin registers. */
 export const WORKBENCH_PROJECTS_PATH = '/api/video-workbench/projects'
 
+/** The project-deletion route the host plugin registers. */
+export const WORKBENCH_PROJECT_DELETE_PATH = '/api/video-workbench/project/delete'
+
+/** The asset-deletion route the host plugin registers. */
+export const WORKBENCH_ASSET_DELETE_PATH = '/api/video-workbench/asset/delete'
+
 /** The single-file route's path prefix. */
 const WORKBENCH_FILE_PATH = '/api/video-workbench/file'
 

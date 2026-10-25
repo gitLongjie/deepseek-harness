@@ -190,3 +190,58 @@ The process-local owner derives its earliest timer from the durable fold and rer
 Due work waits for the Agent to become fully idle and claims the maintenance phase before it refolds state, samples the decision, queues one `followup()`, and appends the corresponding dispatch changes. It never calls `steer()` and never interrupts a current turn.
 
 The admitted one-shot or fixed-rate batch starts one normal later turn and appears only through the ordinary conversation transcript; Schedule has no independent durable Web receipt. The read-only active catalog above never represents delivery success. If framing or synchronous queue admission fails, no dispatch is recorded and the reminder stays active. The narrow crash interval after admission but before durable dispatch can repeat reminder content after recovery, so the boundary is best-effort at-least-once rather than exactly-once delivery.
+
+<!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
+
+<a id="cordis-surface"></a>
+
+## Cordis API
+
+Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
+
+<a id="ctxscheduleworkgateway--scheduleworkgateway"></a>
+
+### `ctx.scheduleWorkGateway` — `ScheduleWorkGateway`
+
+Remote-only schedule-work gateway. The Context key `scheduleWorkGateway` names this service registration; the wire namespace stays `scheduleWork`.
+
+```ts cordis-catalog
+/**
+ * List every task with its computed next occurrence.
+ * @returns tasks newest-first by creation.
+ */
+@Remote('list') list(): Promise<ScheduleWorkTaskList>
+
+/**
+ * List run records, newest first.
+ * @param request - Optional task filter.
+ * @returns the run records of the requested task, or every task's.
+ */
+@Remote('listRuns') listRuns(request: { taskId?: string }): Promise<ScheduleWorkRunList>
+
+/**
+ * Create one task.
+ * @param input - Task fields; validated host-side.
+ * @returns the stored task view.
+ */
+@Remote('create') async create(input: ScheduleWorkTaskInput): Promise<ScheduleWorkTaskView>
+
+/**
+ * Edit one task.
+ * @param request - Task identity and the fields to replace.
+ * @returns the updated task view.
+ */
+@Remote('update') async update(request: { id: string; patch: Partial<ScheduleWorkTaskInput> }): Promise<ScheduleWorkTaskView>
+
+/**
+ * Remove tasks and their run records. The wire method avoids the reserved
+ * `remove` name: it collides with the Remote namespace service's own
+ * members and the client API refuses the whole namespace over it.
+ * @param request - Task identities; unknown ids are skipped.
+ * @returns how many tasks were removed.
+ */
+@Remote('removeTasks') removeTasks(request: { ids: readonly string[] }): Promise<{ removed: number }>
+```
+
+Source: [`packages/schedule/schedule-work/src/index.ts`](../../packages/schedule/schedule-work/src/index.ts)
+<!-- END GENERATED cordis-surface -->

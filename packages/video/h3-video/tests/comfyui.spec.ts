@@ -56,20 +56,22 @@ interface Route {
   handler: (init?: RequestInit) => { status: number; body: string }
 }
 
-type MockFetch = FetchLike & { seen: string[] }
+type MockFetch = FetchLike & { seen: string[]; urls: URL[] }
 
 function mockFetch(routes: Route[]): MockFetch {
   const seen: string[] = []
+  const urls: URL[] = []
   const fetch: FetchLike = (input, init) => {
     const url = new URL(input)
     const path = url.pathname + (url.search.length > 0 ? url.search : '')
     seen.push(path)
+    urls.push(url)
     const route = routes.find(candidate => path.startsWith(candidate.path))
     if (route === undefined) throw new Error(`unexpected request ${path}`)
     const { status, body } = route.handler(init)
     return Promise.resolve(new Response(body, { status }))
   }
-  return Object.assign(fetch, { seen })
+  return Object.assign(fetch, { seen, urls })
 }
 
 function makeOptions(overrides: Partial<ComfyUIOptions> = {}): ComfyUIOptions {
@@ -266,5 +268,81 @@ describe('createComfyUIProvider', () => {
     const loadNode = graph.prompt[link[0]]
     expect(loadNode?.class_type).toBe('LoadImage')
     expect(existsSync(join(inputDir, loadNode?.inputs.image as string))).toBe(true)
+  })
+
+  it('uploads image conditioning through the server when no input directory is configured', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'h3-comfy-upload-'))
+    tempDirs.push(dir)
+    const keyframe = join(dir, 'remote-ref.png')
+    writeFileSync(keyframe, 'PNGDATA')
+    const workflowPath = join(dir, 'remote-workflow.json')
+    writeFileSync(workflowPath, JSON.stringify({
+      '10': { class_type: 'MiniMaxH3ImageToVideo', inputs: { prompt: '{{prompt}}', length: '{{length}}' } },
+    }))
+    let posted: unknown
+    let uploaded: FormData | undefined
+    const fetcher = mockFetch([
+      {
+        path: '/upload/image',
+        handler: (init) => {
+          uploaded = init?.body as FormData
+          return { status: 200, body: JSON.stringify({ name: 'remote-upload.png', subfolder: '' }) }
+        },
+      },
+      { path: '/prompt', handler: (init) => { posted = init?.body; return { status: 200, body: JSON.stringify({ prompt_id: 'p-up' }) } } },
+    ])
+    const provider = createComfyUIProvider(makeOptions({ workflowPath, fetchImpl: fetcher }))
+    await provider.submit({
+      inputs: [
+        { type: 'text', text: 'the hero walks in' },
+        { type: 'image', url: keyframe, role: 'first_frame' },
+      ],
+      resolution: '768P',
+      durationSeconds: 5,
+      ratio: 'adaptive',
+    }, SIGNAL)
+    expect(fetcher.seen).toContain('/upload/image')
+    expect(uploaded?.get('type')).toBe('input')
+    const graph = JSON.parse(String(posted)) as { prompt: Record<string, { class_type: string; inputs: Record<string, unknown> }> }
+    const link = graph.prompt['10']?.inputs.first_frame as [string, number]
+    expect(graph.prompt[link[0]]?.inputs.image).toBe('remote-upload.png')
+  })
+
+  it('resolves its origin per operation for a provisioned GPU instance', async () => {
+    const origins = ['https://gpu-1.example:8443', 'https://gpu-2.example:8443']
+    let resolved = 0
+    const fetcher = mockFetch([
+      { path: '/prompt', handler: () => ({ status: 200, body: JSON.stringify({ prompt_id: 'p-gpu' }) }) },
+      {
+        path: '/history/p-gpu',
+        handler: () => ({ status: 200, body: JSON.stringify({ 'p-gpu': { outputs: { '9': { images: [{ filename: 'clip.png', type: 'output' }] } } } }) }),
+      },
+      { path: '/view', handler: () => ({ status: 200, body: 'MP4BYTES' }) },
+    ])
+    const options = makeOptions({ fetchImpl: fetcher })
+    delete options.baseUrl
+    options.resolveBaseUrl = async () => origins[Math.min(resolved++, origins.length - 1)] as string
+    const provider = createComfyUIProvider(options)
+    const ref = await provider.submit(textRequest(), SIGNAL)
+    expect((await provider.poll(ref, SIGNAL)).state).toBe('succeeded')
+    expect(fetcher.urls[0]?.origin).toBe('https://gpu-1.example:8443')
+    expect(fetcher.urls[1]?.origin).toBe('https://gpu-2.example:8443')
+  })
+
+  it('fills the workflow seed from the request when one is supplied', async () => {
+    let posted: unknown
+    const fetcher = mockFetch([
+      { path: '/prompt', handler: (init) => { posted = init?.body; return { status: 200, body: JSON.stringify({ prompt_id: 'p-seed' }) } } },
+    ])
+    const provider = createComfyUIProvider(makeOptions({ fetchImpl: fetcher }))
+    await provider.submit(textRequest({ seed: 4242 }), SIGNAL)
+    const graph = JSON.parse(String(posted)) as { prompt: Record<string, { inputs: Record<string, unknown> }> }
+    expect(graph.prompt['5']?.inputs.seed).toBe(4242)
+  })
+
+  it('requires a static or resolved origin', () => {
+    const options = makeOptions()
+    delete options.baseUrl
+    expect(() => createComfyUIProvider(options)).toThrow(/baseUrl or resolveBaseUrl/u)
   })
 })

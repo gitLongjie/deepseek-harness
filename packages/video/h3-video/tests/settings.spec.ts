@@ -79,6 +79,23 @@ describe('resolveOverlayConfig', () => {
     expect(effective.minimax?.model).toBe('MiniMax-H3')
     expect(effective.minimax?.resolutions).toBeUndefined()
   })
+
+  it('replaces only the cloud GPU token reference', () => {
+    const base = baseConfig({
+      comfy: {
+        workflowPath: 'D:/ComfyUI/template.json',
+        gpu: { gpuSpecUuid: 'v-32g-p', imageUuid: 'image-1', instanceName: 'pool' },
+      },
+    })
+    const effective = resolveOverlayConfig(base, { gpuApiTokenRef: 'MY_AUTODL' })
+    expect(effective.comfy?.gpu).toEqual({
+      gpuSpecUuid: 'v-32g-p',
+      imageUuid: 'image-1',
+      instanceName: 'pool',
+      apiTokenRef: 'MY_AUTODL',
+    })
+    expect(resolveOverlayConfig(base, {}).comfy?.gpu).toEqual(base.comfy?.gpu)
+  })
 })
 
 /** A controllable view: the value it reports and the watchers it notifies. */

@@ -2,9 +2,17 @@
 #
 # Same EXPERT convention as `geo-optimizer`: the persona row is the expert's
 # soul, the preset-local `skills/` directory is its toolbox, and `preset.yml`
-# publishes the expert-card metadata. The only added capability over a
-# read-only consultant is a shell tool — the expert pushes articles to the
-# running `web-admin-go` HTTP API, so it needs pwsh (Windows) or bash.
+# publishes the expert-card metadata. Everything below reuses the shipped preset
+# machinery, so the expert adds nothing model-facing beyond what a preset
+# already records in the session log.
+#
+# Publishing is a host tool rather than a shell command: `dsh-tool-geo-admin`
+# signs in to the GEO multi-site backend with the account configured on the
+# 深度云海 settings card and resolves the password from the credentials store on
+# every call, so no credential literal reaches the transcript and no backend
+# path is hardcoded here. That card's `./settings` host row belongs to the
+# deployment composition: a settings namespace is registered once per process
+# and a preset cannot own one.
 
 - id: persona
   name: '@deepseek-ai/dsh-persona'
@@ -14,11 +22,11 @@
 
       你的职责分四步，顺序不可打乱：
       1. 先定输入：用户给了文章（标题/正文/摘要/标签）就直接用，只给了主题或关键词就由你撰写。
-      2. 再定站点：多站点后台必须落在某个 website_id 上，按用户给的站点名/域名匹配，匹配不到就列出站点让用户选，绝不猜。
-      3. 然后发送：先加载 `geo-article-publish` skill，按其流程登录并 POST 到 /api/v1/news。
-      4. 最后回执：读回新文章 id/slug 与发布状态，如实向用户汇报。
+      2. 再定站点：调用 geo_sites_list 取当前账号可发布的站点，按用户给的站点名/域名匹配；匹配不到或匹配到多个，列出候选让用户选，绝不猜。
+      3. 然后发送：先加载 `geo-article-publish` skill，按其流程调用 geo_article_publish。
+      4. 最后回执：工具会读回已保存的文章；核对站点与发布状态后，如实向用户汇报 id 与 slug。
 
-      文章内容用 markdown 撰写（后端会自动转 HTML）；发送前把目标站点和发布状态（草稿/上线）跟用户确认一次，避免发错站点或误上线。
+      文章内容用 markdown 撰写（后端会自动转 HTML）；发送前把目标站点和发布状态（草稿/上线）跟用户确认一次，避免发错站点或误上线。凭据由「设置 → 插件 → 深度云海」维护，不要在对话里向用户索要或复述密码。
 
 - id: agent-instructions
   name: '@deepseek-ai/dsh-agent-instructions'
@@ -26,8 +34,7 @@
     maxBytes: 65536
 
 # Read access to the workspace: the user may drop article files (markdown/docx)
-# or a brief here; the config (.env) that holds the bot credentials also lives
-# under the project root.
+# or a brief here.
 - id: tool-fs
   name: '@deepseek-ai/dsh-tool-fs'
 
@@ -36,16 +43,12 @@
   config:
     sampleOverCapGlobResults: false
 
-# Shell only for the HTTP calls to web-admin-go (login + news create + readback).
-# Executors (pwsh-sandbox / bash-sandbox) stay host-plane; these rows just
-# expose the model-facing tool on this platform.
-- id: tool-bash
-  name: '@deepseek-ai/dsh-tool-bash'
-  disabled: !!js process.platform === 'win32'
-
-- id: tool-pwsh
-  name: '@deepseek-ai/dsh-tool-pwsh'
-  disabled: !!js process.platform !== 'win32'
+# The publishing tools: list sites, create an article, read one back. They read
+# the `geo-admin` settings namespace and the GEO_ADMIN_PASSWORD credential, and
+# register into this session's tool registry — a session that does not hire the
+# expert never sees them.
+- id: tool-geo-admin
+  name: '@deepseek-ai/dsh-tool-geo-admin'
 
 # The publishing skill travels with this preset: it is the workflow this expert
 # is hired for. `baseUrl` is the preset's own directory, so the root resolves

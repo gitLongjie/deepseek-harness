@@ -348,7 +348,11 @@ Host Remote file reads and workspace directory observations over the composed fi
 
 ```ts cordis-catalog
 /**
- * Read one page of lines from a UTF-8 file readable by the filesystem backend.
+ * Read one page of lines from a file readable by the filesystem backend.
+ *
+ * A suffix document text extraction covers reads as its converted plain
+ * text, produced by the platform converter and decoded as strict UTF-8;
+ * every other file reads as UTF-8 bytes and fails as not-text otherwise.
  * @param workspaceFileScope - header-derived workspace root for the Session identity on the wire.
  * @param path - absolute path or path relative to the workspace root; files outside it are allowed.
  * @param range - the line window; omitted fields take the page defaults.

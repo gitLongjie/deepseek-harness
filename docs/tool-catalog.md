@@ -39,10 +39,11 @@ This table connects model-visible tool names to the plugin package and service s
 | `@deepseek-ai/dsh-tool-subagent` | `list_subagent_models`, `subagent` | `ctx.tools`, `ctx.subagents`, `ctx.systemPrompt`, `ctx.llm for model discovery and selected-route validation` | `tool/call`, `tool/result`, `child session events through the chosen provider` | `subagent`, `subagent_fork` | The registered delegation name is the load-time `toolName` config (default `subagent`); the default schema above has model selection off, while the discovery schema is shown as the fixed companion available in an enabled Session. Web presets sample the Plugins preference for each new top-level Session and preserve that decision for its child Sessions; `subagent_fork` remains fixed-route. Each instance independently controls whether it reads model-selection settings and its background behavior through `modelSelectionSettings`, `backgroundMode`, and `enableRunInBackground`. |
 | `@deepseek-ai/dsh-tool-subagent-control` | `interrupt_agent`, `list_agents`, `send_message` | `ctx.tools`, `ctx.subagents`, `ctx.agents and ctx.sessionProjections (list_agents only)` | `tool/call`, `tool/result`, `child session events through ctx.subagents` | - | The globally named control tools over continuable background subagents: provider-bound `tool-subagent` instances register distinct delegation tools, while this package registers `send_message` and `interrupt_agent` once, plus `list_agents` from its separately loaded `/list-agents` plugin (whose catalog rows use the sessionProjections and live Agent registries). |
 | `@deepseek-ai/dsh-tool-jobs` | `job_kill`, `job_list`, `job_output` | `ctx.tools`, `ctx.jobs`, `ctx.systemPrompt` | `tool/call`, `tool/result`, `user/message via agent.inject() for background completion notices` | - | The kind-agnostic background-job controller: background bash commands, PTY sends, and subagents are read, listed, and killed through the same three tools. Loading the plugin attaches the controller that arms producers' `ctx.jobs.start()`. |
-| `@deepseek-ai/dsh-tool-video` | `video_assemble`, `video_asset_images`, `video_assets`, `video_keyframes`, `video_plan`, `video_render` | `ctx.tools`, `ctx.jobs`, `ctx.h3Video`, `ctx.commands`, `ctx.attachments (material images)` | `tool/call`, `tool/result`, `durable attachment for generated keyframes and asset images`, `background h3-video jobs` | - | The H3 storyboard, keyframe, asset, render, and assembly tools plus the `/video` command. Generated materials ride the result as image blocks when a durable attachment store is mounted, which is why `ctx.attachments` is optional here rather than injected. |
+| `@deepseek-ai/dsh-tool-video` | `video_assemble`, `video_asset_images`, `video_assets`, `video_gpu`, `video_keyframes`, `video_library`, `video_plan`, `video_render` | `ctx.tools`, `ctx.jobs`, `ctx.h3Video`, `ctx.commands`, `ctx.attachments (material images)` | `tool/call`, `tool/result`, `durable attachment for generated keyframes and asset images`, `background h3-video jobs` | - | The H3 storyboard, keyframe, asset, render, assembly, and cloud-GPU tools plus the `/video` command. Generated materials ride the result as image blocks when a durable attachment store is mounted, which is why `ctx.attachments` is optional here rather than injected. |
 | `@deepseek-ai/dsh-experimental-tool-agent-team` | `interrupt_agent`, `list_agents`, `send_message`, `spawn_teammate`, `team_task_create`, `team_task_get`, `team_task_list`, `team_task_update`, `wait_agent` | `ctx.tools`, `ctx.systemPrompt`, `ctx.agentTeams`, `an exact live Team member Agent` | `tool/call`, `team/member`, `team/message/queued`, `team/message/delivered`, `team/task`, `tool/result` | - | All nine tools are scoped to implicit Team Leads and durable teammates. The shipped dsh-base bundle keeps the package disabled; the documented Agent Teams profile patch enables it while disabling the legacy continuable-child control names. |
 | `@deepseek-ai/dsh-tool-todo` | `todo_write` | `ctx.tools`, `owning Agent session` | `tool/call`, `todo/write`, `tool/result` | - | todo_write is session-owned state; UIs render the latest todo/write event as a checklist. `allowParallelInProgress` is required with no default, so the catalog states its choice: `true`, whose description invites several `in_progress` items. A deployment choosing `false` receives the same tool with a description asking for exactly one active task. |
 | `@deepseek-ai/dsh-tool-workflow` | `workflow` | `ctx.tools`, `ctx.workflowEngine`, `ctx.systemPrompt`, `a calling Agent (exec.agent parents the script children)` | `tool/call`, `tool/result` | - | - |
+| `@deepseek-ai/dsh-tool-geo-admin` | `geo_article_delete`, `geo_article_get`, `geo_article_publish`, `geo_article_update`, `geo_categories_list`, `geo_news_list`, `geo_report_generate`, `geo_report_get`, `geo_report_job`, `geo_reports_list`, `geo_sites_list`, `geo_task_retry`, `geo_tasks_list` | `ctx.tools`, `ctx.credentials` | `tool/call`, `tool/result` | - | The 深度云海 tools resolve their backend address and account from the geo-admin settings namespace and sign in per call; no schema depends on the configured account. |
 | `@deepseek-ai/dsh-tool-web` | `web_fetch`, `web_search` | `ctx.tools`, `ctx.web`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | web_search and web_fetch keep provider selection behind ctx.web so model-visible schemas stay stable across backend swaps. |
 
 <a id="deepseek-aidsh-mcp-resources"></a>
@@ -2134,7 +2135,7 @@ The kind-agnostic background-job controller: background bash commands, PTY sends
 
 ### `video_assemble`
 
-Concatenate a plan's rendered segments in storyboard order with ffmpeg into one mp4. Fails listing any segment that has not been rendered yet.
+Assemble rendered segments in storyboard order. Per-segment plans use a short crossfade by default, overlapping pictures and sound; choose cut for a direct join or dip for a scene change. Fails listing any segment that has not been rendered yet.
 
 ```json
 {
@@ -2151,6 +2152,19 @@ Concatenate a plan's rendered segments in storyboard order with ffmpeg into one 
     "ffmpeg_path": {
       "type": "string",
       "description": "ffmpeg executable; defaults to ffmpeg on PATH."
+    },
+    "transition": {
+      "type": "string",
+      "description": "Defaults to crossfade: overlap adjacent pictures and audio. cut joins directly; dip fades through black. Only per_segment assembly applies transitions.",
+      "enum": [
+        "cut",
+        "dip",
+        "crossfade"
+      ]
+    },
+    "transition_seconds": {
+      "type": "number",
+      "description": "Positive overlap duration for crossfade (default 0.4s), or dip half-width (default 0.25s). Capped at half of either adjacent clip. Crossfades shorten the total by their overlaps."
     }
   },
   "required": [
@@ -2163,7 +2177,7 @@ Source: [`packages/video/tool-video/src/index.ts`](../packages/video/tool-video/
 
 ### `video_asset_images`
 
-Generate the reference image for plan assets that have none, via the hosted image model, using the production spec for each kind: characters get a turnaround reference sheet (front close-up + front/side/back full views), scenes get a reusable establishing shot without people, props get a neutral reference image. Saves each to outputDir/assets and records it on the plan, so rendering anchors on a generated visual instead of text alone. Present the images to the user for confirmation.
+Generate the anchor images for plan assets that need them. A character gets a front-facing half-body portrait — the subject reference every keyframe is conditioned on — plus a wide master sheet carrying front, side, and back full-body views side by side. The sheet is drawn from the character description rather than from the portrait, because conditioning on the bust keeps that framing. Scenes get a reusable establishing shot without people; props get a neutral reference image. Images are saved under outputDir/assets and recorded on the plan; pass regenerate with a new seed to try another take.
 
 ```json
 {
@@ -2179,6 +2193,14 @@ Generate the reference image for plan assets that have none, via the hosted imag
       "items": {
         "type": "string"
       }
+    },
+    "regenerate": {
+      "type": "boolean",
+      "description": "Regenerate the selected assets even when they already carry a reference image, replacing it on the plan."
+    },
+    "seed": {
+      "type": "integer",
+      "description": "Image seed for reproducible designs; omit to draw a fresh one, which is what makes regenerate produce another take."
     }
   },
   "required": [
@@ -2225,7 +2247,13 @@ Record the reusable asset anchors (characters/scenes/props) and their user-provi
           "description": {
             "type": "string"
           },
+          "prompt": {
+            "type": "string"
+          },
           "reference": {
+            "type": "string"
+          },
+          "sheet": {
             "type": "string"
           }
         },
@@ -2249,9 +2277,36 @@ Record the reusable asset anchors (characters/scenes/props) and their user-provi
 
 Source: [`packages/video/tool-video/src/index.ts`](../packages/video/tool-video/src/index.ts)
 
+### `video_gpu`
+
+Manage the cloud GPU instance behind the local H3 backend. status reports it, up boots or reuses it and waits until ComfyUI answers, stop powers it off keeping its disk, and release deletes it. GPU time is billed while the instance runs; a local render boots it implicitly and the configured idle policy stops or releases it after the last segment settles.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "action": {
+      "type": "string",
+      "description": "status: report the instance; up: boot or reuse it and wait for ComfyUI; stop: power it off; release: delete it.",
+      "enum": [
+        "status",
+        "up",
+        "stop",
+        "release"
+      ]
+    }
+  },
+  "required": [
+    "action"
+  ]
+}
+```
+
+Source: [`packages/video/tool-video/src/index.ts`](../packages/video/tool-video/src/index.ts)
+
 ### `video_keyframes`
 
-Generate one still keyframe per selected segment (remote image model), establishing the scene and visual identity BEFORE video generation. Save keyframes to outputDir/keyframes and return their paths; present them to the user for confirmation, then render.
+Generate one still keyframe per selected segment (remote image model), establishing the scene and visual identity BEFORE video generation. Each still carries the plan style and the anchored character the shot names as a subject reference, so separately rendered shots share one look. Save keyframes to outputDir/keyframes and return their paths; present them to the user for confirmation, then render.
 
 ```json
 {
@@ -2267,11 +2322,37 @@ Generate one still keyframe per selected segment (remote image model), establish
       "items": {
         "type": "string"
       }
+    },
+    "seed": {
+      "type": "integer",
+      "description": "Image seed for this batch; defaults to the plan seed, so re-running reproduces the same stills. Pass another value to try a different take."
+    },
+    "identity": {
+      "type": "string",
+      "description": "How the still is conditioned on the cast. \"auto\" (default) keeps the face when the shot names a character the plan carries an image for, by editing that portrait into the scene; open shots draw from text alone. \"text\" forces text-to-image; \"portrait\" forces the portrait edit even when no character is named.",
+      "enum": [
+        "auto",
+        "text",
+        "portrait"
+      ]
     }
   },
   "required": [
     "plan_id"
   ]
+}
+```
+
+Source: [`packages/video/tool-video/src/index.ts`](../packages/video/tool-video/src/index.ts)
+
+### `video_library`
+
+List the project asset library: characters, scenes, and props confirmed in earlier plans, each with its canonical prompt block, reference image, and character master sheet. Attach one to a new plan with video_plan library_assets instead of redefining it.
+
+```json
+{
+  "type": "object",
+  "properties": {}
 }
 ```
 
@@ -2303,7 +2384,7 @@ Structure the current conversation request into a versioned storyboard plan and 
     },
     "assets": {
       "type": "array",
-      "description": "Reusable asset anchors (characters/scenes/props) confirmed with the user; each may carry a user-provided reference image path or URL. The storyboard must reference these names exactly.",
+      "description": "Reusable asset anchors (characters/scenes/props) confirmed with the user; each may carry a user-provided reference image path or URL and a fixed prompt block. The storyboard must reference these names exactly.",
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -2325,7 +2406,13 @@ Structure the current conversation request into a versioned storyboard plan and 
           "description": {
             "type": "string"
           },
+          "prompt": {
+            "type": "string"
+          },
           "reference": {
+            "type": "string"
+          },
+          "sheet": {
             "type": "string"
           }
         },
@@ -2336,9 +2423,24 @@ Structure the current conversation request into a versioned storyboard plan and 
         ]
       }
     },
+    "library_assets": {
+      "type": "array",
+      "description": "Asset names or ids to attach from the project library instead of redefining them; video_library lists what is saved. An authored entry of the same name wins.",
+      "items": {
+        "type": "string"
+      }
+    },
     "style": {
       "type": "string",
       "description": "One-line visual style directive injected into generation prompts."
+    },
+    "allow_remote": {
+      "type": "boolean",
+      "description": "Confirm that the user agreed to pay for hosted-API seconds. Required when any segment names backend remote; the refusal names the segments and their total seconds."
+    },
+    "seed": {
+      "type": "integer",
+      "description": "Sampling seed shared by every segment and keyframe of the plan, so separately rendered shots stay on one look; omit to derive one from the plan identity."
     },
     "segments": {
       "type": "array",
@@ -2456,7 +2558,7 @@ Source: [`packages/video/tool-video/src/index.ts`](../packages/video/tool-video/
 
 ### `video_render`
 
-Submit one plan's segments (or a subset) to the chosen H3 backend and start one background job per segment that polls generation to completion. Returns submission records with job ids; collect results with job_output.
+Submit one plan's segments (or a subset) to the chosen H3 backend and start one background job per segment that polls generation to completion. Returns submission records with job ids; collect results with job_output. A local submission boots the configured cloud GPU when needed, so run video_gpu action=up first to surface boot failures before submitting.
 
 ```json
 {
@@ -2481,6 +2583,14 @@ Submit one plan's segments (or a subset) to the chosen H3 backend and start one 
         "remote",
         "auto"
       ]
+    },
+    "allow_remote": {
+      "type": "boolean",
+      "description": "Confirm that the user agreed to pay for hosted-API seconds. Required when the selected segments would render remote; the refusal names them and their total seconds."
+    },
+    "chain": {
+      "type": "boolean",
+      "description": "Render the selected shots in plan order and start each one from the previous shot's final frame, so consecutive shots share a continuous motion and place. Slower than parallel rendering; use it for shots inside one scene."
     }
   },
   "required": [
@@ -2491,7 +2601,7 @@ Submit one plan's segments (or a subset) to the chosen H3 backend and start one 
 
 Source: [`packages/video/tool-video/src/index.ts`](../packages/video/tool-video/src/index.ts)
 
-The H3 storyboard, keyframe, asset, render, and assembly tools plus the `/video` command. Generated materials ride the result as image blocks when a durable attachment store is mounted, which is why `ctx.attachments` is optional here rather than injected.
+The H3 storyboard, keyframe, asset, render, assembly, and cloud-GPU tools plus the `/video` command. Generated materials ride the result as image blocks when a durable attachment store is mounted, which is why `ctx.attachments` is optional here rather than injected.
 
 <a id="deepseek-aidsh-experimental-tool-agent-team"></a>
 
@@ -2927,6 +3037,448 @@ Constraints: concurrency and total-agent caps apply; no filesystem, network, tim
 ```
 
 Source: [`packages/workflow/tool-workflow/src/index.ts`](../packages/workflow/tool-workflow/src/index.ts)
+
+<a id="deepseek-aidsh-tool-geo-admin"></a>
+
+## `@deepseek-ai/dsh-tool-geo-admin`
+
+### `geo_article_delete`
+
+Delete one 深度云海 article by id. Call it only when the user explicitly asked to delete THIS article: the backend refuses while publish or placement records reference it, and that refusal is reported as-is. Read the article first so the id is confirmed.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "number",
+      "description": "Article id to delete."
+    }
+  },
+  "required": [
+    "id"
+  ]
+}
+```
+
+Source: [`packages/geo/tool-geo-admin/src/index.ts`](../packages/geo/tool-geo-admin/src/index.ts)
+
+### `geo_article_get`
+
+Read one 深度云海 article by id and report its stored title, site, slug, and publish state.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "number",
+      "description": "Article id returned by geo_article_publish."
+    }
+  },
+  "required": [
+    "id"
+  ]
+}
+```
+
+Source: [`packages/geo/tool-geo-admin/src/index.ts`](../packages/geo/tool-geo-admin/src/index.ts)
+
+### `geo_article_publish`
+
+Publish one article to a 深度云海 site. The body is markdown (the backend converts it to HTML) and the summary is plain text. Omit is_published for a draft; pass true only when the user asked to go live.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "website_id": {
+      "type": "number",
+      "description": "Target site id from geo_sites_list."
+    },
+    "title": {
+      "type": "string",
+      "description": "Article title."
+    },
+    "summary": {
+      "type": "string",
+      "description": "Plain-text summary; the backend strips HTML."
+    },
+    "content": {
+      "type": "string",
+      "description": "Markdown body with substantive content."
+    },
+    "tags": {
+      "type": "string",
+      "description": "Comma-separated tags."
+    },
+    "category_id": {
+      "type": "number",
+      "description": "Category id, when the target site uses one."
+    },
+    "image": {
+      "type": "string",
+      "description": "Cover image URL."
+    },
+    "author": {
+      "type": "string",
+      "description": "Byline."
+    },
+    "source": {
+      "type": "string",
+      "description": "Source attribution."
+    },
+    "source_url": {
+      "type": "string",
+      "description": "Source URL."
+    },
+    "is_published": {
+      "type": "boolean",
+      "description": "true goes live immediately; omitted stays a draft."
+    }
+  },
+  "required": [
+    "website_id",
+    "title",
+    "summary",
+    "content"
+  ]
+}
+```
+
+Source: [`packages/geo/tool-geo-admin/src/index.ts`](../packages/geo/tool-geo-admin/src/index.ts)
+
+### `geo_article_update`
+
+Change some fields of one existing 深度云海 article and read the stored record back. Only the fields passed change; pass is_published true to go live or false to return it to draft. Read the article first so the change is deliberate.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "number",
+      "description": "Article id to update."
+    },
+    "title": {
+      "type": "string",
+      "description": "New title."
+    },
+    "summary": {
+      "type": "string",
+      "description": "New plain-text summary."
+    },
+    "content": {
+      "type": "string",
+      "description": "New markdown body."
+    },
+    "tags": {
+      "type": "string",
+      "description": "Replacement comma-separated tags."
+    },
+    "category_id": {
+      "type": "number",
+      "description": "New category id."
+    },
+    "image": {
+      "type": "string",
+      "description": "New cover image URL."
+    },
+    "author": {
+      "type": "string",
+      "description": "New byline."
+    },
+    "source": {
+      "type": "string",
+      "description": "New source attribution."
+    },
+    "source_url": {
+      "type": "string",
+      "description": "New source URL."
+    },
+    "is_published": {
+      "type": "boolean",
+      "description": "true publishes, false returns the article to draft."
+    }
+  },
+  "required": [
+    "id"
+  ]
+}
+```
+
+Source: [`packages/geo/tool-geo-admin/src/index.ts`](../packages/geo/tool-geo-admin/src/index.ts)
+
+### `geo_categories_list`
+
+List 深度云海 content categories, optionally scoped to one site or a keyword. Use it to pick a category_id for geo_article_publish or geo_article_update.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "website_id": {
+      "type": "number",
+      "description": "Restrict to one site id."
+    },
+    "search": {
+      "type": "string",
+      "description": "Case-insensitive keyword match over name, slug, and description."
+    },
+    "page": {
+      "type": "number",
+      "description": "Page number, 1-based. Defaults to the backend's first page."
+    },
+    "limit": {
+      "type": "number",
+      "description": "Page size. Defaults to the backend's page size."
+    }
+  }
+}
+```
+
+Source: [`packages/geo/tool-geo-admin/src/index.ts`](../packages/geo/tool-geo-admin/src/index.ts)
+
+### `geo_news_list`
+
+List 深度云海 articles, filtered by site, category, keyword, or publish state. Returns one page of id/title/site/state rows; use geo_article_get for the full article.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "website_id": {
+      "type": "number",
+      "description": "Restrict to one site id."
+    },
+    "category_id": {
+      "type": "number",
+      "description": "Restrict to one category id."
+    },
+    "search": {
+      "type": "string",
+      "description": "Case-insensitive keyword match over title, summary, and body."
+    },
+    "is_published": {
+      "type": "boolean",
+      "description": "true lists only live articles; false only drafts."
+    },
+    "page": {
+      "type": "number",
+      "description": "Page number, 1-based. Defaults to the backend's first page."
+    },
+    "limit": {
+      "type": "number",
+      "description": "Page size. Defaults to the backend's page size."
+    }
+  }
+}
+```
+
+Source: [`packages/geo/tool-geo-admin/src/index.ts`](../packages/geo/tool-geo-admin/src/index.ts)
+
+### `geo_report_generate`
+
+Start one brand-visibility report generation for a site and return its job. Report generation costs model calls; confirm the site and QA window with the user first, then poll geo_report_job until the job finishes.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "website_id": {
+      "type": "number",
+      "description": "Site the report covers."
+    },
+    "qa_start_date": {
+      "type": "string",
+      "description": "QA window start, YYYY-MM-DD."
+    },
+    "qa_end_date": {
+      "type": "string",
+      "description": "QA window end, YYYY-MM-DD."
+    },
+    "source": {
+      "type": "string",
+      "description": "Source label recorded on the job; defaults to manual."
+    },
+    "force": {
+      "type": "boolean",
+      "description": "Regenerate even when the input matches an existing report."
+    }
+  },
+  "required": [
+    "website_id"
+  ]
+}
+```
+
+Source: [`packages/geo/tool-geo-admin/src/index.ts`](../packages/geo/tool-geo-admin/src/index.ts)
+
+### `geo_report_get`
+
+Read one brand-visibility report by id: its QA and citation counts, QA window, the target brand's own visibility score, and the brand ranking. Use it to answer questions about a site's current AI-search visibility.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Report id from geo_reports_list."
+    }
+  },
+  "required": [
+    "id"
+  ]
+}
+```
+
+Source: [`packages/geo/tool-geo-admin/src/index.ts`](../packages/geo/tool-geo-admin/src/index.ts)
+
+### `geo_report_job`
+
+Read one report-generation job by id and report whether it is still running, produced a report, or failed.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Job id from geo_report_generate."
+    }
+  },
+  "required": [
+    "id"
+  ]
+}
+```
+
+Source: [`packages/geo/tool-geo-admin/src/index.ts`](../packages/geo/tool-geo-admin/src/index.ts)
+
+### `geo_reports_list`
+
+List brand-visibility (GEO) reports across the account's sites, newest first as the backend orders them. Filter by site, status, source, or a generated-date range; the result is one page of report rows.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "website_id": {
+      "type": "number",
+      "description": "Restrict to one site id."
+    },
+    "site_name": {
+      "type": "string",
+      "description": "Site name to match."
+    },
+    "status": {
+      "type": "string",
+      "description": "Restrict to one report status."
+    },
+    "source": {
+      "type": "string",
+      "description": "Restrict to one report source, for example manual or scheduled."
+    },
+    "start_date": {
+      "type": "string",
+      "description": "Earliest generated date, YYYY-MM-DD."
+    },
+    "end_date": {
+      "type": "string",
+      "description": "Latest generated date, YYYY-MM-DD."
+    },
+    "page": {
+      "type": "number",
+      "description": "Page number, 1-based."
+    },
+    "page_size": {
+      "type": "number",
+      "description": "Page size; the backend default is 20."
+    }
+  }
+}
+```
+
+Source: [`packages/geo/tool-geo-admin/src/index.ts`](../packages/geo/tool-geo-admin/src/index.ts)
+
+### `geo_sites_list`
+
+List the 深度云海 sites the configured publishing account may publish articles to. Each site has an id, name, domain, and code; the id is the website_id an article is published to.
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+Source: [`packages/geo/tool-geo-admin/src/index.ts`](../packages/geo/tool-geo-admin/src/index.ts)
+
+### `geo_task_retry`
+
+Retry one failed GEO task by id. The backend refuses an unknown id and a task that already used its attempts; the refusal is reported as-is.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Task id from geo_tasks_list."
+    }
+  },
+  "required": [
+    "id"
+  ]
+}
+```
+
+Source: [`packages/geo/tool-geo-admin/src/index.ts`](../packages/geo/tool-geo-admin/src/index.ts)
+
+### `geo_tasks_list`
+
+List GEO keyword tasks (the questions a model is asked per site and platform) and their status. Filter by site, batch, platform, status, or keyword text; the result is one page of task rows.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "website_id": {
+      "type": "number",
+      "description": "Restrict to one site id."
+    },
+    "batch_id": {
+      "type": "string",
+      "description": "Restrict to one dispatch batch id."
+    },
+    "platform": {
+      "type": "string",
+      "description": "Restrict to one model platform, for example doubao."
+    },
+    "status": {
+      "type": "string",
+      "description": "Restrict to one status: pending, running, succeeded, failed, cancelled."
+    },
+    "q": {
+      "type": "string",
+      "description": "Keyword text to match."
+    },
+    "page": {
+      "type": "number",
+      "description": "Page number, 1-based."
+    },
+    "page_size": {
+      "type": "number",
+      "description": "Page size; the backend default is 20."
+    }
+  }
+}
+```
+
+Source: [`packages/geo/tool-geo-admin/src/index.ts`](../packages/geo/tool-geo-admin/src/index.ts)
+
+The 深度云海 tools resolve their backend address and account from the geo-admin settings namespace and sign in per call; no schema depends on the configured account.
 
 <a id="deepseek-aidsh-tool-web"></a>
 

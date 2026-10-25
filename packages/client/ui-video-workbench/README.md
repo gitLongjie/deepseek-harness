@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package is the browser half of the video workbench: one global panel row in the sidebar (id `video-workbench`, beside the scheduled-work row) and the matching `main` page. The page lists the video projects the host routes report — goal, mode, revision, per-shot rendering state — and shows the selected project's keyframe thumbnails and its final assembly in a `<video>` element. Data arrives from [`@deepseek-ai/dsh-video-workbench`](../../video/video-workbench/README.md)'s read-only routes; this package holds no state beyond selection and refresh.
+This package is the browser half of the video workbench: one global panel row in the sidebar (id `video-workbench`, beside the scheduled-work row) and the matching `main` page. The page lists the video projects the host routes report — goal, mode, revision, per-shot rendering state — and shows the selected project's cast and sets (each asset's reference image, character master sheet, canonical prompt block, and project-library state), keyframe thumbnails, and its final assembly in a `<video>` element. Data arrives from [`@deepseek-ai/dsh-video-workbench`](../../video/video-workbench/README.md)'s read-only routes; this package holds no state beyond selection and refresh.
 
 ## Table of Contents
 
@@ -21,7 +21,7 @@ This package is the browser half of the video workbench: one global panel row in
 ## Understand the implementation
 
 - [`src/client/index.ts`](src/client/index.ts) registers the `sidebar.panellist` row and the keyed `main` entry once their slot declarations are on the ledger, and binds the page's injected loader to the same-origin projects route.
-- [`src/client/VideoWorkbenchPage.tsx`](src/client/VideoWorkbenchPage.tsx) renders the catalog and detail panes; the listing refreshes on open, every 10 seconds, and on the refresh button. Media URLs go through the host file route with the projected root stripped.
+- [`src/client/VideoWorkbenchPage.tsx`](src/client/VideoWorkbenchPage.tsx) renders the catalog and detail panes; the listing refreshes on open, every 10 seconds, and on the refresh button. The detail pane shows the cast/set assets first (reference and master-sheet thumbnails, the prompt block, and the library badge), then the authored storyboard and the final assembly. Each render task retains its original shot prompts, durations, camera directions, resolution, and ratio, including the shots grouped under `all`. Only the latest refresh may update the listing; an absent clip is shown as not rendered. Unreadable-plan counts remain visible even when no valid project can be listed. Clicking a thumbnail opens a larger preview; Escape, the close button, or a backdrop click closes it. Media URLs go through the host file route with the projected root stripped.
 - All copy is locale-owned through the `videoWorkbench` dictionary namespace ([`src/client/locales.ts`](src/client/locales.ts)).
 
 **Runtime invariant:** No companion is published. The page holds only its selection and the last fetched listing, both React-local, so no owned relationship crosses a package boundary for a companion to observe.
@@ -46,8 +46,8 @@ No effect: the package adds no system-prompt text and no per-request prefix.
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **No in-page re-render or edit actions.** The workbench is a read projection; rendering flows through the `/video` pipeline with its confirmation gate.
-- **Whole-file media buffering.** Keyframes and finals load whole; the host file route has no byte-range responses yet.
+- **Regeneration requires chat confirmation.** Shot and asset actions seed the current composer; a combined `all` task requests regeneration of the complete storyboard. They never submit generation directly. Project and asset deletion require a second click and use the host recovery directory.
+- **The desktop carrier buffers media.** The file route answers byte ranges, so a browser seeks without re-downloading; the desktop app-scheme carrier hands the media element one buffered body, so playback there starts after the download completes.
 - **Experimental prototype with no stability promise** — the package is public, but its slots and copy can change freely while it incubates.
 
 <a id="dev-note"></a>

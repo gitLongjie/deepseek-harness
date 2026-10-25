@@ -9,7 +9,7 @@ kind: "package-group"
 
 ## 概述
 
-video 分组把一次对话变成用 MiniMax H3 渲染的成片。一个服务接口通过本地 ComfyUI 部署或托管 MiniMax API 生成片段，按段显式路由，并用 ffmpeg 把完成的片段拼接成片；其上的模型面向工具负责拆分镜、确定视觉素材、把渲染作为后台任务提交、并拼接结果；工作台则把输出目录投影进 Web 界面，而不给浏览器任何写路径。本组拆分为接口与 provider（`h3-video`）、其消费者（`tool-video`）以及只读投影（`video-workbench`）。
+video 分组把一次对话变成用 MiniMax H3 渲染的成片。一个服务接口通过本地 ComfyUI（本机或按需供给的 AutoDL GPU）或托管 MiniMax API 生成片段，按段显式路由，并用 ffmpeg 把完成的片段拼接成片；其上的模型面向工具负责拆分镜、确定视觉素材、把渲染作为后台任务提交、管理该 GPU、并拼接结果；工作台则把输出目录投影进 Web 界面，而不给浏览器任何写路径。本组拆分为接口（`h3-video`）、其消费者（`tool-video`）以及只读投影（`video-workbench`）。
 
 ## 目录
 
@@ -24,8 +24,8 @@ video 分组把一次对话变成用 MiniMax H3 渲染的成片。一个服务�
 
 | 包 | 角色 | ctx key |
 |---|---|---|
-| [`h3-video`](h3-video/README.zh.md) | 生成接口：`ctx.h3Video`、本地 ComfyUI 与托管 MiniMax provider、显式路由、ffmpeg 拼接，以及 `./settings` 入口 | `ctx.h3Video` |
-| [`tool-video`](tool-video/README.zh.md) | 面向模型的 `video_plan`、`video_keyframes`、`video_assets`、`video_asset_images`、`video_render`、`video_assemble` 工具与 `/video` 指令 | 注册到 `ctx.tools` |
+| [`h3-video`](h3-video/README.zh.md) | 生成接口：`ctx.h3Video`、本地 ComfyUI 与托管 MiniMax provider、AutoDL GPU 实例生命周期、显式路由、ffmpeg 拼接，以及 `./settings` 入口 | `ctx.h3Video` |
+| [`tool-video`](tool-video/README.zh.md) | 面向模型的 `video_plan`、`video_keyframes`、`video_assets`、`video_asset_images`、`video_library`、`video_render`、`video_assemble`、`video_gpu` 工具与 `/video` 指令 | 注册到 `ctx.tools` |
 | [`video-workbench`](video-workbench/README.zh.md) | 把 H3 输出目录投影给 Web 界面的只读 Connection Fetch 路由 | — |
 
 工作台的浏览器半边与其他 Web 插件放在一起：[`client/ui-video-workbench`](../client/ui-video-workbench/README.zh.md)。

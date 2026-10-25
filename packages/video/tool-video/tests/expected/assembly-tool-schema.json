@@ -1,0 +1,37 @@
+{
+  "name": "video_assemble",
+  "description": "Assemble rendered segments in storyboard order. Per-segment plans use a short crossfade by default, overlapping pictures and sound; choose cut for a direct join or dip for a scene change. Fails listing any segment that has not been rendered yet.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "plan_id": {
+        "type": "string",
+        "description": "Plan id from video_plan."
+      },
+      "output_file": {
+        "type": "string",
+        "description": "Absolute output mp4 path; defaults to outputDir/final/<planId>.mp4."
+      },
+      "ffmpeg_path": {
+        "type": "string",
+        "description": "ffmpeg executable; defaults to ffmpeg on PATH."
+      },
+      "transition": {
+        "type": "string",
+        "description": "Defaults to crossfade: overlap adjacent pictures and audio. cut joins directly; dip fades through black. Only per_segment assembly applies transitions.",
+        "enum": [
+          "cut",
+          "dip",
+          "crossfade"
+        ]
+      },
+      "transition_seconds": {
+        "type": "number",
+        "description": "Positive overlap duration for crossfade (default 0.4s), or dip half-width (default 0.25s). Capped at half of either adjacent clip. Crossfades shorten the total by their overlaps."
+      }
+    },
+    "required": [
+      "plan_id"
+    ]
+  }
+}

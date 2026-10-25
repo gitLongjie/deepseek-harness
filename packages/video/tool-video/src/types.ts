@@ -30,12 +30,24 @@ export interface PlanAsset {
   readonly kind: 'character' | 'scene' | 'prop'
   /**
    * Visual description the planner writes for this asset: the character's appearance/styling, the
-   * scene's location/set/props layout, or the prop's look. Wrapped by the generation spec template
-   * when `video_asset_images` generates the anchor image.
+   * scene's location/set/props layout, or the prop's look.
    */
   readonly description?: string
+  /**
+   * Canonical generation block for this asset, copied verbatim into every prompt that conditions
+   * on it (portrait, master sheet, keyframes, clips). Keeping one fixed block is what stops
+   * separately rendered shots from drifting in wording; `description` is the short human-facing
+   * summary used when no block is written.
+   */
+  readonly prompt?: string
   /** User-provided or generated reference image path or URL anchoring this asset. */
   readonly reference?: string
+  /**
+   * Character master sheet: front/side/back turnaround plus a face close-up, generated from the
+   * reference portrait. It is the design artifact and project-library record, not a generation
+   * input.
+   */
+  readonly sheet?: string
 }
 
 /** One storyboard shot inside a plan. */
@@ -76,6 +88,12 @@ export interface VideoPlan {
   readonly assets?: readonly PlanAsset[]
   /** One-line visual style directive injected into generation prompts. */
   readonly style?: string
+  /**
+   * Sampling seed shared by every segment and keyframe of this plan, so separately rendered shots
+   * sample the same noise and stay reproducible. Derived from the plan identity when the planner
+   * supplies none; the hosted H3 API takes no seed and ignores it.
+   */
+  readonly seed?: number
   /** Ordered segments; assembly follows this order. */
   readonly segments: readonly VideoSegment[]
   /** Epoch ms when the plan event was appended. */
@@ -85,7 +103,13 @@ export interface VideoPlan {
 /** One segment submission record returned by the render tool. */
 export interface RenderSubmission {
   readonly segmentId: string
+  /** Policy the caller asked for: `local`, `remote`, or `auto`. */
   readonly backend: string
+  /**
+   * Backend routing actually reached, present only on a successful submission. `auto` hides the
+   * decision until this point, and only this field says whether the run billed the hosted API.
+   */
+  readonly resolved?: 'local' | 'remote'
   /** Backend task reference, present only on a successful submission. */
   readonly taskRef?: string
   /** Background job id that polls the task, present only on a successful submission. */

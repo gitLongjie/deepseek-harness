@@ -638,8 +638,12 @@ function registerWebProtocol(writeLog: (line: string) => void): void {
         )
         const responseBody = new Uint8Array(await response.arrayBuffer())
         const responseHeaders = new Headers()
-        const contentType = response.headers.get('content-type')
-        if (contentType !== null) responseHeaders.set('content-type', contentType)
+        // Media elements need the range headers to seek; the body is already buffered here, so
+        // the advertised range always describes the bytes this response actually carries.
+        for (const name of ['content-type', 'content-length', 'content-range', 'accept-ranges']) {
+          const value = response.headers.get(name)
+          if (value !== null) responseHeaders.set(name, value)
+        }
         return new Response(responseBody, { status: response.status, headers: responseHeaders })
       }
       // /plugins/* — dynamic client bundles owned by the module registry, not

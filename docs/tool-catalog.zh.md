@@ -43,9 +43,11 @@
 | `@deepseek-ai/dsh-tool-subagent` | `list_subagent_models`、`subagent` | `ctx.tools`、`ctx.subagents`、`ctx.systemPrompt`、`用于模型发现和所选路由校验的 ctx.llm` | `tool/call`、`tool/result`、`child session events through the chosen provider` | `subagent`、`subagent_fork` | 注册的委派工具名称取决于加载时 `toolName` 配置（默认为 `subagent`）；上述默认 schema 关闭模型选择，而发现 schema 则展示为已启用 Session 中可用的固定配套工具。Web preset 会在每个新顶层 Session 创建时读取插件页偏好，并为其子 Session 保留该决定；`subagent_fork` 始终使用固定路由。每个实例通过 `modelSelectionSettings`、`backgroundMode` 与 `enableRunInBackground` 独立控制是否读取模型选择设置及其后台行为。 |
 | `@deepseek-ai/dsh-tool-subagent-control` | `interrupt_agent`、`list_agents`、`send_message` | `ctx.tools`、`ctx.subagents`、`ctx.agents and ctx.sessionProjections (list_agents only)` | `tool/call`、`tool/result`、`child session events through ctx.subagents` | - | 这些是控制可继续后台 subagent 的全局命名工具：绑定提供方的 `tool-subagent` 实例注册不同的委派工具；本包注册一次 `send_message` 和 `interrupt_agent`，另由 `list_agents` 通过单独加载的 `/list-agents` 插件提供，其目录行使用 sessionProjections 和实时 Agent 注册表。 |
 | `@deepseek-ai/dsh-tool-jobs` | `job_kill`、`job_list`、`job_output` | `ctx.tools`、`ctx.jobs`、`ctx.systemPrompt` | `tool/call`、`tool/result`、`user/message via agent.inject() for background completion notices` | - | 与任务种类无关的后台任务控制器：后台 bash 命令、PTY 发送和 subagent 都通过相同的 3 个工具读取、列出和终止。加载该插件会挂接控制器，从而启用生产方的 `ctx.jobs.start()`。 |
+| `@deepseek-ai/dsh-tool-video` | `video_assemble`、`video_asset_images`、`video_assets`、`video_gpu`、`video_keyframes`、`video_library`、`video_plan`、`video_render` | `ctx.tools`、`ctx.jobs`、`ctx.h3Video`、`ctx.commands`、`ctx.attachments (material images)` | `tool/call`、`tool/result`、`durable attachment for generated keyframes and asset images`、`background h3-video jobs` | - | H3 分镜、关键帧、素材、渲染、拼接与云端 GPU 工具，以及 `/video` 指令。挂载持久附件存储后，生成的素材会以图片块随结果返回，因此这里的 `ctx.attachments` 是可选依赖而不是注入。 |
 | `@deepseek-ai/dsh-experimental-tool-agent-team` | `interrupt_agent`、`list_agents`、`send_message`、`spawn_teammate`、`team_task_create`、`team_task_get`、`team_task_list`、`team_task_update`、`wait_agent` | `ctx.tools`、`ctx.systemPrompt`、`ctx.agentTeams`、`an exact live Team member Agent` | `tool/call`、`team/member`、`team/message/queued`、`team/message/delivered`、`team/task`、`tool/result` | - | 这 9 个工具限定于隐式 Team Lead 与持久 teammate 作用域。随产品发布的 dsh-base bundle 默认禁用该包；文档中的 Agent Teams profile patch 会启用它，并禁用旧 continuable child 的同名控制工具。 |
 | `@deepseek-ai/dsh-tool-todo` | `todo_write` | `ctx.tools`、`owning Agent session` | `tool/call`、`todo/write`、`tool/result` | - | todo_write 是会话所有的状态；UI 将最新的 todo/write 事件渲染为检查清单。`allowParallelInProgress` 是没有默认值的必填项，因此本目录明确选择 `true`，对应描述允许同时存在多个 `in_progress` 项。选择 `false` 的部署会获得同一工具，但描述会要求只能有 1 个活动任务。 |
 | `@deepseek-ai/dsh-tool-workflow` | `workflow` | `ctx.tools`、`ctx.workflowEngine`、`ctx.systemPrompt`、`a calling Agent (exec.agent parents the script children)` | `tool/call`、`tool/result` | - | - |
+| `@deepseek-ai/dsh-tool-geo-admin` | `geo_article_delete`、`geo_article_get`、`geo_article_publish`、`geo_article_update`、`geo_categories_list`、`geo_news_list`、`geo_report_generate`、`geo_report_get`、`geo_report_job`、`geo_reports_list`、`geo_sites_list`、`geo_task_retry`、`geo_tasks_list` | `ctx.tools`、`ctx.credentials` | `tool/call`、`tool/result` | - | 这些深度云海工具从 geo-admin 设置命名空间解析后台地址与账号，并在每次调用时登录；没有 schema 依赖已配置的账号。 |
 | `@deepseek-ai/dsh-tool-web` | `web_fetch`、`web_search` | `ctx.tools`、`ctx.web`、`ctx.systemPrompt` | `tool/call`、`tool/result` | - | web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可见 schema 在更换后端时保持稳定。 |
 
 <a id="deepseek-aidsh-mcp-resources"></a>
@@ -2133,6 +2135,480 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 
 与任务种类无关的后台任务控制器：后台 bash 命令、PTY 发送和 subagent 都通过相同的 3 个工具读取、列出和终止。加载该插件会挂接控制器，从而启用生产方的 `ctx.jobs.start()`。
 
+<a id="deepseek-aidsh-tool-video"></a>
+
+## `@deepseek-ai/dsh-tool-video`
+
+### `video_assemble`
+
+按分镜顺序用 ffmpeg 把计划中已渲染的片段拼接成一个 mp4。存在尚未渲染的片段时失败，并列出这些片段。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "plan_id": {
+      "type": "string",
+      "description": "Plan id from video_plan."
+    },
+    "output_file": {
+      "type": "string",
+      "description": "Absolute output mp4 path; defaults to outputDir/final/<planId>.mp4."
+    },
+    "ffmpeg_path": {
+      "type": "string",
+      "description": "ffmpeg executable; defaults to ffmpeg on PATH."
+    },
+    "transition": {
+      "type": "string",
+      "description": "Defaults to crossfade: overlap adjacent pictures and audio. cut joins directly; dip fades through black. Only per_segment assembly applies transitions.",
+      "enum": [
+        "cut",
+        "dip",
+        "crossfade"
+      ]
+    },
+    "transition_seconds": {
+      "type": "number",
+      "description": "Positive overlap duration for crossfade (default 0.4s), or dip half-width (default 0.25s). Capped at half of either adjacent clip. Crossfades shorten the total by their overlaps."
+    }
+  },
+  "required": [
+    "plan_id"
+  ]
+}
+```
+
+来源：[`packages/video/tool-video/src/index.ts`](../packages/video/tool-video/src/index.ts)
+
+### `video_asset_images`
+
+通过托管图片模型为需要锚点图的计划素材生成锚点图片。角色会得到一张正面半身定妆照——每个关键帧所依据的主体参考——外加一张由该定妆照生成的母图（正面/侧面/背面三视图与面部特写），因此各视图共享同一张脸、发型、服装与比例。场景得到无人物、可复用的空镜建立镜头；道具得到中性参考图。图片保存在 outputDir/assets 下并记录到计划上；传入 regenerate 与新 seed 可以再要一个方案。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "plan_id": {
+      "type": "string",
+      "description": "Plan id from video_plan."
+    },
+    "asset_ids": {
+      "type": "array",
+      "description": "Asset ids to generate; defaults to every asset without a reference.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "regenerate": {
+      "type": "boolean",
+      "description": "Regenerate the selected assets even when they already carry a reference image, replacing it on the plan."
+    },
+    "seed": {
+      "type": "integer",
+      "description": "Image seed for reproducible designs; omit to draw a fresh one, which is what makes regenerate produce another take."
+    }
+  },
+  "required": [
+    "plan_id"
+  ]
+}
+```
+
+来源：[`packages/video/tool-video/src/index.ts`](../packages/video/tool-video/src/index.ts)
+
+### `video_assets`
+
+在询问用户素材后，把可复用的素材锚点（角色/场景/道具）及其用户提供的参考图记录到已有计划上。每个素材引用都必须是用户提供的图片的绝对本地路径或 http(s) URL。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "plan_id": {
+      "type": "string",
+      "description": "Plan id from video_plan."
+    },
+    "assets": {
+      "type": "array",
+      "description": "Asset anchors with user-provided reference images; names must match the storyboard references exactly.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "character",
+              "scene",
+              "prop"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "prompt": {
+            "type": "string"
+          },
+          "reference": {
+            "type": "string"
+          },
+          "sheet": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind"
+        ]
+      }
+    },
+    "style": {
+      "type": "string",
+      "description": "One-line visual style directive injected into generation prompts."
+    }
+  },
+  "required": [
+    "plan_id"
+  ]
+}
+```
+
+来源：[`packages/video/tool-video/src/index.ts`](../packages/video/tool-video/src/index.ts)
+
+### `video_gpu`
+
+管理本地 H3 后端背后的云 GPU 实例。status 报告实例状态，up 开机或复用它并等待 ComfyUI 响应，stop 关机但保留其磁盘，release 删除它。实例运行期间按 GPU 时长计费；本地渲染会隐式开机，配置的空闲策略会在最后一个片段结算后将其关机或释放。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "action": {
+      "type": "string",
+      "description": "status: report the instance; up: boot or reuse it and wait for ComfyUI; stop: power it off; release: delete it.",
+      "enum": [
+        "status",
+        "up",
+        "stop",
+        "release"
+      ]
+    }
+  },
+  "required": [
+    "action"
+  ]
+}
+```
+
+来源：[`packages/video/tool-video/src/index.ts`](../packages/video/tool-video/src/index.ts)
+
+### `video_keyframes`
+
+为每个选中片段生成一张静帧关键帧（远端图片模型），在生成视频之前先确立场景与视觉识别。每张静帧都带上计划风格和镜头点名的已锚定角色作为主体参考，因此分开渲染的镜头共享同一观感。关键帧保存到 outputDir/keyframes 并返回其路径；把它们展示给用户确认，然后再渲染。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "plan_id": {
+      "type": "string",
+      "description": "Plan id from video_plan."
+    },
+    "segment_ids": {
+      "type": "array",
+      "description": "Segment ids to keyframe; defaults to every segment.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "seed": {
+      "type": "integer",
+      "description": "Image seed for this batch; defaults to the plan seed, so re-running reproduces the same stills. Pass another value to try a different take."
+    },
+    "identity": {
+      "type": "string",
+      "description": "How the still is conditioned on the cast. \"auto\" (default) keeps the face when the shot names a character the plan carries an image for, by editing that portrait into the scene; open shots draw from text alone. \"text\" forces text-to-image; \"portrait\" forces the portrait edit even when no character is named.",
+      "enum": [
+        "auto",
+        "text",
+        "portrait"
+      ]
+    }
+  },
+  "required": [
+    "plan_id"
+  ]
+}
+```
+
+来源：[`packages/video/tool-video/src/index.ts`](../packages/video/tool-video/src/index.ts)
+
+### `video_library`
+
+列出项目资产库：先前计划中确认过的角色、场景与道具，每项都带有其规范 prompt 块、参考图与角色母图。用 video_plan 的 library_assets 将其挂到新计划上，而不是重新定义它。
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+来源：[`packages/video/tool-video/src/index.ts`](../packages/video/tool-video/src/index.ts)
+
+### `video_plan`
+
+把当前对话需求结构化为带版本的分镜计划并持久化。镜头由 agent 编写；此工具负责校验并存储。传入已有 plan_id 可修订该计划。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "goal": {
+      "type": "string",
+      "description": "One-line goal the plan serves."
+    },
+    "plan_id": {
+      "type": "string",
+      "description": "Existing plan id to revise; omit to create a new plan."
+    },
+    "mode": {
+      "type": "string",
+      "description": "multi_shot (default) folds all segments into one coherent H3 task (≤15s, uniform resolution/ratio); per_segment renders each shot independently then concats. Use per_segment when a shot needs its own material or backend.",
+      "enum": [
+        "multi_shot",
+        "per_segment"
+      ]
+    },
+    "assets": {
+      "type": "array",
+      "description": "Reusable asset anchors (characters/scenes/props) confirmed with the user; each may carry a user-provided reference image path or URL and a fixed prompt block. The storyboard must reference these names exactly.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "character",
+              "scene",
+              "prop"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "prompt": {
+            "type": "string"
+          },
+          "reference": {
+            "type": "string"
+          },
+          "sheet": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind"
+        ]
+      }
+    },
+    "library_assets": {
+      "type": "array",
+      "description": "Asset names or ids to attach from the project library instead of redefining them; video_library lists what is saved. An authored entry of the same name wins.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "style": {
+      "type": "string",
+      "description": "One-line visual style directive injected into generation prompts."
+    },
+    "allow_remote": {
+      "type": "boolean",
+      "description": "Confirm that the user agreed to pay for hosted-API seconds. Required when any segment names backend remote; the refusal names the segments and their total seconds."
+    },
+    "seed": {
+      "type": "integer",
+      "description": "Sampling seed shared by every segment and keyframe of the plan, so separately rendered shots stay on one look; omit to derive one from the plan identity."
+    },
+    "segments": {
+      "type": "array",
+      "description": "Ordered storyboard shots; assembly follows this order.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Stable segment id, e.g. s1, s2."
+          },
+          "prompt": {
+            "type": "string",
+            "description": "Shot description used as the generation prompt. H3 generates audio in the same pass: state the ambience/SFX layer, wrap Chinese dialogue as <d>[Chinese] 逐字台词</d>, and write non_diegetic_music: N/A when no music is wanted."
+          },
+          "camera": {
+            "type": "string",
+            "description": "Camera movement guidance appended to the prompt."
+          },
+          "duration_seconds": {
+            "type": "integer",
+            "description": "Segment length in seconds (1..120)."
+          },
+          "resolution": {
+            "type": "string",
+            "description": "Resolution tier.",
+            "enum": [
+              "480P",
+              "768P",
+              "2K"
+            ]
+          },
+          "ratio": {
+            "type": "string",
+            "description": "Aspect ratio.",
+            "enum": [
+              "adaptive",
+              "21:9",
+              "16:9",
+              "4:3",
+              "1:1",
+              "3:4",
+              "9:16"
+            ]
+          },
+          "backend": {
+            "type": "string",
+            "description": "Routing policy for this segment.",
+            "enum": [
+              "local",
+              "remote",
+              "auto"
+            ]
+          },
+          "references": {
+            "type": "array",
+            "description": "Optional reference materials conditioning this segment (served by the remote API; local ComfyUI is text-only).",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "description": "Material kind.",
+                  "enum": [
+                    "image",
+                    "video",
+                    "audio"
+                  ]
+                },
+                "source": {
+                  "type": "string",
+                  "description": "Absolute path or http(s) URL of the material."
+                },
+                "role": {
+                  "type": "string",
+                  "description": "How the material conditions generation (image: first_frame/last_frame/reference_image; video: reference_video; audio: reference_audio).",
+                  "enum": [
+                    "first_frame",
+                    "last_frame",
+                    "reference_image",
+                    "reference_video",
+                    "reference_audio"
+                  ]
+                }
+              },
+              "required": [
+                "type",
+                "source",
+                "role"
+              ]
+            }
+          }
+        },
+        "required": [
+          "id",
+          "prompt",
+          "duration_seconds",
+          "resolution",
+          "ratio",
+          "backend"
+        ]
+      }
+    }
+  },
+  "required": [
+    "goal",
+    "segments"
+  ]
+}
+```
+
+来源：[`packages/video/tool-video/src/index.ts`](../packages/video/tool-video/src/index.ts)
+
+### `video_render`
+
+把一个计划的片段（或其中一部分）提交给选定的 H3 后端，并为每个片段启动一个轮询生成直至完成的后台任务。返回带 job id 的提交记录；通过 job_output 收集结果。本地提交会在需要时启动已配置的云 GPU，因此先执行 video_gpu action=up 可在提交前暴露开机失败。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "plan_id": {
+      "type": "string",
+      "description": "Plan id from video_plan."
+    },
+    "segment_ids": {
+      "type": "array",
+      "description": "Segment ids to render; defaults to every segment.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "backend": {
+      "type": "string",
+      "description": "Backend override for all selected segments.",
+      "enum": [
+        "local",
+        "remote",
+        "auto"
+      ]
+    },
+    "allow_remote": {
+      "type": "boolean",
+      "description": "Confirm that the user agreed to pay for hosted-API seconds. Required when the selected segments would render remote; the refusal names them and their total seconds."
+    },
+    "chain": {
+      "type": "boolean",
+      "description": "Render the selected shots in plan order and start each one from the previous shot's final frame, so consecutive shots share a continuous motion and place. Slower than parallel rendering; use it for shots inside one scene."
+    }
+  },
+  "required": [
+    "plan_id"
+  ]
+}
+```
+
+来源：[`packages/video/tool-video/src/index.ts`](../packages/video/tool-video/src/index.ts)
+
+H3 分镜、关键帧、素材、渲染、拼接与云端 GPU 工具，以及 `/video` 指令。挂载持久附件存储后，生成的素材会以图片块随结果返回，因此这里的 `ctx.attachments` 是可选依赖而不是注入。
+
 <a id="deepseek-aidsh-experimental-tool-agent-team"></a>
 
 ## `@deepseek-ai/dsh-experimental-tool-agent-team`
@@ -2569,6 +3045,448 @@ todo_write 是会话所有的状态；UI 将最新的 todo/write 事件渲染为
 ```
 
 来源：[`packages/workflow/tool-workflow/src/index.ts`](../packages/workflow/tool-workflow/src/index.ts)
+
+<a id="deepseek-aidsh-tool-geo-admin"></a>
+
+## `@deepseek-ai/dsh-tool-geo-admin`
+
+### `geo_article_delete`
+
+按 id 删除一篇深度云海文章。仅在用户明确要求删除**这一篇**文章时调用：只要存在发布或投放记录引用该文章，后台就会拒绝，该拒绝会原样上报。先读取文章，确认 id 无误。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "number",
+      "description": "Article id to delete."
+    }
+  },
+  "required": [
+    "id"
+  ]
+}
+```
+
+来源：[`packages/geo/tool-geo-admin/src/index.ts`](../packages/geo/tool-geo-admin/src/index.ts)
+
+### `geo_article_get`
+
+按 id 读取一篇深度云海文章，报告其存储的标题、站点、slug 与发布状态。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "number",
+      "description": "Article id returned by geo_article_publish."
+    }
+  },
+  "required": [
+    "id"
+  ]
+}
+```
+
+来源：[`packages/geo/tool-geo-admin/src/index.ts`](../packages/geo/tool-geo-admin/src/index.ts)
+
+### `geo_article_publish`
+
+把一篇文章发布到某个深度云海站点。正文是 markdown（后台会转换为 HTML），摘要是纯文本。省略 is_published 则为草稿；仅当用户要求上线时才传入 true。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "website_id": {
+      "type": "number",
+      "description": "Target site id from geo_sites_list."
+    },
+    "title": {
+      "type": "string",
+      "description": "Article title."
+    },
+    "summary": {
+      "type": "string",
+      "description": "Plain-text summary; the backend strips HTML."
+    },
+    "content": {
+      "type": "string",
+      "description": "Markdown body with substantive content."
+    },
+    "tags": {
+      "type": "string",
+      "description": "Comma-separated tags."
+    },
+    "category_id": {
+      "type": "number",
+      "description": "Category id, when the target site uses one."
+    },
+    "image": {
+      "type": "string",
+      "description": "Cover image URL."
+    },
+    "author": {
+      "type": "string",
+      "description": "Byline."
+    },
+    "source": {
+      "type": "string",
+      "description": "Source attribution."
+    },
+    "source_url": {
+      "type": "string",
+      "description": "Source URL."
+    },
+    "is_published": {
+      "type": "boolean",
+      "description": "true goes live immediately; omitted stays a draft."
+    }
+  },
+  "required": [
+    "website_id",
+    "title",
+    "summary",
+    "content"
+  ]
+}
+```
+
+来源：[`packages/geo/tool-geo-admin/src/index.ts`](../packages/geo/tool-geo-admin/src/index.ts)
+
+### `geo_article_update`
+
+修改一篇已有深度云海文章的部分字段，并读回存储的记录。只有传入的字段会改变；传入 is_published true 可上线，false 则退回草稿。先读取文章，让改动是有意为之。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "number",
+      "description": "Article id to update."
+    },
+    "title": {
+      "type": "string",
+      "description": "New title."
+    },
+    "summary": {
+      "type": "string",
+      "description": "New plain-text summary."
+    },
+    "content": {
+      "type": "string",
+      "description": "New markdown body."
+    },
+    "tags": {
+      "type": "string",
+      "description": "Replacement comma-separated tags."
+    },
+    "category_id": {
+      "type": "number",
+      "description": "New category id."
+    },
+    "image": {
+      "type": "string",
+      "description": "New cover image URL."
+    },
+    "author": {
+      "type": "string",
+      "description": "New byline."
+    },
+    "source": {
+      "type": "string",
+      "description": "New source attribution."
+    },
+    "source_url": {
+      "type": "string",
+      "description": "New source URL."
+    },
+    "is_published": {
+      "type": "boolean",
+      "description": "true publishes, false returns the article to draft."
+    }
+  },
+  "required": [
+    "id"
+  ]
+}
+```
+
+来源：[`packages/geo/tool-geo-admin/src/index.ts`](../packages/geo/tool-geo-admin/src/index.ts)
+
+### `geo_categories_list`
+
+列出深度云海内容栏目，可按一个站点或关键词限定范围。用它为 geo_article_publish 或 geo_article_update 选取 category_id。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "website_id": {
+      "type": "number",
+      "description": "Restrict to one site id."
+    },
+    "search": {
+      "type": "string",
+      "description": "Case-insensitive keyword match over name, slug, and description."
+    },
+    "page": {
+      "type": "number",
+      "description": "Page number, 1-based. Defaults to the backend's first page."
+    },
+    "limit": {
+      "type": "number",
+      "description": "Page size. Defaults to the backend's page size."
+    }
+  }
+}
+```
+
+来源：[`packages/geo/tool-geo-admin/src/index.ts`](../packages/geo/tool-geo-admin/src/index.ts)
+
+### `geo_news_list`
+
+列出深度云海文章，可按站点、栏目、关键词或发布状态过滤。返回一页 id/title/site/state 行；完整文章请用 geo_article_get。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "website_id": {
+      "type": "number",
+      "description": "Restrict to one site id."
+    },
+    "category_id": {
+      "type": "number",
+      "description": "Restrict to one category id."
+    },
+    "search": {
+      "type": "string",
+      "description": "Case-insensitive keyword match over title, summary, and body."
+    },
+    "is_published": {
+      "type": "boolean",
+      "description": "true lists only live articles; false only drafts."
+    },
+    "page": {
+      "type": "number",
+      "description": "Page number, 1-based. Defaults to the backend's first page."
+    },
+    "limit": {
+      "type": "number",
+      "description": "Page size. Defaults to the backend's page size."
+    }
+  }
+}
+```
+
+来源：[`packages/geo/tool-geo-admin/src/index.ts`](../packages/geo/tool-geo-admin/src/index.ts)
+
+### `geo_report_generate`
+
+为一个站点启动一次品牌可见度报告生成，并返回其任务。报告生成会消耗模型调用；先与用户确认站点与 QA 窗口，再轮询 geo_report_job 直到任务结束。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "website_id": {
+      "type": "number",
+      "description": "Site the report covers."
+    },
+    "qa_start_date": {
+      "type": "string",
+      "description": "QA window start, YYYY-MM-DD."
+    },
+    "qa_end_date": {
+      "type": "string",
+      "description": "QA window end, YYYY-MM-DD."
+    },
+    "source": {
+      "type": "string",
+      "description": "Source label recorded on the job; defaults to manual."
+    },
+    "force": {
+      "type": "boolean",
+      "description": "Regenerate even when the input matches an existing report."
+    }
+  },
+  "required": [
+    "website_id"
+  ]
+}
+```
+
+来源：[`packages/geo/tool-geo-admin/src/index.ts`](../packages/geo/tool-geo-admin/src/index.ts)
+
+### `geo_report_get`
+
+按 id 读取一份品牌可见度报告：其中的 QA 与引用计数、QA 窗口、目标品牌自身的可见度得分以及品牌排名。用它回答关于站点当前 AI 搜索可见度的问题。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Report id from geo_reports_list."
+    }
+  },
+  "required": [
+    "id"
+  ]
+}
+```
+
+来源：[`packages/geo/tool-geo-admin/src/index.ts`](../packages/geo/tool-geo-admin/src/index.ts)
+
+### `geo_report_job`
+
+按 id 读取一个报告生成任务，报告它仍在运行、已产出报告，还是已失败。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Job id from geo_report_generate."
+    }
+  },
+  "required": [
+    "id"
+  ]
+}
+```
+
+来源：[`packages/geo/tool-geo-admin/src/index.ts`](../packages/geo/tool-geo-admin/src/index.ts)
+
+### `geo_reports_list`
+
+列出该账号各站点的品牌可见度（GEO）报告，按后台的排序（最新在前）。可按站点、状态、来源或生成日期范围过滤；结果是一页报告行。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "website_id": {
+      "type": "number",
+      "description": "Restrict to one site id."
+    },
+    "site_name": {
+      "type": "string",
+      "description": "Site name to match."
+    },
+    "status": {
+      "type": "string",
+      "description": "Restrict to one report status."
+    },
+    "source": {
+      "type": "string",
+      "description": "Restrict to one report source, for example manual or scheduled."
+    },
+    "start_date": {
+      "type": "string",
+      "description": "Earliest generated date, YYYY-MM-DD."
+    },
+    "end_date": {
+      "type": "string",
+      "description": "Latest generated date, YYYY-MM-DD."
+    },
+    "page": {
+      "type": "number",
+      "description": "Page number, 1-based."
+    },
+    "page_size": {
+      "type": "number",
+      "description": "Page size; the backend default is 20."
+    }
+  }
+}
+```
+
+来源：[`packages/geo/tool-geo-admin/src/index.ts`](../packages/geo/tool-geo-admin/src/index.ts)
+
+### `geo_sites_list`
+
+列出已配置的发布账号可发布文章的深度云海站点。每个站点都有 id、name、domain 与 code；id 就是文章发布到的 website_id。
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+来源：[`packages/geo/tool-geo-admin/src/index.ts`](../packages/geo/tool-geo-admin/src/index.ts)
+
+### `geo_task_retry`
+
+按 id 重试一个失败的 GEO 任务。后台会拒绝未知 id 以及已用完重试次数的任务；该拒绝会原样上报。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Task id from geo_tasks_list."
+    }
+  },
+  "required": [
+    "id"
+  ]
+}
+```
+
+来源：[`packages/geo/tool-geo-admin/src/index.ts`](../packages/geo/tool-geo-admin/src/index.ts)
+
+### `geo_tasks_list`
+
+列出 GEO 关键词任务（模型按站点与平台被询问的问题）及其状态。可按站点、批次、平台、状态或关键词文本过滤；结果是一页任务行。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "website_id": {
+      "type": "number",
+      "description": "Restrict to one site id."
+    },
+    "batch_id": {
+      "type": "string",
+      "description": "Restrict to one dispatch batch id."
+    },
+    "platform": {
+      "type": "string",
+      "description": "Restrict to one model platform, for example doubao."
+    },
+    "status": {
+      "type": "string",
+      "description": "Restrict to one status: pending, running, succeeded, failed, cancelled."
+    },
+    "q": {
+      "type": "string",
+      "description": "Keyword text to match."
+    },
+    "page": {
+      "type": "number",
+      "description": "Page number, 1-based."
+    },
+    "page_size": {
+      "type": "number",
+      "description": "Page size; the backend default is 20."
+    }
+  }
+}
+```
+
+来源：[`packages/geo/tool-geo-admin/src/index.ts`](../packages/geo/tool-geo-admin/src/index.ts)
+
+这些深度云海工具从 geo-admin 设置命名空间解析后台地址与账号，并在每次调用时登录；没有 schema 依赖已配置的账号。
 
 <a id="deepseek-aidsh-tool-web"></a>
 

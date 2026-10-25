@@ -56,6 +56,8 @@ export interface H3VideoSettingsSection {
   minimaxMaxDurationSeconds?: number
   /** Credential reference resolving the hosted API key; a value here enables the remote backend when the composition carries no key. */
   minimaxApiKeyRef?: string
+  /** Credential reference resolving the AutoDL token; applies only with a `comfy.gpu` row. */
+  gpuApiTokenRef?: string
   /** Hosted MiniMax poll interval in milliseconds. */
   minimaxPollIntervalMs?: number
   /** Hosted MiniMax task timeout in milliseconds. */
@@ -87,6 +89,7 @@ export const H3VideoSettingsSchema: z<H3VideoSettingsSection> = z.object({
   minimaxMinDurationSeconds: z.number().step(1).min(1),
   minimaxMaxDurationSeconds: z.number().step(1).min(1),
   minimaxApiKeyRef: z.string(),
+  gpuApiTokenRef: z.string(),
   minimaxPollIntervalMs: z.number().min(1_000),
   minimaxTaskTimeoutMs: z.number().min(60_000),
   minimaxMaxConcurrency: z.number().step(1).min(1),

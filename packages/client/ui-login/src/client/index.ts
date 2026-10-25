@@ -2,9 +2,10 @@
  * Login gate plugin, browser half. When the build carries an account-server
  * endpoint (`DSH_CLIENT_LOGIN_URL`), it registers the full-page sign-in
  * takeover into the layout's overlay seat and the account row (avatar +
- * display name + sign-out) into the sidebar's footer-action seat. Every
- * launch replays the stored login pair against the endpoint while the gate
- * shows only a backdrop; a refusal falls back to the sign-in card. A
+ * display name + sign-out) into the sidebar's footer-action seat. A launch
+ * revalidates the key the last sign-in issued and enters the app when the
+ * gateway still accepts it; a refused key replays the stored account pair,
+ * which is the only path that creates a server-side login session. A
  * successful sign-in writes the issued key into the host credential layer
  * through the existing `credentials.set` wire method, under the gateway
  * route's own reference (`DEEPAGENS_API_KEY`) rather than the DeepSeek
@@ -98,8 +99,9 @@ export function apply(ctx: ClientContext): void {
     llm: remote.llm,
     settings: remote.settings,
   })
-  // Boot-time re-login: a stored pair is replayed against the endpoint while
-  // the gate shows only its backdrop; a refusal drops to the sign-in card.
+  // Boot-time restore: a stored key the gateway still accepts signs in
+  // without a new login session; only a refused key replays the stored pair.
+  // Either way the gate shows only its backdrop while this runs.
   void controller.restore()
   const t = ctx.locale.bind(NS) as (key: LoginKey) => string
   const brandIcon = process.env.DSH_CLIENT_BRAND_ICON ?? '/favicon.svg'

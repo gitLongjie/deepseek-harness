@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package provides the `ctx.h3Video` service: one backend-neutral seam that generates video segments with MiniMax H3, either from a local ComfyUI deployment or the hosted MiniMax V2 API, routes each segment explicitly between the two, and assembles finished segments with ffmpeg. The model-facing `video_plan` / `video_render` / `video_assemble` tools live in the companion [`@deepseek-ai/dsh-tool-video`](../tool-video/README.md) package. Choose it when a composition should turn a conversation into a storyboard and render it locally first, failing over to the hosted API on demand.
+This package provides the `ctx.h3Video` service: one backend-neutral seam that generates video segments with MiniMax H3, either from a local ComfyUI deployment (on this machine or a GPU instance provisioned on demand) or the hosted MiniMax V2 API, routes each segment explicitly between the two, and assembles finished segments with ffmpeg. The model-facing `video_plan` / `video_render` / `video_assemble` / `video_gpu` tools live in the companion [`@deepseek-ai/dsh-tool-video`](../tool-video/README.md) package. Choose it when a composition should turn a conversation into a storyboard and render it locally first, failing over to the hosted API on demand.
 
 ## Table of Contents
 
@@ -63,16 +63,42 @@ Adding the hosted backend is one more row referencing a credential; the key neve
 
 The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-h3-video) is the exhaustive source for every accepted field and its JSDoc.
 
+### Cloud GPU provisioning (AutoDL)
+
+The local backend can own its machine. A `comfy.gpu` row provisions an AutoDL container instance on the first local submission, waits for the ComfyUI service that instance exposes, and stops or releases the instance once generation stops. The row replaces `comfy.url` — the address comes from the instance — and requires dropping `comfy.inputDir`, because keyframes then upload through the ComfyUI HTTP API:
+
+```yaml
+comfy:
+  workflowPath: 'D:/ComfyUI/h3-workflow.json'
+  gpu:
+    gpuSpecUuid: 'v-32g-p'
+    imageUuid: 'image-comfyui-h3'
+    apiTokenRef: 'AUTODL_TOKEN'
+    instanceName: 'dsh-h3-video'
+    startCommand: 'bash /root/start-comfyui.sh'
+    servicePort: 6006
+    idleTimeoutMs: 1800000
+    idleAction: 'power_off'
+```
+
+The boot image must already carry ComfyUI, the H3 weights, and the models the workflow names; `startCommand` runs on every boot and has to start ComfyUI on `servicePort`. AutoDL maps that port to the instance's public `https://…:8443` service URL, which the pool reads from the instance snapshot and probes until ComfyUI answers `/system_stats`. `gpuSpecUuid` is the row's anchor: without it the GPU is unmanaged and `comfy.url` applies.
+
+Reuse is the default. The pool matches an account instance named `instanceName` and powers a stopped one back on instead of creating another, so `idleAction: 'power_off'` keeps the installed environment and any instance-disk data while ending GPU billing; `release` instead powers off and deletes the instance and its disk. The vendor token resolves per request through `ctx.credentials`, so a rotated or re-stored token takes effect without reloading the composition; a literal `apiToken` is accepted for test setups and lands in the composition file.
+
+Idle handling starts when the last polled task settles rather than when a workflow is submitted, so a long render never races the timer, and a submission that fails after booting the instance still arms it. `idleTimeoutMs: 0` disables idle handling, `idleAction` chooses stop or release, and `releaseOnDispose: true` releases the instance when the service is disposed. Explicit `stop` and `release` refuse while a generation is live on the instance; the model-facing `video_gpu` tool boots, reports, stops, or releases it.
+
 ### User settings overlay
 
-The `./settings` entry (`@deepseek-ai/dsh-h3-video/settings`) is a HOST-plane row that registers the `h3-video` settings namespace and publishes its live view as the `h3VideoSettings` service. The Plugins settings page edits the namespace; its fields are the user-tunable slice of the composition config (flat names like `comfyUrl`, `comfyWorkflowPath`, `minimaxApiKeyRef`, `outputDir`, `minFreeSpaceMb`). A mounted service layers the committed section over its composition values — a present, non-empty setting wins, an absent one inherits — and rebuilds its backends when the section changes, without editing the preset's composition file. Two enable switches travel with the overlay: `comfyWorkflowPath` enables the local backend and `minimaxApiKeyRef` the hosted one, so a composition with neither anchor can be enabled entirely from settings. The MiniMax key itself is written through the credentials domain; the section names only the reference.
+The `./settings` entry (`@deepseek-ai/dsh-h3-video/settings`) is a HOST-plane row that registers the `h3-video` settings namespace and publishes its live view as the `h3VideoSettings` service. The Plugins settings page edits the namespace; its fields are the user-tunable slice of the composition config (flat names like `comfyUrl`, `comfyWorkflowPath`, `minimaxApiKeyRef`, `gpuApiTokenRef`, `outputDir`, `minFreeSpaceMb`). A mounted service layers the committed section over its composition values — a present, non-empty setting wins, an absent one inherits — and rebuilds its backends when the section changes, without editing the preset's composition file. Two enable switches travel with the overlay: `comfyWorkflowPath` enables the local backend and `minimaxApiKeyRef` the hosted one, so a composition with neither anchor can be enabled entirely from settings. The MiniMax key and the AutoDL token are written through the credentials domain; the section names only the references (`gpuApiTokenRef` replaces the token reference of an existing `comfy.gpu` row and leaves its compute specification, image, and boot command untouched).
 
 ### What the service does
 
-- **Submit** a validated segment request to one backend and get an opaque task reference.
+- **Submit** a validated segment request — including an optional sampling seed the local workflow fills — to one backend and get an opaque task reference.
 - **Poll** the reference to a terminal state; a success carries the downloaded local file (remote URLs expire, so every hosted result is fetched into `outputDir`).
 - **Cancel** a live task best-effort (ComfyUI `POST /interrupt`, or abort of the polling fetch).
-- **Assemble** ordered segment files into one mp4 with ffmpeg, re-encoding to a uniform h264/yuv420p/24fps stream so mixed backends and resolutions still concatenate cleanly.
+- **Generate a still** keyframe for a shot through the hosted image model, optionally conditioned on a character reference (`subject_reference`) so the still keeps a confirmed face before any motion is sampled.
+- **Provision** the cloud GPU a local submission needs, reuse it across segments, and stop or release it under the idle policy.
+- **Assemble** ordered segment files into one mp4 with ffmpeg, re-encoding to a uniform h264/yuv420p/24fps stream so mixed backends and resolutions still concatenate cleanly, and writing the index at the front (`+faststart`) so a browser can start playing before the download finishes. Assembly options select direct cuts, dips through black, or picture-and-audio crossfades. Transitions require ffprobe beside ffmpeg or on PATH, normalize dimensions and frame rates, add silence to clips without audio, and trim or pad each clip to its supplied duration. Crossfades shorten the output by overlaps capped at half of either adjacent clip; transition failures reject instead of reverting to cuts.
 
 Routing is explicit per segment — `local`, `remote`, or `auto` (local first, fall back to remote on capability or availability). No call path receives an implicit default.
 
@@ -111,7 +137,8 @@ This section explains the design decisions behind the seam and points at the cod
 
 - **Capability seam, not a wrapper.** `H3Video` is the Service Definition; `createComfyUIProvider` and `createMiniMaxApiProvider` are the providers; `tool-video` is the consumer. Each backend owns its transport and file download, and neither owns retry policy or routing.
 - **Explicit resolution.** `resolve` is the single place that picks a backend, and it always runs request validation against the chosen backend's declared capabilities before submission.
-- **Config is deployment.** Every tunable (endpoints, field names, poll intervals, timeouts, concurrency, resolution/duration limits) is a validated `Config` field; nothing is a hardcoded constant.
+- **The GPU is a lifecycle, not a config value.** `GpuInstancePool` owns the vendor instance and counts the tasks holding it; the ComfyUI provider asks the pool for an origin per operation instead of receiving a static URL. A vendor contributes instance operations through `GpuVendor`, so no vendor field reaches the pool.
+- **Config is deployment.** Every tunable (endpoints, field names, poll intervals, timeouts, concurrency, resolution/duration limits, instance size, idle policy) is a validated `Config` field; nothing is a hardcoded constant.
 
 ### Source map
 
@@ -120,7 +147,9 @@ This section explains the design decisions behind the seam and points at the cod
 | [`src/types.ts`](src/types.ts) | `SegmentRequest`, `TaskStatus`, `H3VideoProvider`, `ProviderCapabilities`, the `H3TaskRef` brand |
 | [`src/validation.ts`](src/validation.ts) | Request rules shared by both providers (text count, prompt bounds, duration/resolution range, image-vs-reference exclusivity, frame uniqueness, reference-count caps, ratio rules) |
 | [`src/routing.ts`](src/routing.ts) | `resolve` — explicit `local`/`remote`/`auto` choice against configured backends |
-| [`src/comfyui.ts`](src/comfyui.ts) | Local provider: template filling, `/prompt` queue, `/history` polling, `/view` download, `/interrupt` cancel |
+| [`src/comfyui.ts`](src/comfyui.ts) | Local provider: template filling, `/prompt` queue, `/history` polling, `/view` download, `/interrupt` cancel, image upload |
+| [`src/autodl.ts`](src/autodl.ts) | AutoDL Pro API client: token header, query-parameter GETs, envelope errors, and the GPU vendor adapter |
+| [`src/gpu.ts`](src/gpu.ts) | Vendor-neutral instance pool: reuse by name, boot and readiness waits, idle stop/release, disposal |
 | [`src/minimax-api.ts`](src/minimax-api.ts) | Hosted provider: V2 creation, task polling, time-limited URL download |
 | [`src/assembly.ts`](src/assembly.ts) | ffmpeg concat assembly to one uniform mp4 |
 | [`src/index.ts`](src/index.ts) | The `H3Video` Service class and its default-export plugin wiring |
@@ -173,7 +202,8 @@ The service adds no system-prompt text and no per-request prefix, so it does not
 <a id="known-limitations-and-deferred-work"></a>
 
 - **Plans are file-backed, not session events.** A `video/plan` session-log event would pull in the persistence catalog and session-format version machinery, so plans are JSON artifacts under `outputDir`. Replay of a session shows the plan in `tool/result` but not as a first-class projection.
-- **ComfyUI image conditioning needs `comfy.inputDir`.** The local workflow serves keyframe and reference-image conditioning by copying each image into the ComfyUI input directory and wiring it into the H3 node, so an image-conditioned request fails loud without that directory configured. Video and audio references still route to the hosted API.
+- **ComfyUI image conditioning needs a writable image path.** The local provider makes keyframes and reference images reachable in one of two ways: copying them into a configured `comfy.inputDir`, or uploading them through the ComfyUI `/upload/image` endpoint when no directory is configured. A provisioned GPU instance is always remote, so it uses the upload path and refuses `inputDir` at load. Video and audio references still route to the hosted API.
+- **Only the GPU token reference is editable from settings.** `comfy.gpu` participates in the `h3-video` settings overlay through `gpuApiTokenRef` alone; the compute specification, boot image, instance name, and start command still come from the composition. The token value itself lives in the credentials store.
 - **Concurrency is advisory at the seam.** `maxConcurrency` is reported in capabilities for consumers to respect; the seam itself does not queue beyond what each backend does.
 
 <a id="dev-note"></a>

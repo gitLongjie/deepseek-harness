@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The video group turns a conversation into a rendered film with MiniMax H3. One service seam generates a segment through either a local ComfyUI deployment or the hosted MiniMax API, routing each segment explicitly and assembling finished segments with ffmpeg; the model-facing tools above it structure the storyboard, establish its visual materials, submit renders as background jobs, and concat the result; the workbench projects the output directory into the Web GUI without granting the browser a write path. The group splits into the seam with its providers (`h3-video`), its consumer (`tool-video`), and the read-only projection (`video-workbench`).
+The video group turns a conversation into a rendered film with MiniMax H3. One service seam generates a segment through local ComfyUI (on this machine or a provisioned AutoDL GPU) or the hosted MiniMax API, routing each segment explicitly and assembling finished segments with ffmpeg; the model-facing tools structure the storyboard, establish its visual materials, submit renders as background jobs, manage that GPU, and concat the result; the workbench projects the output directory into the Web GUI without granting the browser a write path. The group splits into the seam (`h3-video`), its consumer (`tool-video`), and the read-only projection (`video-workbench`).
 
 ## Table of Contents
 
@@ -24,8 +24,8 @@ The video group turns a conversation into a rendered film with MiniMax H3. One s
 
 | Package | Role | ctx key |
 |---|---|---|
-| [`h3-video`](h3-video/README.md) | The generation seam: `ctx.h3Video`, local ComfyUI and hosted MiniMax providers, explicit routing, ffmpeg assembly, and the `./settings` entry | `ctx.h3Video` |
-| [`tool-video`](tool-video/README.md) | The model-facing `video_plan`, `video_keyframes`, `video_assets`, `video_asset_images`, `video_render`, and `video_assemble` tools plus the `/video` command | registers on `ctx.tools` |
+| [`h3-video`](h3-video/README.md) | The generation seam: `ctx.h3Video`, local ComfyUI and hosted MiniMax providers, the AutoDL GPU instance lifecycle, explicit routing, ffmpeg assembly, and the `./settings` entry | `ctx.h3Video` |
+| [`tool-video`](tool-video/README.md) | The model-facing `video_plan`, `video_keyframes`, `video_assets`, `video_asset_images`, `video_library`, `video_render`, `video_assemble`, and `video_gpu` tools plus the `/video` command | registers on `ctx.tools` |
 | [`video-workbench`](video-workbench/README.md) | Read-only Connection Fetch routes projecting the H3 output directory for the Web GUI | — |
 
 The browser half of the workbench lives with the other Web plugins: [`client/ui-video-workbench`](../client/ui-video-workbench/README.md).

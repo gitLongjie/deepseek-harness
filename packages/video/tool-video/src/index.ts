@@ -8,13 +8,17 @@
  */
 
 import { existsSync } from 'node:fs'
-import { copyFile, mkdir, readFile, rename, writeFile } from 'node:fs/promises'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
+import { copyFile, mkdir, readdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { dirname, extname, join, basename } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type {
+  BackendChoice,
   H3TaskRef,
+  GpuStatus,
   RoutedProvider,
   SegmentInput,
   SegmentRequest,
@@ -27,11 +31,11 @@ import type {} from '@deepseek-ai/dsh-attachment'
 import type { AttachmentId, ImageAttachmentRef, ImageMediaType } from '@deepseek-ai/dsh-attachment'
 // Type-only: resolves the required ctx.commands service declaration.
 import type {} from '@deepseek-ai/dsh-commands'
-import type { SessionId } from '@deepseek-ai/dsh-session'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { GenericCallView, InferValue, ValueSchemaSpec } from '@deepseek-ai/dsh-tools'
 import type { JobOutcome } from '@deepseek-ai/dsh-jobs'
 import type { RenderSubmission, PlanAsset, SegmentReference, VideoPlan, VideoSegment } from './types.ts'
+import { findLibraryAsset, libraryPath, readLibrary, saveLibraryAssets } from './library.ts'
 
 export type * from './types.ts'
 
@@ -56,7 +60,9 @@ const ASSET_SCHEMA = {
     name: { type: 'string', required: true },
     kind: { type: 'string', required: true, enum: ['character', 'scene', 'prop'] },
     description: { type: 'string' },
+    prompt: { type: 'string' },
     reference: { type: 'string' },
+    sheet: { type: 'string' },
   },
 } as const
 
@@ -84,6 +90,7 @@ const PLAN_VALUE_SCHEMA = {
     mode: { type: 'string', required: true, enum: ['multi_shot', 'per_segment'] },
     assets: { type: 'array', items: ASSET_SCHEMA },
     style: { type: 'string' },
+    seed: { type: 'integer' },
     createdAt: { type: 'integer', required: true },
     segments: {
       type: 'array',
@@ -113,6 +120,7 @@ const SUBMISSION_SCHEMA = {
   properties: {
     segmentId: { type: 'string', required: true },
     backend: { type: 'string', required: true },
+    resolved: { type: 'string', enum: ['local', 'remote'] },
     taskRef: { type: 'string' },
     jobId: { type: 'string' },
     state: { type: 'string', required: true, enum: ['submitted', 'failed'] },
@@ -137,9 +145,67 @@ const ASSEMBLE_VALUE_SCHEMA = {
     planId: { type: 'string', required: true },
     outputFile: { type: 'string', required: true },
     segments: { type: 'array', required: true, items: { type: 'string' } },
-    durationSeconds: { type: 'integer', required: true },
+    durationSeconds: { type: 'number', required: true },
   },
 } as const
+
+/** Resolve per-call assembly defaults before invoking the video service. */
+function resolveAssemblyTransition(args: {
+  transition?: 'cut' | 'dip' | 'crossfade'
+  transition_seconds?: number
+}): { kind: 'cut' | 'dip' | 'crossfade'; seconds: number } {
+  const kind = args.transition ?? 'crossfade'
+  const seconds = args.transition_seconds ?? (kind === 'dip' ? 0.25 : 0.4)
+  if (!Number.isFinite(seconds) || seconds <= 0) throw new Error('transition_seconds must be finite and positive')
+  return { kind, seconds }
+}
+
+const GPU_STATUS_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    configured: { type: 'boolean', required: true },
+    vendor: { type: 'string' },
+    instanceId: { type: 'string' },
+    state: {
+      type: 'string',
+      required: true,
+      enum: ['absent', 'starting', 'running', 'stopping', 'stopped', 'releasing', 'failed'],
+    },
+    serviceUrl: { type: 'string' },
+    idleTimeoutMs: { type: 'integer' },
+    idleAction: { type: 'string', enum: ['power_off', 'release'] },
+    error: { type: 'string' },
+    notice: { type: 'string', required: true },
+  },
+} as const
+
+/** Actions the cloud GPU tool accepts. */
+type GpuAction = 'status' | 'up' | 'stop' | 'release'
+
+/**
+ * The model-facing line beside one GPU lifecycle result: which instance, where it serves, and
+ * when the idle policy acts.
+ * @param action - the requested lifecycle action.
+ * @param status - the service's view after the action.
+ * @returns the notice text.
+ */
+function gpuNotice(action: GpuAction, status: GpuStatus): string {
+  if (!status.configured) return 'no cloud GPU is configured for the local H3 backend'
+  if (status.vendor === 'static') {
+    const where = status.serviceUrl ?? 'its configured address'
+    return status.state === 'running'
+      ? `the local ComfyUI backend answers at ${where} (static address, no cloud GPU row)`
+      : `the local ComfyUI backend at ${where} is not answering right now (static address, no cloud GPU row)`
+  }
+  if (action === 'release' && status.state === 'absent') return 'cloud GPU instance released'
+  const where = status.instanceId !== undefined ? `instance ${status.instanceId}` : 'no instance'
+  const endpoint = status.serviceUrl !== undefined ? ` at ${status.serviceUrl}` : ''
+  const idle = status.idleTimeoutMs !== undefined && status.idleTimeoutMs > 0
+    ? `; the idle policy applies after ${Math.round(status.idleTimeoutMs / 1000)}s without generation`
+    : ''
+  return `cloud GPU ${where} is ${status.state}${endpoint}${idle}`
+}
 
 /**
  * The durable image reference a material result carries, mirroring the shape the attachment
@@ -190,8 +256,33 @@ const ASSET_IMAGE_SCHEMA = {
     kind: { type: 'string', required: true },
     image: { type: 'string' },
     attachment: IMAGE_ATTACHMENT_SCHEMA,
+    sheet: { type: 'string' },
+    sheetAttachment: IMAGE_ATTACHMENT_SCHEMA,
     state: { type: 'string', required: true, enum: ['generated', 'skipped', 'failed'] },
     error: { type: 'string' },
+  },
+} as const
+
+const LIBRARY_ASSET_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    id: { type: 'string', required: true },
+    name: { type: 'string', required: true },
+    kind: { type: 'string', required: true },
+    description: { type: 'string' },
+    prompt: { type: 'string' },
+    reference: { type: 'string' },
+    sheet: { type: 'string' },
+  },
+} as const
+
+const LIBRARY_VALUE_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    assets: { type: 'array', required: true, items: LIBRARY_ASSET_SCHEMA },
+    notice: { type: 'string', required: true },
   },
 } as const
 
@@ -329,18 +420,24 @@ function keyframeContent(value: InferValue<typeof KEYFRAME_VALUE_SCHEMA>): Conte
   return blocks
 }
 
-/** Model-facing content for an asset-image run: each asset's image, then its skips and the notice. */
+/** Model-facing content for an asset-image run: each asset's image and master sheet, then failures and the notice. */
 function assetImageContent(value: InferValue<typeof ASSET_IMAGE_VALUE_SCHEMA>): ContentBlock[] {
   const blocks: ContentBlock[] = []
   for (const asset of value.assets) {
     const label = `${asset.kind} ${asset.name}`
     if (asset.image !== undefined) {
       blocks.push(...materialBlocks(label, asset.image, asset.attachment))
-    } else {
+    }
+    if (asset.sheet !== undefined) {
+      blocks.push(...materialBlocks(`${label} sheet`, asset.sheet, asset.sheetAttachment))
+    }
+    if (asset.image === undefined && asset.sheet === undefined) {
       blocks.push({
         type: 'text',
         text: `${label}: ${asset.state}${asset.error !== undefined ? ` — ${asset.error}` : ''}`,
       })
+    } else if (asset.state === 'failed') {
+      blocks.push({ type: 'text', text: `${label}: failed — ${asset.error ?? 'unknown error'}` })
     }
   }
   blocks.push({ type: 'text', text: value.notice })
@@ -398,6 +495,29 @@ function imageArtifactBase(dir: string, planId: string, id: string): string {
 }
 
 /**
+ * Move one generated image into the plan's asset artifact path.
+ * @param source - the generated file.
+ * @param outputDir - the h3-video output directory.
+ * @param planId - owning plan id.
+ * @param assetId - asset id.
+ * @param suffix - artifact suffix (`''` for the reference, `-sheet` for the master sheet).
+ * @returns the absolute target path.
+ */
+async function commitAssetImage(
+  source: string,
+  outputDir: string,
+  planId: string,
+  assetId: string,
+  suffix: string,
+): Promise<string> {
+  const base = `${imageArtifactBase(assetsDir(outputDir), planId, assetId)}${suffix}`
+  const target = `${base}${extname(source)}`
+  await mkdir(dirname(target), { recursive: true })
+  await rename(source, target)
+  return target
+}
+
+/**
  * Locate a previously generated image artifact by probing the extensions the endpoint can return.
  * @param base - extension-less absolute path from {@link imageArtifactBase}.
  * @returns the existing path, or undefined when no artifact was written yet.
@@ -410,21 +530,68 @@ function findImageArtifact(base: string): string | undefined {
 }
 
 /**
- * Wrap an asset's description in the generation-spec template for its kind, matching the reference
- * drama-production specs: characters get a turnaround reference sheet, scenes get a reusable
- * establishing shot without people, props get a neutral reference image.
- * @param asset - the plan asset whose description is wrapped.
+ * The canonical text block one asset contributes to every prompt: the fixed `prompt` block when
+ * the planner wrote one, else the short description, else the name. Reusing one block verbatim in
+ * the portrait, the master sheet, every keyframe, and every clip is the prompt half of consistency.
+ * @param asset - the plan asset.
+ * @returns the block copied into generation prompts.
+ */
+function assetBlock(asset: PlanAsset): string {
+  return asset.prompt?.trim() || asset.description?.trim() || asset.name
+}
+
+/**
+ * Append the plan's style line to a generation prompt.
+ * @param style - the plan's one-line style directive, when it has one.
+ * @returns the suffix, or an empty string.
+ */
+function styleSuffix(style: string | undefined): string {
+  return style !== undefined && style.trim().length > 0 ? `，视觉风格：${style.trim()}` : ''
+}
+
+/**
+ * Front-facing portrait prompt: the identity anchor every keyframe of this character is
+ * conditioned on, and the single-person front image the API documents for `subject_reference`.
+ * @param asset - the character asset.
+ * @param style - the plan's one-line style directive, when it has one.
  * @returns the image-01 prompt.
  */
-function buildAssetPrompt(asset: PlanAsset): string {
-  const description = (asset.description?.trim() || asset.name).trim()
-  if (asset.kind === 'character') {
-    return `角色设定参考图，左侧为正脸特写，右侧并列展示正面、90 度侧面、背面三张等高全身视图，特写与全身视图都是同一角色，全身入镜，中性 A 字站姿，三张全身视图等高并排、头顶脚底对齐，${description}，正脸特写与三个视图的脸、发型和服装完全一致，纯白背景，柔和均匀的光线，电影质感`
-  }
+function buildPortraitPrompt(asset: PlanAsset, style: string | undefined): string {
+  return `角色定妆照，单人正面半身像，正面平视镜头，中性表情，${assetBlock(asset)}，纯白背景，柔和均匀的光线，面部清晰居中，发型与服装完整呈现，电影质感${styleSuffix(style)}`
+}
+
+/**
+ * Master-sheet prompt: a three-view turnaround of one character. The layout is spelled out in both
+ * Chinese and the English tokens image models weight most, and the exclusions name the failure the
+ * prompt exists to avoid — a half-body crop repeated twice instead of three full standing views.
+ * @param asset - the character asset.
+ * @param style - the plan's one-line style directive, when it has one.
+ * @returns the image-01 prompt.
+ */
+function buildSheetPrompt(asset: PlanAsset, style: string | undefined): string {
+  return [
+    '角色设定三视图，character turnaround sheet。画面里同一角色三人并排站立：左边正面 front view、中间侧面 side view、右边背面 back view。',
+    '全身 full body 入画，头顶到脚底完整可见、不裁切，三人身高一致、脚底对齐、间距均匀。',
+    '纯白背景 plain white background，柔和均匀的棚拍光，无投影。',
+    `角色外观：${assetBlock(asset)}。`,
+    '三视图的发型、五官、服装、配饰、身高与体型比例完全一致，是同一张脸。',
+    '不要：半身像，特写，裁切，只画一个人，人物重叠，文字，水印，logo。',
+    styleSuffix(style),
+  ].join('')
+}
+
+/**
+ * Still prompt for a scene or prop anchor: a reusable establishing shot without people, or a
+ * neutral prop reference.
+ * @param asset - the scene or prop asset.
+ * @param style - the plan's one-line style directive, when it has one.
+ * @returns the image-01 prompt.
+ */
+function buildStillPrompt(asset: PlanAsset, style: string | undefined): string {
   if (asset.kind === 'scene') {
-    return `固定机位广角镜头，清晰的建立镜头，${description}，画面中没有任何人物，空场景，电影质感`
+    return `固定机位广角镜头，清晰的建立镜头，${assetBlock(asset)}，画面中没有任何人物，空场景，电影质感${styleSuffix(style)}`
   }
-  return `道具参考图，${description}，纯白背景，柔和均匀的光线，电影质感`
+  return `道具参考图，${assetBlock(asset)}，纯白背景，柔和均匀的光线，电影质感${styleSuffix(style)}`
 }
 
 /** Map a segment ratio to the image-01 aspect ratio (falls back to 16:9 for adaptive). */
@@ -442,19 +609,20 @@ function keyframeRatio(ratio: VideoSegment['ratio']): '21:9' | '16:9' | '4:3' | 
  * conditioning also needs the prompt to label each attached item, so a contract line naming
  * `<Picture N>`/`<Video N>`/`<Audio N>` in content order is appended to the prompt.
  * @param segment - the plan segment.
- * @param plan - the plan carrying the asset anchors.
+ * @param plan - the plan carrying the asset anchors, style line, and seed.
  * @param keyframeBase - extension-less canonical keyframe path for this segment.
  * @returns the provider-ready request.
  */
 function buildSegmentRequest(segment: VideoSegment, plan: VideoPlan, keyframeBase: string): SegmentRequest {
-  const request = toSegmentRequest(segment)
+  const assets = referencedAssetsFor(segment, plan)
+  const request = toSegmentRequest(segment, segmentPrompt(segment, plan, assets), plan.seed)
   const keyframePath = findImageArtifact(keyframeBase)
-  const anchoredAssets = (plan.assets ?? []).filter(asset => asset.reference !== undefined)
-  const hasReferenceInputs = request.inputs.some(input =>
-    input.type === 'video' || input.type === 'audio' || (input.type === 'image' && input.role === 'reference_image'))
-  if (!hasReferenceInputs && anchoredAssets.length === 0) {
-    // Frame mode when a keyframe exists; text-to-video otherwise.
-    if (keyframePath === undefined) return request
+  const hasAuthoredMaterial = request.inputs.some(input => input.type !== 'text')
+  if (!hasAuthoredMaterial && keyframePath !== undefined) {
+    // The keyframe was drawn from the confirmed portraits, so it already carries the cast and the
+    // set. Starting the clip from it anchors every frame to that still; passing the portraits as
+    // loose references instead makes the model re-invent the scene on every shot, which is exactly
+    // the drift the references were supposed to prevent.
     // Frame-image requests determine their ratio from the image (H3 content rule), so force adaptive.
     return {
       ...request,
@@ -462,6 +630,9 @@ function buildSegmentRequest(segment: VideoSegment, plan: VideoPlan, keyframeBas
       inputs: [...request.inputs, { type: 'image', url: keyframePath, role: 'first_frame' }],
     }
   }
+  const hasReferenceInputs = request.inputs.some(input =>
+    input.type === 'video' || input.type === 'audio' || (input.type === 'image' && input.role === 'reference_image'))
+  if (!hasReferenceInputs && assets.length === 0) return request
   const labeled: Array<{ input: SegmentInput; label: string }> = []
   const counters = { picture: 0, video: 0, audio: 0 }
   const add = (input: SegmentInput, description: string): void => {
@@ -481,8 +652,8 @@ function buildSegmentRequest(segment: VideoSegment, plan: VideoPlan, keyframeBas
     }
   }
   if (keyframePath !== undefined) add({ type: 'image', url: keyframePath, role: 'reference_image' }, 'opening keyframe')
-  for (const asset of anchoredAssets) {
-    add({ type: 'image', url: asset.reference as string, role: 'reference_image' }, `${asset.name} (${asset.kind})`)
+  for (const asset of assets) {
+    add({ type: 'image', url: asset.reference, role: 'reference_image' }, `${asset.name} (${asset.kind})`)
   }
   const prompt = request.inputs.find(input => input.type === 'text')
   const baseText = prompt?.type === 'text' ? prompt.text : ''
@@ -516,6 +687,57 @@ function validateReference(segmentId: string, reference: SegmentReference): void
   }
 }
 
+/**
+ * Prompt markers that declare a deliberate change of place. A shot that opens with one of these is
+ * allowed to share no anchor with the shot before it; anything else is an unexplained jump, which
+ * reads as two unrelated clips spliced together.
+ */
+const CUT_MARKERS = /切至|切到|转到|硬切|cut to|cut into|transition to/iu
+
+/**
+ * Refuse a storyboard whose neighbouring shots share neither a character nor a set and declare no
+ * cut. Each shot renders as its own clip, so the only thing tying two of them together is what
+ * their prompts name: with nothing in common the viewer sees an unexplained jump — the office in
+ * one clip, somewhere else in the next.
+ * @param segments - the ordered storyboard.
+ * @param assets - the plan's recorded anchors, the vocabulary a prompt can name.
+ * @throws Error - naming the pair and the two ways to fix it.
+ */
+function validateContinuity(segments: readonly VideoSegment[], assets: readonly PlanAsset[]): void {
+  const anchored = assets.filter(asset => asset.name.length > 0)
+  // Without recorded anchors there is no vocabulary to carry over, so continuity is the planner's
+  // prose and nothing here can judge it.
+  if (anchored.length === 0 || segments.length < 2) return
+  for (let index = 1; index < segments.length; index += 1) {
+    const previous = segments[index - 1]
+    const current = segments[index]
+    if (previous === undefined || current === undefined) continue
+    const namedInPrevious = anchored.filter(asset => previous.prompt.includes(asset.name))
+    const namedInCurrent = anchored.filter(asset => current.prompt.includes(asset.name))
+    // Neither shot names an anchor: the storyboard is prose-only here, and there is nothing to
+    // compare. Enforcement starts as soon as one side names a character or set.
+    if (namedInPrevious.length === 0 && namedInCurrent.length === 0) continue
+    if (CUT_MARKERS.test(current.prompt)) continue
+    const previousSets = namedInPrevious.filter(asset => asset.kind === 'scene')
+    const currentSets = namedInCurrent.filter(asset => asset.kind === 'scene')
+    const carriedSet = currentSets.some(asset => previousSets.includes(asset))
+    if (carriedSet) continue
+    // Naming the same character is not continuity when the two shots name different rooms: that is
+    // the "same person, somewhere else" jump this rule exists to catch.
+    const changedPlace = previousSets.length > 0 && currentSets.length > 0 && !carriedSet
+    const carriedCharacter = namedInCurrent.some(asset =>
+      asset.kind === 'character' && namedInPrevious.includes(asset))
+    if (carriedCharacter && !changedPlace) continue
+    throw new Error(
+      `segments ${previous.id} and ${current.id} share no character or set, so the two clips have nothing in common. `
+      + (changedPlace
+        ? `${previous.id} is in ${previousSets.map(asset => asset.name).join('/')} and ${current.id} moves to ${currentSets.map(asset => asset.name).join('/')} without declaring the cut. `
+        : `Name the character or set of ${previous.id} that carries over into ${current.id}`)
+      + `Open ${current.id} with "切至：<场景名>" when the storyboard really moves somewhere else.`,
+    )
+  }
+}
+
 /** Validate segment structure beyond the ParameterSchemaSpec (uniqueness, bounds, references). */
 function validateSegments(segments: readonly VideoSegment[]): void {
   if (segments.length === 0) throw new Error('a plan needs at least one segment')
@@ -538,11 +760,15 @@ function validateSegments(segments: readonly VideoSegment[]): void {
   }
 }
 
-/** Convert a plan segment into a provider request, folding camera guidance and references. */
-function toSegmentRequest(segment: VideoSegment): SegmentRequest {
-  const text = segment.camera !== undefined && segment.camera.length > 0
-    ? `${segment.prompt} [Camera: ${segment.camera}]`
-    : segment.prompt
+/**
+ * Convert a plan segment into a provider request, carrying the composed prompt, the authored
+ * references, and the plan's shared seed.
+ * @param segment - the plan segment.
+ * @param text - the composed generation prompt.
+ * @param seed - the plan's shared sampling seed, when it has one.
+ * @returns the request before keyframe/asset anchoring.
+ */
+function toSegmentRequest(segment: VideoSegment, text: string, seed: number | undefined): SegmentRequest {
   const inputs: SegmentInput[] = [{ type: 'text', text }]
   for (const reference of segment.references ?? []) {
     if (reference.type === 'image') {
@@ -558,6 +784,7 @@ function toSegmentRequest(segment: VideoSegment): SegmentRequest {
     resolution: segment.resolution,
     durationSeconds: segment.durationSeconds,
     ratio: segment.ratio,
+    ...(seed !== undefined ? { seed } : {}),
   }
 }
 
@@ -638,11 +865,355 @@ async function writePlan(outputDir: string, plan: VideoPlan): Promise<string> {
   return file
 }
 
-/** Allocate the next per-session plan id; a replacement agent in the same session continues the series. */
-function allocatePlanId(counters: Map<string, number>, sessionId: SessionId): string {
-  const next = (counters.get(String(sessionId)) ?? 0) + 1
-  counters.set(String(sessionId), next)
-  return `vp-${next}`
+/**
+ * Copy one stored or authored asset into the plan document, omitting absent optional fields.
+ * @param asset - the asset record.
+ * @returns the plan asset.
+ */
+function copyAsset(asset: PlanAsset): PlanAsset {
+  return {
+    id: asset.id,
+    name: asset.name,
+    kind: asset.kind,
+    ...(asset.description !== undefined ? { description: asset.description } : {}),
+    ...(asset.prompt !== undefined ? { prompt: asset.prompt } : {}),
+    ...(asset.reference !== undefined ? { reference: asset.reference } : {}),
+    ...(asset.sheet !== undefined ? { sheet: asset.sheet } : {}),
+  }
+}
+
+/**
+ * Resolve library references (asset names or ids) into plan assets.
+ * @param outputDir - the h3-video output directory holding the library.
+ * @param references - names or ids the plan asked to reuse.
+ * @returns the stored assets.
+ * @throws Error - naming the first reference the library does not carry.
+ */
+async function importLibraryAssets(outputDir: string, references: readonly string[]): Promise<PlanAsset[]> {
+  if (references.length === 0) return []
+  const library = await readLibrary(outputDir)
+  return references.map((reference) => {
+    const found = findLibraryAsset(library, reference)
+    if (found === undefined) {
+      throw new Error(`asset ${JSON.stringify(reference)} is not in the project library; record it with video_assets first`)
+    }
+    return copyAsset(found)
+  })
+}
+
+/**
+ * Merge library imports with the assets this call authored, keyed by name — the name a storyboard
+ * references; an authored asset replaces the imported record of the same name.
+ * @param imported - assets attached from the project library.
+ * @param authored - assets written in this call.
+ * @returns the merged asset list.
+ */
+function mergeAssetsByName(imported: readonly PlanAsset[], authored: readonly PlanAsset[]): PlanAsset[] {
+  const byName = new Map<string, PlanAsset>()
+  for (const asset of imported) byName.set(asset.name, asset)
+  for (const asset of authored) byName.set(asset.name, asset)
+  return [...byName.values()]
+}
+
+/**
+ * Merge recorded assets into a plan's existing set by id. Recording is additive because each call
+ * carries only the material the user just supplied: replacing the list would drop the characters a
+ * previous call anchored, and the plan would silently render without them.
+ * @param prior - the plan's current assets, in order.
+ * @param authored - assets this call records; an id already present is updated in place.
+ * @returns the merged set, prior order preserved and new ids appended.
+ */
+function mergePlanAssets(prior: readonly PlanAsset[], authored: readonly PlanAsset[]): PlanAsset[] {
+  const byId = new Map(prior.map(asset => [asset.id, asset]))
+  const order = prior.map(asset => asset.id)
+  for (const asset of authored) {
+    if (!byId.has(asset.id)) order.push(asset.id)
+    byId.set(asset.id, asset)
+  }
+  return order.flatMap((id) => {
+    const asset = byId.get(id)
+    return asset === undefined ? [] : [asset]
+  })
+}
+
+/** Run one ffmpeg invocation with a bounded buffer. */
+const runFfmpeg = promisify(execFile)
+
+/** Extract the final frame of one rendered segment, for chaining the next shot onto it.
+ * @param file - the rendered segment.
+ * @param target - where to write the frame.
+ * @returns the frame path, or undefined when ffmpeg could not decode a tail frame.
+ */
+async function extractLastFrame(file: string, target: string): Promise<string | undefined> {
+  await mkdir(dirname(target), { recursive: true })
+  try {
+    await runFfmpeg('ffmpeg', ['-y', '-sseof', '-0.2', '-i', file, '-frames:v', '1', '-q:v', '2', target])
+    return target
+  } catch {
+    // No decodable tail frame: the next shot renders unchained instead of failing the whole run.
+    return undefined
+  }
+}
+
+/**
+ * Attach the previous shot's final frame to one request. A shot with no reference material takes it
+ * as `first_frame`, the strongest continuity the backend offers; a reference-conditioned shot gets
+ * it appended to its reference set, because frame and reference conditioning cannot mix there.
+ * @param request - the built segment request.
+ * @param chainFrame - the previous shot's last frame, when one was extracted.
+ * @returns the request with the chained frame attached.
+ */
+function withChainFrame(request: SegmentRequest, chainFrame: string | undefined): SegmentRequest {
+  if (chainFrame === undefined) return request
+  // The previous shot's final frame is the strongest anchor there is: same face, same wardrobe,
+  // same light, one frame apart. It replaces the reference images rather than joining them, because
+  // the backend cannot condition on a frame and loose references in the same request.
+  const text = request.inputs
+    .filter((input): input is { type: 'text'; text: string } => input.type === 'text')
+    .map(input => ({ type: 'text' as const, text: input.text.replace(/\nReferences: .*$/u, '') }))
+  return {
+    ...request,
+    ratio: 'adaptive',
+    inputs: [...text, { type: 'image', url: chainFrame, role: 'first_frame' }],
+  }
+}
+
+/**
+ * One background job that renders the selected shots in plan order, feeding each shot's final frame
+ * into the next one. Sequential by construction: the frame only exists once its own shot has
+ * finished, which is the price of continuity.
+ * @param ctx - plugin context.
+ * @param plan - the plan being rendered.
+ * @param segments - the shots to render, in order.
+ * @param backend - the call-level backend override, when the caller passed one.
+ * @returns the job hooks the registry runs.
+ */
+function chainJobHooks(
+  ctx: Context,
+  plan: VideoPlan,
+  segments: readonly VideoSegment[],
+  backend: BackendChoice | undefined,
+): { cancel(reason?: string): void; done: Promise<JobOutcome>; readOutput(): string } {
+  const controller = new AbortController()
+  const chunks: string[] = []
+  const done = (async (): Promise<JobOutcome> => {
+    let chainFrame: string | undefined
+    for (const [index, segment] of segments.entries()) {
+      try {
+        const outputDir = ctx.h3Video.outputDir
+        const base = buildSegmentRequest(
+          segment,
+          plan,
+          imageArtifactBase(keyframesDir(outputDir), plan.id, segment.id),
+        )
+        const { target, ref } = await ctx.h3Video.submit(
+          backend ?? segment.backend,
+          withChainFrame(base, chainFrame),
+          controller.signal,
+        )
+        const status = await ctx.h3Video.poll(target, ref, controller.signal)
+        if (status.state !== 'succeeded') {
+          chunks.push(`[failed] ${segment.id}: ${status.state}`)
+          return { status: 'failed', detail: `${segment.id} ${status.state}`, output: chunks.join('\n') }
+        }
+        const canonical = canonicalSegmentFile(outputDir, plan.id, segment.id)
+        await mkdir(dirname(canonical), { recursive: true })
+        try {
+          await rename(status.localFile, canonical)
+        } catch {
+          await copyFile(status.localFile, canonical)
+        }
+        chunks.push(`[succeeded] ${segment.id} -> ${canonical}`)
+        const next = segments[index + 1]
+        chainFrame = next === undefined
+          ? undefined
+          : await extractLastFrame(canonical, join(keyframesDir(outputDir), `${plan.id}-${next.id}-chain.png`))
+      } catch (error: unknown) {
+        if (controller.signal.aborted) {
+          chunks.push(`[killed] ${segment.id}`)
+          return { status: 'killed', detail: 'cancelled', output: chunks.join('\n') }
+        }
+        const message = error instanceof Error ? error.message : String(error)
+        chunks.push(`[failed] ${segment.id}: ${message}`)
+        return { status: 'failed', detail: message, output: chunks.join('\n') }
+      }
+    }
+    return { status: 'completed', detail: `${segments.length} chained shot(s)`, output: chunks.join('\n') }
+  })()
+  return {
+    cancel: () => { controller.abort() },
+    done,
+    readOutput: () => chunks.join('\n'),
+  }
+}
+
+/**
+ * Allocate the next plan id for this output directory. Plan artifacts share one directory across
+ * sessions (`segments/<planId>-<segmentId>.mp4` and friends), so the id series lives with the
+ * artifacts rather than with the session that wrote them: a counter that restarts per session hands
+ * the next session `vp-1` and overwrites the previous project's plan, keyframes, and cuts.
+ * @param outputDir - the h3-video output directory holding `plans/`.
+ * @param reserved - ids allocated in this process but not yet written, so two concurrent calls
+ *   cannot choose the same id before either plan file exists.
+ * @returns a plan id no file in the directory uses.
+ */
+async function allocatePlanId(outputDir: string, reserved: Set<string>): Promise<string> {
+  const dir = plansDir(outputDir)
+  let highest = 0
+  try {
+    for (const name of await readdir(dir)) {
+      const match = /^vp-(\d+)\.json$/u.exec(name)
+      if (match !== null) highest = Math.max(highest, Number(match[1]))
+    }
+  } catch {
+    // No plans directory yet: this is the first plan, so the series starts at 1.
+  }
+  let next = highest + 1
+  while (reserved.has(`vp-${next}`) || existsSync(join(dir, `vp-${next}.json`))) next += 1
+  const id = `vp-${next}`
+  reserved.add(id)
+  return id
+}
+
+/** Paid exposure of one submission: which segments would bill the hosted API, and for how long. */
+interface PaidExposure {
+  /** Segment ids that would render on the hosted API, in plan order. */
+  readonly ids: readonly string[]
+  /** Their combined duration in seconds, the unit the hosted API bills in. */
+  readonly seconds: number
+}
+
+/**
+ * The segments one call would bill on the hosted API. A segment counts only when its effective
+ * policy is `remote`, the one label that spends money by construction: `auto` reaches the hosted
+ * API only when the caller configured no local backend, and that is reported where it happens
+ * rather than guessed here.
+ * @param segments - the segments this call would submit.
+ * @param override - the call-level backend override, present when the caller passed one.
+ * @returns the paid segment ids and their combined duration.
+ */
+function paidExposure(segments: readonly VideoSegment[], override: BackendChoice | undefined): PaidExposure {
+  const paid = segments.filter(segment => (override ?? segment.backend) === 'remote')
+  return {
+    ids: paid.map(segment => segment.id),
+    seconds: paid.reduce((sum, segment) => sum + segment.durationSeconds, 0),
+  }
+}
+
+/**
+ * Refuse a paid submission the caller did not acknowledge. The hosted API bills per second of
+ * generated video, and a plan authored while the local backend was unavailable freezes `remote`
+ * into every later render, so without this the spend happens with nothing in the conversation
+ * asking for it. The acknowledgement flag is what turns that into a decision the user made.
+ * @param exposure - paid segments and their combined duration.
+ * @param acknowledged - whether the call carried `allow_remote`.
+ * @throws Error - naming the segments, their total seconds, and the flag that confirms the spend.
+ */
+function requireRemoteConsent(exposure: PaidExposure, acknowledged: boolean): void {
+  if (exposure.ids.length === 0 || acknowledged) return
+  throw new Error(
+    `segments ${exposure.ids.join(', ')} render on the hosted MiniMax API, which bills per second`
+    + ` (${exposure.seconds}s total). Confirm the cost with the user, then pass allow_remote=true.`,
+  )
+}
+
+/**
+ * Derive the plan's shared sampling seed from its identity, so a plan the planner left unseeded
+ * still reproduces and every one of its segments samples the same noise.
+ * @param planId - plan id (`vp-<n>`).
+ * @param createdAt - creation epoch ms, part of the plan document.
+ * @returns a 32-bit unsigned seed.
+ */
+function deriveSeed(planId: string, createdAt: number): number {
+  let hash = 0x811c9dc5
+  for (const char of `${planId}:${createdAt}`) {
+    hash ^= char.codePointAt(0) ?? 0
+    hash = Math.imul(hash, 0x01000193)
+  }
+  return hash >>> 0
+}
+
+/** An asset anchor whose reference image exists, so it can be attached and described. */
+type AnchoredAsset = PlanAsset & { readonly reference: string }
+
+/**
+ * The plan's asset anchors that carry a reference image, in declaration order.
+ * @param plan - the plan carrying the anchors.
+ * @returns the anchors that can condition generation.
+ */
+function anchoredAssets(plan: VideoPlan): readonly AnchoredAsset[] {
+  return (plan.assets ?? []).filter((asset): asset is AnchoredAsset => asset.reference !== undefined)
+}
+
+/**
+ * Refuse to draw stills for shots whose cast the plan cannot show. A character recorded without a
+ * reference image is invented from its description alone, which is how a keyframe comes back with
+ * the wrong (or no) person and every later shot inherits that stranger.
+ * @param segments - the shots about to be drawn.
+ * @param plan - the plan carrying the assets.
+ * @throws Error - naming the characters and the call that fixes it.
+ */
+function requireCharacterAnchors(segments: readonly VideoSegment[], plan: VideoPlan): void {
+  const unanchored = (plan.assets ?? []).filter(asset => asset.kind === 'character' && asset.reference === undefined)
+  if (unanchored.length === 0) return
+  const missing = new Set<string>()
+  for (const segment of segments) {
+    for (const asset of unanchored) {
+      if (segment.prompt.includes(asset.name)) missing.add(asset.name)
+    }
+  }
+  if (missing.size === 0) return
+  throw new Error(
+    `plan ${plan.id} records ${[...missing].join('、')} without a reference image, so a still would invent them from text. `
+    + `Run video_asset_images(plan_id="${plan.id}", asset_ids=[…]) first, then draw the stills.`,
+  )
+}
+
+/**
+ * The asset anchors one shot is conditioned on: the anchored assets whose name its prompt
+ * mentions. A shot that names nothing falls back to the sets and props only — a shot that never
+ * names a character must not acquire one from a reference image, which is how people appear in an
+ * establishing shot that was written as an empty room.
+ * @param segment - the shot being generated.
+ * @param plan - the plan carrying the anchors.
+ * @returns the assets to attach and describe for this shot.
+ */
+function referencedAssetsFor(segment: VideoSegment, plan: VideoPlan): readonly AnchoredAsset[] {
+  const anchored = anchoredAssets(plan)
+  const named = anchored.filter(asset => segment.prompt.includes(asset.name))
+  return named.length > 0 ? named : anchored.filter(asset => asset.kind !== 'character')
+}
+
+/**
+ * Compose the generation prompt shared by a shot's keyframe and its clip: the shot text, camera
+ * guidance, the appearance of every attached asset, and the plan's style line. Describing and
+ * conditioning the same anchors in both passes is what keeps the still and the clip, and every
+ * shot of a plan, on one look.
+ * @param segment - the shot being generated.
+ * @param plan - the plan carrying the style line.
+ * @param assets - the anchors this shot attaches.
+ * @returns the composed prompt.
+ */
+function segmentPrompt(
+  segment: VideoSegment,
+  plan: VideoPlan,
+  assets: readonly PlanAsset[],
+  keepFace = false,
+): string {
+  const camera = segment.camera !== undefined && segment.camera.length > 0 ? ` [Camera: ${segment.camera}]` : ''
+  const parts = [`${segment.prompt}${camera}`]
+  if (keepFace) {
+    // The still is an edit of the character's confirmed portrait: say so explicitly, or the model
+    // treats the reference as loose inspiration and repaints a different person.
+    parts.push('保持参考图中人物的脸、发型、妆容与服装不变，只改变场景、姿态与构图。')
+  }
+  for (const asset of assets) {
+    const block = assetBlock(asset)
+    if (block.length > 0) parts.push(`${asset.name} (${asset.kind}): ${block}`)
+  }
+  const style = plan.style?.trim() ?? ''
+  if (style.length > 0) parts.push(`Visual style: ${style}`)
+  return parts.join('\n')
 }
 
 /**
@@ -705,7 +1276,7 @@ function renderJobHooks(
 
 /** Register the three model-facing video tools. */
 export function apply(ctx: Context): void {
-  const planCounters = new Map<string, number>()
+  const reservedPlanIds = new Set<string>()
   ctx.jobs.attachController('tool-video')
 
   ctx.tools.register(defineTool({
@@ -721,10 +1292,23 @@ export function apply(ctx: Context): void {
       },
       assets: {
         type: 'array',
-        description: 'Reusable asset anchors (characters/scenes/props) confirmed with the user; each may carry a user-provided reference image path or URL. The storyboard must reference these names exactly.',
+        description: 'Reusable asset anchors (characters/scenes/props) confirmed with the user; each may carry a user-provided reference image path or URL and a fixed prompt block. The storyboard must reference these names exactly.',
         items: ASSET_SCHEMA,
       },
+      library_assets: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'Asset names or ids to attach from the project library instead of redefining them; video_library lists what is saved. An authored entry of the same name wins.',
+      },
       style: { type: 'string', description: 'One-line visual style directive injected into generation prompts.' },
+      allow_remote: {
+        type: 'boolean',
+        description: 'Confirm that the user agreed to pay for hosted-API seconds. Required when any segment names backend remote; the refusal names the segments and their total seconds.',
+      },
+      seed: {
+        type: 'integer',
+        description: 'Sampling seed shared by every segment and keyframe of the plan, so separately rendered shots stay on one look; omit to derive one from the plan identity.',
+      },
       segments: {
         type: 'array',
         required: true,
@@ -763,8 +1347,7 @@ export function apply(ctx: Context): void {
       },
     },
     output: jsonOutput(PLAN_VALUE_SCHEMA),
-    async execute(args, exec) {
-      const agent = callingAgent(exec.agent, 'video_plan')
+    async execute(args) {
       const mode = args.mode ?? 'multi_shot'
       const segments: VideoSegment[] = args.segments.map(segment => ({
         id: segment.id,
@@ -784,17 +1367,26 @@ export function apply(ctx: Context): void {
       }))
       validateSegments(segments)
       validateMultiShotPlan({ mode, segments })
-      const assets: PlanAsset[] = (args.assets ?? []).map(asset => ({
+      requireRemoteConsent(paidExposure(segments, undefined), args.allow_remote === true)
+      const outputDir = ctx.h3Video.outputDir
+      const authored: PlanAsset[] = (args.assets ?? []).map(asset => copyAsset({
         id: asset.id,
         name: asset.name,
         kind: asset.kind,
         ...asset.description !== undefined ? { description: asset.description } : {},
+        ...asset.prompt !== undefined ? { prompt: asset.prompt } : {},
         ...asset.reference !== undefined ? { reference: asset.reference } : {},
+        ...asset.sheet !== undefined ? { sheet: asset.sheet } : {},
       }))
-      const outputDir = ctx.h3Video.outputDir
+      const imported = await importLibraryAssets(outputDir, args.library_assets ?? [])
+      const authoredAssets = mergeAssetsByName(imported, authored)
       let plan: VideoPlan
       if (args.plan_id !== undefined) {
         const prior = await readPlan(outputDir, args.plan_id)
+        // A revision carries only the assets it changes; the plan keeps the rest.
+        const assets = mergePlanAssets(prior.assets ?? [], authoredAssets)
+        validateContinuity(segments, assets)
+        const seed = args.seed ?? prior.seed
         plan = {
           id: prior.id,
           revision: prior.revision + 1,
@@ -802,19 +1394,24 @@ export function apply(ctx: Context): void {
           mode,
           ...assets.length > 0 ? { assets } : {},
           ...args.style !== undefined ? { style: args.style } : {},
+          ...seed !== undefined ? { seed } : {},
           segments,
           createdAt: prior.createdAt,
         }
       } else {
+        const id = await allocatePlanId(outputDir, reservedPlanIds)
+        const createdAt = Date.now()
+        validateContinuity(segments, authoredAssets)
         plan = {
-          id: allocatePlanId(planCounters, agent.session.id),
+          id,
           revision: 1,
           goal: args.goal,
           mode,
-          ...assets.length > 0 ? { assets } : {},
+          ...authoredAssets.length > 0 ? { assets: authoredAssets } : {},
           ...args.style !== undefined ? { style: args.style } : {},
+          seed: args.seed ?? deriveSeed(id, createdAt),
           segments,
-          createdAt: Date.now(),
+          createdAt,
         }
       }
       const planFile = await writePlan(outputDir, plan)
@@ -825,6 +1422,7 @@ export function apply(ctx: Context): void {
         mode: plan.mode,
         ...plan.assets !== undefined ? { assets: plan.assets.map(asset => ({ ...asset })) } : {},
         ...plan.style !== undefined ? { style: plan.style } : {},
+        ...plan.seed !== undefined ? { seed: plan.seed } : {},
         createdAt: plan.createdAt,
         segments: plan.segments.map(segment => ({
           id: segment.id,
@@ -850,15 +1448,25 @@ export function apply(ctx: Context): void {
 
   ctx.tools.register(defineTool({
     name: 'video_keyframes',
-    description: 'Generate one still keyframe per selected segment (remote image model), establishing the scene and visual identity BEFORE video generation. Save keyframes to outputDir/keyframes and return their paths; present them to the user for confirmation, then render.',
+    description: 'Generate one still keyframe per selected segment (remote image model), establishing the scene and visual identity BEFORE video generation. Each still carries the plan style and the anchored character the shot names as a subject reference, so separately rendered shots share one look. Save keyframes to outputDir/keyframes and return their paths; present them to the user for confirmation, then render.',
     parameters: {
       plan_id: { type: 'string', required: true, description: 'Plan id from video_plan.' },
       segment_ids: { type: 'array', items: { type: 'string' }, description: 'Segment ids to keyframe; defaults to every segment.' },
+      seed: {
+        type: 'integer',
+        description: 'Image seed for this batch; defaults to the plan seed, so re-running reproduces the same stills. Pass another value to try a different take.',
+      },
+      identity: {
+        type: 'string',
+        enum: ['auto', 'text', 'portrait'],
+        description: 'How the still is conditioned on the cast. "auto" (default) keeps the face when the shot names a character the plan carries an image for, by editing that portrait into the scene; open shots draw from text alone. "text" forces text-to-image; "portrait" forces the portrait edit even when no character is named.',
+      },
     },
     output: imageOutput(KEYFRAME_VALUE_SCHEMA, keyframeContent),
     async execute(args, exec) {
       const outputDir = ctx.h3Video.outputDir
       const plan = await readPlan(outputDir, args.plan_id)
+      const seed = args.seed ?? plan.seed
       const selected = args.segment_ids === undefined
         ? plan.segments
         : args.segment_ids.map((id) => {
@@ -873,12 +1481,23 @@ export function apply(ctx: Context): void {
         state: 'generated' | 'failed'
         error?: string
       }> = []
+      requireCharacterAnchors(selected, plan)
       for (const segment of selected) {
-        const prompt = segment.camera !== undefined && segment.camera.length > 0
-          ? `${segment.prompt} [Camera: ${segment.camera}]`
-          : segment.prompt
+        const assets = referencedAssetsFor(segment, plan)
+        // One character reference per still: the subject is a single character, and the shot's own
+        // prompt picks which anchored character it is about.
+        const subject = assets.find(asset => asset.kind === 'character')
+        const keepFace = args.identity === 'portrait'
+          || (args.identity !== 'text' && subject !== undefined)
         try {
-          const generated = await ctx.h3Video.keyframe(prompt, keyframeRatio(segment.ratio), exec.signal)
+          const generated = await ctx.h3Video.keyframe({
+            prompt: segmentPrompt(segment, plan, assets, keepFace),
+            ratio: keyframeRatio(segment.ratio),
+            ...(seed !== undefined ? { seed } : {}),
+            // The portrait edit redraws the whole frame around the reference face, so the still
+            // keeps both the approved face and the shot's own scene.
+            ...(keepFace && subject !== undefined ? { subjectReference: subject.reference } : {}),
+          }, exec.signal)
           const base = imageArtifactBase(keyframesDir(outputDir), plan.id, segment.id)
           const target = `${base}${extname(generated)}`
           await mkdir(dirname(target), { recursive: true })
@@ -921,12 +1540,14 @@ export function apply(ctx: Context): void {
     async execute(args) {
       const outputDir = ctx.h3Video.outputDir
       const prior = await readPlan(outputDir, args.plan_id)
-      const assets: PlanAsset[] = (args.assets ?? []).map(asset => ({
+      const assets: PlanAsset[] = (args.assets ?? []).map(asset => copyAsset({
         id: asset.id,
         name: asset.name,
         kind: asset.kind,
         ...asset.description !== undefined ? { description: asset.description } : {},
+        ...asset.prompt !== undefined ? { prompt: asset.prompt } : {},
         ...asset.reference !== undefined ? { reference: asset.reference } : {},
+        ...asset.sheet !== undefined ? { sheet: asset.sheet } : {},
       }))
       for (const asset of assets) {
         if (asset.reference !== undefined) {
@@ -938,12 +1559,18 @@ export function apply(ctx: Context): void {
           }
         }
       }
+      // Additive: this call records the material just supplied and keeps the anchors already on
+      // the plan, so recording one character cannot drop the rest.
+      const merged = assets.length > 0 ? mergePlanAssets(prior.assets ?? [], assets) : (prior.assets ?? [])
       const plan: VideoPlan = {
         ...prior,
-        ...assets.length > 0 ? { assets } : {},
+        ...merged.length > 0 ? { assets: merged } : {},
         ...args.style !== undefined ? { style: args.style } : {},
       }
       const planFile = await writePlan(outputDir, plan)
+      // Recorded assets become the project's base setting layer, so a later episode attaches the
+      // same reference and prompt block instead of redefining them.
+      await saveLibraryAssets(outputDir, plan.assets ?? [])
       return {
         id: plan.id,
         revision: plan.revision,
@@ -951,6 +1578,7 @@ export function apply(ctx: Context): void {
         mode: plan.mode,
         ...plan.assets !== undefined ? { assets: plan.assets.map(asset => ({ ...asset })) } : {},
         ...plan.style !== undefined ? { style: plan.style } : {},
+        ...plan.seed !== undefined ? { seed: plan.seed } : {},
         createdAt: plan.createdAt,
         segments: plan.segments.map(segment => ({
           id: segment.id,
@@ -976,10 +1604,18 @@ export function apply(ctx: Context): void {
 
   ctx.tools.register(defineTool({
     name: 'video_asset_images',
-    description: 'Generate the reference image for plan assets that have none, via the hosted image model, using the production spec for each kind: characters get a turnaround reference sheet (front close-up + front/side/back full views), scenes get a reusable establishing shot without people, props get a neutral reference image. Saves each to outputDir/assets and records it on the plan, so rendering anchors on a generated visual instead of text alone. Present the images to the user for confirmation.',
+    description: 'Generate the anchor images for plan assets that need them. A character gets a front-facing half-body portrait — the subject reference every keyframe is conditioned on — plus a wide master sheet carrying front, side, and back full-body views side by side. The sheet is drawn from the character description rather than from the portrait, because conditioning on the bust keeps that framing. Scenes get a reusable establishing shot without people; props get a neutral reference image. Images are saved under outputDir/assets and recorded on the plan; pass regenerate with a new seed to try another take.',
     parameters: {
       plan_id: { type: 'string', required: true, description: 'Plan id from video_plan.' },
       asset_ids: { type: 'array', items: { type: 'string' }, description: 'Asset ids to generate; defaults to every asset without a reference.' },
+      regenerate: {
+        type: 'boolean',
+        description: 'Regenerate the selected assets even when they already carry a reference image, replacing it on the plan.',
+      },
+      seed: {
+        type: 'integer',
+        description: 'Image seed for reproducible designs; omit to draw a fresh one, which is what makes regenerate produce another take.',
+      },
     },
     output: imageOutput(ASSET_IMAGE_VALUE_SCHEMA, assetImageContent),
     async execute(args, exec) {
@@ -987,58 +1623,99 @@ export function apply(ctx: Context): void {
       const prior = await readPlan(outputDir, args.plan_id)
       const allAssets = prior.assets ?? []
       const assetIds = args.asset_ids
-      const selected = (assetIds === undefined ? allAssets : allAssets.filter(asset => assetIds.includes(asset.id)))
-        .filter(asset => asset.reference === undefined)
+      const scoped = assetIds === undefined ? allAssets : allAssets.filter(asset => assetIds.includes(asset.id))
+      const regenerate = args.regenerate === true
+      // A character needs both its portrait and its master sheet; a scene or prop needs one still.
+      const needsWork = (asset: PlanAsset): boolean => asset.kind === 'character'
+        ? regenerate || asset.reference === undefined || asset.sheet === undefined
+        : regenerate || asset.reference === undefined
+      const selected = scoped.filter(needsWork)
       const results: Array<{
         assetId: string
         name: string
         kind: string
         image?: string
         attachment?: ImageAttachmentRef
+        sheet?: string
+        sheetAttachment?: ImageAttachmentRef
         state: 'generated' | 'skipped' | 'failed'
         error?: string
       }> = []
-      const assets: PlanAsset[] = [...(prior.assets ?? [])]
+      const assets: PlanAsset[] = [...allAssets]
       for (const asset of selected) {
+        let reference = asset.reference
+        let sheet = asset.sheet
         try {
-          const ratio = asset.kind === 'character' || asset.kind === 'prop' ? '1:1' : '16:9'
-          const generated = await ctx.h3Video.keyframe(buildAssetPrompt(asset), ratio, exec.signal)
-          const base = imageArtifactBase(assetsDir(outputDir), prior.id, asset.id)
-          const target = `${base}${extname(generated)}`
-          await mkdir(dirname(target), { recursive: true })
-          await rename(generated, target)
-          const attachment = await saveImageAttachment(ctx, target)
-          const index = assets.findIndex(candidate => candidate.id === asset.id)
-          const current = index !== -1 ? assets[index] : undefined
-          if (current !== undefined) {
-            assets[index] = {
-              id: current.id,
-              name: current.name,
-              kind: current.kind,
-              ...current.description !== undefined ? { description: current.description } : {},
-              reference: target,
+          if (asset.kind === 'character') {
+            if (regenerate || reference === undefined) {
+              const portrait = await ctx.h3Video.keyframe({
+                prompt: buildPortraitPrompt(asset, prior.style),
+                ratio: '1:1',
+                ...(args.seed !== undefined ? { seed: args.seed } : {}),
+              }, exec.signal)
+              reference = await commitAssetImage(portrait, outputDir, prior.id, asset.id, '')
             }
+            if (regenerate || sheet === undefined) {
+              // Text-to-image on purpose: an image-to-image pass from the half-body portrait keeps
+              // that framing, which is how a "turnaround" came back as the same bust twice. The
+              // wide canvas is what lets three full standing views stand side by side.
+              const master = await ctx.h3Video.keyframe({
+                prompt: buildSheetPrompt(asset, prior.style),
+                ratio: '21:9',
+                ...(args.seed !== undefined ? { seed: args.seed } : {}),
+              }, exec.signal)
+              sheet = await commitAssetImage(master, outputDir, prior.id, asset.id, '-sheet')
+            }
+          } else if (regenerate || reference === undefined) {
+            const still = await ctx.h3Video.keyframe({
+              prompt: buildStillPrompt(asset, prior.style),
+              ratio: asset.kind === 'scene' ? '16:9' : '1:1',
+              ...(args.seed !== undefined ? { seed: args.seed } : {}),
+            }, exec.signal)
+            reference = await commitAssetImage(still, outputDir, prior.id, asset.id, '')
           }
+          const attachment = await saveImageAttachment(ctx, reference)
+          const sheetAttachment = sheet !== undefined ? await saveImageAttachment(ctx, sheet) : undefined
           results.push({
             assetId: asset.id,
             name: asset.name,
             kind: asset.kind,
-            image: target,
-            ...attachment !== undefined ? { attachment } : {},
+            image: reference,
+            ...(attachment !== undefined ? { attachment } : {}),
+            ...(sheet !== undefined ? { sheet } : {}),
+            ...(sheetAttachment !== undefined ? { sheetAttachment } : {}),
             state: 'generated',
           })
         } catch (error: unknown) {
           const message = error instanceof Error ? error.message : String(error)
-          results.push({ assetId: asset.id, name: asset.name, kind: asset.kind, state: 'failed', error: message })
+          results.push({
+            assetId: asset.id,
+            name: asset.name,
+            kind: asset.kind,
+            ...(reference !== undefined && reference !== asset.reference ? { image: reference } : {}),
+            ...(sheet !== undefined && sheet !== asset.sheet ? { sheet } : {}),
+            state: 'failed',
+            error: message,
+          })
+        }
+        // Persist whatever the run produced, including a portrait whose sheet failed.
+        const index = assets.findIndex(candidate => candidate.id === asset.id)
+        const current = index !== -1 ? assets[index] : undefined
+        if (current !== undefined && (reference !== current.reference || sheet !== current.sheet)) {
+          assets[index] = {
+            ...copyAsset(current),
+            ...(reference !== undefined ? { reference } : {}),
+            ...(sheet !== undefined ? { sheet } : {}),
+          }
         }
       }
-      const skipped = (prior.assets ?? []).filter(asset => asset.reference !== undefined)
+      const skipped = scoped.filter(asset => !selected.includes(asset))
       if (skipped.length > 0) {
         results.push(...skipped.map(asset => ({ assetId: asset.id, name: asset.name, kind: asset.kind, state: 'skipped' as const })))
       }
       if (assets.length > 0) {
-        const plan: VideoPlan = { ...prior, assets }
-        await writePlan(outputDir, plan)
+        await writePlan(outputDir, { ...prior, assets })
+        await saveLibraryAssets(outputDir, assets.filter(asset => asset.reference !== undefined))
       }
       const generatedCount = results.filter(result => result.state === 'generated').length
       const failedCount = results.filter(result => result.state === 'failed').length
@@ -1049,12 +1726,44 @@ export function apply(ctx: Context): void {
   }))
 
   ctx.tools.register(defineTool({
+    name: 'video_library',
+    description: 'List the project asset library: characters, scenes, and props confirmed in earlier plans, each with its canonical prompt block, reference image, and character master sheet. Attach one to a new plan with video_plan library_assets instead of redefining it.',
+    parameters: {},
+    output: jsonOutput(LIBRARY_VALUE_SCHEMA),
+    async execute() {
+      const assets = await readLibrary(ctx.h3Video.outputDir)
+      const listed = assets.map(asset => ({
+        id: asset.id,
+        name: asset.name,
+        kind: asset.kind,
+        ...(asset.description !== undefined ? { description: asset.description } : {}),
+        ...(asset.prompt !== undefined ? { prompt: asset.prompt } : {}),
+        ...(asset.reference !== undefined ? { reference: asset.reference } : {}),
+        ...(asset.sheet !== undefined ? { sheet: asset.sheet } : {}),
+      }))
+      const notice = listed.length === 0
+        ? `the project asset library at ${libraryPath(ctx.h3Video.outputDir)} is empty`
+        : `${listed.length} saved asset(s) in the project library`
+      return { assets: listed, notice }
+    },
+    presentCall: () => presentCall('Project asset library'),
+  }))
+
+  ctx.tools.register(defineTool({
     name: 'video_render',
-    description: 'Submit one plan\'s segments (or a subset) to the chosen H3 backend and start one background job per segment that polls generation to completion. Returns submission records with job ids; collect results with job_output.',
+    description: 'Submit one plan\'s segments (or a subset) to the chosen H3 backend and start one background job per segment that polls generation to completion. Returns submission records with job ids; collect results with job_output. A local submission boots the configured cloud GPU when needed, so run video_gpu action=up first to surface boot failures before submitting.',
     parameters: {
       plan_id: { type: 'string', required: true, description: 'Plan id from video_plan.' },
       segment_ids: { type: 'array', items: { type: 'string' }, description: 'Segment ids to render; defaults to every segment.' },
       backend: { type: 'string', enum: ['local', 'remote', 'auto'], description: 'Backend override for all selected segments.' },
+      allow_remote: {
+        type: 'boolean',
+        description: 'Confirm that the user agreed to pay for hosted-API seconds. Required when the selected segments would render remote; the refusal names them and their total seconds.',
+      },
+      chain: {
+        type: 'boolean',
+        description: 'Render the selected shots in plan order and start each one from the previous shot\'s final frame, so consecutive shots share a continuous motion and place. Slower than parallel rendering; use it for shots inside one scene.',
+      },
     },
     output: jsonOutput(RENDER_VALUE_SCHEMA),
     async execute(args, exec) {
@@ -1077,6 +1786,7 @@ export function apply(ctx: Context): void {
           durationSeconds: total,
         }
         const backend = args.backend ?? first.backend
+        requireRemoteConsent(paidExposure([combined], args.backend), args.allow_remote === true)
         try {
           const { target, ref } = await ctx.h3Video.submit(
             backend,
@@ -1094,7 +1804,7 @@ export function apply(ctx: Context): void {
             outputLimitBytes: 4000,
             run: () => renderJobHooks(ctx, plan.id, combined, target, ref),
           })
-          submissions.push({ segmentId: 'all', backend, taskRef: String(ref), jobId, state: 'submitted' })
+          submissions.push({ segmentId: 'all', backend, resolved: target.choice, taskRef: String(ref), jobId, state: 'submitted' })
         } catch (error: unknown) {
           const message = error instanceof Error ? error.message : String(error)
           submissions.push({ segmentId: 'all', backend, state: 'failed', error: message })
@@ -1107,6 +1817,33 @@ export function apply(ctx: Context): void {
             if (segment === undefined) throw new Error(`plan ${plan.id} has no segment ${JSON.stringify(id)}`)
             return segment
           })
+        requireRemoteConsent(paidExposure(selected, args.backend), args.allow_remote === true)
+        requireCharacterAnchors(selected, plan)
+        if (args.chain === true) {
+          // One job for the whole chain: each shot waits for its predecessor's final frame, which is
+          // what makes the sequence continuous instead of a set of unrelated clips.
+          const jobId = ctx.jobs.start({
+            kind: 'h3-video',
+            label: `render ${plan.id}/chain`,
+            owner: agent,
+            outputLimitBytes: 8000,
+            run: () => chainJobHooks(ctx, plan, selected, args.backend),
+          })
+          for (const segment of selected) {
+            submissions.push({
+              segmentId: segment.id,
+              backend: args.backend ?? segment.backend,
+              taskRef: jobId,
+              jobId,
+              state: 'submitted',
+            })
+          }
+          return {
+            planId: plan.id,
+            submissions,
+            notice: `chained render of ${selected.length} shot(s) queued as job ${jobId}: each shot starts from the previous shot's final frame`,
+          }
+        }
         for (const segment of selected) {
           const backend = args.backend ?? segment.backend
           try {
@@ -1126,7 +1863,7 @@ export function apply(ctx: Context): void {
               outputLimitBytes: 4000,
               run: () => renderJobHooks(ctx, plan.id, segment, target, ref),
             })
-            submissions.push({ segmentId: segment.id, backend, taskRef: String(ref), jobId, state: 'submitted' })
+            submissions.push({ segmentId: segment.id, backend, resolved: target.choice, taskRef: String(ref), jobId, state: 'submitted' })
           } catch (error: unknown) {
             const message = error instanceof Error ? error.message : String(error)
             submissions.push({ segmentId: segment.id, backend, state: 'failed', error: message })
@@ -1145,11 +1882,17 @@ export function apply(ctx: Context): void {
 
   ctx.tools.register(defineTool({
     name: 'video_assemble',
-    description: 'Concatenate a plan\'s rendered segments in storyboard order with ffmpeg into one mp4. Fails listing any segment that has not been rendered yet.',
+    description: 'Assemble rendered segments in storyboard order. Per-segment plans use a short crossfade by default, overlapping pictures and sound; choose cut for a direct join or dip for a scene change. Fails listing any segment that has not been rendered yet.',
     parameters: {
       plan_id: { type: 'string', required: true, description: 'Plan id from video_plan.' },
       output_file: { type: 'string', description: 'Absolute output mp4 path; defaults to outputDir/final/<planId>.mp4.' },
       ffmpeg_path: { type: 'string', description: 'ffmpeg executable; defaults to ffmpeg on PATH.' },
+      transition: {
+        type: 'string',
+        enum: ['cut', 'dip', 'crossfade'],
+        description: 'Defaults to crossfade: overlap adjacent pictures and audio. cut joins directly; dip fades through black. Only per_segment assembly applies transitions.',
+      },
+      transition_seconds: { type: 'number', description: 'Positive overlap duration for crossfade (default 0.4s), or dip half-width (default 0.25s). Capped at half of either adjacent clip. Crossfades shorten the total by their overlaps.' },
     },
     output: jsonOutput(ASSEMBLE_VALUE_SCHEMA),
     async execute(args, exec) {
@@ -1181,17 +1924,51 @@ export function apply(ctx: Context): void {
         throw new Error(`plan ${plan.id} is missing rendered segments: ${missing.join(', ')}`)
       }
       const outputFile = args.output_file ?? artifactPath(outputDir, 'final', `${plan.id}.mp4`)
+      const transition = resolveAssemblyTransition(args)
       await ctx.h3Video.assemble(
         files.map(file => ({ file })),
         {
           outputFile,
           ...args.ffmpeg_path !== undefined ? { ffmpegPath: args.ffmpeg_path } : {},
+          transition,
+          durations: plan.segments.map(segment => segment.durationSeconds),
           signal: exec.signal,
         },
       )
-      return { planId: plan.id, outputFile, segments: files, durationSeconds: total }
+      let overlap = 0
+      let previous: VideoSegment | undefined
+      for (const segment of plan.segments) {
+        if (previous !== undefined && transition.kind === 'crossfade') {
+          overlap += Math.min(transition.seconds, previous.durationSeconds / 2, segment.durationSeconds / 2)
+        }
+        previous = segment
+      }
+      return { planId: plan.id, outputFile, segments: files, durationSeconds: total - overlap }
     },
     presentCall: args => presentCall('Assemble final video', args.plan_id),
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'video_gpu',
+    description: 'Manage the cloud GPU instance behind the local H3 backend. status reports it, up boots or reuses it and waits until ComfyUI answers, stop powers it off keeping its disk, and release deletes it. GPU time is billed while the instance runs; a local render boots it implicitly and the configured idle policy stops or releases it after the last segment settles.',
+    parameters: {
+      action: {
+        type: 'string',
+        required: true,
+        enum: ['status', 'up', 'stop', 'release'],
+        description: 'status: report the instance; up: boot or reuse it and wait for ComfyUI; stop: power it off; release: delete it.',
+      },
+    },
+    output: jsonOutput(GPU_STATUS_SCHEMA),
+    async execute(args) {
+      const action: GpuAction = args.action
+      let status: GpuStatus
+      if (action === 'status') status = await ctx.h3Video.gpuStatus()
+      else if (action === 'up') status = await ctx.h3Video.gpuUp()
+      else status = await ctx.h3Video.gpuDown(action === 'release' ? 'release' : 'stop')
+      return { ...status, notice: gpuNotice(action, status) }
+    },
+    presentCall: args => presentCall('Cloud GPU instance', args.action),
   }))
 
   // Direct human entry point: `/video <description>` queues one user turn that drives the
@@ -1216,7 +1993,7 @@ export function apply(ctx: Context): void {
             + '请按 H3 视频生成流程执行：'
             + '1) 先用 video_plan 把需求拆成带 id 的分镜（每段含 prompt、duration_seconds、resolution、ratio、backend，可选 references 参考素材）；'
             + '2) 把分镜呈现给用户确认（场景/镜头/提示词要点/时长/分辨率/路由与预估成本，并询问是否需要参考素材），未经确认不得渲染；'
-            + '3) 确认后用 video_render 提交渲染并用 job_output 等待各段完成；'
+            + '3) 确认后用 video_render 提交渲染并用 job_output 等待各段完成；配置了云 GPU 时，本地渲染会自动开机实例，也可先用 video_gpu action=up 确认实例就绪；'
             + '4) 全部成功后 video_assemble 拼接成片，最后用 present 交付。\n'
             + 'H3 音画同生（视频与音频同一次生成），写分镜 prompt 时要声明声音层：'
             + '写清环境声与音效（overall_soundscape）；有中文对白时逐字写进 <d>[Chinese] 台词</d>，时长要容得下台词；'

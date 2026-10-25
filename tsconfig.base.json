@@ -298,6 +298,10 @@
       "@deepseek-ai/dsh-session-log-export/client": ["./packages/session-query/session-log-export/src/client"],
       "@deepseek-ai/dsh-compaction-image-offload/projection": ["./packages/compaction/compaction-image-offload/src/projection.ts"],
       "@deepseek-ai/dsh-session-format-catalog/message-projections": ["./packages/session/session-format-catalog/src/message-projections.ts"],
+      // The geo-admin host settings row is a subpath export; the generated aliases
+      // map only bare package names.
+      "@deepseek-ai/dsh-tool-geo-admin": ["./packages/geo/tool-geo-admin/src"],
+      "@deepseek-ai/dsh-tool-geo-admin/settings": ["./packages/geo/tool-geo-admin/src/settings.ts"],
       // BEGIN generated package aliases — pnpm run gen-tsconfig-paths
       "@deepseek-ai/dsh-acp": ["./packages/acp/acp/src"],
       "@deepseek-ai/dsh-acp-app": ["./packages/bundle/acp-app/src"],

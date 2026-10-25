@@ -53,6 +53,16 @@
     - id: h3-video-settings
       name: '@deepseek-ai/dsh-h3-video/settings'
 
+    # 深度云海 publishing settings: registers the `geo-admin` namespace and
+    # publishes its live view. The Plugins page edits the account and the
+    # preset-mounted geo-admin tools read it on every call; the launching
+    # environment seeds the composition base for headless runs.
+    - id: geo-admin-settings
+      name: '@deepseek-ai/dsh-tool-geo-admin/settings'
+      config:
+        baseUrl: !!js process.env.GEO_ADMIN_BASE_URL
+        username: !!js process.env.GEO_ADMIN_USERNAME
+
     # Video workbench, host half: the read-only projects/file routes over the
     # h3-video output directory. The ui-video-workbench browser row renders it.
     - id: video-workbench

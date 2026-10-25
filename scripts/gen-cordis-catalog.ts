@@ -81,6 +81,8 @@ export const SERVICE_PAGE: Record<string, string> = {
   fileReferences: 'session-reference.md',
   fs: 'filesystem.md',
   goals: 'goal.md',
+  h3Video: 'tools.md',
+  h3VideoSettings: 'settings.md',
   inspector: 'extensions.md',
   webServer: 'web-server.md',
   invariants: 'invariants.md',
@@ -93,6 +95,7 @@ export const SERVICE_PAGE: Record<string, string> = {
   terminals: 'terminal.md',
   sandbox: 'sandbox.md',
   sandboxPolicy: 'sandbox.md',
+  scheduleWorkGateway: 'schedule.md',
   ssh: 'ssh.md',
   sessionPersistence: 'persistence.md',
   sessionQuery: 'session-query.md',
@@ -104,6 +107,7 @@ export const SERVICE_PAGE: Record<string, string> = {
   sessionSkillCatalog: 'skills.md',
   sessions: 'session.md',
   settings: 'settings.md',
+  geoAdminSettings: 'settings.md',
   sessionTitle: 'session-title.md',
   skills: 'skills.md',
   spillStore: 'spill.md',
@@ -845,6 +849,12 @@ export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
   AssemblyOptions: 'assembly options are owned by packages/video/h3-video/README.md',
   AssemblySegment: 'assembly input segment is owned by packages/video/h3-video/README.md',
   H3VideoSettingsSection: 'settings section contract is owned by packages/video/h3-video/README.md',
+  GeoAdminSettingsSection: 'settings section contract is owned by packages/geo/tool-geo-admin/README.md',
+  GpuStatus: 'cloud GPU lifecycle view is owned by packages/video/h3-video/README.md',
+  ScheduleWorkTaskList: 'scheduled-work page contract is owned by packages/schedule/schedule-work/README.md',
+  ScheduleWorkRunList: 'scheduled-work page contract is owned by packages/schedule/schedule-work/README.md',
+  ScheduleWorkTaskInput: 'scheduled-work request contract is owned by packages/schedule/schedule-work/README.md',
+  ScheduleWorkTaskView: 'scheduled-work record contract is owned by packages/schedule/schedule-work/README.md',
 }
 
 /** Repository data policy consumed by the Cordis catalog projector. */

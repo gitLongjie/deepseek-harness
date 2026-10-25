@@ -70,6 +70,7 @@ import * as ToolTodo from '@deepseek-ai/dsh-tool-todo'
 import McpResources from '@deepseek-ai/dsh-mcp-resources'
 import * as ToolSubagent from '@deepseek-ai/dsh-tool-subagent'
 import { registerListSubagentModels } from '../packages/subagent/tool-subagent/src/list-models.ts'
+import * as ToolGeoAdmin from '@deepseek-ai/dsh-tool-geo-admin'
 import * as ToolWeb from '@deepseek-ai/dsh-tool-web'
 import WorkflowEngine from '@deepseek-ai/dsh-workflow'
 import type { WorkflowRun, WorkflowStartRequest } from '@deepseek-ai/dsh-workflow'
@@ -575,12 +576,12 @@ const TOOL_PACKAGES: ToolPackage[] = [
       await ctx.plugin(CommandRuntime)
       await ctx.plugin(H3VideoService, {
         outputDir: 'catalog-probe-video-output',
-        comfy: { workflowPath: 'catalog-probe-workflow.json' },
+        comfy: { url: 'https://catalog-probe.invalid:8443', workflowPath: 'catalog-probe-workflow.json' },
       })
       await ctx.plugin(ToolVideo)
     },
     note:
-      'The H3 storyboard, keyframe, asset, render, and assembly tools plus the `/video` command. Generated materials ride the result as image blocks when a durable attachment store is mounted, which is why `ctx.attachments` is optional here rather than injected.',
+      'The H3 storyboard, keyframe, asset, render, assembly, and cloud-GPU tools plus the `/video` command. Generated materials ride the result as image blocks when a durable attachment store is mounted, which is why `ctx.attachments` is optional here rather than injected.',
   },
   {
     pkg: '@deepseek-ai/dsh-experimental-tool-agent-team',
@@ -644,6 +645,23 @@ const TOOL_PACKAGES: ToolPackage[] = [
       await ctx.plugin(CatalogWorkflowEngine)
       await ctx.plugin(ToolWorkflow)
     },
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-geo-admin',
+    dir: 'tool-geo-admin',
+    source: 'packages/geo/tool-geo-admin/src/index.ts',
+    requires: ['ctx.tools', 'ctx.credentials'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      // The schemas are independent of whether an account is configured, so a
+      // placeholder provider satisfies the injection without a credential store.
+      ctx.provide('credentials', {
+        resolve: () => Promise.resolve({ value: 'catalog-placeholder', source: 'store' }),
+      } as never)
+      await ctx.plugin(ToolGeoAdmin)
+    },
+    note:
+      'The 深度云海 tools resolve their backend address and account from the geo-admin settings namespace and sign in per call; no schema depends on the configured account.',
   },
   {
     pkg: '@deepseek-ai/dsh-tool-web',

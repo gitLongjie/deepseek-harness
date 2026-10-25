@@ -1,0 +1,53 @@
+{
+  "name": "@xmanrui/expert-geo-admin",
+  "version": "0.1.0",
+  "description": "深度Work 专家包：深度云海 GEO 专家——用配置好的账号查询、核对并修改 GEO 多站点内容后台的文章数据。 Expert package: a GEO data operator that queries, checks, and updates articles on the multi-site content backend with the configured account.",
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "dsh-expert",
+    "expert",
+    "geo",
+    "content",
+    "admin",
+    "multi-site"
+  ],
+  "author": {
+    "name": "xmanrui",
+    "url": "https://github.com/xmanrui"
+  },
+  "license": "MIT",
+  "type": "module",
+  "main": "./plugin.mjs",
+  "files": [
+    "plugin.mjs",
+    "cordis.patch.yml",
+    "experts/",
+    "store-entry.json",
+    "README.md",
+    "README.zh.md"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test test/*.test.mjs",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "engines": {
+    "node": ">=22.19"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xmanrui/expert-geo-admin.git"
+  },
+  "dsh": {
+    "expert": {
+      "roots": [
+        "experts"
+      ]
+    },
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

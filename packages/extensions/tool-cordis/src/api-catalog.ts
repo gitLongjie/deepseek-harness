@@ -1027,6 +1027,25 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'geoAdminSettings',
+    summary: 'Live view of the `geo-admin` settings section, published on the host plane.',
+    description: 'Live view of the `geo-admin` settings section, published on the host plane.',
+    methods: [
+      {
+        signature: 'get(): GeoAdminSettingsSection',
+        description: 'Read the currently committed section value.',
+        parameters: [],
+        returns: 'the committed settings section.',
+      },
+      {
+        signature: 'watch(callback: (next: GeoAdminSettingsSection) => void): () => void',
+        description: 'Observe committed changes to the section.',
+        parameters: [{ name: 'callback', description: 'invoked with the next committed value.' }],
+        returns: 'the disposer removing this observer.',
+      },
+    ],
+  },
+  {
     key: 'goals',
     summary: 'Goal service (`ctx.goals`) backed exclusively by the owning session log.',
     description: 'Goal service (`ctx.goals`) backed exclusively by the owning session log.',
@@ -1091,6 +1110,97 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Create one Goal through the remote boundary.',
         parameters: [{ name: 'agent', description: 'exact live Agent resolved from the wire identity.' }, { name: 'request', description: 'objective and optional round cap.' }],
         returns: 'the created Goal identity.',
+      },
+    ],
+  },
+  {
+    key: 'h3Video',
+    summary: 'Video-generation service surface consumed by tool plugins.',
+    description: 'Video-generation service surface consumed by tool plugins. Every operation takes the caller\'s explicit backend choice; no call path receives an implicit default.',
+    methods: [
+      {
+        signature: 'abstract diskFreeMegabytes(): Promise<number | undefined>',
+        description: 'Query the free space on the volume holding the output directory.',
+        parameters: [],
+        returns: 'free megabytes, or `undefined` when the volume cannot be queried.',
+      },
+      {
+        signature: 'abstract capabilities(choice: Exclude<BackendChoice, \'auto\'>): ProviderCapabilities | undefined',
+        description: 'Static limits of one configured backend.',
+        parameters: [{ name: 'choice', description: 'routing label.' }],
+        returns: 'the backend\'s declared capabilities, or `undefined` when that backend is not configured.',
+      },
+      {
+        signature: 'abstract canServe(choice: BackendChoice, request: SegmentRequest): boolean',
+        description: 'Validate one request against one backend without submitting it.',
+        parameters: [{ name: 'choice', description: 'routing policy to check.' }, { name: 'request', description: 'candidate segment request.' }],
+        returns: 'whether that backend can serve the request as written.',
+      },
+      {
+        signature: 'abstract submit( choice: BackendChoice, request: SegmentRequest, signal: AbortSignal, ): Promise<{ readonly target: RoutedProvider; readonly ref: H3TaskRef }>',
+        description: 'Route by the caller\'s policy, validate, and submit one segment.',
+        parameters: [{ name: 'choice', description: 'explicit backend policy.' }, { name: 'request', description: 'the segment to generate.' }, { name: 'signal', description: 'submission cancellation.' }],
+        returns: 'the chosen backend and its task reference.',
+      },
+      {
+        signature: 'abstract poll(target: RoutedProvider, ref: H3TaskRef, signal: AbortSignal): Promise<TaskStatus>',
+        description: 'Observe a submitted task once through its owning backend.',
+        parameters: [{ name: 'target', description: 'the routed provider returned by {@link submit}.' }, { name: 'ref', description: 'the task reference.' }, { name: 'signal', description: 'observation cancellation.' }],
+        returns: 'the task\'s current state, including the local file once it succeeds.',
+      },
+      {
+        signature: 'abstract cancel(target: RoutedProvider, ref: H3TaskRef): Promise<void>',
+        description: 'Best-effort cancel on the owning backend.',
+        parameters: [{ name: 'target', description: 'routed provider.' }, { name: 'ref', description: 'task reference.' }],
+      },
+      {
+        signature: 'abstract keyframe(request: KeyframeRequest, signal: AbortSignal): Promise<string>',
+        description: 'Generate one still keyframe for a shot, establishing the scene before video generation. Uses the hosted image model; local ComfyUI has no H3 text-to-image node.',
+        parameters: [{ name: 'request', description: 'shot description, aspect ratio, optional seed, and an optional character reference that keeps the still on the confirmed character.' }, { name: 'signal', description: 'cancellation of the keyframe generation.' }],
+        returns: 'the absolute path of the downloaded keyframe file.',
+      },
+      {
+        signature: 'abstract assemble(segments: readonly AssemblySegment[], options: AssemblyOptions): Promise<string>',
+        description: 'Concatenate ordered segment files into one mp4.',
+        parameters: [{ name: 'segments', description: 'ordered files.' }, { name: 'options', description: 'output location and optional ffmpeg override.' }],
+        returns: 'the absolute path of the assembled mp4.',
+      },
+      {
+        signature: 'abstract gpuStatus(): Promise<GpuStatus>',
+        description: 'Read the cloud GPU backing the local backend. With a tracked instance the vendor state is re-read; otherwise the cached lifecycle view answers immediately.',
+        parameters: [],
+        returns: 'the lifecycle view; `configured: false` when the composition carries no GPU row.',
+      },
+      {
+        signature: 'abstract gpuUp(): Promise<GpuStatus>',
+        description: 'Boot or reuse the cloud GPU and wait until ComfyUI answers. A routable local submission does this implicitly; calling it first surfaces boot failures before a render is submitted.',
+        parameters: [],
+        returns: 'the lifecycle view once the instance is running.',
+      },
+      {
+        signature: 'abstract gpuDown(mode: \'stop\' | \'release\'): Promise<GpuStatus>',
+        description: 'Power the cloud GPU off, or release it and its disk. Cloud GPU time is billed while it runs.',
+        parameters: [{ name: 'mode', description: '`stop` keeps the instance for a later boot; `release` deletes it.' }],
+        returns: 'the lifecycle view after the operation.',
+      },
+    ],
+  },
+  {
+    key: 'h3VideoSettings',
+    summary: 'Live view of the `h3-video` settings section, published on the host plane.',
+    description: 'Live view of the `h3-video` settings section, published on the host plane.',
+    methods: [
+      {
+        signature: 'get(): H3VideoSettingsSection',
+        description: 'Read the currently committed section value.',
+        parameters: [],
+        returns: 'the committed settings section.',
+      },
+      {
+        signature: 'watch(callback: (next: H3VideoSettingsSection) => void): () => void',
+        description: 'Observe committed changes to the section.',
+        parameters: [{ name: 'callback', description: 'invoked with the next committed value.' }],
+        returns: 'the disposer removing this observer.',
       },
     ],
   },
@@ -1574,6 +1684,43 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Read the session override without applying the deployment default.',
         parameters: [{ name: 'session', description: 'session whose log supplies the override.' }],
         returns: 'the last logged mode, or `undefined` without one.',
+      },
+    ],
+  },
+  {
+    key: 'scheduleWorkGateway',
+    summary: 'Remote-only schedule-work gateway.',
+    description: 'Remote-only schedule-work gateway. The Context key `scheduleWorkGateway` names this service registration; the wire namespace stays `scheduleWork`.',
+    methods: [
+      {
+        signature: '@Remote(\'list\') list(): Promise<ScheduleWorkTaskList>',
+        description: 'List every task with its computed next occurrence.',
+        parameters: [],
+        returns: 'tasks newest-first by creation.',
+      },
+      {
+        signature: '@Remote(\'listRuns\') listRuns(request: { taskId?: string }): Promise<ScheduleWorkRunList>',
+        description: 'List run records, newest first.',
+        parameters: [{ name: 'request', description: 'Optional task filter.' }],
+        returns: 'the run records of the requested task, or every task\'s.',
+      },
+      {
+        signature: '@Remote(\'create\') async create(input: ScheduleWorkTaskInput): Promise<ScheduleWorkTaskView>',
+        description: 'Create one task.',
+        parameters: [{ name: 'input', description: 'Task fields; validated host-side.' }],
+        returns: 'the stored task view.',
+      },
+      {
+        signature: '@Remote(\'update\') async update(request: { id: string; patch: Partial<ScheduleWorkTaskInput> }): Promise<ScheduleWorkTaskView>',
+        description: 'Edit one task.',
+        parameters: [{ name: 'request', description: 'Task identity and the fields to replace.' }],
+        returns: 'the updated task view.',
+      },
+      {
+        signature: '@Remote(\'removeTasks\') removeTasks(request: { ids: readonly string[] }): Promise<{ removed: number }>',
+        description: 'Remove tasks and their run records. The wire method avoids the reserved `remove` name: it collides with the Remote namespace service\'s own members and the client API refuses the whole namespace over it.',
+        parameters: [{ name: 'request', description: 'Task identities; unknown ids are skipped.' }],
+        returns: 'how many tasks were removed.',
       },
     ],
   },
@@ -3175,7 +3322,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     methods: [
       {
         signature: '@Remote async read( workspaceFileScope: WorkspaceFileScope, path: string, range: WorkspaceFileRange, signal: AbortSignal, ): Promise<WorkspaceFileText>',
-        description: 'Read one page of lines from a UTF-8 file readable by the filesystem backend.',
+        description: 'Read one page of lines from a file readable by the filesystem backend.\n\nA suffix document text extraction covers reads as its converted plain text, produced by the platform converter and decoded as strict UTF-8; every other file reads as UTF-8 bytes and fails as not-text otherwise.',
         parameters: [{ name: 'workspaceFileScope', description: 'header-derived workspace root for the Session identity on the wire.' }, { name: 'path', description: 'absolute path or path relative to the workspace root; files outside it are allowed.' }, { name: 'range', description: 'the line window; omitted fields take the page defaults.' }, { name: 'signal', description: 'caller cancellation.' }],
         returns: 'the page, the file\'s version at the stat before it, and whether it reaches the last line.',
       },
@@ -3973,6 +4120,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface AssembledSection {\n    name: string;\n    text: string;\n    interpolate?: boolean;\n}',
   },
   {
+    name: 'AssemblyOptions',
+    declaration: 'export interface AssemblyOptions {\n    ffmpegPath?: string;\n    outputFile: string;\n    workDir?: string;\n    signal?: AbortSignal;\n    transition?: {\n        kind: \'cut\' | \'dip\' | \'crossfade\';\n        seconds: number;\n    };\n    durations?: readonly number[];\n}',
+  },
+  {
+    name: 'AssemblySegment',
+    declaration: 'export interface AssemblySegment {\n    readonly file: string;\n}',
+  },
+  {
     name: 'AssistantMessage',
     declaration: 'export interface AssistantMessage extends Message {\n    readonly role: \'assistant\';\n    readonly source: ModelMessageSource;\n}',
   },
@@ -4053,6 +4208,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type AuthorizationStatus = \'authorized\' | \'cancelled\';',
   },
   {
+    name: 'BackendChoice',
+    declaration: 'export type BackendChoice = \'local\' | \'remote\' | \'auto\';',
+  },
+  {
     name: 'BackendRegistry',
     declaration: 'export class BackendRegistry {\n    register(name: string, backend: StorageBackend): () => void;\n    get(name: string): StorageBackend;\n    names(): string[];\n}',
   },
@@ -4083,6 +4242,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ClientArtifactBaseline',
     declaration: 'export interface ClientArtifactBaseline {\n    readonly path: string;\n    readonly mtimeMs: number;\n    readonly size: number;\n}',
+  },
+  {
+    name: 'ClockTime',
+    declaration: 'export type ClockTime = Branded<\'clock-time\'>;',
   },
   {
     name: 'CollectedOutput',
@@ -4557,6 +4720,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface GenericResultView {\n    card: \'generic\';\n    title?: string;\n    content?: ContentBlock[];\n}',
   },
   {
+    name: 'GeoAdminSettingsSection',
+    declaration: 'export interface GeoAdminSettingsSection {\n    baseUrl?: string;\n    username?: string;\n}',
+  },
+  {
     name: 'GoalActivation',
     declaration: 'export type GoalActivation = \'armed\' | \'disarmed\';',
   },
@@ -4597,8 +4764,28 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface GoalView extends GoalSnapshot {\n    readonly roundsStarted: number;\n    readonly createdAt: number;\n    readonly updatedAt: number;\n    readonly activation: GoalActivation;\n}',
   },
   {
+    name: 'GpuInstanceState',
+    declaration: 'export type GpuInstanceState = \'absent\' | \'starting\' | \'running\' | \'stopping\' | \'stopped\' | \'releasing\' | \'failed\';',
+  },
+  {
+    name: 'GpuStatus',
+    declaration: 'export interface GpuStatus {\n    readonly configured: boolean;\n    readonly vendor?: string;\n    readonly instanceId?: string;\n    readonly state: GpuInstanceState;\n    readonly serviceUrl?: string;\n    readonly idleTimeoutMs?: number;\n    readonly idleAction?: \'power_off\' | \'release\';\n    readonly error?: string;\n}',
+  },
+  {
     name: 'GrantRecord',
     declaration: 'export interface GrantRecord {\n    readonly kind: \'grant\';\n    readonly payload: unknown;\n}',
+  },
+  {
+    name: 'H3TaskRef',
+    declaration: 'export type H3TaskRef = Branded<\'H3TaskRef\'>;',
+  },
+  {
+    name: 'H3VideoProvider',
+    declaration: 'export interface H3VideoProvider {\n    readonly capabilities: ProviderCapabilities;\n    submit(request: SegmentRequest, signal: AbortSignal): Promise<H3TaskRef>;\n    poll(ref: H3TaskRef, signal: AbortSignal): Promise<TaskStatus>;\n    cancel(ref: H3TaskRef): Promise<void>;\n}',
+  },
+  {
+    name: 'H3VideoSettingsSection',
+    declaration: 'export interface H3VideoSettingsSection {\n    comfyUrl?: string;\n    comfyWorkflowPath?: string;\n    comfyInputDir?: string;\n    comfyPollIntervalMs?: number;\n    comfyTaskTimeoutMs?: number;\n    comfyMaxConcurrency?: number;\n    comfyResolutions?: string[];\n    comfyMinDurationSeconds?: number;\n    comfyMaxDurationSeconds?: number;\n    minimaxBaseUrl?: string;\n    minimaxModel?: string;\n    minimaxResolutions?: string[];\n    minimaxMinDurationSeconds?: number;\n    minimaxMaxDurationSeconds?: number;\n    minimaxApiKeyRef?: string;\n    gpuApiTokenRef?: string;\n    minimaxPollIntervalMs?: number;\n    minimaxTaskTimeoutMs?: number;\n    minimaxMaxConcurrency?: number;\n    outputDir?: string;\n    minFreeSpaceMb?: number;\n    estimatedBytesPerSecond?: number;\n}',
   },
   {
     name: 'ImageAttachmentLimits',
@@ -4731,6 +4918,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'JsonValue',
     declaration: 'export type JsonValue = null | boolean | number | string | JsonValue[] | {\n    [key: string]: JsonValue;\n};',
+  },
+  {
+    name: 'KeyframeRequest',
+    declaration: 'export interface KeyframeRequest {\n    prompt: string;\n    ratio: \'21:9\' | \'16:9\' | \'4:3\' | \'1:1\' | \'3:4\' | \'9:16\';\n    seed?: number;\n    subjectReference?: string;\n}',
   },
   {
     name: 'KvFacet',
@@ -5105,6 +5296,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type PromptSectionOrderName = keyof typeof SECTION_ORDERS;',
   },
   {
+    name: 'ProviderCapabilities',
+    declaration: 'export interface ProviderCapabilities {\n    readonly name: string;\n    readonly resolutions: readonly SegmentRequest[\'resolution\'][];\n    readonly minDurationSeconds: number;\n    readonly maxDurationSeconds: number;\n    readonly multimodalInputs: boolean;\n    readonly maxConcurrency: number;\n}',
+  },
+  {
     name: 'ProviderRequestId',
     declaration: 'export type ProviderRequestId = Branded<\'ProviderRequestId\'>;',
   },
@@ -5249,6 +5444,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ResumeAgentOptions {\n    readonly resumeSessionId: SessionId;\n    readonly parentAgent?: Agent;\n    readonly agentOptions?: AgentOptions;\n    readonly signal?: AbortSignal;\n    readonly setup?: AgentSetup;\n}',
   },
   {
+    name: 'RoutedProvider',
+    declaration: 'export interface RoutedProvider {\n    readonly choice: \'local\' | \'remote\';\n    readonly provider: H3VideoProvider;\n}',
+  },
+  {
     name: 'RunnerFailureRule',
     declaration: 'export interface RunnerFailureRule {\n    allowedExitCodes?: readonly number[];\n    fatalSignatures: readonly string[];\n    informationalLines?: readonly string[];\n}',
   },
@@ -5297,6 +5496,46 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type ScheduledToolPreparation = {\n    kind: \'dispatch\';\n    exec: ToolRunContext;\n} | {\n    kind: \'post-result\';\n    exec: ToolRunContext;\n    result: ToolExecutionResult;\n} | {\n    kind: \'final-result\';\n    exec: ToolRunContext;\n    result: ToolExecutionResult;\n};',
   },
   {
+    name: 'ScheduleWorkRule',
+    declaration: 'export type ScheduleWorkRule = {\n    readonly kind: \'once\';\n    readonly at: string;\n} | {\n    readonly kind: \'daily\';\n    readonly time: ClockTime;\n} | {\n    readonly kind: \'weekly\';\n    readonly weekdays: readonly number[];\n    readonly time: ClockTime;\n} | {\n    readonly kind: \'monthly\';\n    readonly days: readonly number[];\n    readonly time: ClockTime;\n} | {\n    readonly kind: \'interval\';\n    readonly everySeconds: number;\n};',
+  },
+  {
+    name: 'ScheduleWorkRunId',
+    declaration: 'export type ScheduleWorkRunId = Branded<\'schedule-work-run-id\'>;',
+  },
+  {
+    name: 'ScheduleWorkRunList',
+    declaration: 'export interface ScheduleWorkRunList {\n    readonly runs: readonly ScheduleWorkRunRecord[];\n}',
+  },
+  {
+    name: 'ScheduleWorkRunRecord',
+    declaration: 'export interface ScheduleWorkRunRecord {\n    readonly id: ScheduleWorkRunId;\n    readonly taskId: ScheduleWorkTaskId;\n    readonly sessionId?: SessionId | undefined;\n    readonly startedAt: string;\n    readonly finishedAt?: string | undefined;\n    readonly status: ScheduleWorkRunStatus;\n    readonly error?: string | undefined;\n}',
+  },
+  {
+    name: 'ScheduleWorkRunStatus',
+    declaration: 'export type ScheduleWorkRunStatus = \'running\' | \'succeeded\' | \'failed\';',
+  },
+  {
+    name: 'ScheduleWorkTaskId',
+    declaration: 'export type ScheduleWorkTaskId = Branded<\'schedule-work-task-id\'>;',
+  },
+  {
+    name: 'ScheduleWorkTaskInput',
+    declaration: 'export type ScheduleWorkTaskInput = {\n    readonly name: string;\n    readonly prompt: string;\n    readonly workspaceId?: WorkspaceId | null;\n    readonly fullAccess?: boolean;\n    readonly rule: ScheduleWorkRule;\n    readonly validUntil?: string | null;\n    readonly enabled?: boolean;\n};',
+  },
+  {
+    name: 'ScheduleWorkTaskList',
+    declaration: 'export interface ScheduleWorkTaskList {\n    readonly tasks: readonly ScheduleWorkTaskView[];\n}',
+  },
+  {
+    name: 'ScheduleWorkTaskRecord',
+    declaration: 'export interface ScheduleWorkTaskRecord {\n    readonly id: ScheduleWorkTaskId;\n    readonly name: string;\n    readonly prompt: string;\n    readonly workspaceId?: WorkspaceId | undefined;\n    readonly fullAccess: boolean;\n    readonly rule: ScheduleWorkRule;\n    readonly validUntil?: string | undefined;\n    readonly enabled: boolean;\n    readonly createdAt: string;\n    readonly updatedAt: string;\n    readonly lastRunAt?: string | undefined;\n}',
+  },
+  {
+    name: 'ScheduleWorkTaskView',
+    declaration: 'export type ScheduleWorkTaskView = ScheduleWorkTaskRecord & {\n    readonly nextRunAt: string | null;\n};',
+  },
+  {
     name: 'Scoped',
     declaration: 'export type Scoped<T extends object> = object & {\n    readonly [ScopedBrand]: T;\n};',
   },
@@ -5323,6 +5562,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SearchResultView',
     declaration: 'export type SearchResultView = SearchMatchesResultView | SearchPathsResultView;',
+  },
+  {
+    name: 'SegmentInput',
+    declaration: 'export type SegmentInput = {\n    readonly type: \'text\';\n    readonly text: string;\n} | {\n    readonly type: \'image\';\n    readonly url: string;\n    readonly role: \'first_frame\' | \'last_frame\' | \'reference_image\';\n} | {\n    readonly type: \'video\';\n    readonly url: string;\n    readonly role: \'reference_video\';\n} | {\n    readonly type: \'audio\';\n    readonly url: string;\n    readonly role: \'reference_audio\';\n};',
+  },
+  {
+    name: 'SegmentRequest',
+    declaration: 'export interface SegmentRequest {\n    readonly inputs: readonly SegmentInput[];\n    readonly resolution: \'480P\' | \'768P\' | \'2K\';\n    readonly durationSeconds: number;\n    readonly ratio: \'adaptive\' | \'21:9\' | \'16:9\' | \'4:3\' | \'1:1\' | \'3:4\' | \'9:16\';\n    readonly seed?: number;\n}',
   },
   {
     name: 'SendTeamMessageRequest',

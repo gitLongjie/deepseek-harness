@@ -328,7 +328,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     methods: [
       {
         signature: 'openSession(sessionId: SessionId): void',
-        description: 'Select a Session and show its Conversation as one UI navigation action.',
+        description: 'Select a Session and show its Conversation as one UI navigation action. The knowledge and expert pages standing over the conversation area close with the navigation, including when the selected Session is the current one — a re-selection writes no `current` change for their watchers to see.',
         parameters: [{ name: 'sessionId', description: 'listed or retained Session to display.' }],
       },
       {
@@ -345,7 +345,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'connectWorkspace(workspaceId: WorkspaceId): Promise<SessionId>',
-        description: 'Resolve the reusable or newly created blank Session for a Workspace.',
+        description: 'Resolve the reusable or newly created blank Session for a Workspace.\n\nA reused blank Session is that Workspace\'s New Session placeholder, so every registered UiWorkspace.bindPlaceholderAdoption step runs on it before this resolves.',
         parameters: [{ name: 'workspaceId', description: 'target Workspace.' }],
         returns: 'a Session already addressable through the Session Controller.',
       },

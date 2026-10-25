@@ -51,6 +51,45 @@ export type FileRefusal =
   | { readonly reason: 'not-found' }
   | { readonly reason: 'too-large'; readonly value: number }
 
+/** One parsed `Range` request against a known file size. */
+export type ByteRange =
+  | { readonly kind: 'none' }
+  | { readonly kind: 'ignore' }
+  | { readonly kind: 'satisfiable'; readonly start: number; readonly end: number }
+  | { readonly kind: 'unsatisfiable' }
+
+/**
+ * Parse one `Range` header. Media elements require byte ranges for seeking and some players
+ * refuse a plain 200 for a video, so a single `bytes=` range answers 206; a malformed or
+ * multi-range header is ignored (the whole file answers 200), and a range that starts past the
+ * end is unsatisfiable (416).
+ * @param header - the raw `Range` header value, when present.
+ * @param size - the resolved file's size in bytes.
+ * @returns the parsed range verdict.
+ */
+export function parseRange(header: string | null | undefined, size: number): ByteRange {
+  if (header === null || header === undefined) return { kind: 'none' }
+  if (size <= 0) return { kind: 'unsatisfiable' }
+  const match = /^bytes=(\d*)-(\d*)$/u.exec(header.trim())
+  if (match === null) return { kind: 'ignore' }
+  const rawStart = match[1] ?? ''
+  const rawEnd = match[2] ?? ''
+  if (rawStart === '' && rawEnd === '') return { kind: 'ignore' }
+  if (rawStart === '') {
+    const suffix = Number(rawEnd)
+    if (!Number.isSafeInteger(suffix) || suffix <= 0) return { kind: 'ignore' }
+    return { kind: 'satisfiable', start: Math.max(0, size - suffix), end: size - 1 }
+  }
+  const start = Number(rawStart)
+  const end = rawEnd === '' ? undefined : Number(rawEnd)
+  if (!Number.isSafeInteger(start) || (end !== undefined && !Number.isSafeInteger(end))) {
+    return { kind: 'ignore' }
+  }
+  if (end !== undefined && start > end) return { kind: 'ignore' }
+  if (start >= size) return { kind: 'unsatisfiable' }
+  return { kind: 'satisfiable', start, end: end === undefined ? size - 1 : Math.min(end, size - 1) }
+}
+
 /**
  * Split one caller-supplied relative path into plain name segments. A path that is absolute,
  * empty, carries a NUL, or names a `.`/`..` hop yields no segments — the caller refuses it.
@@ -113,12 +152,18 @@ function refusal(status: number, message: string, method: string): Response {
 
 /**
  * Answer one resolved file: a refusal maps to its 403/404/413 line, an admitted file streams
- * whole with its length and MIME type. Only `GET`/`HEAD` reach this function.
+ * whole (200) or as the requested byte range (206), with a range that starts past the end
+ * answering 416. Only `GET`/`HEAD` reach this function.
  * @param resolved - the resolver's verdict for the requested path.
  * @param method - the request method; `HEAD` answers headers without a body.
+ * @param rangeHeader - the request's `Range` header, when it sent one.
  * @returns the response to settle.
  */
-export function workbenchFileResponse(resolved: ResolvedFile | FileRefusal, method: string): Response {
+export function workbenchFileResponse(
+  resolved: ResolvedFile | FileRefusal,
+  method: string,
+  rangeHeader?: string | null,
+): Response {
   if ('reason' in resolved) {
     if (resolved.reason === 'escape') {
       return refusal(403, 'path escapes the video workbench directory', method)
@@ -131,9 +176,34 @@ export function workbenchFileResponse(resolved: ResolvedFile | FileRefusal, meth
     }
     return refusal(404, 'no such file in the video workbench directory', method)
   }
+  const range = parseRange(rangeHeader, resolved.bytes)
+  if (range.kind === 'unsatisfiable') {
+    return new Response(method === 'HEAD' ? null : 'requested range not satisfiable', {
+      status: 416,
+      headers: {
+        'content-range': `bytes */${resolved.bytes}`,
+        'accept-ranges': 'bytes',
+      },
+    })
+  }
+  if (range.kind === 'satisfiable') {
+    const length = range.end - range.start + 1
+    const headers = {
+      'content-type': resolved.contentType,
+      'content-length': String(length),
+      'content-range': `bytes ${range.start}-${range.end}/${resolved.bytes}`,
+      'accept-ranges': 'bytes',
+    }
+    if (method === 'HEAD') return new Response(null, { status: 206, headers })
+    const body = Readable.toWeb(
+      createReadStream(resolved.path, { start: range.start, end: range.end }),
+    ) as ReadableStream<Uint8Array>
+    return new Response(body, { status: 206, headers })
+  }
   const headers = {
     'content-type': resolved.contentType,
     'content-length': String(resolved.bytes),
+    'accept-ranges': 'bytes',
   }
   if (method === 'HEAD') return new Response(null, { headers })
   const body = Readable.toWeb(createReadStream(resolved.path)) as ReadableStream<Uint8Array>

@@ -9,7 +9,10 @@ import { brandString, type Branded } from '@deepseek-ai/dsh-brand'
 /** Opaque reference to one submitted generation task at a backend. */
 export type H3TaskRef = Branded<'H3TaskRef'>
 
-/** Apply the {@link H3TaskRef} brand to a backend-owned task id string. */
+/** Apply the {@link H3TaskRef} brand to a backend-owned task id string.
+ * @param value - the raw backend task id string.
+ * @returns the same string with the H3 task-ref brand.
+ */
 export const H3TaskRef = (value: string): H3TaskRef => brandString<H3TaskRef>(value)
 
 /** One multimodal input part of a segment request. */
@@ -29,6 +32,11 @@ export interface SegmentRequest {
   readonly durationSeconds: number
   /** Aspect ratio; `adaptive` is valid only when image inputs determine the ratio. */
   readonly ratio: 'adaptive' | '21:9' | '16:9' | '4:3' | '1:1' | '3:4' | '9:16'
+  /**
+   * Sampling seed for backends that accept one (the local ComfyUI workflow fills its seed
+   * placeholder). The hosted H3 API takes no seed parameter and ignores it.
+   */
+  readonly seed?: number
 }
 
 /** Live polling state of one submitted task. */

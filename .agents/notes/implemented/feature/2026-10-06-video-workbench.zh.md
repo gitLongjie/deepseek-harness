@@ -14,10 +14,10 @@ Status: implemented
 
 按 oh-story 的投影原则、用我们仓库的正规扩展点落一个视频工作台 v1：
 
-- **宿主半边**（`dsh-video-workbench`，web-app bundle 的 HOST 行）：两条只读路由，注册在 Connection 的精确 Fetch 注册表上（`ctx.connection.fetch.register`）——浏览器 `/api` 路由与桌面外壳进程内传输共用的唯一分发入口。`GET /api/video-workbench/projects` 扫 `plans/*.json` 报告逐镜头落盘状态（multi_shot 折叠到合成 `all` 段，损坏计划降级为一条错误行）；`GET /api/video-workbench/file?path=` 服务单个白名单文件。`outputDir` 缺省即 `dshCachePath('video')`——与 h3-video 服务缺省同目录，标准部署零配置。
-- **包含性**：请求路径先拆纯名字段（拒绝 `..`、盘符、`<>:"|?*` 与 NUL），逐段 `join` 到投影根下，`realpath` 双端解析后 `relative` 复查——目录内符号链接指向外部也被拒。扩展白名单（文本/图片/视频/音频），单文件 256 MB。
-- **浏览器半边**（`dsh-client-ui-video-workbench`，patch 的 client 行）：走布局的全局面板机制而不是 DOM portal——`sidebar.panellist` 一行（id `video-workbench`，ui-schedule-work 同款模式）+ keyed `main` 页面。左列项目目录，右侧关键帧缩略图 + 逐镜头状态 + 成片 `<video>`；打开时/每 10 秒/按钮刷新；文案走 `videoWorkbench` 字典命名空间。
-- **无写路径**：工作台对模型循环不可见（不挂工具、不发会话事件），浏览器拿到的唯一能力是读。渲染仍由 `tool-video` 的 `/video` 流程驱动。
+- **宿主半边**（`dsh-video-workbench`，web-app bundle 的 HOST 行）：两条只读路由，注册在 Connection 的精确 Fetch 注册表上（`ctx.connection.fetch.register`）——浏览器 `/api` 路由与桌面外壳进程内传输共用的唯一分发入口。`GET /api/video-workbench/projects` 扫 `plans/*.json` 报告逐镜头落盘状态（multi_shot 把原分镜分组到合成的 `all` 渲染任务下，损坏计划降级为一条错误行），并投影每个计划记录的角色/场景素材——参考图、角色母图、规范 prompt 块，以及 `assets/library.json` 是否收录——只有文件路由确实能服务时才保留图片路径；`GET /api/video-workbench/file?path=` 服务单个白名单文件。`outputDir` 缺省即 `dshCachePath('video')`——与 h3-video 服务缺省同目录，标准部署零配置。
+- **包含性**：请求路径先拆纯名字段（拒绝 `..`、盘符、`<>:"|?*` 与 NUL），逐段 `join` 到投影根下，`realpath` 双端解析后 `relative` 复查——目录内符号链接指向外部也被拒。扩展白名单（文本/图片/视频/音频），单文件 256 MB。目录之外的素材图只会以文字列出，绝不给文件 URL。
+- **浏览器半边**（`dsh-client-ui-video-workbench`，patch 的 client 行）：走布局的全局面板机制而不是 DOM portal——`sidebar.panellist` 一行（id `video-workbench`，ui-schedule-work 同款模式）+ keyed `main` 页面。左列项目目录；详情先展示角色/场景素材（参考图与母图缩略图、prompt 块、资产库标记），再是逐镜头关键帧与成片 `<video>`；点击缩略图会打开更大的预览，Esc、关闭按钮或点击背景均可关闭；打开时/每 10 秒/按钮刷新；文案走 `videoWorkbench` 字典命名空间。
+- **模型侧无写路径**：工作台对模型循环不可见（不挂工具、不发会话事件）。渲染仍由 `tool-video` 的 `/video` 流程驱动。浏览器可以删除一个项目或一个已记录素材，经由两条 `POST` 路由把文件移进投影目录旁的 `video-trash` 而不是 unlink，误点因此仍可手工恢复。[分镜与素材一致性决策](../bug-fix/2026-10-21-video-workbench-consistency.zh.md)负责共享图片保留和写入失败回滚。
 
 ## Alternatives considered
 
@@ -33,7 +33,7 @@ Status: implemented
 - 两个 typecheck 聚合各收录自己那一半：`tsconfig.host.json` 引用宿主半，`tsconfig.client.json` 引用浏览器半。新包若缺席所属聚合就哪里都编译不到：`tsc -b` 会在该包自身的相对导入上报 TS6307，`tsdown` 不会运行，宿主半也就不产出 `lib/index.js`——Loader 行随即导入失败，而由包内 tsdown 配置构建的客户端 bundle 看起来一切正常。因此缺聚合条目这件事，直到面板没出现才会被发现。
 - listing 轮询每 10 秒一次只读扫描，输出目录巨大时的成本由 FILE 级 readdir/stat 构成，未做分页（项目数以 plans/*.json 计）；需要时在路由加 `?since=`。
 - 后续工作台（按 oh-story 的小说/短剧模式）可复用这套"宿主只读路由 + panellist/main 面板"骨架；角色/skill 层（oh-story 的 role-tool、skill provider）留待对应工作台需要时再落。
-- 文件服务的 v1 无 Range 支持（浏览器整段缓冲后可 seek；Mimosa 写入门禁对 range 头解析误报命令注入，砍掉该面换取落地，后续可在门禁规则修正后补回）。
+- 文件服务每次请求应答一个字节区间（206 带 `Content-Range`，越过末尾 416），并声明 `Accept-Ranges: bytes`，媒体元素因此可以 seek；多区间请求回退为整文件。桌面端 app scheme 载体仍会在交给媒体元素前缓冲整个响应，因此那边的播放要等下载完成才开始。
 
 ## References
 
