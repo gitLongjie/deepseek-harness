@@ -227,7 +227,7 @@ interface CreateSessionOptions {
 
 ## 准备与恢复所有权
 
-`SessionStore.prepare()` 接收普通创建选项，或通过 `RestoredSessionOptions` 接收可直接接管的 seed。它的 `eventState` 表明 event value 是独占对象，还是只有深度冻结后的共享对象；生产者负责建立该状态，slice 不会根据结果长度推断其他状态。恢复流程会校验并直接接管这些值，不再复制或冻结。`SessionPreparation` 随后持有该精确的未发布 Session，直至发布或回滚；dispose 是同步且幂等的。agent-loop 的 resume 通过该会话的写句柄读取这份结果，并在准备之前追加独占的 `interruptedTurnClosers`。
+`SessionStore.prepare()` 接收普通创建选项，或通过 `RestoredSessionOptions` 接收可直接接管的 seed。它的 `eventState` 表明 event value 是独占对象，还是只有miao冻结后的共享对象；生产者负责建立该状态，slice 不会根据结果长度推断其他状态。恢复流程会校验并直接接管这些值，不再复制或冻结。`SessionPreparation` 随后持有该精确的未发布 Session，直至发布或回滚；dispose 是同步且幂等的。agent-loop 的 resume 通过该会话的写句柄读取这份结果，并在准备之前追加独占的 `interruptedTurnClosers`。
 
 ```ts type-equiv
 /**

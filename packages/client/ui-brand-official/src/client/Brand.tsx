@@ -28,6 +28,6 @@ export function OfficialBrandMark({ size, className }: OfficialBrandMarkProps) {
  * @returns the official name wordmark.
  */
 export function OfficialBrandName() {
-  const name = process.env.DSH_CLIENT_BRAND_NAME ?? '深度Work'
+  const name = process.env.DSH_CLIENT_BRAND_NAME ?? '喵工作台'
   return <span>{name}</span>
 }

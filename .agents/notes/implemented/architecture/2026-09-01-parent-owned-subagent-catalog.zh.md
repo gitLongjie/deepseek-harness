@@ -34,7 +34,7 @@ snapshot normalizer 会把 `childCreatedAt` 归零，因为它来自 process clo
 
 **扁平不可变数组。** 用 `[...facts, fact]` append 会复制 D 个 fact，因此创建是 O(D)。修改共享数组会违反 projection state ownership 与 checkpoint 安全。
 
-**每 fact 一个 node 的 linked list。** 它提供 O(1) append 与 O(D) read，但持久 projection checkpoint 会形成 D 层 JSON 嵌套。每块 64 项保留渐进复杂度，同时降低嵌套深度。
+**每 fact 一个 node 的 linked list。** 它提供 O(1) append 与 O(D) read，但持久 projection checkpoint 会形成 D 层 JSON 嵌套。每块 64 项保留渐进复杂度，同时降低嵌套miao。
 
 **独立的 host state 观察输出。** 返回内部 projection state 会重复已有观察结果机制，并复制与子级发现无关的状态。目录视图通过既有的类型化 projection map 提供直接子级列表。
 

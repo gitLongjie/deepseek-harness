@@ -20,7 +20,7 @@ Status: implemented
 
 ### 机制
 
-**消息。** `Session.deriveMessages()` 带缓存：每个 surface 条目在首次出现时通过公开的逐事件函数 `deriveEventMessage(event)` 精确投影一次；surface 重写（压缩的 `replace`，即 `SurfaceManager.replaceGeneration`）触发重建。调用方每次获得一个新数组，底层是共享的深度冻结消息：通过投影变异已记录的历史是不可表达的（会抛异常），取代了旧的逐次调用克隆隔离。外部重建器对日志前缀折叠同一个公开函数，因此不可能有两条路径产生分歧。
+**消息。** `Session.deriveMessages()` 带缓存：每个 surface 条目在首次出现时通过公开的逐事件函数 `deriveEventMessage(event)` 精确投影一次；surface 重写（压缩的 `replace`，即 `SurfaceManager.replaceGeneration`）触发重建。调用方每次获得一个新数组，底层是共享的miao冻结消息：通过投影变异已记录的历史是不可表达的（会抛异常），取代了旧的逐次调用克隆隔离。外部重建器对日志前缀折叠同一个公开函数，因此不可能有两条路径产生分歧。
 
 `EpochHeader` 记录请求的非历史状态：调用配置和工具 schema。写入方省略 `tools: []` 与 `adapterDefaults: {}`；当前接纳拒绝这些字段以及任何 `header.system`，而不修复它们。仅含空白的系统消息内容、`config.stop: []` 与嵌套扩展保持原样。[V3 规范信封决策](2026-09-06-v3-canonical-session-envelopes.zh.md)负责历史转换。渲染后的系统提示词是派生历史——surface 第 0 号节点上的 `system/message` 事件，见[surface 节点 Agent Note](2026-09-02-system-prompt-as-surface-node.zh.md)——因此提示词变更是 surface 替换而不是 header 变更。适配器提供的推理强度与 token 默认值会保留其 `adapterDefaults` 来源信息；Web 从日志恢复模型选择时会省略适配器持有的推理强度，因此下一次解析不会把相同的有效配置重新归类为显式选择并产生虚假变更。`request/header` 始终写入完整快照：首个循环实例使用 reason `initial`，后续实例使用 `resume`，实例内变更使用 `change`，内容未变的封装显式开启消息序列或跟随表层替换时使用 `series`。如果发生变化的请求同时开启序列，`change` 快照会携带 `startsSeries: true`，无需重复 header 即可保留这两个独立事实。普通的仅追加后续 Turn、同一序列内后续的 Step 与重试沿用最新快照。`foldRequestHeader` 选择最新快照。旧的 `request/header-delta` 事件和已移除的 `fallback` reason 在追加或加载时都会被拒绝。
 

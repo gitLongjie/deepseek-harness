@@ -22,4 +22,4 @@ dockkit 的空间规则在每次 commit 后测量各 pane 的标签条，判断�
 
 ## Consequences
 
-空间读数在控件可见性变化下是不动点，`hideSplitWhenBlocked` 的嵌入方获得隐藏控件的呈现且无反馈循环。临界宽度附近的 pane 会比禁用态嵌入方的报告稍早读成可分屏，因为被询问的那一半不会承载控件。[dockkit 回归测试](../../../../packages/client/ui-dockkit/tests/components.client.spec.tsx) 模拟标签条卸下控件占位的反馈，在未修复的代码上以 React 更新深度错误失败；[Sidebar 浏览器用例](../../../../apps/web/tests/sidebar-right.e2e.ts) 在收窄视口上把面板把手拖过两侧钳位，断言面板、把手与干净的 console 均存活——崩溃只以 console error 形式出现，而脚手架的 tripwire 不监听它。
+空间读数在控件可见性变化下是不动点，`hideSplitWhenBlocked` 的嵌入方获得隐藏控件的呈现且无反馈循环。临界宽度附近的 pane 会比禁用态嵌入方的报告稍早读成可分屏，因为被询问的那一半不会承载控件。[dockkit 回归测试](../../../../packages/client/ui-dockkit/tests/components.client.spec.tsx) 模拟标签条卸下控件占位的反馈，在未修复的代码上以 React 更新miao错误失败；[Sidebar 浏览器用例](../../../../apps/web/tests/sidebar-right.e2e.ts) 在收窄视口上把面板把手拖过两侧钳位，断言面板、把手与干净的 console 均存活——崩溃只以 console error 形式出现，而脚手架的 tripwire 不监听它。

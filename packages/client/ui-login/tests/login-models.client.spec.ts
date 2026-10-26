@@ -69,7 +69,7 @@ function mockApi(options: ApiMockOptions = {}): {
           hasDocument: false,
           namespaces: [
             ...(options.storedModels !== undefined
-              ? [{ ns: 'llm-deepagens', value: { models: options.storedModels }, revision: 0 }]
+              ? [{ ns: 'llm-miaoworker', value: { models: options.storedModels }, revision: 0 }]
               : []),
             ...(options.storedDefault !== undefined
               ? [{ ns: 'agent-default-model', value: options.storedDefault, revision: 2 }]
@@ -142,12 +142,12 @@ describe('LoginStore model handling', () => {
     const store = new LoginStore(AUTH_URL, credentials, mock.api)
     await expect(store.login('u', 'p')).resolves.toBe(true)
 
-    expect(mock.discover).toHaveBeenCalledWith('llm-deepagens', {
+    expect(mock.discover).toHaveBeenCalledWith('llm-miaoworker', {
       baseURL: 'https://claw.deepagens.com/v1',
       apiKey: 'sk-test',
     })
     expect(mock.mutate).toHaveBeenCalledWith(
-      'llm-deepagens',
+      'llm-miaoworker',
       [
         { op: 'set', path: ['baseURL'], value: 'https://claw.deepagens.com/v1' },
         { op: 'set', path: ['models'], value: expectedModels },
@@ -174,7 +174,7 @@ describe('LoginStore model handling', () => {
     await expect(store.login('u', 'p')).resolves.toBe(true)
 
     expect(mock.mutate).toHaveBeenCalledWith(
-      'llm-deepagens',
+      'llm-miaoworker',
       [
         { op: 'set', path: ['baseURL'], value: 'https://claw.deepagens.com/v1' },
         { op: 'set', path: ['models'], value: expectedModels },
@@ -248,7 +248,7 @@ describe('LoginStore model handling', () => {
     expect(mock.mutate).not.toHaveBeenCalled()
     expect(mock.replace).toHaveBeenCalledWith(
       'agent-default-model',
-      { provider: 'deepagens', model: 'gpt-4o' },
+      { provider: 'miaoworker', model: 'gpt-4o' },
       2,
     )
   })
@@ -270,7 +270,7 @@ describe('LoginStore model handling', () => {
   it('keeps a default the pulled catalog already serves', async () => {
     const mock = mockApi({
       models: discovered,
-      storedDefault: { provider: 'deepagens', model: 'gpt-3.5', reasoningEffort: 'high' },
+      storedDefault: { provider: 'miaoworker', model: 'gpt-3.5', reasoningEffort: 'high' },
     })
     okLogin()
 
@@ -292,7 +292,7 @@ describe('LoginStore model handling', () => {
 
     expect(mock.replace).toHaveBeenCalledWith(
       'agent-default-model',
-      { provider: 'deepagens', model: 'gpt-4o' },
+      { provider: 'miaoworker', model: 'gpt-4o' },
       2,
     )
   })

@@ -5,8 +5,8 @@ export const NS = 'login'
 
 /** English strings (the key-set source of truth for this pair). */
 export const en = {
-  pageTitle: 'Sign in to 深度Work',
-  tagline: 'Set sail on the sea of clouds, and everything lands.',
+  pageTitle: 'Sign in to 喵工作台',
+  tagline: 'Paws on the keys — everything lands.',
   username: 'Username',
   password: 'Password',
   showPassword: 'Show password',
@@ -24,8 +24,8 @@ export type LoginKey = keyof typeof en
 
 /** Simplified Chinese dictionary, checked complete against the en key set. */
 export const zh = {
-  pageTitle: '登录深度Work',
-  tagline: '云海扬帆，事事有着落',
+  pageTitle: '登录喵工作台',
+  tagline: '喵呜开工，事事有着落',
   username: '用户名',
   password: '密码',
   showPassword: '显示密码',

@@ -65,7 +65,7 @@ kind: "package-reference"
 
 ### 设计理念
 
-职责划分如下：本后端只贡献提供方注册与「全新开始」的决定，其余全部运行机制——深度检查、子 agent 创建、按子 agent 定制、结构化输出、取消、结果读取与 dispose——都在 `dsh-subagent-in-process-driver` 中。agent 工厂的创建事务拥有未发布设置窗口及其回滚；发布之后，调用方拥有该运行。
+职责划分如下：本后端只贡献提供方注册与「全新开始」的决定，其余全部运行机制——miao检查、子 agent 创建、按子 agent 定制、结构化输出、取消、结果读取与 dispose——都在 `dsh-subagent-in-process-driver` 中。agent 工厂的创建事务拥有未发布设置窗口及其回滚；发布之后，调用方拥有该运行。
 
 ### 源码地图
 
@@ -76,7 +76,7 @@ kind: "package-reference"
 
 ### 运行流程
 
-启动请求先由 subagent 服务解析，然后共享驱动器校验深度、生成子会话 id、通过宿主 agent 工厂以调用方信号创建子 agent、在创建窗口内应用 persona、工具过滤器与结构化输出、发布子 agent、驱动一项任务、读取子 agent 自身的最终输出，最后完全停稳地 dispose 句柄。
+启动请求先由 subagent 服务解析，然后共享驱动器校验miao、生成子会话 id、通过宿主 agent 工厂以调用方信号创建子 agent、在创建窗口内应用 persona、工具过滤器与结构化输出、发布子 agent、驱动一项任务、读取子 agent 自身的最终输出，最后完全停稳地 dispose 句柄。
 
 ### 所有权与作用域
 

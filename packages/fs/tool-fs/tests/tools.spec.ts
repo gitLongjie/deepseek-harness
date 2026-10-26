@@ -1043,7 +1043,7 @@ describe('scope-aware filesystem guidance', () => {
 
 /** Preserve the default persona and exact section separators in the oracle. */
 function withPersona(...sections: string[]): string {
-  return ['You are an AI agent powered by 深度Work. Unless explicitly instructed otherwise, respond in the same language the user uses.', ...sections].join('\n\n')
+  return ['You are an AI agent powered by miaoWork. Unless explicitly instructed otherwise, respond in the same language the user uses.', ...sections].join('\n\n')
 }
 
 /** Schema assembly only: these cases never execute user code. */

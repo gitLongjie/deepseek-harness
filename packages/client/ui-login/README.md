@@ -24,7 +24,7 @@ The endpoint must allow cross-origin calls from the app origin (CORS with JSON c
 
 ## Model Experience
 
-Indirectly, through the settings namespaces a sign-in writes: the pulled gateway catalog lands in the `llm-deepagens` provider settings (its own selector group), and a default model the pulled catalog does not serve is re-pointed at its first model in `agent-default-model`; the package never assembles a provider request itself.
+Indirectly, through the settings namespaces a sign-in writes: the pulled gateway catalog lands in the `llm-miaoworker` provider settings (its own selector group), and a default model the pulled catalog does not serve is re-pointed at its first model in `agent-default-model`; the package never assembles a provider request itself. A stored session recorded against a different login origin than the build's endpoint (a moved deployment, or a session predating the recorded origin) is re-seeded on startup: the credential pair is rewritten and the catalog re-synced against the current endpoint, best effort.
 
 #### KV Cache effect
 

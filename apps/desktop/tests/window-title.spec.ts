@@ -27,7 +27,7 @@ function fakeWindow(): { win: BrowserWindow; emit: (event: string, payload: unkn
 
 describe('pinned desktop window title', () => {
   it('uses the OEM development name and falls back to the packaged application name', () => {
-    expect(resolveDesktopWindowTitle('Electron', { DSH_DESKTOP_PRODUCT_NAME: '深度Worker' })).toBe('深度Worker')
+    expect(resolveDesktopWindowTitle('Electron', { DSH_DESKTOP_PRODUCT_NAME: 'miaoWorker' })).toBe('miaoWorker')
     expect(resolveDesktopWindowTitle('Packaged Product', {})).toBe('Packaged Product')
   })
 
@@ -35,7 +35,7 @@ describe('pinned desktop window title', () => {
     const { win, emit } = fakeWindow()
     pinWindowTitle(win)
     const preventDefault = vi.fn()
-    emit('page-title-updated', { title: '会话名 - 深度Worker', preventDefault })
+    emit('page-title-updated', { title: '会话名 - miaoWorker', preventDefault })
     expect(preventDefault).toHaveBeenCalledTimes(1)
   })
 })

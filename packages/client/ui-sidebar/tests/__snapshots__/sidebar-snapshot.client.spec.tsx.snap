@@ -137,7 +137,7 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
                 <span
                   class="localBuildTitle"
                 >
-                  深度Work
+                  喵工作台
                 </span>
                 <span
                   class="buildVersion"
@@ -270,7 +270,7 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
                 <span
                   class="localBuildTitle"
                 >
-                  深度Work
+                  喵工作台
                 </span>
                 <span
                   class="buildVersion"

@@ -166,7 +166,7 @@ Loader 结算后，app-boot 将 optional 失败报告为警告；若已启用的
 - **运行时解析依赖 Node 内部机制**——受支持的 Node 版本需要 native builtin access addon 和可执行兼容验证。只有构建后的 Harness 自有 Worker 接收 generation bootstrap；第三方 Worker 与自定义 `vm` linker 保持原生解析。
 - **快照回放替换仅识别特定 basename**——只有以 `cordis.yml` 或 `cordis.yaml` 结尾的配置会映射到同级 `cordis.snapshot.yml`；自定义配置名称需要调用方自行选择。
 - **环境发现以启动为界**——`loadLayeredEnv` 只读取一次调用目录与 harness home 中的 `.env`；它不搜索父目录，也不跟随之后选择的 workspace。`loadEnv` 仍是非产品 bin 使用的单目录 helper。
-- **用户 patch 会替换匹配到的整个配置**——按 id 定位的 patch 不做深度合并，因此 profile 覆盖必须重述需要保留的组合包字段。
+- **用户 patch 会替换匹配到的整个配置**——按 id 定位的 patch 不做miao合并，因此 profile 覆盖必须重述需要保留的组合包字段。
 
 <a id="dev-note"></a>
 ### 开发备注

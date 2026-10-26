@@ -78,7 +78,7 @@ Location 可以随 prepend 补齐边界或 append 关闭边界而改变。Assemb
 | `state` | Definition 返回、Assembler 持有 | 最近一次 `start`/`update` 返回值；未初始化时为 `undefined` |
 | `current` | Assembler | 各 target 最近一次 materialize 的 Node 或 `null` |
 
-Context 字段只读，不表示业务 State 必须是深度 immutable。Definition 可以返回新对象，也可以原地修改旧对象后返回同一引用。
+Context 字段只读，不表示业务 State 必须是miao immutable。Definition 可以返回新对象，也可以原地修改旧对象后返回同一引用。
 
 Assembler 只采纳函数返回值。`start()` 或 `update()` 返回 `undefined` 是契约错误并立即报错；修改了对象却不返回它同样不成立。
 

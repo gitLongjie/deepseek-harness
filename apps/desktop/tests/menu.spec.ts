@@ -99,7 +99,7 @@ beforeEach(() => {
   state.menu = undefined
   state.updatesEnabled = true
   vi.mocked(requestUpdateCheck).mockClear()
-  installApplicationMenu(key => copy('zh', '深度Worker')[key])
+  installApplicationMenu(key => copy('zh', 'miaoWorker')[key])
 })
 
 describe('application menu template', () => {
@@ -143,7 +143,7 @@ describe('application menu template', () => {
   })
 
   it('routes the check-updates entry to the updater while the deployment has a feed', () => {
-    const label = copy('zh', '深度Worker')['menu.checkUpdates']
+    const label = copy('zh', 'miaoWorker')['menu.checkUpdates']
     const entry = (findItem(state.template, 'help')?.submenu ?? []).find(item => item.label === label)
     expect(entry).toBeDefined()
     entry?.click?.({}, undefined)
@@ -152,8 +152,8 @@ describe('application menu template', () => {
 
   it('omits the check-updates entry for deployments without an update feed', () => {
     state.updatesEnabled = false
-    installApplicationMenu(key => copy('zh', '深度Worker')[key])
-    const label = copy('zh', '深度Worker')['menu.checkUpdates']
+    installApplicationMenu(key => copy('zh', 'miaoWorker')[key])
+    const label = copy('zh', 'miaoWorker')['menu.checkUpdates']
     const items = findItem(state.template, 'help')?.submenu ?? []
     expect(items.some(item => item.label === label)).toBe(false)
   })

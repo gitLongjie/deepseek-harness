@@ -6,11 +6,11 @@ Status: implemented
 
 ## Problem
 
-桌面外壳从未设置原生窗口标题，因此 Electron 会顺次采用加载页面携带的内容：先是 dist index 的 `<title>`（深度Works Local Build），再是所选会话标题的每次投影（来自 DocumentTitle 的 `<session title> — <product title>`）。在 Windows 上这些字符串会被外壳直接暴露：悬停任务栏按钮会把窗口标题作为提示显示，alt-tab 也会列出它们——用户期望看到的只是产品名，却只读到构建后缀和逐会话的文本。
+桌面外壳从未设置原生窗口标题，因此 Electron 会顺次采用加载页面携带的内容：先是 dist index 的 `<title>`（miaoWorks Local Build），再是所选会话标题的每次投影（来自 DocumentTitle 的 `<session title> — <product title>`）。在 Windows 上这些字符串会被外壳直接暴露：悬停任务栏按钮会把窗口标题作为提示显示，alt-tab 也会列出它们——用户期望看到的只是产品名，却只读到构建后缀和逐会话的文本。
 
 ## Decision
 
-`createWindow()` 以 `title: DESKTOP_WINDOW_TITLE`（深度Works）构造 BrowserWindow，并由 `pinWindowTitle()` 阻止每一次 `page-title-updated` 事件，由此原生标题在窗口整个生命周期内始终保持为纯粹的产品名。托盘提示携带相同的字符串。渲染进程仍然完全拥有 `document.title`——浏览器标签页继续显示会话标题——但该值不再传到任何原生外壳表面。
+`createWindow()` 以 `title: DESKTOP_WINDOW_TITLE`（miaoWorks）构造 BrowserWindow，并由 `pinWindowTitle()` 阻止每一次 `page-title-updated` 事件，由此原生标题在窗口整个生命周期内始终保持为纯粹的产品名。托盘提示携带相同的字符串。渲染进程仍然完全拥有 `document.title`——浏览器标签页继续显示会话标题——但该值不再传到任何原生外壳表面。
 
 ## Alternatives considered
 
@@ -20,8 +20,8 @@ Status: implemented
 
 ## Verification
 
-`apps/desktop/tests/window-title.spec.ts` 固定了 DESKTOP_WINDOW_TITLE 为 深度Works 并断言每次发出的 page-title-updated 都会被 preventDefault。`pnpm --filter @deepseek-ai/dsh-desktop run test` 通过。
+`apps/desktop/tests/window-title.spec.ts` 固定了 DESKTOP_WINDOW_TITLE 为 miaoWorks 并断言每次发出的 page-title-updated 都会被 preventDefault。`pnpm --filter @deepseek-ai/dsh-desktop run test` 通过。
 
 ## Consequences
 
-无论打开哪个会话，Windows 任务栏悬停提示与 alt-tab 仅显示 深度Works；放弃那里的“一眼看到当前会话”能力是被接受的——侧边栏与 Web 应用仍投影会话标题。未来的多窗口场景下每个窗口沿用同一个固定标题。
+无论打开哪个会话，Windows 任务栏悬停提示与 alt-tab 仅显示 miaoWorks；放弃那里的“一眼看到当前会话”能力是被接受的——侧边栏与 Web 应用仍投影会话标题。未来的多窗口场景下每个窗口沿用同一个固定标题。

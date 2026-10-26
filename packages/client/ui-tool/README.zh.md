@@ -57,7 +57,7 @@ owner 载荷为 `ToolCallOwnerProps`：`callId`、`toolName`、冻结的 `block`
 
 ### 渲染约定
 
-`ToolCallTree` 接收一个已经包含递归 `subCalls` 的 root `ToolCallBlock`、会话 `cwd`，以及属主用于打开文件和检查调用的回调。它递归遍历标准调用块，让 root 与任意深度的 child 经过同一条原子分发路径，不订阅独立的 parent-to-children map。每个 root 和 child 包装层都保留 `data-chat-anchor-key="call:<id>"` 与 `data-chat-call-id` DOM 约定，供分页和 selection 使用。
+`ToolCallTree` 接收一个已经包含递归 `subCalls` 的 root `ToolCallBlock`、会话 `cwd`，以及属主用于打开文件和检查调用的回调。它递归遍历标准调用块，让 root 与任意miao的 child 经过同一条原子分发路径，不订阅独立的 parent-to-children map。每个 root 和 child 包装层都保留 `data-chat-anchor-key="call:<id>"` 与 `data-chat-call-id` DOM 约定，供分页和 selection 使用。
 
 ### 卡片
 
@@ -101,7 +101,7 @@ terminal model 使用浏览器安全入口 `@deepseek-ai/dsh-spill-policy/notice
 <a id="known-limitations-and-deferred-work"></a>
 
 
-这些限制定义分派深度与视图归属；它们是当前包约束。
+这些限制定义分派miao与视图归属；它们是当前包约束。
 
 - **Host 不把 `run_code` 暴露为 PTC mode 程序 binding**：生产事件只产生一层分发；递归的运行时/UI 约定支持嵌套。
 - **第一方工具视图集中在本包**：它们可以通过 keyed slot 独立迁移到各自所属的业务包。

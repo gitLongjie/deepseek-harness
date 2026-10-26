@@ -6,7 +6,7 @@ English | [中文](2026-09-19-expert-presets-stay-out-of-mode-surfaces.zh.md)
 
 ## Problem
 
-The desktop ships the article-publisher and geo-optimizer experts as built-in agent presets, and an installed expert package syncs the same presets into the user preset root. Every roster surface therefore offered 深度云海文章专家 and GEO 优化专家: the new-session preset picker, the settings management section, and the expert market. The market already admitted only rows publishing card metadata, but the inverse rule was missing, so an expert appeared as a mode preset beside the modes — and the picker could start a session on a preset whose files an installed package's mount re-syncs on every host start.
+The desktop ships the article-publisher and geo-optimizer experts as built-in agent presets, and an installed expert package syncs the same presets into the user preset root. Every roster surface therefore offered miao云海文章专家 and GEO 优化专家: the new-session preset picker, the settings management section, and the expert market. The market already admitted only rows publishing card metadata, but the inverse rule was missing, so an expert appeared as a mode preset beside the modes — and the picker could start a session on a preset whose files an installed package's mount re-syncs on every host start.
 
 ## Decision
 

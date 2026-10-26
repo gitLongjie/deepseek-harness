@@ -1,5 +1,5 @@
 ---
-description: "深度Work expert package: publishes the GEO optimizer as an installable expert card for the dsh expert market."
+description: "miaoWork expert package: publishes the GEO optimizer as an installable expert card for the dsh expert market."
 kind: "package-reference"
 ---
 

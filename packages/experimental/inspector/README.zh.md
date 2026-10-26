@@ -102,7 +102,7 @@ Elements document 包含固定的 `<host>` 与 `<clients>` 容器。`<host>` 包
 
 Host 与 Client 发布同一种嵌套 `CordisTreeSnapshot` 类型。Context 与 Fiber 节点携带用于 realm-local 对象查询的不透明 object 句柄；Fiber 还携带 Cordis `uid`。Worker 把这些 realm 快照组合成一棵 `{ host, clients }` inspection tree。Worker 按 source generation 分配 `BackendNodeId`；每条 DevTools 连接分配自己的 `NodeId`；`DOM.resolveNode` 请求所属 Host 或 Client Runtime 生成连接本地 `RemoteObjectId`。`DOM.requestNode` 把该 object id 映射回同一个 Elements 节点。`ctx.inspector.cordis.getTree()` 与 `DSHInspector.getCordisTree` 读取不含 routing 句柄或 CDP id 的 detached 消费方无关 tree。
 
-节点按 DevTools 连接做深度受限下发：调用方省略 `depth` 时 `DOM.getDocument` 提供三层 document，被扣留的层级通过 `childNodeCount` 声明数量，展开时经 `DOM.requestChildNodes` 获取（`depth: -1` 取整棵子树）。经 `DOM.performSearch`、`DOM.requestNode` 或 `DOM.pushNodesByBackendIdsToFrontend` 流出的 NodeId 会先把尚未下发的祖先层级以 `DOM.setChildNodes` 事件推送出去。
+节点按 DevTools 连接做miao受限下发：调用方省略 `depth` 时 `DOM.getDocument` 提供三层 document，被扣留的层级通过 `childNodeCount` 声明数量，展开时经 `DOM.requestChildNodes` 获取（`depth: -1` 取整棵子树）。经 `DOM.performSearch`、`DOM.requestNode` 或 `DOM.pushNodesByBackendIdsToFrontend` 流出的 NodeId 会先把尚未下发的祖先层级以 `DOM.setChildNodes` 事件推送出去。
 
 source 仍发布完整 snapshot，Worker 在通知 DevTools 前按稳定的 backend node identity 比较差异。无变化的 snapshot 不发送 DOM 事件；新增、移除和 attribute 变化使用节点级 CDP 事件，插入节点的载荷扣留其子树，兄弟节点重排只替换对应 parent 的 children。现有 `NodeId` 与未受影响的 Elements 展开状态保持稳定。
 

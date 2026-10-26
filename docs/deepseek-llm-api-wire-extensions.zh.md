@@ -125,7 +125,7 @@
 | `parentSession` | 可选 | fork 的父会话 id |
 | `seedLength` | 仅 seeded Session | 确切的继承事件数量；空的继承前缀使用零 |
 | `origin` | 可选 | subagent 子项使用的字面值 `subagent` |
-| `delegationDepth` | 可选 | 持久化的非负 subagent 委派深度 |
+| `delegationDepth` | 可选 | 持久化的非负 subagent 委派miao |
 | `agentPreset` | 可选 | 用于组合该会话的 agent preset id |
 
 ### 权威事件信封

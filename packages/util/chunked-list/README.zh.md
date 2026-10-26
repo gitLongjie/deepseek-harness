@@ -80,7 +80,7 @@ console.log([...iterateChunkedList(second)])
 <a id="known-limitations-and-deferred-work"></a>
 
 - **仅追加访问**——需要删除或随机访问的调用方应使用其他集合。
-- **递归检查点**——JSON 序列化与 schema 校验仍受运行时嵌套深度限制。所存的值本身必须支持调用方的序列化格式。
+- **递归检查点**——JSON 序列化与 schema 校验仍受运行时嵌套miao限制。所存的值本身必须支持调用方的序列化格式。
 
 <a id="dev-note"></a>
 ### 开发备注

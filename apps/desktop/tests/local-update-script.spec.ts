@@ -114,8 +114,8 @@ describe('local desktop update rehearsal', () => {
   it('materializes the safe publisher name used by channel metadata', () => {
     const root = mkdtempSync(join(tmpdir(), 'dsh-local-update-publish-'))
     roots.push(root)
-    writeFileSync(join(root, '深度Worker-1.2.4.exe'), 'installer')
-    writeFileSync(join(root, '深度Worker-1.2.4.exe.blockmap'), 'blockmap')
+    writeFileSync(join(root, 'miaoWorker-1.2.4.exe'), 'installer')
+    writeFileSync(join(root, 'miaoWorker-1.2.4.exe.blockmap'), 'blockmap')
     writeFileSync(join(root, 'latest.yml'), [
       'version: 1.2.4',
       'files:',

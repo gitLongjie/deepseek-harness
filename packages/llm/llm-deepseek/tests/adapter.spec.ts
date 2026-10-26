@@ -1674,11 +1674,11 @@ describe('plugin registration and config', () => {
       baseURL: server.url,
     })
     expect(ctx.llm.listProviders()).toEqual([
-      { id: 'deepagens', name: 'Deepagens' },
+      { id: 'miaoworker', name: '喵工作台' },
       { id: 'deepseek-official', name: 'DeepSeek' },
     ])
     expect(ctx.llm.listConfigurableProviders()).toEqual([
-      { provider: 'deepagens', displayName: 'Deepagens', settingsNs: 'llm-deepagens', settingsPath: [], editorFamily: 'deepseek' },
+      { provider: 'miaoworker', displayName: '喵工作台', settingsNs: 'llm-miaoworker', settingsPath: [], editorFamily: 'deepseek' },
       { provider: 'deepseek-official', displayName: 'DeepSeek', settingsNs: 'llm-deepseek', settingsPath: [], editorFamily: 'deepseek' },
     ])
     await fiber.dispose()
@@ -1711,7 +1711,7 @@ describe('plugin registration and config', () => {
     await ctx.plugin(LlmRuntime)
     await ctx.plugin(LlmDeepSeek, { protocol: 'chat-completions', baseURL: 'http://127.0.0.1:1' })
     expect(ctx.llm.listProviders()).toEqual([
-      { id: 'deepagens', name: 'Deepagens' },
+      { id: 'miaoworker', name: '喵工作台' },
       { id: 'deepseek-official', name: 'DeepSeek' },
     ])
     await expect(ctx.llm.listModels('deepseek-official')).resolves.toEqual([
@@ -2187,7 +2187,7 @@ describe('plugin registration and config', () => {
     await ctx.plugin(LlmRuntime)
     await ctx.plugin(LlmDeepSeek, { protocol: 'chat-completions' })
     expect(ctx.llm.listProviders()).toEqual([
-      { id: 'deepagens', name: 'Deepagens' },
+      { id: 'miaoworker', name: '喵工作台' },
       { id: 'deepseek-official', name: 'DeepSeek' },
     ])
   })
@@ -2200,7 +2200,7 @@ describe('plugin registration and config', () => {
     // First-boot onboarding: the route registers so models stay discoverable;
     // only the request itself needs a key.
     expect(ctx.llm.listProviders()).toEqual([
-      { id: 'deepagens', name: 'Deepagens' },
+      { id: 'miaoworker', name: '喵工作台' },
       { id: 'deepseek-official', name: 'DeepSeek' },
     ])
     await expect(ctx.llm.listModels('deepseek-official')).resolves.toHaveLength(4)
@@ -2284,7 +2284,7 @@ describe('plugin registration and config', () => {
     // Registration succeeds; no call is made (would hit api.deepseek.com).
     await ctx.plugin(LlmDeepSeek, { protocol: 'chat-completions' })
     expect(ctx.llm.listProviders()).toEqual([
-      { id: 'deepagens', name: 'Deepagens' },
+      { id: 'miaoworker', name: '喵工作台' },
       { id: 'deepseek-official', name: 'DeepSeek' },
     ])
   })

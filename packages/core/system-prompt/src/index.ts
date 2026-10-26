@@ -427,7 +427,7 @@ export class SystemPrompt extends Service {
       this.section({
         name: 'harness:identity',
         order: this.getSectionOrder('HARNESS_IDENTITY'),
-        text: 'You are an AI agent powered by 深度Work. Unless explicitly instructed otherwise, respond in the same language the user uses.',
+        text: 'You are an AI agent powered by 喵工作台. Unless explicitly instructed otherwise, respond in the same language the user uses.',
       })
     }
     this.section({

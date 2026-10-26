@@ -203,7 +203,7 @@ describe('web e2e: fresh round trip through the real assembly', () => {
     await expect.poll(() => disclosure.getAttribute('aria-expanded')).toBe('true')
     const opaque = body.locator('[data-context-text]')
     await expect.poll(() => opaque.count(), { timeout: 5_000 }).toBe(1)
-    expect(await opaque.textContent()).toContain('You are an AI agent powered by 深度Work.')
+    expect(await opaque.textContent()).toContain('You are an AI agent powered by 喵工作台.')
 
     await disclosure.click()
     await expect.poll(() => disclosure.getAttribute('aria-expanded')).toBe('false')

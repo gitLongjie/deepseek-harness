@@ -1,8 +1,8 @@
 /**
  * Login session state over localStorage. The account server (the deployment's
- * Deepagens Claw gateway) issues the API key on sign-in; this plugin stores
- * the account profile locally and hands the key to the host credential layer,
- * so real authorization stays with the servers that accept the key.
+ * sign-in gateway) issues the API key on sign-in; this plugin stores the
+ * account profile locally and hands the key to the host credential layer, so
+ * real authorization stays with the servers that accept the key.
  */
 
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
@@ -16,10 +16,14 @@ const SESSION_STORAGE_KEY = 'dsh.login.session'
 const DEFAULT_MODEL_NS = 'agent-default-model'
 
 /**
- * The provider route the login-seeded gateway catalog serves (`llm-deepseek`'s
- * Deepagens row); every default-model adoption points at it.
+ * The provider route the login-seeded gateway catalog serves (the sign-in
+ * gateway row in `llm-deepseek`'s directory); every default-model adoption
+ * points at it.
  */
-const DEEPAGENS_PROVIDER = 'deepagens'
+const GATEWAY_PROVIDER = 'miaoworker'
+
+/** The settings namespace the gateway catalog and endpoint land in. */
+const GATEWAY_SETTINGS_NS = 'llm-miaoworker'
 
 /** One authenticated session as the gate consumes it. */
 export interface LoginSession {
@@ -29,6 +33,13 @@ export interface LoginSession {
   avatar: string | null
   /** API key the server issued; kept so a reload can refresh it on the next sign-in. */
   apiKey: string
+  /**
+   * Origin of the login endpoint this session was issued against. Sessions
+   * issued before the field existed read as undefined, and a stored origin
+   * that no longer matches the build's endpoint marks the session as issued
+   * by a previous deployment.
+   */
+  authOrigin?: string
 }
 
 /** Credential references this plugin writes while a session is signed in. */
@@ -68,12 +79,13 @@ export function readStoredSession(): LoginSession | null {
     return null
   }
   if (typeof parsed !== 'object' || parsed === null) return null
-  const { account, avatar, apiKey } = parsed as Record<string, unknown>
+  const { account, avatar, apiKey, authOrigin } = parsed as Record<string, unknown>
   if (typeof account !== 'string' || account === '' || typeof apiKey !== 'string' || apiKey === '') return null
   return {
     account,
     avatar: typeof avatar === 'string' && avatar !== '' ? avatar : null,
     apiKey,
+    ...(typeof authOrigin === 'string' && authOrigin !== '' ? { authOrigin } : {}),
   }
 }
 
@@ -128,7 +140,7 @@ export class LoginStore {
 
   /**
    * Fetch the token-scoped model list from the gateway, persist it into the
-   * Deepagens provider settings (endpoint base plus catalog) so the selector
+   * gateway provider settings (endpoint base plus catalog) so the selector
    * and the Models page see the live gateway models as their own group, and
    * point the default model at the first pulled model when the current
    * default is not one they serve; an unchanged catalog is left alone.
@@ -137,7 +149,7 @@ export class LoginStore {
    * @param apiKey - the API key the sign-in just issued.
    */
   private async syncCatalogFromGateway(apiKey: string): Promise<void> {
-    const discovered = await this.api.llm.discoverModels('llm-deepagens', {
+    const discovered = await this.api.llm.discoverModels(GATEWAY_SETTINGS_NS, {
       baseURL: `${this.baseUrl()}/v1`,
       apiKey,
     })
@@ -159,19 +171,19 @@ export class LoginStore {
       return
     }
     const namespaces = described.value.namespaces
-    const ns = namespaces.find(view => view.ns === 'llm-deepagens')
+    const ns = namespaces.find(view => view.ns === GATEWAY_SETTINGS_NS)
     const stored = (ns?.value as { models?: unknown } | undefined)?.models
     if (stored !== undefined && modelsEquivalent(stored, catalogModels)) {
       console.warn(`[ui-login] gateway catalog unchanged (${catalogModels.length} models); keeping stored`)
     } else {
-      const written = await this.api.settings.mutate('llm-deepagens', [
+      const written = await this.api.settings.mutate(GATEWAY_SETTINGS_NS, [
         { op: 'set', path: ['baseURL'], value: `${this.baseUrl()}/v1` },
         { op: 'set', path: ['models'], value: catalogModels },
       ], ns?.revision)
       if (!written.ok) {
-        console.warn(`[ui-login] deepagens catalog write refused: ${written.error.message}`)
+        console.warn(`[ui-login] gateway catalog write refused: ${written.error.message}`)
       } else {
-        console.warn(`[ui-login] refreshed deepagens catalog from gateway: ${catalogModels.length} models`)
+        console.warn(`[ui-login] refreshed gateway catalog from gateway: ${catalogModels.length} models`)
       }
     }
     if (catalogModels.length > 0) await this.adoptFirstGatewayModel(namespaces, catalogModels)
@@ -199,7 +211,7 @@ export class LoginStore {
     const selection = current.value as { provider?: unknown; model?: unknown } | undefined
     const provider = typeof selection?.provider === 'string' ? selection.provider : undefined
     const model = typeof selection?.model === 'string' ? selection.model : undefined
-    if (provider === DEEPAGENS_PROVIDER && model !== undefined
+    if (provider === GATEWAY_PROVIDER && model !== undefined
       && models.some(candidate => candidate.id === model)) {
       return
     }
@@ -207,7 +219,7 @@ export class LoginStore {
     if (first === undefined) return
     const written = await this.api.settings.replace(
       DEFAULT_MODEL_NS,
-      { provider: DEEPAGENS_PROVIDER, model: first.id },
+      { provider: GATEWAY_PROVIDER, model: first.id },
       current.revision,
     )
     if (!written.ok) {
@@ -217,18 +229,46 @@ export class LoginStore {
     console.warn(`[ui-login] default model set to the first gateway model: ${first.id}`)
   }
 
-  /** Hydrate the persisted session into the store (idempotent). */
+  /**
+   * Hydrate the persisted session into the store (idempotent). A session
+   * recorded against a different login origin than this build's endpoint is
+   * left signed in while its endpoint facts are re-seeded in the background.
+   */
   load(): void {
     const session = readStoredSession()
     this.store.update((state) => {
       state.status = 'ready'
       state.session = session
     })
+    if (session !== null && session.authOrigin !== this.baseUrl()) {
+      void this.migrateStoredSession(session)
+    }
+  }
+
+  /**
+   * Re-seed a stored session's endpoint facts after the login endpoint moved:
+   * rewrite the credential pair against the current origin and sync the
+   * gateway catalog from it, then record the new origin so later starts skip
+   * the work. A stored key the new account server refuses only costs a failed
+   * catalog read; the next sign-in repairs the rest. Best effort: a failed
+   * credential write leaves the origin unrecorded so the next start retries.
+   * @param session - the persisted session whose recorded origin mismatched.
+   */
+  private async migrateStoredSession(session: LoginSession): Promise<void> {
+    try {
+      await this.credentials.apply(session, this.baseUrl())
+      await this.syncCatalogFromGateway(session.apiKey)
+    } catch (error: unknown) {
+      console.warn('[ui-login] stored-session endpoint migration failed:', error instanceof Error ? error.message : String(error))
+      return
+    }
+    writeStoredSession({ ...session, authOrigin: this.baseUrl() })
   }
 
   /**
    * POST one credential pair to the account server and persist success.
-   * Wire contract (Deepagens Claw `POST /api/user/deepagens-claw/login`):
+   * Wire contract (account-server `POST <login endpoint>`, the Deepagens Claw
+   * shape this build's `DSH_CLIENT_LOGIN_URL` points at):
    * JSON `{username, password}` in; `200` with `{success, message?, data?}`
    * out, where a successful `data` carries `{display_name?, avatar?, api_key}`;
    * `success: false` carries a `message` shown verbatim.
@@ -248,8 +288,9 @@ export class LoginStore {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ username, password }),
       })
-    } catch {
+    } catch (error: unknown) {
       // fetch rejects on network/DNS/CORS refusal; the page stays usable.
+      console.warn('[ui-login] sign-in request failed before a response:', error instanceof Error ? error.message : String(error))
       this.store.update((state) => {
         state.busy = false
         state.error = 'networkUnreachable'
@@ -265,6 +306,10 @@ export class LoginStore {
     }
     const fields = typeof body === 'object' && body !== null ? body as Record<string, unknown> : {}
     if (fields.success !== true) {
+      const detail = typeof fields.message === 'string' && fields.message !== ''
+        ? fields.message
+        : JSON.stringify(body) ?? ''
+      console.warn(`[ui-login] sign-in refused: HTTP ${response.status} ${detail.slice(0, 300)}`)
       this.store.update((state) => {
         state.busy = false
         state.error = errorKeyOf(response, fields)
@@ -274,6 +319,7 @@ export class LoginStore {
     const data = typeof fields.data === 'object' && fields.data !== null ? fields.data as Record<string, unknown> : {}
     const apiKey = data.api_key
     if (typeof apiKey !== 'string' || apiKey === '') {
+      console.warn(`[ui-login] sign-in response carries no api_key: HTTP ${response.status} ${JSON.stringify(fields).slice(0, 300)}`)
       this.store.update((state) => {
         state.busy = false
         state.error = 'invalidResponse'
@@ -284,10 +330,12 @@ export class LoginStore {
       account: typeof data.display_name === 'string' && data.display_name !== '' ? data.display_name : username,
       avatar: typeof data.avatar === 'string' && data.avatar !== '' ? data.avatar : null,
       apiKey,
+      authOrigin: this.baseUrl(),
     }
     try {
       await this.credentials.apply(session, this.baseUrl())
-    } catch {
+    } catch (error: unknown) {
+      console.warn('[ui-login] credential write refused:', error instanceof Error ? error.message : String(error))
       this.store.update((state) => {
         state.busy = false
         state.error = 'credentialWriteFailed'

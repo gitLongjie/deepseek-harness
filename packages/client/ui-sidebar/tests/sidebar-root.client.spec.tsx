@@ -122,7 +122,7 @@ describe('SidebarRoot shell', () => {
         options?.fallback ?? null) as SidebarRootComponentProps['renderSlot']}
     />)
 
-    expect(screen.getByText('深度Work')).toBeTruthy()
+    expect(screen.getByText('喵工作台')).toBeTruthy()
     expect(screen.getByText('1.2.3-rc.4-0123456-dirty')).toBeTruthy()
   })
 
@@ -141,7 +141,7 @@ describe('SidebarRoot shell', () => {
         options?.fallback ?? null) as SidebarRootComponentProps['renderSlot']}
     />)
 
-    expect(screen.getByText('深度Work')).toBeTruthy()
+    expect(screen.getByText('喵工作台')).toBeTruthy()
     expect(screen.getByText(expected)).toBeTruthy()
   })
 
@@ -156,7 +156,7 @@ describe('SidebarRoot shell', () => {
         options?.fallback ?? null) as SidebarRootComponentProps['renderSlot']}
     />)
 
-    expect(screen.getByText('深度Work')).toBeTruthy()
+    expect(screen.getByText('喵工作台')).toBeTruthy()
   })
 
   it('hands the region its wide flag and clamps expandSidebar to the collapsed state', () => {

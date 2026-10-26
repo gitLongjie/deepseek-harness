@@ -168,7 +168,7 @@ interface WebRuntime {
 - 当提供方的 API 支持结果数量控制时（Exa 的 `numResults`），提供方在请求层应用 `maxResults`，作为成本/延迟优化。
 - `ctx.web` 在结果上强制执行上限：如果提供方返回的 source 数量超过 `maxResults`——因为其 API 没有结果数量控制（Perplexity）或忽略了提示——seam 将 `sources[]` 截断到 `maxResults` 并在返回前将 `WebSearchResult.truncated` 设为 `true`。这使上限成为面向模型层可以依赖的单一跨提供方保证，而非每个提供方都必须记得遵守的东西。
 
-seam 请求不携带提供方特有的控制——没有 Perplexity 模型选择、搜索时效性、域名过滤器、Exa `livecrawl`、Exa `type`、区域提示、生成式回答预算或搜索深度。只有当某个字段具有提供方无关的语义，且工具 schema 和选定的提供方都能诚实地遵守时，才会添加。
+seam 请求不携带提供方特有的控制——没有 Perplexity 模型选择、搜索时效性、域名过滤器、Exa `livecrawl`、Exa `type`、区域提示、生成式回答预算或搜索miao。只有当某个字段具有提供方无关的语义，且工具 schema 和选定的提供方都能诚实地遵守时，才会添加。
 
 ```ts
 interface WebSearchRequest {

@@ -28,33 +28,33 @@ describe('desktop builder identity', () => {
   it('ships the product name used by the native shell', () => {
     expect(config).toMatch(/^appId:\s*com\.meowwork\.app\s*$/m)
     expect(config).not.toMatch(/^productName:/m)
-    expect(config).not.toContain('深度Works')
+    expect(config).not.toContain('miaoWorks')
   })
 
   it('pins the application icon instead of Electron default artwork', () => {
     expect(config).toMatch(/^icon:\s*build\/icon\.png\s*$/m)
     expect(config).toMatch(/^\s+icon:\s*build\/icon\.ico\s*$/m)
-    expect(config).not.toContain('executableName: 深度Works')
+    expect(config).not.toContain('executableName: miaoWorks')
   })
 
   it('gives Windows and macOS release assets stable architecture-specific names', () => {
     expect(config).toMatch(
-      /^nsis:\s*$[\s\S]*?^\s+artifactName:\s+DeepagensWork-\$\{version\}-win-\$\{arch\}\.\$\{ext\}\s*$/m,
+      /^nsis:\s*$[\s\S]*?^\s+artifactName:\s+miaoWorker-\$\{version\}-win-\$\{arch\}\.\$\{ext\}\s*$/m,
     )
     expect(config).toMatch(
-      /^mac:\s*$[\s\S]*?^\s+artifactName:\s+DeepagensWork-\$\{version\}-mac-\$\{arch\}\.\$\{ext\}\s*$/m,
+      /^mac:\s*$[\s\S]*?^\s+artifactName:\s+miaoWorker-\$\{version\}-mac-\$\{arch\}\.\$\{ext\}\s*$/m,
     )
     expect(config).toMatch(
-      /^linux:\s*$[\s\S]*?^\s+artifactName:\s+DeepagensWork-\$\{version\}-linux-\$\{arch\}\.\$\{ext\}\s*$/m,
+      /^linux:\s*$[\s\S]*?^\s+artifactName:\s+miaoWorker-\$\{version\}-linux-\$\{arch\}\.\$\{ext\}\s*$/m,
     )
     expect(config).not.toContain('${productName}-${version}')
   })
 
-  it('installs per-machine under the stable ASCII DeepagensWork directory', () => {
+  it('installs per-machine under the stable ASCII miaoWorker directory', () => {
     expect(config).toMatch(/^  perMachine: true\s*$/m)
     expect(config).toMatch(/^  include: build\/installer\.nsh\s*$/m)
     const installer = readFileSync(fileURLToPath(new URL('../build/installer.nsh', import.meta.url)), 'utf8')
-    expect(installer).toContain('StrCpy $INSTDIR "$PROGRAMFILES64\\DeepagensWork"')
+    expect(installer).toContain('StrCpy $INSTDIR "$PROGRAMFILES64\\miaoWorker"')
   })
 
   it('brands the Windows development executable used by Task Manager', () => {
@@ -88,14 +88,14 @@ describe('desktop builder identity', () => {
     expect(launcher).toContain('version: process.env.DSH_DESKTOP_BUILD_VERSION')
     expect(launcher).toContain("else ebArgs.push('--publish', 'never')")
     expect(createElectronBuilderOemConfig(
-      '深度Worker',
+      'miaoWorker',
       'https://updates.example.test/desktop',
     )).toEqual({
       extends: 'electron-builder.yml',
-      productName: '深度Worker',
+      productName: 'miaoWorker',
       extraMetadata: {
-        name: 'DeepagensWork',
-        productName: '深度Worker',
+        name: 'miaoWorker',
+        productName: 'miaoWorker',
         dsh: { updateUrl: 'https://updates.example.test/desktop' },
       },
     })
@@ -118,7 +118,7 @@ describe('desktop builder identity', () => {
     })).toMatchObject({
       directories: { output: 'C:/local-update/feed' },
       extraMetadata: {
-        name: 'DeepagensWork',
+        name: 'miaoWorker',
         productName: 'Worker',
         version: '1.2.4',
         dsh: { updateUrl: 'http://127.0.0.1:43119', localUpdateTest: true },
@@ -131,12 +131,12 @@ describe('desktop builder identity', () => {
   })
 
   it('ships no update metadata when the OEM deployment has no feed', () => {
-    expect(createElectronBuilderOemConfig('深度Worker')).toEqual({
+    expect(createElectronBuilderOemConfig('miaoWorker')).toEqual({
       extends: 'electron-builder.yml',
-      productName: '深度Worker',
+      productName: 'miaoWorker',
       extraMetadata: {
-        name: 'DeepagensWork',
-        productName: '深度Worker',
+        name: 'miaoWorker',
+        productName: 'miaoWorker',
         dsh: {},
       },
     })

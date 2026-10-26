@@ -267,9 +267,9 @@ describe('request-level dynamic configuration', () => {
     })
     expect(ctx.llm.listProviders()).toEqual(expect.arrayContaining([
       { id: 'deepseek-official', name: 'DeepSeek' },
-      { id: 'deepagens', name: 'Deepagens' },
+      { id: 'miaoworker', name: '喵工作台' },
     ]))
-    expect(observed).toEqual([expect.arrayContaining(['deepseek-official', 'deepagens'])])
+    expect(observed).toEqual([expect.arrayContaining(['deepseek-official', 'miaoworker'])])
   })
 
   it('keeps the last good options when a settings snapshot fails beyond-schema validation', async () => {
@@ -326,7 +326,7 @@ describe('request-level dynamic configuration', () => {
     expect(serverA.headers[0]?.authorization).toBe('Bearer steady-key')
   })
 
-  it('serves the deepagens gateway route over chat completions on its seeded /v1 endpoint', async () => {
+  it('serves the sign-in gateway route over chat completions on its seeded /v1 endpoint', async () => {
     vi.stubEnv('DEEPSEEK_API_KEY', 'gateway-key')
     const dir = await home()
     const server = await mockServer([{ kind: 'sse', events: textEvents }])
@@ -335,16 +335,16 @@ describe('request-level dynamic configuration', () => {
     // The login flow seeds a baseURL ending in /v1 and the gateway speaks chat
     // completions there; the namespace's composition base pins that protocol so
     // the shared schema's `messages` default cannot append a second /v1.
-    await ctx.settings.update('llm-deepagens', {
+    await ctx.settings.update('llm-miaoworker', {
       baseURL: `${server.url}/v1`,
       models: [{ id: 'gateway-model', name: 'Gateway Model', inputModalities: ['text'] }],
     })
-    expect((ctx.settings.get('llm-deepagens') as { protocol?: string }).protocol).toBe('chat-completions')
-    await assemble(ctx, { provider: 'deepagens', model: 'gateway-model', messages: [] })
+    expect((ctx.settings.get('llm-miaoworker') as { protocol?: string }).protocol).toBe('chat-completions')
+    await assemble(ctx, { provider: 'miaoworker', model: 'gateway-model', messages: [] })
     expect(server.paths).toEqual(['/v1/chat/completions'])
 
     // The base is below the user layer, so an explicit stored protocol wins.
-    await ctx.settings.update('llm-deepagens', { protocol: 'messages' })
-    expect((ctx.settings.get('llm-deepagens') as { protocol?: string }).protocol).toBe('messages')
+    await ctx.settings.update('llm-miaoworker', { protocol: 'messages' })
+    expect((ctx.settings.get('llm-miaoworker') as { protocol?: string }).protocol).toBe('messages')
   })
 })

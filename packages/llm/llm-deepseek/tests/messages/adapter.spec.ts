@@ -342,7 +342,7 @@ describe('Cordis provider composition', () => {
 
   it('loads one provider from YAML, rotates settings and credentials, then removes disposed registrations', async () => {
     const { ctx, http } = await boot()
-    expect(ctx.llm.listProviders().map(provider => provider.id)).toEqual(['deepagens', 'deepseek-official'])
+    expect(ctx.llm.listProviders().map(provider => provider.id)).toEqual(['miaoworker', 'deepseek-official'])
     expect((await assemble(ctx.llm.stream(options()))).assembler.finish.kind).toBe('stop')
     expect(http.requests[0]?.headers['x-api-key']).toBe('stored-key')
     const second = await endpoint()

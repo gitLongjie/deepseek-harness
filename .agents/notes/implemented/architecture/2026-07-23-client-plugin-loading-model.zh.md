@@ -106,7 +106,7 @@ Wire 两侧运行同一份治理实现；浏览器特有层只包含一套模块
 |---|---|
 | 两轴分类体系（entry × 到达），基础设施包不带 dsh.client | 抹掉了 manifest 依赖边（inject 泄漏给组合方）、把插件形态拆成两种、让纯度门禁对一半插件失明 |
 | 继续把手写 loader 演化成治理器 | 重新实现 vendored Loader 已拥有的 entry/fiber 生命周期；HMR 将与 host 侧毫无共享骨架 |
-| 在浏览器复用 `@cordisjs/plugin-hmr` | 约 80% 在解决浏览器没有的问题（fs 监听、深度图着色、Node 的双缓存）；只按形状抄用其重载骨架 |
+| 在浏览器复用 `@cordisjs/plugin-hmr` | 约 80% 在解决浏览器没有的问题（fs 监听、miao图着色、Node 的双缓存）；只按形状抄用其重载骨架 |
 | 模块联邦（module federation） | 独立构建的远端 bundle 恰是 vite 联邦不支持的形态 |
 | import map | 早已排除；DI require 表是终局机制 |
 | 现在就彻底 ctx 化（React 与库全走服务，不设模块表） | 静态 UI 库仍暴露同步实体，因此删除模块表会让这些 import 失去共享身份 |

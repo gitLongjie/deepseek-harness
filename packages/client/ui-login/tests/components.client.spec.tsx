@@ -50,7 +50,7 @@ describe('LoginGate', () => {
   })
 
   it('renders nothing while signed in and before hydration', () => {
-    localStorage.setItem('dsh.login.session', JSON.stringify({ account: '杰哥', avatar: null, apiKey: 'sk-1' }))
+    localStorage.setItem('dsh.login.session', JSON.stringify({ account: '杰哥', avatar: null, apiKey: 'sk-1', authOrigin: 'https://claw.deepagens.com' }))
     const signedIn = new LoginStore('https://claw.deepagens.com/api', inertAdapter, dummyApi)
     signedIn.load()
     const { container } = render(<LoginGate controller={signedIn} brandIcon="/brand/acme.svg" t={t} />)
@@ -103,7 +103,7 @@ describe('LoginGate', () => {
 describe('SidebarAccount', () => {
   it('renders the avatar and name when signed in wide', () => {
     localStorage.setItem('dsh.login.session', JSON.stringify({
-      account: '杰哥', avatar: 'https://claw.deepagens.com/a.png', apiKey: 'sk-1',
+      account: '杰哥', avatar: 'https://claw.deepagens.com/a.png', apiKey: 'sk-1', authOrigin: 'https://claw.deepagens.com',
     }))
     const controller = new LoginStore('https://claw.deepagens.com/api', inertAdapter, dummyApi)
     controller.load()
@@ -113,7 +113,7 @@ describe('SidebarAccount', () => {
   })
 
   it('falls back to the initial and hides the name in rail mode', () => {
-    localStorage.setItem('dsh.login.session', JSON.stringify({ account: 'jiege', avatar: null, apiKey: 'sk-1' }))
+    localStorage.setItem('dsh.login.session', JSON.stringify({ account: 'jiege', avatar: null, apiKey: 'sk-1', authOrigin: 'https://claw.deepagens.com' }))
     const controller = new LoginStore('https://claw.deepagens.com/api', inertAdapter, dummyApi)
     controller.load()
     const { container } = render(<SidebarAccount wide={false} controller={controller} t={t} />)

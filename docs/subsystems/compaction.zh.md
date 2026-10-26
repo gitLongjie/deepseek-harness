@@ -25,7 +25,7 @@
 <a id="image-offload"></a>
 ## 图片省略
 
-`compaction-image-offload` 拥有 `image/offload` 声明及其纯消息投影。每个目标指定当前输入节点和按深度优先计数的确切图片位置。事件保留节点和消息身份，不携带 `surfaceOp`。[包 README](../../packages/compaction/compaction-image-offload/README.zh.md)负责恢复策略、注册和独立回放说明。
+`compaction-image-offload` 拥有 `image/offload` 声明及其纯消息投影。每个目标指定当前输入节点和按miao优先计数的确切图片位置。事件保留节点和消息身份，不携带 `surfaceOp`。[包 README](../../packages/compaction/compaction-image-offload/README.zh.md)负责恢复策略、注册和独立回放说明。
 
 ```ts type-equiv
 /** Exact input-image occurrences selected by one durable offload decision. */

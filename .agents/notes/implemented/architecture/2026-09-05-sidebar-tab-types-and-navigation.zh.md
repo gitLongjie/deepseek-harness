@@ -32,7 +32,7 @@ interface SidebarRightTabDefinition {
 
 `id` 与 `kind` 是两回事。`kind` 是类型判别符——tab *是什么*、`openTab` 点名什么、tab 身份由什么构成。`id` 是某个 kind 的一个*实现*的身份，在全部注册里唯一，包名是自然的取值。两者分开是因为 kind 并不唯一：`extension` 可以注册一个 `builtin` 已持有的 kind，两个实现随即在注册表里共存，生效的是 extension。注册表拒绝重复的 `id`、同一 kind 在同一档的第二次注册、以及任何与同 kind 的 `fallback` 相遇的注册；它只接受 extension 压 builtin 这一对，extension 注销后 builtin 恢复。
 
-`patterns` 是资源地址上的 glob，用 `picomatch` 按 VS Code 编辑器解析器的规则匹配，只有一处本地改动：含 `:` 的 pattern 匹配整个地址（`dsh-resource://file/**`），不含的匹配 URI 的路径且任意深度（`*.md`），匹配不区分大小写、不隐藏 dotfile，不是 URI 的地址不匹配任何路径 pattern。页类型——引导页、文件树——不识别任何地址，省略 `patterns`，按 kind 打开。
+`patterns` 是资源地址上的 glob，用 `picomatch` 按 VS Code 编辑器解析器的规则匹配，只有一处本地改动：含 `:` 的 pattern 匹配整个地址（`dsh-resource://file/**`），不含的匹配 URI 的路径且任意miao（`*.md`），匹配不区分大小写、不隐藏 dotfile，不是 URI 的地址不匹配任何路径 pattern。页类型——引导页、文件树——不识别任何地址，省略 `patterns`，按 kind 打开。
 
 `priority` 是三个字面量档位之一，写成字符串，好让别的包的类型不需要任何运行时引入：`extension` 是来自产品之外的类型的档位也是最高档，所以什么都不声明的类型压过这里随包交付的每个查看器；`builtin` 是随包类型的常规档；`fallback` 是任何更具体的东西都应压过的纯内容位置，VS Code 的文本编辑器隐含地占据它，我们的文本预览明确地占据它。`candidates(address)` 返回 glob 命中且 `canOpen` 未否决的每个类型，按档位、再按命中的最长 pattern 长度、再按注册顺序排序。`claim(address, kind?)` 取最佳候选，或在调用方指定时取该 kind 生效的类型（不查它的 glob；点名即决定），对无人愿开的地址抛错——这是接线错误，不是用户错误。`get(kind)` 返回生效类型；`entries()` 与 `guide()` 列出生效类型及其引导入口；`subscribe` 观察变化。
 

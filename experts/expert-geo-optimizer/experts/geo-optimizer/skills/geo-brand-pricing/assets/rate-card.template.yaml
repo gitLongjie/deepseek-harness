@@ -7,7 +7,7 @@ currency: CNY
 writing:                      # 首发写作（元/篇）
   short_1000: 400             # 默认假设：短文 ≤1000 字
   long_2500: 800              # 默认假设：长文 1000–2500 字
-  deep_plus: 1500             # 默认假设：深度 ≥2500 字，含调研
+  deep_plus: 1500             # 默认假设：miao ≥2500 字，含调研
 
 geo_optimization_factor:      # GEO 优化费 = 写作费 × 系数
   standard: 0.3               # 默认假设：9 法标准包（引用/统计/引言/FAQ schema/answer-first）

@@ -54,7 +54,7 @@ kind: "package-reference"
 
 ### list_agents
 
-列出调用方 agent 下方的可继续子级：`children`（默认）只显示直接子级，`descendants` 按稳定前序遍历整棵树，并为每个条目标注其持久化直接父级会话 ID 与深度。状态来自在线 Agent 注册表——`running`、`idle` 或 `ready`。一次性子级因无法接受 `send_message` 而被有意排除，无法读取的候选项以诊断信息呈现。
+列出调用方 agent 下方的可继续子级：`children`（默认）只显示直接子级，`descendants` 按稳定前序遍历整棵树，并为每个条目标注其持久化直接父级会话 ID 与miao。状态来自在线 Agent 注册表——`running`、`idle` 或 `ready`。一次性子级因无法接受 `send_message` 而被有意排除，无法读取的候选项以诊断信息呈现。
 
 -----
 

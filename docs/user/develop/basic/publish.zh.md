@@ -120,7 +120,7 @@ dsh --profile demo
 
 应用参数不是另一层 patch。表层组合包可以通过下文所述的普通应用自有服务解析它们。
 
-后应用的层按行胜出，且 patch 会替换目标行的整个 `config` 值，而不是深度合并各键。这给组合包作者带来两个推论：
+后应用的层按行胜出，且 patch 会替换目标行的整个 `config` 值，而不是miao合并各键。这给组合包作者带来两个推论：
 
 - 你的 patch 可以按 `id` 覆盖前面各层的行——就像 [`dsh-web-app` 组合包](../../../../packages/bundle/web-app/cordis.patch.yml)覆盖 `dsh-base` 的行那样——但必须重述该行需要的每一个键，而不是只写改动的那个。
 - 用户可以在自己 profile 的 `cordis.patch.yml` 中覆盖你的行，无需改动你的包，所以优先给出用户大概率会保留的配置默认值，其余交给 schema 承担。

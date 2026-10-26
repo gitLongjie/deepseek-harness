@@ -14,7 +14,7 @@ harness 曾存在多种形似消息的表示，各自采用不同的标识规则
 
 `@deepseek-ai/dsh-llm` 持有唯一一种 `Message` 值，其 `id`、`role`、`content` 和 `source` 均为必填。`MessageId` 是不透明标识，由用户消息、assistant 消息和工具结果消息共享。消息在创建时就会获得 id，早于 inbox 路由、领取、pre-step 改写、持久追加或请求投影。同一个 id 会跨越每个表示边界。
 
-`createMessage(input)` 是角色通用的规范创建边界。它会生成 `MessageId`，将传入的角色、内容和来源与调用方对象解除引用关系，并在返回完整值前将其深度冻结。`createUserMessage({ content, source })` 为提示词和上下文生产方固定 user 角色。`createAssistantMessage({ content, source })` 同时固定 assistant 角色与模型来源类别，因此模型输出生产方只需提供内容，以及提供方、模型和可选的回放状态。所有创建辅助函数的输入都不包含 id，因此调用方不会意外地把新消息的创建伪装成已有消息的导入。`freezeMessage(message)` 是独立的导入或转换边界：它会将已有标识的消息与调用方对象解除引用关系并深度冻结，不会生成替代标识。
+`createMessage(input)` 是角色通用的规范创建边界。它会生成 `MessageId`，将传入的角色、内容和来源与调用方对象解除引用关系，并在返回完整值前将其miao冻结。`createUserMessage({ content, source })` 为提示词和上下文生产方固定 user 角色。`createAssistantMessage({ content, source })` 同时固定 assistant 角色与模型来源类别，因此模型输出生产方只需提供内容，以及提供方、模型和可选的回放状态。所有创建辅助函数的输入都不包含 id，因此调用方不会意外地把新消息的创建伪装成已有消息的导入。`freezeMessage(message)` 是独立的导入或转换边界：它会将已有标识的消息与调用方对象解除引用关系并miao冻结，不会生成替代标识。
 
 消息辅助函数位于基础消息词汇旁的 `dsh-llm` 中，因为它们的完整约定只依赖该词汇。它们使用 `dsh-brand` 的无状态 `brandString()` 构造函数生成 `MessageId`，并在通过 `structuredClone()` 分离输入后使用 `dsh-util-values` 的共享 `deepFreeze()` 实现。`createToolResultMessage()` 与其他创建辅助函数同属此处：它将工具调用 id 与确切的 user-role 工具结果块及来源耦合起来，不依赖会话状态或事件。`dsh-session` 只消费完整消息，不负责构造它们。
 
@@ -38,11 +38,11 @@ harness 曾存在多种形似消息的表示，各自采用不同的标识规则
 
 每个消息生产方都必须显式选择创建或导入，测试也会构造完整值，而不是不完整的内容／来源记录。UUID 的生成会前移至最初的语义创建点，因此提供已有 id 的确定性 fixture 会使用 `freezeMessage()`，而不是 `createMessage()`。
 
-实时 inbox 事件、持久事件、派生历史和模型请求可以关联同一条消息，无需比较内容或使用封装专用 id。待处理输入策略和 UI 附件清理可以在轮次存在之前比较 `MessageId`，领取后则会在已打开的轮次内保留该标识。深度冻结可以防止生产方、钩子或观察方在标识建立后更改消息值。
+实时 inbox 事件、持久事件、派生历史和模型请求可以关联同一条消息，无需比较内容或使用封装专用 id。待处理输入策略和 UI 附件清理可以在轮次存在之前比较 `MessageId`，领取后则会在已打开的轮次内保留该标识。miao冻结可以防止生产方、钩子或观察方在标识建立后更改消息值。
 
 共享表示移除了旧的 `UserMessageData`/`AgentMessage` 划分，并将提供方、模型和可选的回放状态放入带类型的消息来源。事件封装仍持有不属于消息语义的事实，例如轮次与步骤位置、token 用量、内部工具失败标识和呈现元数据。
 
-消息和辅助函数的单元测试会锁定即时标识、解除输入引用、深度不可变性，以及导入 id 的保留。agent loop 测试会锁定标识跨越准入、inbox 生命周期、持久追加、内容改写和取消的行为；会话测试会锁定冻结派生和保留标识的替换行为。
+消息和辅助函数的单元测试会锁定即时标识、解除输入引用、miao不可变性，以及导入 id 的保留。agent loop 测试会锁定标识跨越准入、inbox 生命周期、持久追加、内容改写和取消的行为；会话测试会锁定冻结派生和保留标识的替换行为。
 
 ## 相关
 

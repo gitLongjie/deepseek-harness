@@ -440,7 +440,7 @@ describe('renderToolsSdkPy', () => {
         additionalProperties: false,
         properties: {
           路径: { type: 'string' },
-          opts: { type: 'object', additionalProperties: false, properties: { 深度: { type: 'number' } } },
+          opts: { type: 'object', additionalProperties: false, properties: { miao: { type: 'number' } } },
         },
         required: ['路径'],
       },
@@ -451,7 +451,7 @@ describe('renderToolsSdkPy', () => {
     expect(text).toContain('class 搜索Args(TypedDict):')
     expect(text).toContain('    路径: str')
     expect(text).toContain('class 搜索ArgsOpts(TypedDict):')
-    expect(text).toContain('    深度: NotRequired[float]')
+    expect(text).toContain('    miao: NotRequired[float]')
     expect(text).not.toContain('dict[str, Any]')
   })
 

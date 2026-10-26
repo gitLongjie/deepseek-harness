@@ -53,7 +53,7 @@ kind: "package-library"
 
 驱动器按以下顺序运行：
 
-1. 校验父级深度与可选的绝对 `maxDepth`，然后把子级深度推导为父级深度加一，并持久化到子级会话 header。
+1. 校验父级miao与可选的绝对 `maxDepth`，然后把子级miao推导为父级miao加一，并持久化到子级会话 header。
 2. 通过宿主 agent 工厂创建子 agent，并把调用方必需的信号传入创建事务。
 3. 在该事务未发布的设置窗口内，安装请求的 persona、工具限制与结构化输出运行时。
 4. 发布子 agent，保留返回的句柄，并驱动一项任务。
@@ -84,7 +84,7 @@ kind: "package-library"
 
 当包级约定不够用时阅读以下页面；它们从共享 subagent 模型进入构建于本驱动器之上的后端，以及委派策略决策。
 
-- [Subagent 子系统](../../../docs/subsystems/subagent.zh.md)——启动请求、结果、提供方约定与进程内深度和初始内容。
+- [Subagent 子系统](../../../docs/subsystems/subagent.zh.md)——启动请求、结果、提供方约定与进程内miao和初始内容。
 - [dsh-subagent-spawn-in-process](../subagent-spawn-in-process/README.zh.md)——构建于本驱动器之上的全新子 agent 后端。
 - [dsh-subagent-fork-in-process](../subagent-fork-in-process/README.zh.md)——构建于本驱动器之上的带初始内容的子 agent 后端。
 - [委派策略决策](../../../.agents/notes/implemented/feature/2026-07-25-subagent-policy-inheritance.zh.md)——父级沙箱与审批策略如何到达子 agent。
@@ -132,7 +132,7 @@ When you have your final answer, you MUST report it by calling the `structured_o
 
 #### 模型看到什么
 
-通过 `dsh-tool-subagent`，无效深度状态会精确变为 `Error: agent subagentDepth must be a non-negative safe integer`、`Error: subagent child depth exceeds the safe-integer range` 或 `Error: subagent depth <attempted> exceeds maxDepth <max>`。发布前取消的中止原因会通过注册表的 `Error: <message>` 包装传递。
+通过 `dsh-tool-subagent`，无效miao状态会精确变为 `Error: agent subagentDepth must be a non-negative safe integer`、`Error: subagent child depth exceeds the safe-integer range` 或 `Error: subagent depth <attempted> exceeds maxDepth <max>`。发布前取消的中止原因会通过注册表的 `Error: <message>` 包装传递。
 
 #### Token 影响
 

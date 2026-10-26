@@ -291,7 +291,7 @@ export class WorkspaceRegistry extends Service {
 | 跨进程变更观测 | GUI 断线重连感知 | revision 模式（抄 session-persistence） | 进程内已有 `domain/changed` |
 | 数据迁移 | 首个 tagged release 后模型再变 | 版本号驱动逐域迁移 | 版本号自第一天入介质 |
 | 大表性能 | 千级记录域挂 json | `routes` 改指 sqlite，数据手工导一次 | 路由即配置，消费方零改动 |
-| 多段 key | 两段 key 消费方出现（每 workspace 每 session 维度数据） | key 泛型换 tuple、SQLite 复合主键、JSON 嵌套层 | 一级表 = 段数 1 特例；不做任意深度嵌套；不拼字符串 key |
+| 多段 key | 两段 key 消费方出现（每 workspace 每 session 维度数据） | key 泛型换 tuple、SQLite 复合主键、JSON 嵌套层 | 一级表 = 段数 1 特例；不做任意miao嵌套；不拼字符串 key |
 | scope 维度 | "每 workspace 一份"的域出现且复合 key 表达不动 | DomainSpec 加 scope + 文件名 scope 段（encodeSegment） | 名字字符集已收紧，文件名不冲突 |
 | 跨表原子事务 | 同域两表一次原子操作需求 | `domain.transact(fn)`；JSON 天然原子，SQLite 包事务 | — |
 | 二级索引/条件查询 | 内存过滤不动（万级记录） | SQLite JSON1 查 value 列，加只读 query 面 | JSON 后端不陪跑 |
