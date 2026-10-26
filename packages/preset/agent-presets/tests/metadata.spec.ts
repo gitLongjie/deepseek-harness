@@ -10,7 +10,7 @@ import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { METADATA_FILE, readPresetMetadata, renderPresetMetadata } from '../src/metadata.ts'
+import { AVATAR_CAP, METADATA_FILE, readPresetMetadata, renderPresetMetadata } from '../src/metadata.ts'
 
 /** Every temp preset directory created by this file, removed after each test. */
 const tempDirs: string[] = []
@@ -120,6 +120,27 @@ describe('reading display metadata', () => {
 
     expect((await readPresetMetadata(dir))?.tags).toHaveLength(8)
   })
+
+  it('reads the card image, attribution line, and curator badge', async () => {
+    const dir = await presetDir(
+      'subtitle: 可见度实验室\nbadge: 特邀专家\navatar: "data:image/svg+xml,%3Csvg%3E%3C/svg%3E"\n',
+    )
+
+    expect(await readPresetMetadata(dir)).toEqual({
+      subtitle: '可见度实验室',
+      badge: '特邀专家',
+      avatar: 'data:image/svg+xml,%3Csvg%3E%3C/svg%3E',
+    })
+  })
+
+  it('drops an over-long card image rather than truncating it', async () => {
+    // Half a data URI renders as a broken image, so the excess degrades to no
+    // image — and the cap is what keeps one preset from bloating every roster
+    // read.
+    const dir = await presetDir(`avatar: "${'x'.repeat(AVATAR_CAP + 1)}"\n`)
+
+    expect(await readPresetMetadata(dir)).toEqual({})
+  })
 })
 
 describe('rendering display metadata', () => {
@@ -136,6 +157,17 @@ describe('rendering display metadata', () => {
       tags: ['GEO', 'AI 搜索'],
       quickPrompts: ['先诊断可见度', '再出报价'],
       icon: '🔍',
+    }
+    const dir = await presetDir(renderPresetMetadata(metadata))
+
+    expect(await readPresetMetadata(dir)).toEqual(metadata)
+  })
+
+  it('round-trips the card image, attribution line, and badge', async () => {
+    const metadata = {
+      subtitle: '可见度实验室',
+      badge: '特邀专家',
+      avatar: 'data:image/svg+xml,%3Csvg%3E%3C/svg%3E',
     }
     const dir = await presetDir(renderPresetMetadata(metadata))
 

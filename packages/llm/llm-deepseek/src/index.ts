@@ -7,7 +7,7 @@ import type {} from '@deepseek-ai/dsh-settings'
 import { deepEqualJson } from '@deepseek-ai/dsh-util-values'
 import { getOrCreateAnonymousUserId, type AnonymousUserId } from '@deepseek-ai/dsh-anonymous-user-id'
 import { DeepSeekAdapter } from './adapter.ts'
-import { Config, resolveAdapterOptions } from './config.ts'
+import { Config, DEEPAGENS_API_KEY_ENV, resolveAdapterOptions } from './config.ts'
 import type { ResolvedDeepSeekOptions } from './config.ts'
 import { discoverModels } from './discovery.ts'
 
@@ -56,9 +56,9 @@ export const inject = ['llm']
 
 const NS = 'llm-deepseek'
 const PROVIDER = 'deepseek-official'
-/** The sign-in gateway route; its catalog and endpoint are seeded by the login flow. */
-const GATEWAY_NS = 'llm-miaoworker'
-const GATEWAY_PROVIDER = 'miaoworker'
+/** The Deepagens Claw gateway route; its catalog and endpoint are seeded by the login flow. */
+const DEEPAGENS_NS = 'llm-deepagens'
+const DEEPAGENS_PROVIDER = 'deepagens'
 
 export function apply(ctx: Context, config: Config): void {
   let current: () => Config = () => config
@@ -129,36 +129,44 @@ export function apply(ctx: Context, config: Config): void {
         ?? Promise.resolve({ fields: {}, accept: () => Promise.resolve() })
     },
   })
-  // ── Sign-in gateway: a second OpenAI-compatible provider route whose
+  // ── Deepagens Claw gateway: a second OpenAI-compatible provider route whose
   // endpoint and catalog the login flow seeds from the account server. It
-  // shares the adapter class (chat completions over the gateway's /v1) and the
-  // `DEEPSEEK_API_KEY` credential, but owns a separate settings namespace.
-  let gatewayCurrent: () => Config = () => ({ models: [] })
-  let gatewayRaw: Config | undefined
-  let gatewayGood: ResolvedDeepSeekOptions | undefined
-  const gatewayOptions = (): ResolvedDeepSeekOptions => {
-    const raw = gatewayCurrent()
-    if (raw === gatewayRaw && gatewayGood !== undefined) return gatewayGood
+  // shares the adapter class (chat completions over the gateway's /v1) but owns
+  // a separate settings namespace and its own `DEEPAGENS_API_KEY` reference:
+  // the login re-issues that key on every launch, so resolving the DeepSeek
+  // route's `DEEPSEEK_API_KEY` would overwrite the key a user stores for it.
+  // The route's display name answers to the composition entry first, then the
+  // trusted environment layer (the desktop launcher injects the OEM file's
+  // `gatewayProviderName` there), then the route's own name.
+  const deepagensDisplayName = config.deepagensDisplayName
+    ?? launchEnvironmentOf(ctx).get('DEEPAGENS_DISPLAY_NAME')?.value
+    ?? '喵工作台'
+  let deepagensCurrent: () => Config = () => ({ models: [] })
+  let deepagensRaw: Config | undefined
+  let deepagensGood: ResolvedDeepSeekOptions | undefined
+  const deepagensOptions = (): ResolvedDeepSeekOptions => {
+    const raw = deepagensCurrent()
+    if (raw === deepagensRaw && deepagensGood !== undefined) return deepagensGood
     try {
       const next = resolveAdapterOptions(raw, launchEnvironmentOf(ctx))
-      gatewayRaw = raw
-      gatewayGood = next
+      deepagensRaw = raw
+      deepagensGood = next
       return next
     } catch (error) {
-      if (gatewayGood === undefined) throw error
-      ctx.logger.error('llm-deepseek: keeping the last good gateway configuration after an invalid settings section')
+      if (deepagensGood === undefined) throw error
+      ctx.logger.error('llm-deepseek: keeping the last good deepagens configuration after an invalid settings section')
       ctx.logger.error(error)
-      return gatewayGood
+      return deepagensGood
     }
   }
-  gatewayOptions()
+  deepagensOptions()
 
-  const gatewayAdapter = new DeepSeekAdapter({
-    options: gatewayOptions,
+  const deepagensAdapter = new DeepSeekAdapter({
+    options: deepagensOptions,
     resolveApiKey,
     resolveUserId,
     resolveAttachments: () => ctx.get('attachments'),
-    providerName: '喵工作台',
+    providerName: deepagensDisplayName,
     prepareExtensions: (request) => {
       const extensions = ctx.get('deepseekLlmApiExtensions')
       return extensions?.prepare(request)
@@ -167,43 +175,47 @@ export function apply(ctx: Context, config: Config): void {
   })
   ctx.llm.registerConfigurableProviders([
     {
-      provider: GATEWAY_PROVIDER,
-      displayName: '喵工作台',
-      settingsNs: GATEWAY_NS,
+      provider: DEEPAGENS_PROVIDER,
+      displayName: deepagensDisplayName,
+      settingsNs: DEEPAGENS_NS,
       settingsPath: [],
       // Same adapter class and section schema as the DeepSeek route, so the
       // settings page renders the same curated card for it.
       editorFamily: 'deepseek',
     },
   ])
-  const gatewayRegistration = ctx.llm.registerAdapter([GATEWAY_PROVIDER], gatewayAdapter)
-  ctx.llm.registerModelDiscovery(GATEWAY_NS, (request, signal) =>
+  const deepagensRegistration = ctx.llm.registerAdapter([DEEPAGENS_PROVIDER], deepagensAdapter)
+  ctx.llm.registerModelDiscovery(DEEPAGENS_NS, (request, signal) =>
     discoverModels(request, async () => {
-      try { return await resolveApiKey(gatewayOptions()) } catch { return undefined }
+      try { return await resolveApiKey(deepagensOptions()) } catch { return undefined }
     }, signal),
   )
-  let registeredGatewayPolicy = gatewayOptions().retryPolicy
-  const ensureGatewayFacts = (): void => {
-    const policy = gatewayOptions().retryPolicy
-    if (deepEqualJson(policy, registeredGatewayPolicy)) return
-    gatewayRegistration.replace([GATEWAY_PROVIDER])
-    registeredGatewayPolicy = policy
+  let registeredDeepagensPolicy = deepagensOptions().retryPolicy
+  const ensureDeepagensFacts = (): void => {
+    const policy = deepagensOptions().retryPolicy
+    if (deepEqualJson(policy, registeredDeepagensPolicy)) return
+    deepagensRegistration.replace([DEEPAGENS_PROVIDER])
+    registeredDeepagensPolicy = policy
   }
   ctx.inject(['settings'], (settingsCtx) => {
     // The base layer carries the wire protocol: the login flow seeds a baseURL
     // ending in /v1 and the gateway serves chat completions there, while the
     // shared Config schema defaults to `messages`, whose request path appends
     // a second /v1. The user layer still overrides this base.
-    settingsCtx.settings.installSection(ctx, GATEWAY_NS, Config, { models: [], protocol: 'chat-completions' }, {
+    settingsCtx.settings.installSection(ctx, DEEPAGENS_NS, Config, {
+      models: [],
+      protocol: 'chat-completions',
+      apiKeyEnv: DEEPAGENS_API_KEY_ENV,
+    }, {
       setSource: (source) => {
-        gatewayCurrent = source
+        deepagensCurrent = source
       },
-      onChange: ensureGatewayFacts,
+      onChange: ensureDeepagensFacts,
     })
   })
-  // The DeepSeek route registers after the gateway so the gateway group leads
-  // the provider directories; both share the same adapter class and the
-  // DEEPSEEK_* credentials, differing only in their settings namespace.
+  // The DeepSeek route registers after Deepagens so the gateway group leads the
+  // provider directories; both share the same adapter class and the DEEPSEEK_*
+  // credentials, differing only in their settings namespace.
   ctx.llm.registerConfigurableProviders([
     { provider: PROVIDER, displayName: 'DeepSeek', settingsNs: NS, settingsPath: [], editorFamily: 'deepseek' },
   ])

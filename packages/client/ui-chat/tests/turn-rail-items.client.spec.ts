@@ -69,9 +69,43 @@ describe('mergeTurnRailItems', () => {
       null,
     ])
     // turn/seq are load-bearing (drop); previews are decorative (degrade).
+    // Turn 3 also degrades to a '' prompt, so the machine-turn filter drops it;
+    // turn 6 survives as the newest (and carries a prompt anyway).
     expect(items).toEqual([
-      { turn: 3, prompt: '', response: '', anchor: { kind: 'unloaded', seq: 4 } },
       { turn: 6, prompt: 'kept', response: '', anchor: { kind: 'unloaded', seq: 7 } },
+    ])
+  })
+
+  it('drops settled machine turns (empty prompt) from the rail', () => {
+    const items = mergeTurnRailItems([], [
+      { turn: 1, seq: 0, prompt: 'user question', response: 'answer' },
+      { turn: 2, seq: 9, prompt: '', response: 'goal continuation work' },
+      { turn: 3, seq: 20, prompt: '', response: 'subagent settlement' },
+      { turn: 4, seq: 30, prompt: 'second user question', response: 'answer two' },
+    ])
+    expect(items).toEqual([
+      { turn: 1, prompt: 'user question', response: 'answer', anchor: { kind: 'unloaded', seq: 0 } },
+      { turn: 4, prompt: 'second user question', response: 'answer two', anchor: { kind: 'unloaded', seq: 30 } },
+    ])
+  })
+
+  it('keeps the newest promptless turn while it is live, and it drops once a newer turn starts', () => {
+    const live = mergeTurnRailItems([], [
+      { turn: 1, seq: 0, prompt: 'user question', response: 'answer' },
+      { turn: 2, seq: 9, prompt: '', response: '' },
+    ])
+    expect(live).toEqual([
+      { turn: 1, prompt: 'user question', response: 'answer', anchor: { kind: 'unloaded', seq: 0 } },
+      { turn: 2, prompt: '', response: '', anchor: { kind: 'unloaded', seq: 9 } },
+    ])
+    const superseded = mergeTurnRailItems([], [
+      { turn: 1, seq: 0, prompt: 'user question', response: 'answer' },
+      { turn: 2, seq: 9, prompt: '', response: 'machine work' },
+      { turn: 3, seq: 30, prompt: 'next question', response: '' },
+    ])
+    expect(superseded).toEqual([
+      { turn: 1, prompt: 'user question', response: 'answer', anchor: { kind: 'unloaded', seq: 0 } },
+      { turn: 3, prompt: 'next question', response: '', anchor: { kind: 'unloaded', seq: 30 } },
     ])
   })
 })

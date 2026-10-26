@@ -1308,6 +1308,24 @@ describe('DeepSeekAdapter against a mock server', () => {
     })
   })
 
+  it('maps a quota-exhausted 403 from Chinese-language gateways to QUOTA, not AUTH', async () => {
+    const behavior: Behavior = {
+      kind: 'http-error',
+      status: 403,
+      body: JSON.stringify({
+        error: {
+          message: '用户额度不足, 剩余额度: ＄0.000000',
+          type: 'insufficient_user_quota',
+          code: 'insufficient_user_quota',
+        },
+      }),
+    }
+    const server = await mockServer([behavior])
+    const ctx = await harness(server.url)
+    const result = await assemble(ctx, { model: 'deepseek-v4-flash', messages: [] })
+    expect(result.finish).toMatchObject({ kind: 'error', failure: { code: QUOTA_EXCEEDED_CODE, status: 403 } })
+  })
+
   it('uses the HTTP status as the cause when an error response has no body', async () => {
     const server = await mockServer([{ kind: 'http-error', status: 500, body: '' }])
     const adapter = adapterOf({ baseURL: server.url })
@@ -2190,6 +2208,26 @@ describe('plugin registration and config', () => {
       { id: 'miaoworker', name: '喵工作台' },
       { id: 'deepseek-official', name: 'DeepSeek' },
     ])
+  })
+
+  it('carries the Deepagens display name from config, then the environment, then its own', async () => {
+    const mounted = async (config: Record<string, unknown> = {}) => {
+      const ctx = new Context()
+      await ctx.plugin(LlmRuntime)
+      await ctx.plugin(LlmDeepSeek, { protocol: 'chat-completions', baseURL: 'http://127.0.0.1:1', ...config })
+      return ctx
+    }
+    vi.stubEnv('DEEPAGENS_DISPLAY_NAME', 'Env Name')
+    const namedByEnv = await mounted()
+    expect(namedByEnv.llm.listProviders()).toEqual(expect.arrayContaining([{ id: 'deepagens', name: 'Env Name' }]))
+    expect(namedByEnv.llm.listConfigurableProviders()).toEqual(expect.arrayContaining([
+      { provider: 'deepagens', displayName: 'Env Name', settingsNs: 'llm-deepagens', settingsPath: [], editorFamily: 'deepseek' },
+    ]))
+    const namedByConfig = await mounted({ deepagensDisplayName: 'Cfg Name' })
+    expect(namedByConfig.llm.listProviders()).toEqual(expect.arrayContaining([{ id: 'deepagens', name: 'Cfg Name' }]))
+    vi.unstubAllEnvs()
+    const namedByDefault = await mounted()
+    expect(namedByDefault.llm.listProviders()).toEqual(expect.arrayContaining([{ id: 'deepagens', name: 'Deepagens' }]))
   })
 
   it('loads keyless, keeps the catalog browsable, and fails the request actionably', async () => {

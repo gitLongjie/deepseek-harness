@@ -1,10 +1,11 @@
 name: Desktop publish
 
 # Builds the desktop shell on Windows and macOS and publishes the installers
-# and update metadata to this repository's GitHub Releases — the single
-# distribution target. The installed app's updater polls
-# releases/latest/download on this repository (the generic updateUrl baked
-# from oem.config.json), so this release is the live update feed.
+# and update metadata to this repository's GitHub Releases. The installed
+# app's updater polls the generic updateUrl baked from oem.config.json —
+# currently the geo CDN feed — so this release is the bootstrap distribution
+# and must be re-uploaded to that CDN path per release (latest.yml names its
+# artifacts relatively).
 # electron-builder --publish always targets the deepseek-harness repo declared
 # in electron-builder.yml and writes with the built-in GITHUB_TOKEN.
 # Triggered by a v* tag or manually. Signing/notarization secrets are left

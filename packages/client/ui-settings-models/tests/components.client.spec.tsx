@@ -571,6 +571,90 @@ describe('ModelsSection', () => {
     ])
   })
 
+  it('turns the deepagens gateway-catalog follow off as one path op', async () => {
+    const namespace: SettingsNamespaceView = {
+      ...wireNamespaces()[0]!,
+      ns: 'llm-deepagens',
+      user: {},
+    }
+    const { face, mutate } = scriptedFace({
+      mutate: vi.fn(() => Promise.resolve(remoteOk(namespace))),
+    })
+    const { ProviderEditor } = await import('../src/client/ProviderEditor.tsx')
+    render(<ProviderEditor
+      provider="deepagens"
+      displayName="brige"
+      editorFamily="deepseek"
+      namespace={namespace}
+      schema={settingsSchema}
+      settingsPath={[]}
+      operations={operationsWith(face)}
+      t={t}
+      readOnly={false}
+      onClose={vi.fn()}
+    />)
+    fireEvent.click(screen.getByText(en.customized))
+    const toggle = screen.getByLabelText<HTMLInputElement>(en.followGatewayCatalog)
+    expect(toggle.checked).toBe(true)
+    fireEvent.click(toggle)
+    fireEvent.click(screen.getByText(en.apply))
+    await waitFor(() => { expect(mutate).toHaveBeenCalledTimes(1) })
+    expect(mutate.mock.calls[0]).toEqual([
+      'llm-deepagens',
+      [{ op: 'set', path: ['followGatewayCatalog'], value: false }],
+      0,
+    ])
+  })
+
+  it('restores the deepagens gateway default by dropping the override', async () => {
+    const namespace: SettingsNamespaceView = {
+      ...wireNamespaces()[0]!,
+      ns: 'llm-deepagens',
+      value: {
+        apiKeyEnv: 'DEEPSEEK_API_KEY',
+        baseURL: 'https://base',
+        defaultContextWindow: 1_000_000,
+        maxTokens: 256_000,
+        models: DEFAULT_DEEPSEEK_MODELS,
+        followGatewayCatalog: false,
+      },
+      user: { baseURL: 'https://base', followGatewayCatalog: false },
+    }
+    const { face, mutate } = scriptedFace({
+      mutate: vi.fn(() => Promise.resolve(remoteOk(namespace))),
+    })
+    const { ProviderEditor } = await import('../src/client/ProviderEditor.tsx')
+    render(<ProviderEditor
+      provider="deepagens"
+      displayName="brige"
+      editorFamily="deepseek"
+      namespace={namespace}
+      schema={settingsSchema}
+      settingsPath={[]}
+      operations={operationsWith(face)}
+      t={t}
+      readOnly={false}
+      onClose={vi.fn()}
+    />)
+    fireEvent.click(screen.getByText(en.customized))
+    const toggle = screen.getByLabelText<HTMLInputElement>(en.followGatewayCatalog)
+    expect(toggle.checked).toBe(false)
+    fireEvent.click(toggle)
+    fireEvent.click(screen.getByText(en.apply))
+    await waitFor(() => { expect(mutate).toHaveBeenCalledTimes(1) })
+    expect(mutate.mock.calls[0]).toEqual([
+      'llm-deepagens',
+      [{ op: 'unset', path: ['followGatewayCatalog'] }],
+      0,
+    ])
+  })
+
+  it('keeps the gateway-catalog switch off the static DeepSeek card', async () => {
+    await mountDeepSeekCard()
+    fireEvent.click(screen.getByText(en.customized))
+    expect(screen.queryByLabelText(en.followGatewayCatalog)).toBeNull()
+  })
+
   it('materializes inherited models and adds an arbitrary DeepSeek id', async () => {
     const { mutate } = await mountDeepSeekCard({
       mutate: vi.fn(() => Promise.resolve(remoteOk(wireNamespaces()[0]))),
@@ -1103,7 +1187,7 @@ describe('ModelsSection', () => {
     const { ProviderEditor } = await import('../src/client/ProviderEditor.tsx')
     render(<ProviderEditor
       provider="deepagens"
-      displayName="Deepagens"
+      displayName="brige"
       editorFamily="deepseek"
       namespace={deepagens}
       schema={settingsSchema}

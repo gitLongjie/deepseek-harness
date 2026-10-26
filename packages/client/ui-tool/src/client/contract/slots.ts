@@ -38,6 +38,18 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      * slot.
      */
     'tool.call.images': { kind: 'single'; scope: 'session'; owner: ToolImagesOwnerProps }
+    /**
+     * Durable images of a settled image-bearing Tool call rendered by the
+     * generic Tool row, for every tool that returns images without owning a
+     * keyed view. A generated material must be visible in the conversation, not
+     * only named by a path, so the fallback row renders any result carrying
+     * image blocks through this slot; `tool.call.images` stays owned by the
+     * read_image view, whose card also carries that tool's display path.
+     *
+     * Composing no attachment presentation plugin renders nothing, which is why
+     * the row keeps the result's own envelope text beside the gallery.
+     */
+    'tool.call.result-images': { kind: 'single'; scope: 'session'; owner: ToolImagesOwnerProps }
   }
 }
 
@@ -99,5 +111,6 @@ export type ToolHostInfoInjected = {
 /** Full props of the Tool call-tree renderer registered as a `tool-call` Chat Node. */
 export type ToolTreeProps = PropsRuntime<'conversation.chat.node', 'tool-call'>
   & PropsRenderSlots<'tool.call.toolview'>
+  & PropsRenderSlots<'tool.call.result-images'>
   & PropsLocale<'conversation'>
   & InjectFace<ToolHostInfoInjected>

@@ -27,6 +27,12 @@ export interface AgentPresetRow {
   readonly quickPrompts?: readonly string[]
   /** Short display glyph for expert-style cards, when published. */
   readonly icon?: string
+  /** Attribution line under an expert-style card's name, when published. */
+  readonly subtitle?: string
+  /** Curator badge beside an expert-style card's name, when published. */
+  readonly badge?: string
+  /** Card image (HTTPS URL or data URI) for an expert-style card, when published. */
+  readonly avatar?: string
   /** Why this preset cannot compose a session; absent when it can. */
   readonly broken?: string
 }

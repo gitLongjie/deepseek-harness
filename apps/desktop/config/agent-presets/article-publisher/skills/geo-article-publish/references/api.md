@@ -1,6 +1,6 @@
 # web-admin-go 文章发布接口参考
 
-本文件是对 `D:\Project\GEO\web-admin-go` 实际代码（`handler/` 与 `model/entity/`）核实的接口速查，供 `geo-article-publish` 技能调用时对字段。
+本文件是对 `D:\Project\GEO\web-admin-go` 实际代码（`handler/` 与 `model/entity/`）核实的接口速查。发文走 `geo_sites_list` / `geo_article_publish` / `geo_article_get` 三个工具，请求由 `@deepseek-ai/dsh-tool-geo-admin` 发出；本文件用于排查后端字段与权限，不需要照着它手写 HTTP 调用。
 
 ## 约定
 

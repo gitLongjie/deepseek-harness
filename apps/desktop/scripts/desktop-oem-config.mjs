@@ -28,7 +28,17 @@ export function readDesktopOemConfig(repoRoot, environment = process.env) {
     throw new Error('oem.config.json.updateUrl must be an HTTPS URL')
   }
   const knowledgeBase = readOemKnowledgeBase(oemConfig.knowledgeBase)
-  return { productName, brandIcon, updateUrl, knowledgeBase }
+  const gatewayProviderName = readOemGatewayProviderName(oemConfig.gatewayProviderName)
+  return { productName, brandIcon, updateUrl, knowledgeBase, gatewayProviderName }
+}
+
+/** Read the OEM Deepagens display name for packaging: absent stays absent. */
+function readOemGatewayProviderName(value) {
+  if (value === undefined) return undefined
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new Error('oem.config.json.gatewayProviderName must be a non-empty string')
+  }
+  return value
 }
 
 /**
@@ -116,6 +126,7 @@ export function createElectronBuilderOemConfig(productName, updateUrl, options =
         ...(updateUrl === undefined ? {} : { updateUrl }),
         ...(options.localUpdateFeed && updateUrl !== undefined ? { localUpdateTest: true } : {}),
         ...(options.knowledgeBase === undefined ? {} : { knowledgeBase: options.knowledgeBase }),
+        ...(options.gatewayProviderName === undefined ? {} : { gatewayProviderName: options.gatewayProviderName }),
       },
     },
   }
@@ -129,6 +140,20 @@ export function createElectronBuilderOemConfig(productName, updateUrl, options =
       throw new Error('the asarUnpack overlay must be a non-empty array of non-empty globs')
     }
     config.asarUnpack = [...options.asarUnpack]
+  }
+  // Optional out-of-asar payload directories (from → to under the installer's
+  // resources/), e.g. the ComfyUI distribution that ships beside the app.
+  if (options.extraResources !== undefined) {
+    if (!Array.isArray(options.extraResources)
+      || options.extraResources.length === 0
+      || !options.extraResources.every(entry =>
+        entry !== null && typeof entry === 'object'
+        && typeof entry.from === 'string' && entry.from !== ''
+        && typeof entry.to === 'string' && entry.to !== ''
+        && !entry.to.includes('..') && !entry.from.includes('..'))) {
+      throw new Error('the extraResources overlay must be a non-empty array of { from, to } pairs')
+    }
+    config.extraResources = options.extraResources.map(({ from, to }) => ({ from, to }))
   }
   return {
     ...config,

@@ -10,6 +10,11 @@ import { BashCard } from '../src/client/BashCard.tsx'
 import type { BashCardProps } from '../src/client/BashCard.tsx'
 import { ConfigurablePluginsTab } from '../src/client/ConfigurablePluginsTab.tsx'
 import type { ConfigurablePluginsTabProps } from '../src/client/ConfigurablePluginsTab.tsx'
+import { GeoAdminCard } from '../src/client/GeoAdminCard.tsx'
+import type { GeoAdminCardProps } from '../src/client/GeoAdminCard.tsx'
+import type { GeoAdminCardState } from '../src/client/geo-admin-card-controller.ts'
+import { H3VideoCard } from '../src/client/H3VideoCard.tsx'
+import type { H3VideoCardProps } from '../src/client/H3VideoCard.tsx'
 import { PluginsSettingsSection } from '../src/client/PluginsSettingsSection.tsx'
 import type { PluginsSettingsSectionProps, PluginsSettingsTabEntry } from '../src/client/PluginsSettingsSection.tsx'
 import { SubagentModelSelectionCard } from '../src/client/SubagentModelSelectionCard.tsx'
@@ -20,6 +25,7 @@ import type { AgentLoopCardState } from '../src/client/agent-loop-card-controlle
 import type { BashCardState } from '../src/client/bash-card-controller.ts'
 import type { CardFieldState, CardShell } from '../src/client/card-form.ts'
 import type { ConfigurablePluginsTabState } from '../src/client/tab-store.ts'
+import type { H3CardState } from '../src/client/h3-video-card-controller.ts'
 import type { WebSearchCardState } from '../src/client/web-search-card-controller.ts'
 import type { SubagentModelSelectionCardState } from '../src/client/subagent-model-selection-card-controller.ts'
 import { en } from '../src/client/locales.ts'
@@ -567,5 +573,106 @@ describe('WebSearchCard', () => {
       ['maxUses', '4'],
     ])
     expect(actions.resetField.mock.calls).toEqual([['baseURL'], ['maxUses']])
+  })
+})
+
+describe('H3VideoCard', () => {
+  function renderH3(state: Partial<H3CardState> = {}) {
+    const store = createSnapshotStore<H3CardState>({
+      ...settled,
+      fields: {
+        comfyUrl: field(''),
+        gpuApiTokenRef: field(''),
+      },
+      apiKey: field(''),
+      apiKeyConfigured: false,
+      apiKeyWritable: true,
+      gpuApiToken: field(''),
+      gpuApiTokenConfigured: false,
+      gpuApiTokenWritable: true,
+      ...state,
+    })
+    const actions = cardActions()
+    const props = { ...actions, t, useH3Card: bindSnapshotSelector(store) } as unknown as H3VideoCardProps
+    render(<H3VideoCard {...props} />)
+    return actions
+  }
+
+  it('renders both credentials and stages the AutoDL token separately', () => {
+    const actions = renderH3({ gpuApiTokenConfigured: true })
+    fireEvent.click(screen.getByText(en.h3Title))
+
+    expect(screen.getByText(en.h3GpuApiTokenSet)).toBeTruthy()
+    const token = screen.getByLabelText(en.h3GpuApiToken)
+    expect(token).toHaveProperty('type', 'password')
+    fireEvent.change(token, { target: { value: 'adl-secret' } })
+
+    expect(actions.edit).toHaveBeenCalledWith('gpuApiToken', 'adl-secret')
+    expect(actions.edit).not.toHaveBeenCalledWith('minimaxApiKey', expect.anything())
+  })
+
+  it('disables only the AutoDL token when its credential is read-only', () => {
+    renderH3({ gpuApiTokenWritable: false, apiKeyWritable: true })
+    fireEvent.click(screen.getByText(en.h3Title))
+
+    expect(screen.getByLabelText(en.h3GpuApiToken)).toHaveProperty('disabled', true)
+    expect(screen.getByLabelText(en.h3MinimaxApiKey)).toHaveProperty('disabled', false)
+  })
+})
+
+describe('GeoAdminCard', () => {
+  function renderGeo(state: Partial<GeoAdminCardState> = {}) {
+    const store = createSnapshotStore<GeoAdminCardState>({
+      ...settled,
+      fields: { baseUrl: field('http://localhost:8001'), username: field('article-bot') },
+      password: field(''),
+      passwordConfigured: true,
+      passwordWritable: true,
+      ...state,
+    })
+    const actions = cardActions()
+    const props = {
+      ...actions,
+      t,
+      useGeoAdminCard: bindSnapshotSelector(store),
+    } as unknown as GeoAdminCardProps
+    render(<GeoAdminCard {...props} />)
+    return actions
+  }
+
+  it('stages the account fields and the fixed password reference', () => {
+    const actions = renderGeo({ passwordConfigured: false })
+    fireEvent.click(screen.getByText(en.geoTitle))
+
+    expect(screen.getByText(en.geoPasswordUnset)).toBeTruthy()
+    const baseUrl = screen.getByLabelText(en.geoBaseUrl)
+    expect(baseUrl).toHaveProperty('placeholder', en.geoBaseUrlPlaceholder)
+    fireEvent.change(baseUrl, { target: { value: 'http://10.0.0.2:8001' } })
+    expect(actions.edit).toHaveBeenCalledWith('baseUrl', 'http://10.0.0.2:8001')
+
+    const username = screen.getByLabelText(en.geoUsername)
+    fireEvent.change(username, { target: { value: 'editor' } })
+    expect(actions.edit).toHaveBeenCalledWith('username', 'editor')
+
+    const password = screen.getByLabelText(en.geoPassword)
+    expect(password).toHaveProperty('type', 'password')
+    // Display order follows sign-in order: backend address, account, password.
+    expect(baseUrl.compareDocumentPosition(username) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(username.compareDocumentPosition(password) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    fireEvent.change(password, { target: { value: 'pw' } })
+    expect(actions.edit).toHaveBeenCalledWith('password', 'pw')
+  })
+
+  it('reports a configured password and disables the control when it is read-only', () => {
+    renderGeo({ passwordWritable: false })
+    fireEvent.click(screen.getByText(en.geoTitle))
+
+    expect(screen.getByText(en.geoPasswordSet)).toBeTruthy()
+    expect(screen.getByLabelText(en.geoPassword)).toHaveProperty('disabled', true)
+  })
+
+  it('renders nothing while the namespace is unavailable', () => {
+    renderGeo({ available: false })
+    expect(screen.queryByText(en.geoTitle)).toBeNull()
   })
 })

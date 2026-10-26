@@ -36,6 +36,9 @@ export function apply(ctx: ClientContext): void {
     locale: NS,
     children: {
       'tool.call.toolview': { kind: 'keyed', scope: 'session' },
+      // The generic row's gallery: a tool that returns images without owning a
+      // keyed view still shows them, so generated materials are visible.
+      'tool.call.result-images': { kind: 'single', scope: 'session' },
     },
     inject: toolInject,
   }, ToolCallTree))

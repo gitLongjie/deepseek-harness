@@ -39,8 +39,16 @@ export function SidebarAccount({ wide, controller, t }: SidebarAccountProps): Re
     () => controller.store.getSnapshot(),
     () => controller.store.getSnapshot(),
   )
-  const [menuOpen, setMenuOpen] = useState(false)
   const session = state.session
+  // The dropdown is interaction state of one signed-in session; a session
+  // transition (sign-out, a fresh sign-in) must not carry an open menu into
+  // the next one. Resetting during render closes it before the first paint.
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [menuedSession, setMenuedSession] = useState(session)
+  if (session !== menuedSession) {
+    setMenuedSession(session)
+    setMenuOpen(false)
+  }
   if (session === null) return null
   const items: MenuEntry[] = [
     { id: 'logout', label: t('logout'), danger: true },

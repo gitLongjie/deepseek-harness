@@ -41,7 +41,7 @@ function clientDocumentTitle(): Plugin {
       order: 'pre',
       handler(html) {
         return html
-          .replace('<title>miaoWorks</title>', `<title>${title}</title>`)
+          .replace('<title>喵工作台</title>', `<title>${title}</title>`)
           .replace('href="/favicon.ico"', `href="${icon}"`)
       },
     },

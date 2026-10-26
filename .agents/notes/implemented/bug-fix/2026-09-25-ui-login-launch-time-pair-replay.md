@@ -12,9 +12,9 @@ A second defect rode on the same lifecycle. The sidebar account row kept its int
 
 ## Decision
 
-The session lives in memory only; the persisted fact is the credential pair. `login()` stores `{username, password}` under `dsh.login.pair` and never stores the session; `logout()` clears the pair alongside the credential references, so signing out means staying signed out across restarts.
+The session lives in memory only; the persisted fact is the credential pair — and, since [key revalidation](2026-10-20-ui-login-key-revalidation.md), the key and profile the last sign-in reported. `login()` stores that record under `dsh.login.pair` and never stores the session; `logout()` clears it alongside the credential references, so signing out means staying signed out across restarts.
 
-`restore()` — called from `apply()` at every client boot — reads the pair and, when present, replays it through the exact `login()` path: the same endpoint call, credential write, gateway catalog sync, and default-model adoption. Success enters the app without the sign-in card; a refusal keeps the pair (the next launch retries) and the gate shows the card with the failure — a server message verbatim, or the network/invalid-response key. While the replay is in flight, `LoginGate` renders only its opaque backdrop, so the card never flashes and the app underneath is unreachable before authentication.
+`restore()` — called from `apply()` at every client boot — reads the record and revalidates its key with one `/v1/models` read before replaying the pair: an accepted key enters the app without a login call, and only a refused key, or a record written before key reuse, runs the exact `login()` path (the same endpoint call, credential write, gateway catalog sync, and default-model adoption). Success enters the app without the sign-in card; a refusal keeps the record (the next launch retries) and the gate shows the card with the failure — a server message verbatim, or the network/invalid-response key. While the restore is in flight, `LoginGate` renders only its opaque backdrop, so the card never flashes and the app underneath is unreachable before authentication.
 
 The account row closes its dropdown on a session transition. `SidebarAccount` resets `menuOpen` during render when the session identity changes (the adjust-state-when-a-prop-changes pattern), so a menu opened for one session cannot survive a sign-out → sign-in cycle, and no painted frame shows the stale menu.
 
@@ -22,7 +22,7 @@ The account row closes its dropdown on a session transition. `SidebarAccount` re
 
 ## Alternatives considered
 
-**Keep restoring the stored session, revalidating the stored `api_key` against a session endpoint.** The Deepagens Claw deployment exposes one wire method for authentication, `POST /api/claw/login`; a validate call would need a new server route, and the key being checked is the very thing in doubt. Replaying the pair reuses the existing contract and re-issues a fresh key every launch.
+**Keep restoring the stored session, revalidating the stored `api_key` against a session endpoint.** The Deepagens Claw deployment exposes one wire method for authentication, `POST /api/claw/login`; a validate call would need a new server route, and the key being checked is the very thing in doubt. Replaying the pair reuses the existing contract and re-issues a fresh key every launch. Validating the key against the existing model-list route instead of a new session route is what [key revalidation](2026-10-20-ui-login-key-revalidation.md) later shipped.
 
 **Persist nothing and show the card on every launch.** This meets the no-stale-key goal but forces typing the password at every start. The pair replay is the same wire call without the manual step, and the card still appears whenever the replay fails.
 
@@ -34,7 +34,7 @@ The account row closes its dropdown on a session transition. `SidebarAccount` re
 
 ## Consequences
 
-- Every launch costs one login round-trip before the UI settles; a slow or hung account server holds the app behind the backdrop (no timeout is configured — the endpoint is a deployment-owned service address).
+- A launch revalidates the stored key first (one `/v1/models` read); only a refused key costs a login round-trip before the UI settles, and a slow or hung account server holds the app behind the backdrop (no timeout is configured — the endpoint is a deployment-owned service address).
 - The account password now rests in `localStorage` in the renderer profile, plaintext, like the API key the credential layer already stores on disk. Only a manual sign-in and logout write it, and the plugin sends it to nothing but the login endpoint.
 - A password changed server-side costs one failed replay per launch until the user signs in manually once, which updates the stored pair.
 - `LoginState.status` (`idle`/`ready`) is gone — the hydration handshake existed only to mask the localStorage read; `restoring` now expresses the one phase the gate must hide.

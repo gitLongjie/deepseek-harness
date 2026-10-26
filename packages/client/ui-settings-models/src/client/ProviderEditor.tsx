@@ -368,6 +368,43 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
         <details className={styles['customized']}>
           <summary className={styles['customizedSummary']}>{t('customized')}</summary>
           <div className={styles['customizedBody']}>
+            {/* The sign-in gateway owns this route's endpoint and catalog until
+                this switch says otherwise; it renders only on the login-seeded
+                route (llm-deepagens), never on the static DeepSeek one. */}
+            {namespace.ns === 'llm-deepagens'
+              ? (() => {
+                // The default comes from the composition base, not the
+                // effective value, so a stored override cannot masquerade as
+                // the default it replaced.
+                const followsByDefault = schema.getPath(namespace.base ?? {}, ['followGatewayCatalog']) !== false
+                const gatewayDraft = schema.getPath(draft, ['followGatewayCatalog'])
+                return (
+                  <div className={styles['field']}>
+                    <label className={styles['toggleFieldLabel']}>
+                      <input
+                        type="checkbox"
+                        checked={gatewayDraft === undefined ? followsByDefault : gatewayDraft !== false}
+                        aria-label={t('followGatewayCatalog')}
+                        disabled={disabled}
+                        onChange={(event) => {
+                          // An override exists only while it departs the
+                          // composition default beneath the user layer:
+                          // restoring the default removes the user entry
+                          // instead of storing a redundant copy, so the gateway
+                          // resumes ownership exactly as before.
+                          const next = event.target.checked
+                          setDraft(current => next === followsByDefault
+                            ? schema.deletePath(current, ['followGatewayCatalog'])
+                            : schema.setPath(current, ['followGatewayCatalog'], next))
+                        }}
+                      />
+                      <span className={styles['fieldLabel']}>{t('followGatewayCatalog')}</span>
+                    </label>
+                    <span className={styles['advancedHint']}>{t('followGatewayCatalogHint')}</span>
+                  </div>
+                )
+              })()
+              : null}
             {/* The name and the protocol are the create card's two remaining
                 profile fields; a route the adapter ships defaults both from
                 its catalog entry and neither belongs on its card. */}

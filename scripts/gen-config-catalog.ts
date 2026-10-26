@@ -615,7 +615,9 @@ function findSchemaExpr(ctx: FileCtx, pluginClass: ts.ClassDeclaration | null): 
 /** Read an `inject` service-key list: `export const inject = […]` in the entry
  * file, else `static inject = […]` on the plugin class. */
 function findInject(ctx: FileCtx, pluginClass: ts.ClassDeclaration | null, violations: string[]): string[] {
-  const fromArray = (expr: ts.Expression, where: string): string[] => {
+  const fromArray = (initial: ts.Expression, where: string): string[] => {
+    // `[…] as const` is the same list with a readonly type assertion.
+    const expr = ts.isAsExpression(initial) ? initial.expression : initial
     if (!ts.isArrayLiteralExpression(expr)) {
       violations.push(`${where}: inject is not a plain string-array literal; teach the generator the new declaration form.`)
       return []

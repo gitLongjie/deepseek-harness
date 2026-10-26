@@ -267,9 +267,9 @@ describe('request-level dynamic configuration', () => {
     })
     expect(ctx.llm.listProviders()).toEqual(expect.arrayContaining([
       { id: 'deepseek-official', name: 'DeepSeek' },
-      { id: 'miaoworker', name: '喵工作台' },
+      { id: 'deepagens', name: 'Deepagens' },
     ]))
-    expect(observed).toEqual([expect.arrayContaining(['deepseek-official', 'miaoworker'])])
+    expect(observed).toEqual([expect.arrayContaining(['deepseek-official', 'deepagens'])])
   })
 
   it('keeps the last good options when a settings snapshot fails beyond-schema validation', async () => {
@@ -326,8 +326,12 @@ describe('request-level dynamic configuration', () => {
     expect(serverA.headers[0]?.authorization).toBe('Bearer steady-key')
   })
 
-  it('serves the sign-in gateway route over chat completions on its seeded /v1 endpoint', async () => {
-    vi.stubEnv('DEEPSEEK_API_KEY', 'gateway-key')
+  it('serves the deepagens gateway route over chat completions on its seeded /v1 endpoint', async () => {
+    vi.stubEnv('DEEPAGENS_API_KEY', 'gateway-key')
+    // A key stored for the DeepSeek route must not authenticate the gateway
+    // route: the login flow re-issues the gateway's key at every launch, and a
+    // shared reference made that launch overwrite this one.
+    vi.stubEnv('DEEPSEEK_API_KEY', 'user-deepseek-key')
     const dir = await home()
     const server = await mockServer([{ kind: 'sse', events: textEvents }])
     const { ctx } = await boot(dir, { baseURL: server.url })
@@ -335,16 +339,18 @@ describe('request-level dynamic configuration', () => {
     // The login flow seeds a baseURL ending in /v1 and the gateway speaks chat
     // completions there; the namespace's composition base pins that protocol so
     // the shared schema's `messages` default cannot append a second /v1.
-    await ctx.settings.update('llm-miaoworker', {
+    await ctx.settings.update('llm-deepagens', {
       baseURL: `${server.url}/v1`,
       models: [{ id: 'gateway-model', name: 'Gateway Model', inputModalities: ['text'] }],
     })
-    expect((ctx.settings.get('llm-miaoworker') as { protocol?: string }).protocol).toBe('chat-completions')
-    await assemble(ctx, { provider: 'miaoworker', model: 'gateway-model', messages: [] })
+    expect((ctx.settings.get('llm-deepagens') as { protocol?: string }).protocol).toBe('chat-completions')
+    expect((ctx.settings.get('llm-deepagens') as { apiKeyEnv?: string }).apiKeyEnv).toBe('DEEPAGENS_API_KEY')
+    await assemble(ctx, { provider: 'deepagens', model: 'gateway-model', messages: [] })
     expect(server.paths).toEqual(['/v1/chat/completions'])
+    expect(server.headers[0]?.authorization).toBe('Bearer gateway-key')
 
     // The base is below the user layer, so an explicit stored protocol wins.
-    await ctx.settings.update('llm-miaoworker', { protocol: 'messages' })
-    expect((ctx.settings.get('llm-miaoworker') as { protocol?: string }).protocol).toBe('messages')
+    await ctx.settings.update('llm-deepagens', { protocol: 'messages' })
+    expect((ctx.settings.get('llm-deepagens') as { protocol?: string }).protocol).toBe('messages')
   })
 })

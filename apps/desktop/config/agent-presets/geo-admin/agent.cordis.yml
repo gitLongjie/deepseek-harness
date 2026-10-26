@@ -1,0 +1,59 @@
+# The `geo-admin` agent preset: 深度云海 GEO 专家.
+#
+# Same EXPERT convention as `geo-optimizer`: the persona row is the expert's
+# soul, the preset-local `skills/` directory is its toolbox, and `preset.yml`
+# publishes the expert-card metadata. Everything below reuses the shipped preset
+# machinery.
+#
+# This expert operates the GEO multi-site content backend through
+# `dsh-tool-geo-admin`: the account configured on the 深度云海 settings card
+# signs in per call, and the password stays in the credentials store. The
+# settings namespace itself is a host row owned by the deployment composition
+# (a preset cannot register one).
+
+- id: persona
+  name: '@deepseek-ai/dsh-persona'
+  config:
+    prefix: |-
+      你是深度云海 GEO 专家，负责用已配置的账号操作 GEO 多站点内容后台（web-admin-go）的数据：查询站点与文章、核对稿件、新建或修改或删除文章、按需上线或退回草稿，查看 GEO 关键词任务与品牌可见度报告，并在确认后发起报告生成。由 {{model}} 驱动，工作目录是 {{cwd}}。
+
+      工作原则，顺序不可打乱：
+      1. 先取数再下结论：站点用 geo_sites_list，文章用 geo_news_list / geo_article_get，栏目用 geo_categories_list，任务用 geo_tasks_list，报告用 geo_reports_list / geo_report_get。没读到的事实不要猜，也不要沿用上一轮的缓存当成现在。
+      2. 写操作前先确认：geo_article_publish、geo_article_update、geo_article_delete 会真实改后台，geo_report_generate 会消耗模型调用。执行前把「站点 + 文章（或报告窗口）+ 改动项 + 发布状态 + 成本」跟用户确认一次；用户没明确说「上线」时一律按草稿处理，没说「删除」时绝不删。
+      3. 改完必须读回：工具返回的是落库记录，核对 title / website_id / is_published（或报告 QA 数、可见度分）与预期一致后再汇报；不一致就如实说明，不要自行再改一次。
+      4. 只有内容与 GEO 数据：账号、角色、权限、站点配置属于后台管理，遇到就请用户去后台处理，不要尝试绕过权限。
+      5. 凭据由「设置 → 插件 → 深度云海」维护：不要在对话里向用户索要密码，也不要复述或写入任何凭据。
+
+      汇报格式：站点名 + website_id、文章 id + slug、当前状态（草稿/已上线）、本次改动、报告 id 与 QA/引用数、任务 id 与状态、下一步建议。多篇文章按列表汇报，不要复述整篇正文。
+
+- id: agent-instructions
+  name: '@deepseek-ai/dsh-agent-instructions'
+  config:
+    maxBytes: 65536
+
+# Read access to the workspace: briefs, drafts, and exported data live here.
+- id: tool-fs
+  name: '@deepseek-ai/dsh-tool-fs'
+
+- id: tool-fs-search
+  name: '@deepseek-ai/dsh-tool-fs-search'
+  config:
+    sampleOverCapGlobResults: false
+
+# The backend data tools: sites, articles, categories, create, update. They read
+# the `geo-admin` settings namespace and the GEO_ADMIN_PASSWORD credential, and
+# register into this session's tool registry.
+- id: tool-geo-admin
+  name: '@deepseek-ai/dsh-tool-geo-admin'
+
+# The operating skill travels with this preset: the workflow and safety rules
+# this expert is hired for. `baseUrl` is the preset's own directory, so the root
+# resolves wherever the preset is installed.
+- id: skill-filesystem
+  name: '@deepseek-ai/dsh-skill-filesystem'
+  config:
+    customSkillDirs:
+      - !!js "process.getBuiltinModule('node:url').fileURLToPath(new URL('skills/', baseUrl))"
+
+- id: tool-skill
+  name: '@deepseek-ai/dsh-tool-skill'

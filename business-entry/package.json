@@ -32,7 +32,8 @@
   },
   "scripts": {
     "build": "node build.mjs",
-    "check": "npm run build"
+    "test": "node build.mjs && node --test tests/*.test.mjs",
+    "check": "npm run test"
   },
   "engines": {
     "node": ">=22.19"

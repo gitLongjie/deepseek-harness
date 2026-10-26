@@ -15,12 +15,16 @@ This package registers the account sign-in flow against the deployment's account
 
 Two occupants install through declaration-aware `slots.inject()` calls, so activation order relative to ui-layout and ui-sidebar does not matter and teardown withdraws both:
 
-- `shell.overlay` — a full-page sign-in takeover (brand mark, username/password form with a show-password toggle, server messages shown verbatim). The backdrop re-enables pointer events because the overlay layer is click-through by design, and it respects a desktop shell's published top inset so the window title bar remains available. It renders nothing while a session is signed in.
+- `shell.overlay` — a full-page sign-in takeover (brand mark, username/password form with a show-password toggle, server messages shown verbatim). The backdrop re-enables pointer events because the overlay layer is click-through by design, and it respects a desktop shell's published top inset so the window title bar remains available. While the boot-time session restore is in flight it renders only the backdrop; it renders nothing once a session is signed in.
 - `sidebar.footer.action` — the signed-in account row: avatar (or its initial fallback), display name in wide mode, and a dropdown with the sign-out action.
 
-A successful sign-in (wire contract: `POST {username, password}` → `{success, message?, data: {display_name?, avatar?, api_key}}`) stores the profile in `localStorage` and writes `DEEPSEEK_API_KEY` plus `DEEPSEEK_BASE_URL` (the endpoint's origin) through the existing `credentials.set` wire method — the same writable layer the Models settings page uses. A rejected write aborts the sign-in loudly. Sign-out unsets both references and drops the stored profile.
+A successful sign-in (wire contract: `POST {username, password}` → `{success, message?, data: {display_name?, avatar?, api_key}}`) keeps the session in memory and stores the typed pair, the issued key, and the profile in `localStorage`, then writes `DEEPAGENS_API_KEY` through the existing `credentials.set` wire method — the same writable layer the Models settings page uses, under the gateway route's own reference. `DEEPSEEK_API_KEY` is deliberately untouched: it belongs to the DeepSeek route, and a launch-time sign-in that wrote it replaced the key a user stored there. The gateway endpoint needs no credential entry because the catalog sync writes it into the route's `llm-deepagens` settings section. A rejected write aborts the sign-in loudly. Sign-out unsets `DEEPAGENS_API_KEY` and drops the stored record, leaving every other stored credential in place.
+
+Every launch revalidates the stored key with one `GET /v1/models` read before the UI settles. An accepted key signs in and enters the app without the card, and without the `POST` the account server charges a login session for; the gateway catalog sync still runs on that key. A refused key (revoked, expired, short of quota) replays the stored pair through the sign-in endpoint and stores the key that sign-in issues. A refused pair keeps the record stored for the next launch and falls back to the sign-in card with the failure showing, and a record written before key reuse — a pair without a key — replays once and gains one.
 
 The endpoint must allow cross-origin calls from the app origin (CORS with JSON content type); the fetch failure path reports an unreachable service instead of breaking the page.
+
+The Models page's Deepagens card carries a "follow the sign-in gateway catalog" switch backed by `llm-deepagens`'s `followGatewayCatalog` field (default on). An explicit `false` hands the route to the user: sign-ins stop re-pointing `baseURL`, replacing `models`, and adopting a gateway default model, so the card's edits survive every launch's catalog sync.
 
 ## Model Experience
 
@@ -32,10 +36,10 @@ The default-model adoption happens before any session exists, so it changes whic
 
 ## Known Limitations and Deferred Work
 
-- **No session refresh** — the stored profile is display-only; a server-side rename or avatar change appears after the next sign-in.
+- **No session refresh** — the profile is display-only; a server-side rename or avatar change appears after the next pair replay (a refused key or a manual sign-in), not on a key revalidation.
 - **No registration entry** — accounts are issued by the account server; the sign-in card deliberately offers no sign-up link.
 - **Bearer-session calls are out of scope** — the account server's session cookie is not replayed against other endpoints by this package.
 
 ### Dev Note
 
-The two occupants share one `localStorage` profile record; the overlay and the account row both read it on mount, and sign-out clears it once for both surfaces.
+The two occupants observe one in-memory session store; sign-out nulls the session once for both surfaces. The stored `localStorage` record feeds the launch-time key revalidation and the pair replay behind it — the session itself never persists.

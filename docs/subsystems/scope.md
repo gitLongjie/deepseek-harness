@@ -8,7 +8,7 @@ Sources: [`packages/core/scope/src/index.ts`](../../packages/core/scope/src/inde
 
 ## Identity and dispatch carrier
 
-`ScopeKey` is an opaque object identity. The shipped loop uses the live `Agent` object as its own key, but the primitive never inspects the object.
+`ScopeKey` is an opaque object identity. The shipped loop uses the live `Agent` object as its own key, but the primitive never inspects the object. The tag symbol and the parent-chain state are process-global, so every copy of the package a deployment materializes observes the same identity (see the package README's cross-instance identity note).
 
 ```ts type-equiv
 /** An opaque, identity-compared scope key. */

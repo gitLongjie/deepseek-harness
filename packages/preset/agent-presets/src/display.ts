@@ -66,16 +66,37 @@ export function presetDisplayText(
 }
 
 /**
- * Whether a roster row publishes expert-card metadata. `category` is the
- * committed expert marker, and this predicate owns the rule in both
- * directions: the expert market admits exactly these rows as hireable
- * cards, while the mode surfaces — the new-session chip and the
+ * Whether a roster row publishes expert-card metadata, and this predicate owns
+ * the rule in both directions: the expert market admits exactly these rows as
+ * hireable cards, while the mode surfaces — the new-session chip and the
  * preset-management section — exclude them. The session-header label is
  * neither: it names a session already running an expert, so it resolves
  * names across the whole healthy roster.
- * @param preset - the roster-row fields carrying the marker.
+ *
+ * `category` is the committed marker, and it is no longer the only one. An
+ * expert authored elsewhere — copied in, dropped into the user root, or
+ * delivered as an installed package — arrives as a directory this deployment
+ * never curated, so it carries whatever card fields its author published and
+ * may well omit `category`. Reading only the committed marker would leave such
+ * a row classified as a session MODE: absent from the market, and offered by
+ * the chip as if it were a generic mode. So the card-content fields count too,
+ * because a row publishing retrieval tags or suggested first messages is
+ * describing an expert card whatever it called itself. `description` is
+ * deliberately NOT a marker — every mode preset publishes one — and neither is
+ * a lone `icon`, which is a decoration a mode preset may reasonably add.
+ * Shipped modes publish none of these, so the built-in set is unaffected.
+ * @param preset - the roster-row display fields; only the marker fields are read.
  * @returns whether the row is expert inventory rather than a session mode.
  */
-export function isExpertPreset(preset: { readonly category?: string }): boolean {
-  return preset.category !== undefined
+export function isExpertPreset(preset: {
+  readonly category?: string
+  readonly tags?: readonly string[]
+  readonly quickPrompts?: readonly string[]
+  // Named only to be excluded: typing the non-markers lets a whole roster row
+  // flow through excess-property checking while the rule keeps ignoring them.
+  readonly description?: unknown
+  readonly icon?: unknown
+}): boolean {
+  if (preset.category !== undefined) return true
+  return (preset.tags?.length ?? 0) > 0 || (preset.quickPrompts?.length ?? 0) > 0
 }

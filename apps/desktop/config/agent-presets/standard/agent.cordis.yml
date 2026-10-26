@@ -219,6 +219,15 @@
         backgroundMode: one-shot
         maxDepth: provider-managed
 
+    # The workflow ENGINE this group's realm isolates: tool-workflow and
+    # tool-ralph resolve `workflowEngine` through the entry-local symbol, so
+    # the provider must sit INSIDE this group — a host-plane engine is invisible
+    # behind the realm and the rows wait forever.
+    - id: workflow-ptc
+      name: '@deepseek-ai/dsh-workflow-ptc'
+      config:
+        provider: spawn
+
     - id: tool-workflow
       name: '@deepseek-ai/dsh-tool-workflow'
 

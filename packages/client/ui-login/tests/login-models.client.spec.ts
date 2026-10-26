@@ -8,7 +8,7 @@ import {
   type LoginSession,
 } from '../src/client/login-store.ts'
 
-const AUTH_URL = 'https://claw.deepagens.com/api/user/deepagens-claw/login'
+const AUTH_URL = 'https://claw.deepagens.com/api/claw/login'
 
 function adapter(overrides: Partial<LoginCredentialAdapter> = {}): LoginCredentialAdapter & {
   calls: { applied: Array<{ session: LoginSession; baseUrl: string }>; cleared: number }
@@ -28,6 +28,13 @@ interface ApiMockOptions {
   models?: LlmDiscoveredModel[]
   /** The `models` value the settings read reports; `undefined` omits the namespace. */
   storedModels?: unknown
+  /** The `baseURL` value the settings read reports; `undefined` leaves the field absent. */
+  storedBaseURL?: unknown
+  /**
+   * The `followGatewayCatalog` value the settings read reports; `undefined`
+   * leaves the field absent (the login flow's default, `true`, applies).
+   */
+  storedFollowGateway?: boolean
   /**
    * The `agent-default-model` descriptor's resolved value the settings read
    * reports; `undefined` omits the namespace.
@@ -68,8 +75,17 @@ function mockApi(options: ApiMockOptions = {}): {
           writable: true,
           hasDocument: false,
           namespaces: [
-            ...(options.storedModels !== undefined
-              ? [{ ns: 'llm-miaoworker', value: { models: options.storedModels }, revision: 0 }]
+            ...(options.storedModels !== undefined || options.storedBaseURL !== undefined
+              || options.storedFollowGateway !== undefined
+              ? [{
+                ns: 'llm-deepagens',
+                value: {
+                  ...options.storedBaseURL === undefined ? {} : { baseURL: options.storedBaseURL },
+                  ...options.storedModels === undefined ? {} : { models: options.storedModels },
+                  ...options.storedFollowGateway === undefined ? {} : { followGatewayCatalog: options.storedFollowGateway },
+                },
+                revision: 0,
+              }]
               : []),
             ...(options.storedDefault !== undefined
               ? [{ ns: 'agent-default-model', value: options.storedDefault, revision: 2 }]
@@ -122,8 +138,6 @@ const expectedModels = [
     id: 'gpt-3.5',
     name: 'gpt-3.5',
     description: '',
-    contextWindow: 128000,
-    maxTokens: 4096,
     inputModalities: ['text'],
   },
 ]
@@ -142,12 +156,12 @@ describe('LoginStore model handling', () => {
     const store = new LoginStore(AUTH_URL, credentials, mock.api)
     await expect(store.login('u', 'p')).resolves.toBe(true)
 
-    expect(mock.discover).toHaveBeenCalledWith('llm-miaoworker', {
+    expect(mock.discover).toHaveBeenCalledWith('llm-deepagens', {
       baseURL: 'https://claw.deepagens.com/v1',
       apiKey: 'sk-test',
     })
     expect(mock.mutate).toHaveBeenCalledWith(
-      'llm-miaoworker',
+      'llm-deepagens',
       [
         { op: 'set', path: ['baseURL'], value: 'https://claw.deepagens.com/v1' },
         { op: 'set', path: ['models'], value: expectedModels },
@@ -166,6 +180,27 @@ describe('LoginStore model handling', () => {
     expect(mock.mutate).toHaveBeenCalled()
   })
 
+  it('stores a gateway listing without declared capacities as capacity-less rows', async () => {
+    const mock = mockApi({ models: [{ id: 'silent-model', name: 'silent-model' }] })
+    okLogin()
+
+    const store = new LoginStore(AUTH_URL, adapter(), mock.api)
+    await expect(store.login('u', 'p')).resolves.toBe(true)
+
+    expect(mock.mutate).toHaveBeenCalledWith(
+      'llm-deepagens',
+      [
+        { op: 'set', path: ['baseURL'], value: 'https://claw.deepagens.com/v1' },
+        {
+          op: 'set',
+          path: ['models'],
+          value: [{ id: 'silent-model', name: 'silent-model', description: '', inputModalities: ['text'] }],
+        },
+      ],
+      undefined,
+    )
+  })
+
   it('writes when the stored catalog differs', async () => {
     const mock = mockApi({ models: discovered, storedModels: [{ id: 'old-model' }] })
     okLogin()
@@ -174,7 +209,7 @@ describe('LoginStore model handling', () => {
     await expect(store.login('u', 'p')).resolves.toBe(true)
 
     expect(mock.mutate).toHaveBeenCalledWith(
-      'llm-miaoworker',
+      'llm-deepagens',
       [
         { op: 'set', path: ['baseURL'], value: 'https://claw.deepagens.com/v1' },
         { op: 'set', path: ['models'], value: expectedModels },
@@ -183,8 +218,12 @@ describe('LoginStore model handling', () => {
     )
   })
 
-  it('skips the write when the catalog is unchanged', async () => {
-    const mock = mockApi({ models: discovered, storedModels: expectedModels })
+  it('skips the write when the endpoint and catalog are unchanged', async () => {
+    const mock = mockApi({
+      models: discovered,
+      storedModels: expectedModels,
+      storedBaseURL: 'https://claw.deepagens.com/v1',
+    })
     okLogin()
 
     const store = new LoginStore(AUTH_URL, adapter(), mock.api)
@@ -193,19 +232,32 @@ describe('LoginStore model handling', () => {
     expect(mock.mutate).not.toHaveBeenCalled()
   })
 
-  it('skips the write when discovery is refused', async () => {
-    const mock = mockApi({ models: discovered, discoverRefused: true })
+  it('re-points the endpoint when discovery is refused', async () => {
+    const mock = mockApi({
+      models: discovered,
+      discoverRefused: true,
+      storedModels: expectedModels,
+      storedBaseURL: 'http://localhost:31000/v1',
+    })
     okLogin()
 
     const store = new LoginStore(AUTH_URL, adapter(), mock.api)
     await expect(store.login('u', 'p')).resolves.toBe(true)
 
-    expect(mock.mutate).not.toHaveBeenCalled()
+    expect(mock.mutate).toHaveBeenCalledWith(
+      'llm-deepagens',
+      [{ op: 'set', path: ['baseURL'], value: 'https://claw.deepagens.com/v1' }],
+      0,
+    )
     expect(mock.replace).not.toHaveBeenCalled()
   })
 
   it('keeps the sign-in when discovery rejects', async () => {
-    const mock = mockApi({ models: discovered, discoverReject: new Error('boom') })
+    const mock = mockApi({
+      models: discovered,
+      discoverReject: new Error('boom'),
+      storedBaseURL: 'https://claw.deepagens.com/v1',
+    })
     okLogin()
 
     const store = new LoginStore(AUTH_URL, adapter(), mock.api)
@@ -238,6 +290,7 @@ describe('LoginStore model handling', () => {
     const mock = mockApi({
       models: discovered,
       storedModels: expectedModels,
+      storedBaseURL: 'https://claw.deepagens.com/v1',
       storedDefault: { provider: 'deepseek-official', model: 'deepseek-flash' },
     })
     okLogin()
@@ -248,7 +301,7 @@ describe('LoginStore model handling', () => {
     expect(mock.mutate).not.toHaveBeenCalled()
     expect(mock.replace).toHaveBeenCalledWith(
       'agent-default-model',
-      { provider: 'miaoworker', model: 'gpt-4o' },
+      { provider: 'deepagens', model: 'gpt-4o' },
       2,
     )
   })
@@ -270,7 +323,7 @@ describe('LoginStore model handling', () => {
   it('keeps a default the pulled catalog already serves', async () => {
     const mock = mockApi({
       models: discovered,
-      storedDefault: { provider: 'miaoworker', model: 'gpt-3.5', reasoningEffort: 'high' },
+      storedDefault: { provider: 'deepagens', model: 'gpt-3.5', reasoningEffort: 'high' },
     })
     okLogin()
 
@@ -292,7 +345,7 @@ describe('LoginStore model handling', () => {
 
     expect(mock.replace).toHaveBeenCalledWith(
       'agent-default-model',
-      { provider: 'miaoworker', model: 'gpt-4o' },
+      { provider: 'deepagens', model: 'gpt-4o' },
       2,
     )
   })
@@ -308,6 +361,24 @@ describe('LoginStore model handling', () => {
     const store = new LoginStore(AUTH_URL, adapter(), mock.api)
     await expect(store.login('u', 'p')).resolves.toBe(true)
     expect(store.store.getSnapshot().session?.account).toBe('User')
+  })
+
+  it('keeps the user-managed endpoint, catalog, and default when follow is disabled', async () => {
+    const mock = mockApi({
+      models: discovered,
+      storedModels: [{ id: 'old-model' }],
+      storedBaseURL: 'http://127.0.0.1:3000/v1',
+      storedFollowGateway: false,
+      storedDefault: { provider: 'deepseek-official', model: 'deepseek-flash' },
+    })
+    okLogin()
+
+    const store = new LoginStore(AUTH_URL, adapter(), mock.api)
+    await expect(store.login('u', 'p')).resolves.toBe(true)
+
+    expect(mock.discover).not.toHaveBeenCalled()
+    expect(mock.mutate).not.toHaveBeenCalled()
+    expect(mock.replace).not.toHaveBeenCalled()
   })
 
   it('skips the default adoption when discovery lists no models', async () => {

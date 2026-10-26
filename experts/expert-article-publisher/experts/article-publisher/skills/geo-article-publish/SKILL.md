@@ -5,13 +5,17 @@ description: 编写或接收文章并自动发布到 GEO 多站点内容后台�
 
 # 深度云海文章专家：文章发布技能
 
-把一篇（生成或用户提供的）文章发布到 `D:\Project\GEO\web-admin-go` 这个多站点后台。核心动作：确定输入 → 解析目标站点 → 登录拿 token → `POST /api/v1/news` → 读回校验。接口字段与示例见 [references/api.md](references/api.md)。
+把一篇（生成或用户提供的）文章发布到 GEO 多站点内容后台。核心动作：确定输入 → 列站点 → 发布 → 回执。发布走 `geo_*` 工具，不在 shell 里拼 HTTP 请求，也不向用户索要密码。
 
-## 配置解析（每轮执行前先做）
+## 账号与密码（配置在设置页，不在对话里）
 
-- 后端地址：环境变量 `GEO_ADMIN_BASE_URL`，默认 `http://localhost:8001`。
-- 登录账号：环境变量 `GEO_ADMIN_USERNAME` / `GEO_ADMIN_PASSWORD`，默认读 `D:\Project\GEO\web-admin-go\.env` 的 `ARTICLE_BOT_USERNAME` / `ARTICLE_BOT_PASSWORD`（由 [scripts/setup-account.ps1](scripts/setup-account.ps1) 一次性写入）。
-- 优先级：进程环境变量 > `.env` 文件。凭据只用于本技能接口调用，绝不写进文章正文、摘要或日志。
+发文工具从「设置 → 插件 → 深度云海」这张卡片读配置：
+
+- **后台地址**：web-admin-go 的 origin，例如 `http://localhost:8001`。
+- **账号**：发文专用账号，需要有目标站点的 `content.news` 权限（角色「内容编辑」已含）。
+- **密码**：保存在 DSH 凭据存储的 `GEO_ADMIN_PASSWORD` 名下，不写入设置文件、不出现在会话里。
+
+配置缺失时工具会返回明确错误（例如「深度云海 is not configured…」）。把「设置 → 插件 → 深度云海」这一路径告诉用户，由用户自己填写；不要请用户在对话里发密码，也不要把密码写进文章、摘要或笔记。首次创建专用账号用 [scripts/setup-account.ps1](scripts/setup-account.ps1)。
 
 ## 工作流程
 
@@ -21,45 +25,41 @@ description: 编写或接收文章并自动发布到 GEO 多站点内容后台�
 - 用户只给了主题/关键词 → 由你撰写，标题、正文（markdown）、摘要（纯文本）、标签（逗号分隔）一次给全。
 - 用户给了本地文件路径 → 用文件工具读出来，再进入 Step 4。
 
-### Step 2 — 认证并列出可选站点
+### Step 2 — 列出可选站点
 
-1. `POST {base}/api/v1/auth/login`，body `{"username": ..., "password": ...}`。
-2. 成功返回 `access_token` 与 `websites`（每项含 `id/name/code/domain`）；后续请求头统一带 `Authorization: Bearer {access_token}`。
-3. 若登录返回的 `websites` 为空，回退 `GET {base}/api/v1/websites`（同样带 token）取 `data` 数组。
+调用 `geo_sites_list`。返回当前账号可发布的站点，每项含 `id` / `name` / `domain` / `code` / `role`。
 
 ### Step 3 — 解析目标站点（多站点）
 
-- 用户指定了站点名/域名/别名 → 在 `websites` 里按 `name`/`domain`/`code` 匹配出唯一 `website_id`。
+- 用户指定了站点名/域名/别名 → 在站点列表里按 `name` / `domain` / `code` 匹配出唯一 `website_id`。
 - 匹配到多个或零个 → 列出候选（id + name + domain）让用户选，绝不擅自猜。
 - 只有一个站点时仍需确认一次，避免默认站点漂移。
 
 ### Step 4 — 发送
 
-`POST {base}/api/v1/news`：
+调用 `geo_article_publish`：
 
-```json
-{
-  "website_id": 4,
-  "title": "标题",
-  "summary": "纯文本摘要",
-  "content": "markdown 正文",
-  "tags": "标签1,标签2",
-  "is_published": false
-}
-```
+| 参数 | 必填 | 说明 |
+|---|---|---|
+| `website_id` | 是 | 目标站点，来自 `geo_sites_list` |
+| `title` | 是 | 标题 |
+| `summary` | 是 | 纯文本摘要，别塞标签 |
+| `content` | 是 | markdown 正文，后端会转 HTML |
+| `tags` | 否 | 逗号分隔 |
+| `is_published` | 否 | 缺省为草稿；仅当用户明确要求「直接上线」才传 `true` |
+| `category_id` / `image` / `author` / `source` / `source_url` | 否 | 按需补充 |
 
-- `title` / `summary` / `content` / `website_id` 必填；缺任一字段在发送前停下补齐或向用户确认。
-- `is_published` 默认 `false`（进草稿/待审）；仅当用户明确要求"直接上线/立即发布"才传 `true`。
-- 可选：`category_id`、`image`、`author`、`source`、`source_url`。
-- 正文用 markdown 写，后端会 `RichToHTML` 转 HTML；摘要写纯文本，别塞标签。
+- 缺必填字段就在发送前停下补齐或向用户确认，不要先发再改。
+- 工具创建后会读回落库记录，返回 `id`、`slug`、`website_id`、`is_published`。
 
 ### Step 5 — 回执校验
 
-1. 成功响应 `{success:true, data:{id, slug, ...}}`；用 `GET {base}/api/v1/news/{id}` 读回，核对 `title` / `website_id` / 发布状态与发送一致。
+1. 核对工具返回的 `title` / `website_id` / `is_published` 与要发的一致；需要再确认时用 `geo_article_get` 按 `id` 复读。
 2. 汇总输出：站点名、`website_id`、文章 `id`、`slug`、发布状态（草稿/已上线）、下一步建议。
 
 ## 硬性要求
 
 - 每次发送前把「目标站点 + 发布状态」跟用户确认一次；发错站点或误上线都不可自行补救。
-- 失败要读响应体里的 `message` 如实上报，不静默重试（`news` 无幂等键，盲重试会重复建文章）。
-- `access_token` 只在本次会话内使用，不打印、不落盘到文章或笔记。
+- 发布失败如实上报工具返回的原因，不静默重试（建文章接口没有幂等键，盲重试会重复建文章）。
+- 不删除文章，也不碰 GEO 任务与报告：用户要删稿或查报告时，说明由「深度云海 GEO 专家」处理。
+- 不向用户索要、不复述、不落盘密码；配置只经「设置 → 插件 → 深度云海」维护。

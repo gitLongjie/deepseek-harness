@@ -190,3 +190,58 @@ shipped Web bundle 默认禁用 `ui-schedule`，显式 Schedule overlay 则把�
 到期工作会先等待 Agent 完全 idle 并认领 maintenance phase，再重新折叠状态、采样本次判断、将一个 `followup()` 排入队列，并追加对应的 dispatch 变更。它绝不会调用 `steer()`，也绝不会中断当前轮次。
 
 获得准入的一次性提醒或固定速率批次会启动一个普通的后续轮次，且只通过普通对话 transcript（文本记录）出现；Schedule 不提供独立的持久 Web 回执。上面的只读活动目录绝不表示交付成功。如果 framing 构造或同步队列准入失败，则不会记录 dispatch，提醒仍保持活动。队列准入后、持久 dispatch 前的狭窄崩溃窗口可能使提醒内容在恢复后重复，因此该边界提供的是尽力而为的至少一次交付，而非恰好一次交付。
+
+<!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
+
+<a id="cordis-surface"></a>
+
+## Cordis API
+
+Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.zh.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
+
+<a id="ctxscheduleworkgateway--scheduleworkgateway"></a>
+
+### `ctx.scheduleWorkGateway` — `ScheduleWorkGateway`
+
+Remote-only schedule-work gateway. The Context key `scheduleWorkGateway` names this service registration; the wire namespace stays `scheduleWork`.
+
+```ts cordis-catalog
+/**
+ * List every task with its computed next occurrence.
+ * @returns tasks newest-first by creation.
+ */
+@Remote('list') list(): Promise<ScheduleWorkTaskList>
+
+/**
+ * List run records, newest first.
+ * @param request - Optional task filter.
+ * @returns the run records of the requested task, or every task's.
+ */
+@Remote('listRuns') listRuns(request: { taskId?: string }): Promise<ScheduleWorkRunList>
+
+/**
+ * Create one task.
+ * @param input - Task fields; validated host-side.
+ * @returns the stored task view.
+ */
+@Remote('create') async create(input: ScheduleWorkTaskInput): Promise<ScheduleWorkTaskView>
+
+/**
+ * Edit one task.
+ * @param request - Task identity and the fields to replace.
+ * @returns the updated task view.
+ */
+@Remote('update') async update(request: { id: string; patch: Partial<ScheduleWorkTaskInput> }): Promise<ScheduleWorkTaskView>
+
+/**
+ * Remove tasks and their run records. The wire method avoids the reserved
+ * `remove` name: it collides with the Remote namespace service's own
+ * members and the client API refuses the whole namespace over it.
+ * @param request - Task identities; unknown ids are skipped.
+ * @returns how many tasks were removed.
+ */
+@Remote('removeTasks') removeTasks(request: { ids: readonly string[] }): Promise<{ removed: number }>
+```
+
+Source: [`packages/schedule/schedule-work/src/index.ts`](../../packages/schedule/schedule-work/src/index.ts)
+<!-- END GENERATED cordis-surface -->

@@ -190,14 +190,35 @@ function fullyRendered(content: readonly unknown[]): boolean {
 }
 
 /**
+ * The first `<path>` value any envelope-shaped text block declares.
+ *
+ * A tool that returns several images writes one envelope per image, so the card's
+ * single label takes the first one unless persisted metadata overrides it. The
+ * value is a display path the tool authored, never parsed out of an attachment
+ * reference.
+ * @param content - the settled result's content blocks.
+ * @returns the first declared path, or null when no block declares one.
+ */
+function firstEnvelopePath(content: readonly { type: string; text?: string }[]): string | null {
+  for (const part of content) {
+    if (part.type !== 'text' || typeof part.text !== 'string') continue
+    const declared = /^<path>([^\n]*)<\/path>/u.exec(part.text)?.[1]
+    if (declared !== undefined && declared !== '') return declared
+  }
+  return null
+}
+
+/**
  * Derive a settled image card after validating the call head, persisted
  * metadata (or its argument fallback), and the model-facing image envelope.
  *
  * The card is result-side only: a call carries no content until `execute`
- * returns, so a running `read_image` has none and this returns null for it.
- * Both root and nested calls settle as ToolResultNode; the nested one (a
- * read_image dispatched from inside run_code) persists no presentationMeta, so
- * its label falls back to the call's own `file_path` argument.
+ * returns, so a running call has none and this returns null for it. Any tool
+ * whose result carries images beside their envelopes renders through this card —
+ * a generated material must be visible, not only named — while `read_image` keeps
+ * its stricter contract: a root call there persists the resolved display path, so
+ * missing or malformed metadata declines instead of labeling the picture with an
+ * author-typed argument.
  * @param block - running or settled Tool block.
  * @param sessionCwd - the session workspace root; a workspace-rooted absolute
  *   path label displays relative to it. Absent leaves the path as authored.
@@ -213,16 +234,23 @@ export function imageCardModel(
   // content, so it has no card here.
   if (!('kind' in block) || block.isError) return null
   const call = parsedToolCall(block)
-  if (call?.name !== 'read_image') return null
-  const { file_path: filePath } = call.args
-  if (typeof filePath !== 'string' || filePath.trim() === '') return null
-  // The label path: root calls persist it in presentationMeta; a nested call
-  // (dispatched from inside run_code) persists none, so its own file_path
-  // argument fills the label. A root call with missing or malformed meta
-  // declines — malformed tool data falls back to the generic card, which shows
-  // the flattened content rather than an author-typed path.
+  if (call === null) return null
   const metaPath = imageMeta(block.meta)?.path
-  const path = metaPath ?? (block.parentCallId !== undefined ? filePath : null)
+  let path: string | null
+  if (call.name === 'read_image') {
+    const { file_path: filePath } = call.args
+    if (typeof filePath !== 'string' || filePath.trim() === '') return null
+    // A root call persists its resolved display path in presentationMeta; a
+    // nested call (dispatched from inside run_code) persists none, so its own
+    // file_path argument fills the label. A root call with missing or malformed
+    // meta declines — malformed tool data falls back to the generic card, which
+    // shows the flattened content rather than an author-typed path.
+    path = metaPath ?? (block.parentCallId !== undefined ? filePath : null)
+  } else {
+    // Every other tool labels from persisted metadata when it has any, and from
+    // the envelope it wrote otherwise.
+    path = metaPath ?? firstEnvelopePath(block.content)
+  }
   if (path === null) return null
   // The card renders only text and image blocks; a block of any other type must
   // not be silently hidden, so the whole card declines to the generic form.

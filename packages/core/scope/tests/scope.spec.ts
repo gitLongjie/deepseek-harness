@@ -220,3 +220,33 @@ describe('scope parent chain', () => {
     expect(seen.sort()).toEqual(['preset', 'untagged'])
   })
 })
+
+describe('cross-instance identity', () => {
+  it('a second copy of the module reads the tag and parent chain the first copy wrote', async () => {
+    // A deployment can materialize dsh-scope twice (an installed host's own
+    // copy beside a copy resolved through a profile's junctioned packages).
+    // The tag symbol and the parent-chain state are global, so the second
+    // copy must observe the first copy's writes — a scoped preset mount
+    // composed by one copy and probed by the other must not read as unscoped.
+    const ctx = new Context()
+    const preset = { kind: 'preset' }
+    const agent = { kind: 'agent' }
+    const presetScope = createScope(ctx, preset)
+    createScope(ctx, agent, { parent: preset })
+
+    // The query string makes the module runner build a second instance.
+    const specifier = '../src/index.ts?scope-copy=2'
+    const second = await import(specifier) as typeof import('@deepseek-ai/dsh-scope')
+
+    expect(second.scopeOf(presetScope.ctx)).toBe(preset)
+    expect(second.scopeParentOf(agent)).toBe(preset)
+    expect(second.scopeChainOf(agent)).toEqual([agent, preset])
+
+    // The reverse direction: a scope minted through the second copy is
+    // visible to the first.
+    const child = { kind: 'child' }
+    second.createScope(ctx, child, { parent: agent })
+    expect(scopeParentOf(child)).toBe(agent)
+    expect(scopeChainOf(child)).toEqual([child, agent, preset])
+  })
+})

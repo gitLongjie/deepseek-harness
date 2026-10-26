@@ -16,11 +16,16 @@ export interface UiAgentPreset {
   /**
    * Stage one preset for the NEXT session the flow creates or reuses, and
    * make the hero chip announce the pick the user made from another screen.
-   * A no-op while no conversation flow is bound: there is no seat to land
-   * the pick on, and the caller surfaces that by starting nothing.
+   *
+   * A caller that gets `false` must NOT go on to start a session: nothing is
+   * waiting to compose it, so the chat would open under the deployment default
+   * while the surface that asked reports success. That silence is what this
+   * return value exists to end — a cross-surface hire can only be honest about
+   * landing if it can be told it did not.
    * @param id - the preset id the next session should compose.
+   * @returns whether a conversation flow took the pick.
    */
-  stageNextSessionPreset(id: string): void
+  stageNextSessionPreset(id: string): boolean
 }
 
 declare module '@deepseek-ai/cordis' {
@@ -40,9 +45,14 @@ export class UiAgentPresetService extends Service implements UiAgentPreset {
     super(ctx, 'uiAgentPreset')
   }
 
-  /** @param id - the preset id the next session should compose. */
-  stageNextSessionPreset(id: string): void {
-    this.stage?.(id)
+  /**
+   * @param id - the preset id the next session should compose.
+   * @returns whether a bound flow took the pick; false while none is bound.
+   */
+  stageNextSessionPreset(id: string): boolean {
+    if (this.stage === undefined) return false
+    this.stage(id)
+    return true
   }
 
   /**

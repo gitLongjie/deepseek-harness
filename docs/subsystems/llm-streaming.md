@@ -500,6 +500,13 @@ interface LlmConfigurableProvider {
    * from outside.
    */
   declared?: boolean
+  /**
+   * Which hand-curated settings-editor family renders this route's card, as
+   * the owning adapter names it. Absent means the adapter claims no curated
+   * card, and a configuration surface renders its advanced-fields hint for
+   * the route instead of guessing a family from the namespace id.
+   */
+  editorFamily?: string
   /** Configuration diagnostic for repair; unaffected models may remain serviceable. */
   error?: string
 }
@@ -704,6 +711,8 @@ interface LlmDiscoveredModel {
   contextWindow?: number
   /** Maximum output tokens, when disclosed. */
   maxTokens?: number
+  /** Accepted request modalities, when disclosed by the endpoint. */
+  inputModalities?: readonly ModelModality[]
 }
 ```
 

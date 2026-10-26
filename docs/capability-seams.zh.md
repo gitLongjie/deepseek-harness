@@ -80,6 +80,14 @@ flowchart LR
   pkg_settings["settings"]
   svc_settings["ctx.settings<br/>User-settings seam"]
   pkg_settings_file["settings-file"]
+  pkg_h3_video["h3-video"]
+  svc_h3Video["ctx.h3Video<br/>H3 video generation seam"]
+  pkg_tool_video["tool-video"]
+  svc_h3VideoSettings["ctx.h3VideoSettings<br/>H3 video user-settings overlay"]
+  pkg_tool_geo_admin["tool-geo-admin"]
+  svc_geoAdminSettings["ctx.geoAdminSettings<br/>Geo-admin user-settings overlay"]
+  pkg_schedule_work["schedule-work"]
+  svc_scheduleWorkGateway["ctx.scheduleWorkGateway<br/>Remote scheduled-work gateway"]
   pkg_tool_subagent["tool-subagent"]
   svc_subagentModelSelection["ctx.subagentModelSelection<br/>Subagent model-selection preference"]
   pkg_credentials["credentials"]
@@ -296,6 +304,8 @@ flowchart LR
   pkg_fs_sandbox --> svc_fs
   pkg_fs_ssh --> svc_fs
   pkg_goal --> svc_goals
+  pkg_h3_video --> svc_h3Video
+  pkg_h3_video --> svc_h3VideoSettings
   pkg_host_directory_picker --> svc_directoryPicker
   pkg_host_directory_picker_browse --> svc_directoryPicker
   pkg_host_directory_picker_native --> svc_directoryPicker
@@ -327,6 +337,7 @@ flowchart LR
   pkg_sandbox_local --> svc_sandbox
   pkg_sandbox_policy --> svc_sandboxPolicy
   pkg_sandbox_ssh --> svc_sandbox
+  pkg_schedule_work --> svc_scheduleWorkGateway
   pkg_session --> svc_sessions
   pkg_session_log_deepseek --> svc_deepseekLlmApiExtensions
   pkg_session_persistence --> svc_sessionPersistence
@@ -369,6 +380,7 @@ flowchart LR
   pkg_terminal --> svc_terminals
   pkg_terminal_bash --> svc_terminals
   pkg_token_meter --> svc_tokenMeter
+  pkg_tool_geo_admin --> svc_geoAdminSettings
   pkg_tool_subagent --> svc_subagentModelSelection
   pkg_tools --> svc_tools
   pkg_typert_registry --> svc_typert
@@ -417,6 +429,9 @@ flowchart LR
   svc_fileReferences --> pkg_api_session_controller
   svc_fileUploads --> pkg_api_session_controller
   svc_fs --> pkg_tool_fs
+  svc_geoAdminSettings --> pkg_tool_geo_admin
+  svc_h3Video --> pkg_tool_video
+  svc_h3VideoSettings --> pkg_h3_video
   svc_invariants --> pkg_agent
   svc_invariants --> pkg_agent_loop
   svc_invariants --> pkg_scope
@@ -548,6 +563,10 @@ flowchart LR
 | `ctx.typertGateway` | `core` | [`api-gateway`](../packages/api/gateway) | - | - | - | 将生成的 Remote 描述符与实时 Cordis 服务关联，解析已注册的身份，并通过共享的 Connection RPC 载体提供一元调用。 |
 | `ctx.sessionPersistence` | `seam` | [`session-persistence`](../packages/session/session-persistence) | [`session-persistence-jsonl`](../packages/session/session-persistence-jsonl) | [`agent-loop`](../packages/core/agent-loop), [`tool-bash`](../packages/shell/tool-bash), [`hooks-claude-code`](../packages/hooks/hooks-claude-code), [`hooks-codex`](../packages/hooks/hooks-codex), [`session-query`](../packages/session-query/session-query), [`session-query-sqlite`](../packages/session-query/session-query-sqlite), [`message-feedback`](../packages/feedback/message-feedback) | - | JSONL backend 把 SessionEvent 词汇持久化为每个 Session 一份产物。 |
 | `ctx.settings` | `seam` | [`settings`](../packages/settings/settings) | [`settings-file`](../packages/settings/settings-file) | [`api-settings-controller`](../packages/api/settings-controller), [`llm-deepseek`](../packages/llm/llm-deepseek), [`llm-pi-ai`](../packages/llm/llm-pi-ai) | - | 插件注册命名空间 schema 并解析分层值；提供方存储原始文档。LLM（大语言模型）适配器在用户分区下将其入口配置注册为组合基础；settings controller 提供经过脱敏的分层描述符，并写入用户层。 |
+| `ctx.h3Video` | `seam` | [`h3-video`](../packages/video/h3-video) | [`h3-video`](../packages/video/h3-video) | [`tool-video`](../packages/video/tool-video) | - | 本地 ComfyUI、MiniMax 与云 GPU 后端将分段渲染、关键帧、素材图与合成统一路由到一个任务引用表面之后；tool-video 将其暴露为 video_* 工具和 /video 命令。 |
+| `ctx.h3VideoSettings` | `core` | [`h3-video`](../packages/video/h3-video) | [`h3-video`](../packages/video/h3-video) | [`h3-video`](../packages/video/h3-video) | - | settings 视图在首次构建前将用户层解析到组合配置之上，因此挂载的 overlay 无需重启即可生效。 |
+| `ctx.geoAdminSettings` | `core` | [`tool-geo-admin`](../packages/geo/tool-geo-admin) | [`tool-geo-admin`](../packages/geo/tool-geo-admin) | [`tool-geo-admin`](../packages/geo/tool-geo-admin) | - | settings 视图在首次构建前将用户层解析到组合配置之上，因此挂载的 overlay 无需重启即可生效。 |
+| `ctx.scheduleWorkGateway` | `core` | [`schedule-work`](../packages/schedule/schedule-work) | [`schedule-work`](../packages/schedule/schedule-work) | - | - | 仅远程的 Typert 服务，走 `scheduleWork` wire 命名空间；scheduled-work 客户端页面通过共享 fetch 传输消费它，而非宿主侧 inject。 |
 | `ctx.subagentModelSelection` | `core` | [`tool-subagent`](../packages/subagent/tool-subagent) | - | [`tool-subagent`](../packages/subagent/tool-subagent) | - | 拥有默认关闭的设置命名空间；Agent 作用域的委派工具会在组合新顶层 Session 时读取它。 |
 | `ctx.credentials` | `seam` | [`credentials`](../packages/credentials/credentials) | [`credentials-local`](../packages/credentials/credentials-local) | [`api-settings-controller`](../packages/api/settings-controller), [`llm-deepseek`](../packages/llm/llm-deepseek), [`llm-pi-ai`](../packages/llm/llm-pi-ai) | - | 配置携带对机密信息的引用；提供方拥有实际值。消费方按操作解析，因此轮换后的凭据会在紧接着的下一次请求中生效；settings controller 提供不含实际值的视图和只写存储。 |
 | `ctx.authorization` | `seam` | [`authorization`](../packages/credentials/authorization) | - | [`llm-pi-ai`](../packages/llm/llm-pi-ai) | - | flow 由知道如何取得某份凭据的插件注册，并以其写入的记录为键；seam 拥有这段对话与"每个键同时只跑一次尝试"的生命周期，而非协议本身。 |

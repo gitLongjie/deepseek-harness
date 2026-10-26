@@ -52,6 +52,31 @@ describe('dispatchTransportFetch', () => {
     expect(seen?.headers.get('content-type')).toBe('application/json')
   })
 
+  it('forwards a media range header to the shared-channel handler', async () => {
+    let seen: Request | undefined
+    const connection = {
+      createSharedFetchHandler: (_channel: '/api', fallback: { fetch(request: Request): Promise<Response> }) => fallback,
+      createChannelsFetchHandler: () => ({
+        fetch: async (request: Request) => {
+          seen = request
+          return new Response('range', { status: 206 })
+        },
+      }),
+    } as unknown as HostConnectionHandle
+    const response = await dispatchTransportFetch(
+      { gateway: {} as never, connection },
+      {
+        requestId: 'r',
+        path: '/api/video-workbench/file?path=final%2Fvp-1.mp4',
+        method: 'GET',
+        headers: { range: 'bytes=0-99' },
+      },
+      new AbortController().signal,
+    )
+    expect(response.status).toBe(206)
+    expect(seen?.headers.get('range')).toBe('bytes=0-99')
+  })
+
   it('routes a generic RPC channel through the Connection channel dispatcher', async () => {
     let seen: Request | undefined
     const connection = {
@@ -112,7 +137,7 @@ describe('registerTransportIpc stream handshake', () => {
     let publishGateway: ((gateway: typeof gateway) => void) | undefined
     const remove = registerTransportIpc(
       () => ({ gateway: currentGateway, connection: undefined }),
-      () => new Promise(resolve => { publishGateway = resolve }),
+      () => new Promise((resolve) => { publishGateway = resolve }),
     )
     try {
       const handle = (ipcMain.handle as unknown as {

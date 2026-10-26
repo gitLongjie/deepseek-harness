@@ -59,6 +59,9 @@ import * as ToolLsp from '@deepseek-ai/dsh-tool-lsp'
 import * as ToolSkill from '@deepseek-ai/dsh-tool-skill'
 import * as ToolSessionQuery from '@deepseek-ai/dsh-tool-session-query'
 import * as ToolJobs from '@deepseek-ai/dsh-tool-jobs'
+import * as ToolVideo from '@deepseek-ai/dsh-tool-video'
+import H3VideoService from '@deepseek-ai/dsh-h3-video'
+import CommandRuntime from '@deepseek-ai/dsh-commands'
 import BrowserUseRegistry from '@deepseek-ai/dsh-browser-use'
 import * as StagehandBrowserTools from '@deepseek-ai/dsh-experimental-browser-use-stagehand-native'
 import type TeamService from '@deepseek-ai/dsh-experimental-agent-team'
@@ -67,6 +70,7 @@ import * as ToolTodo from '@deepseek-ai/dsh-tool-todo'
 import McpResources from '@deepseek-ai/dsh-mcp-resources'
 import * as ToolSubagent from '@deepseek-ai/dsh-tool-subagent'
 import { registerListSubagentModels } from '../packages/subagent/tool-subagent/src/list-models.ts'
+import * as ToolGeoAdmin from '@deepseek-ai/dsh-tool-geo-admin'
 import * as ToolWeb from '@deepseek-ai/dsh-tool-web'
 import WorkflowEngine from '@deepseek-ai/dsh-workflow'
 import type { WorkflowRun, WorkflowStartRequest } from '@deepseek-ai/dsh-workflow'
@@ -559,6 +563,27 @@ const TOOL_PACKAGES: ToolPackage[] = [
       'The kind-agnostic background-job controller: background bash commands, PTY sends, and subagents are read, listed, and killed through the same three tools. Loading the plugin attaches the controller that arms producers\' `ctx.jobs.start()`.',
   },
   {
+    pkg: '@deepseek-ai/dsh-tool-video',
+    dir: 'tool-video',
+    source: 'packages/video/tool-video/src/index.ts',
+    requires: ['ctx.tools', 'ctx.jobs', 'ctx.h3Video', 'ctx.commands', 'ctx.attachments (material images)'],
+    writes: ['tool/call', 'tool/result', 'durable attachment for generated keyframes and asset images', 'background h3-video jobs'],
+    async mount(ctx) {
+      // Schema harvest never submits a render, so the seam mounts with a
+      // placeholder local backend: the provider reads its workflow template at
+      // submit time, not at construction.
+      await ctx.plugin(LocalJobRegistry)
+      await ctx.plugin(CommandRuntime)
+      await ctx.plugin(H3VideoService, {
+        outputDir: 'catalog-probe-video-output',
+        comfy: { url: 'https://catalog-probe.invalid:8443', workflowPath: 'catalog-probe-workflow.json' },
+      })
+      await ctx.plugin(ToolVideo)
+    },
+    note:
+      'The H3 storyboard, keyframe, asset, render, assembly, and cloud-GPU tools plus the `/video` command. Generated materials ride the result as image blocks when a durable attachment store is mounted, which is why `ctx.attachments` is optional here rather than injected.',
+  },
+  {
     pkg: '@deepseek-ai/dsh-experimental-tool-agent-team',
     dir: 'tool-agent-team',
     source: 'packages/experimental/tool-agent-team/src/index.ts',
@@ -620,6 +645,23 @@ const TOOL_PACKAGES: ToolPackage[] = [
       await ctx.plugin(CatalogWorkflowEngine)
       await ctx.plugin(ToolWorkflow)
     },
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-geo-admin',
+    dir: 'tool-geo-admin',
+    source: 'packages/geo/tool-geo-admin/src/index.ts',
+    requires: ['ctx.tools', 'ctx.credentials'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      // The schemas are independent of whether an account is configured, so a
+      // placeholder provider satisfies the injection without a credential store.
+      ctx.provide('credentials', {
+        resolve: () => Promise.resolve({ value: 'catalog-placeholder', source: 'store' }),
+      } as never)
+      await ctx.plugin(ToolGeoAdmin)
+    },
+    note:
+      'The 深度云海 tools resolve their backend address and account from the geo-admin settings namespace and sign in per call; no schema depends on the configured account.',
   },
   {
     pkg: '@deepseek-ai/dsh-tool-web',

@@ -18,6 +18,7 @@
 // alone.
 
 import type { Context } from '@deepseek-ai/cordis'
+import type { MessageImageLoader, MessageImageSource } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import { imageCardModel } from '../models/image-card-model.ts'
 import { readFamilyRow, type ReadImageRowProps } from './read-family-row.tsx'
 import { CONVERSATION_NS as NS } from '../../locale.ts'
@@ -31,7 +32,8 @@ export function ReadImageRow(props: ReadImageRowProps) {
   const { block, cwd, home, renderSlot, loadImage } = props
   return readFamilyRow(props, {
     image: imageCardModel(block, cwd, home),
-    renderSlot,
+    renderImages: (images: readonly MessageImageSource[], load: MessageImageLoader) =>
+      renderSlot('tool.call.images', { images, loadImage: load, align: 'start' }),
     loadImage,
   })
 }

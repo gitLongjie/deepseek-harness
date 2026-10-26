@@ -78,6 +78,14 @@ flowchart LR
   pkg_settings["settings"]
   svc_settings["ctx.settings<br/>User-settings seam"]
   pkg_settings_file["settings-file"]
+  pkg_h3_video["h3-video"]
+  svc_h3Video["ctx.h3Video<br/>H3 video generation seam"]
+  pkg_tool_video["tool-video"]
+  svc_h3VideoSettings["ctx.h3VideoSettings<br/>H3 video user-settings overlay"]
+  pkg_tool_geo_admin["tool-geo-admin"]
+  svc_geoAdminSettings["ctx.geoAdminSettings<br/>Geo-admin user-settings overlay"]
+  pkg_schedule_work["schedule-work"]
+  svc_scheduleWorkGateway["ctx.scheduleWorkGateway<br/>Remote scheduled-work gateway"]
   pkg_tool_subagent["tool-subagent"]
   svc_subagentModelSelection["ctx.subagentModelSelection<br/>Subagent model-selection preference"]
   pkg_credentials["credentials"]
@@ -294,6 +302,8 @@ flowchart LR
   pkg_fs_sandbox --> svc_fs
   pkg_fs_ssh --> svc_fs
   pkg_goal --> svc_goals
+  pkg_h3_video --> svc_h3Video
+  pkg_h3_video --> svc_h3VideoSettings
   pkg_host_directory_picker --> svc_directoryPicker
   pkg_host_directory_picker_browse --> svc_directoryPicker
   pkg_host_directory_picker_native --> svc_directoryPicker
@@ -325,6 +335,7 @@ flowchart LR
   pkg_sandbox_local --> svc_sandbox
   pkg_sandbox_policy --> svc_sandboxPolicy
   pkg_sandbox_ssh --> svc_sandbox
+  pkg_schedule_work --> svc_scheduleWorkGateway
   pkg_session --> svc_sessions
   pkg_session_log_deepseek --> svc_deepseekLlmApiExtensions
   pkg_session_persistence --> svc_sessionPersistence
@@ -367,6 +378,7 @@ flowchart LR
   pkg_terminal --> svc_terminals
   pkg_terminal_bash --> svc_terminals
   pkg_token_meter --> svc_tokenMeter
+  pkg_tool_geo_admin --> svc_geoAdminSettings
   pkg_tool_subagent --> svc_subagentModelSelection
   pkg_tools --> svc_tools
   pkg_typert_registry --> svc_typert
@@ -415,6 +427,9 @@ flowchart LR
   svc_fileReferences --> pkg_api_session_controller
   svc_fileUploads --> pkg_api_session_controller
   svc_fs --> pkg_tool_fs
+  svc_geoAdminSettings --> pkg_tool_geo_admin
+  svc_h3Video --> pkg_tool_video
+  svc_h3VideoSettings --> pkg_h3_video
   svc_invariants --> pkg_agent
   svc_invariants --> pkg_agent_loop
   svc_invariants --> pkg_scope
@@ -546,6 +561,10 @@ flowchart LR
 | `ctx.typertGateway` | `core` | [`api-gateway`](../packages/api/gateway) | - | - | - | Associates generated Remote descriptors with live Cordis services, resolves registered identities, and exposes unary calls through the shared Connection RPC carrier. |
 | `ctx.sessionPersistence` | `seam` | [`session-persistence`](../packages/session/session-persistence) | [`session-persistence-jsonl`](../packages/session/session-persistence-jsonl) | [`agent-loop`](../packages/core/agent-loop), [`tool-bash`](../packages/shell/tool-bash), [`hooks-claude-code`](../packages/hooks/hooks-claude-code), [`hooks-codex`](../packages/hooks/hooks-codex), [`session-query`](../packages/session-query/session-query), [`session-query-sqlite`](../packages/session-query/session-query-sqlite), [`message-feedback`](../packages/feedback/message-feedback) | - | The JSONL backend persists the SessionEvent vocabulary as one artifact per Session. |
 | `ctx.settings` | `seam` | [`settings`](../packages/settings/settings) | [`settings-file`](../packages/settings/settings-file) | [`api-settings-controller`](../packages/api/settings-controller), [`llm-deepseek`](../packages/llm/llm-deepseek), [`llm-pi-ai`](../packages/llm/llm-pi-ai) | - | Plugins register namespace schemas and resolve layered values; providers store the raw document. The LLM adapters register their entry config as the composition base under the user section; the settings controller serves redacted layered descriptors and writes the user layer. |
+| `ctx.h3Video` | `seam` | [`h3-video`](../packages/video/h3-video) | [`h3-video`](../packages/video/h3-video) | [`tool-video`](../packages/video/tool-video) | - | The local ComfyUI, MiniMax, and cloud-GPU backends route segment renders, keyframes, asset images, and assembly behind one task-reference surface; tool-video exposes them as the video_* tools and the /video command. |
+| `ctx.h3VideoSettings` | `core` | [`h3-video`](../packages/video/h3-video) | [`h3-video`](../packages/video/h3-video) | [`h3-video`](../packages/video/h3-video) | - | The settings view resolves the user layer over the composition config before the first build, so a mounted overlay applies without a restart. |
+| `ctx.geoAdminSettings` | `core` | [`tool-geo-admin`](../packages/geo/tool-geo-admin) | [`tool-geo-admin`](../packages/geo/tool-geo-admin) | [`tool-geo-admin`](../packages/geo/tool-geo-admin) | - | The settings view resolves the user layer over the composition config before the first build, so a mounted overlay applies without a restart. |
+| `ctx.scheduleWorkGateway` | `core` | [`schedule-work`](../packages/schedule/schedule-work) | [`schedule-work`](../packages/schedule/schedule-work) | - | - | Remote-only Typert service over the `scheduleWork` wire namespace; the scheduled-work client page consumes it through the shared-fetch transport rather than a host-side inject. |
 | `ctx.subagentModelSelection` | `core` | [`tool-subagent`](../packages/subagent/tool-subagent) | - | [`tool-subagent`](../packages/subagent/tool-subagent) | - | Owns the default-off settings namespace that Agent-scoped delegation tools sample when composing a new top-level Session. |
 | `ctx.credentials` | `seam` | [`credentials`](../packages/credentials/credentials) | [`credentials-local`](../packages/credentials/credentials-local) | [`api-settings-controller`](../packages/api/settings-controller), [`llm-deepseek`](../packages/llm/llm-deepseek), [`llm-pi-ai`](../packages/llm/llm-pi-ai) | - | Configuration carries references to secrets; providers own the values. Consumers resolve per operation, so a rotated credential reaches the very next request; the settings controller exposes value-free views and write-only storage. |
 | `ctx.authorization` | `seam` | [`authorization`](../packages/credentials/authorization) | - | [`llm-pi-ai`](../packages/llm/llm-pi-ai) | - | Flows are registered by the plugin that knows how to obtain one credential and keyed by the record they write; the seam owns the conversation and the one-attempt-per-key lifecycle, never the protocol. |

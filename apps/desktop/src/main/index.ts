@@ -16,6 +16,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { loadLayeredEnv } from '@deepseek-ai/dsh-app-boot'
 import type { TypertGateway } from '@deepseek-ai/dsh-api-gateway/types'
 import { runDesktopBoot } from './boot.ts'
+import { comfyuiLocalDir, deployBundledComfyUI } from './desktop/comfyui-bootstrap.ts'
 import type { ProcessShutdown } from './process-shutdown.ts'
 import { dispatchTransportFetch, registerTransportIpc, type TransportFetchRequest } from './ipc/transport.ts'
 import { registerBundleIpc } from './ipc/bundle.ts'
@@ -38,6 +39,10 @@ import {
   applyKnowledgeBaseEnvironment, desktopKnowledgeBaseEnvironment, resolveDesktopKnowledgeBase,
   type DesktopKnowledgeManifest,
 } from './desktop/knowledge-base.ts'
+import {
+  applyGatewayProviderNameEnvironment, resolveDesktopGatewayProviderName,
+  type DesktopProviderNameManifest,
+} from './desktop/provider-name.ts'
 import {
   findMissingPackagedResources,
   type MissingPackagedResource,
@@ -203,6 +208,15 @@ async function main(): Promise<void> {
     if (knowledgeBase !== undefined) {
       applyKnowledgeBaseEnvironment(process.env, desktopKnowledgeBaseEnvironment(knowledgeBase))
     }
+    // The OEM Deepagens display name joins the same trusted environment on the
+    // same if-unset terms, ahead of the layered snapshot freezing it.
+    const gatewayProviderName = resolveDesktopGatewayProviderName(
+      INSTALL_ANCHOR,
+      JSON.parse(readFileSync(join(app.getAppPath(), 'package.json'), 'utf8')) as DesktopProviderNameManifest,
+    )
+    if (gatewayProviderName !== undefined) {
+      applyGatewayProviderNameEnvironment(process.env, gatewayProviderName)
+    }
     const environment = loadLayeredEnv('desktop')
     log(`desktop: booting (packaged=${String(app.isPackaged)}) execArgv=${JSON.stringify(process.execArgv)} node=${process.versions.node}`)
     const result = await runDesktopBoot({
@@ -217,6 +231,17 @@ async function main(): Promise<void> {
     host.ctx = result.ctx
     host.shutdown = result.shutdown
     log('desktop: host booted')
+    // First-launch ComfyUI deployment runs beside the shell, never blocking it:
+    // copying the bundled program tree takes minutes, the app works without it
+    // (the remote MiniMax backend), and the module's own logging owns progress.
+    if (app.isPackaged) {
+      void deployBundledComfyUI({
+        appRoot: app.getAppPath(),
+        resourcesDir: process.resourcesPath,
+        localDir: comfyuiLocalDir(process.env.LOCALAPPDATA),
+        log,
+      })
+    }
     // The composed client graph decides what the renderer can boot: a graph
     // without application entries renders a page stuck on plugin loading
     // forever, so name its shape here. Structural read: a composition without
@@ -614,8 +639,12 @@ function registerWebProtocol(writeLog: (line: string) => void): void {
         )
         const responseBody = new Uint8Array(await response.arrayBuffer())
         const responseHeaders = new Headers()
-        const contentType = response.headers.get('content-type')
-        if (contentType !== null) responseHeaders.set('content-type', contentType)
+        // Media elements need the range headers to seek; the body is already buffered here, so
+        // the advertised range always describes the bytes this response actually carries.
+        for (const name of ['content-type', 'content-length', 'content-range', 'accept-ranges']) {
+          const value = response.headers.get(name)
+          if (value !== null) responseHeaders.set(name, value)
+        }
         return new Response(responseBody, { status: response.status, headers: responseHeaders })
       }
       // /plugins/* — dynamic client bundles owned by the module registry, not

@@ -2,9 +2,14 @@
  * Login gate plugin, browser half. When the build carries an account-server
  * endpoint (`DSH_CLIENT_LOGIN_URL`), it registers the full-page sign-in
  * takeover into the layout's overlay seat and the account row (avatar +
- * display name + sign-out) into the sidebar's footer-action seat. A
- * successful sign-in writes the issued key and the server origin into the
- * host credential layer through the existing `credentials.set` wire method.
+ * display name + sign-out) into the sidebar's footer-action seat. A launch
+ * revalidates the key the last sign-in issued and enters the app when the
+ * gateway still accepts it; a refused key replays the stored account pair,
+ * which is the only path that creates a server-side login session. A
+ * successful sign-in writes the issued key into the host credential layer
+ * through the existing `credentials.set` wire method, under the gateway
+ * route's own reference (`DEEPAGENS_API_KEY`) rather than the DeepSeek
+ * route's `DEEPSEEK_API_KEY`.
  */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
@@ -20,7 +25,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { LoginGate } from './LoginGate.tsx'
 import { SidebarAccount } from './SidebarAccount.tsx'
 import { LoginStore } from './login-store.ts'
-import type { LoginCredentialAdapter } from './login-store.ts'
+import { GATEWAY_CREDENTIAL_REF, type LoginCredentialAdapter } from './login-store.ts'
 import { en, zh, type LoginKey } from './locales.ts'
 
 /** Dictionary namespace owned by this plugin. */
@@ -32,7 +37,7 @@ const NS = 'login'
  * overrides it with `DSH_CLIENT_LOGIN_URL`; setting that variable to an empty
  * string compiles the gate out entirely.
  */
-const DEFAULT_LOGIN_URL = 'https://claw.deepagens.com/api/user/deepagens-claw/login'
+const DEFAULT_LOGIN_URL = 'https://claw.deepagens.com/api/claw/login'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -43,20 +48,20 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 
 /**
  * Credential adapter over the connection's credentials domain: the sign-in
- * result lands in the same writable layer the Models settings page uses.
+ * result lands in the same writable layer the Models settings page uses, but
+ * under the gateway route's own reference, so the DeepSeek route's stored key
+ * survives every launch-time re-login.
  */
 function credentialAdapter(remote: ClientRemote): LoginCredentialAdapter {
   const assertOk = (result: { ok: boolean; error?: { message: string } }): void => {
     if (!result.ok) throw new Error(result.error?.message ?? 'credential write refused')
   }
   return {
-    async apply(session, baseUrl) {
-      assertOk(await remote.credentials.set('DEEPSEEK_API_KEY', session.apiKey))
-      assertOk(await remote.credentials.set('DEEPSEEK_BASE_URL', baseUrl))
+    async apply(session) {
+      assertOk(await remote.credentials.set(GATEWAY_CREDENTIAL_REF, session.apiKey))
     },
     async clear() {
-      assertOk(await remote.credentials.unset('DEEPSEEK_API_KEY'))
-      assertOk(await remote.credentials.unset('DEEPSEEK_BASE_URL'))
+      assertOk(await remote.credentials.unset(GATEWAY_CREDENTIAL_REF))
     },
   }
 }
@@ -94,7 +99,10 @@ export function apply(ctx: ClientContext): void {
     llm: remote.llm,
     settings: remote.settings,
   })
-  controller.load()
+  // Boot-time restore: a stored key the gateway still accepts signs in
+  // without a new login session; only a refused key replays the stored pair.
+  // Either way the gate shows only its backdrop while this runs.
+  void controller.restore()
   const t = ctx.locale.bind(NS) as (key: LoginKey) => string
   const brandIcon = process.env.DSH_CLIENT_BRAND_ICON ?? '/favicon.svg'
 

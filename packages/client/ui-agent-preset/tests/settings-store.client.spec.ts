@@ -681,6 +681,50 @@ describe('the new-session chip controller', () => {
       expect(writes).toEqual([])
     })
 
+    it('keeps an expert this flow hired into the placeholder', async () => {
+      const writes: Recorded[] = []
+      const sessions = placeholder('standard')
+      const controller = chip(ROSTER_EXPERT, () => sessions.s1, { writes })
+      await controller.load()
+
+      // The hire: the market stages the card's preset, and the flow starts the
+      // Session it lands on, so the seat composes it there.
+      controller.stage('geo-optimizer', true)
+      await controller.apply()
+      expect(writes).toEqual([{ ns: 'select', ops: 'geo-optimizer' }])
+
+      // The Host records the switch, and the Workspace later adopts that same
+      // Session as its New Session placeholder. The expert is what the user
+      // asked for, so the adoption must not restore the default over it.
+      sessions.s1 = { ...sessions.s1!, projectionValues: { agentPreset: 'geo-optimizer' } }
+      await controller.prepareNewSession('s1' as SessionId)
+
+      expect(writes).toEqual([{ ns: 'select', ops: 'geo-optimizer' }])
+    })
+
+    it('keeps a hired pick while the Session it was made over still runs', async () => {
+      const writes: Recorded[] = []
+      const sessions = placeholder('standard')
+      sessions.s1 = { ...sessions.s1!, blank: false }
+      sessions.s2 = { id: 's2' as SessionId, blank: true, projectionValues: { agentPreset: 'standard' } }
+      let currentId = 's1'
+      const controller = chip(ROSTER_EXPERT, () => sessions[currentId], { writes })
+      await controller.load()
+
+      // The hire is made while the previous chat still runs: a started Session
+      // is not the one a cross-surface pick is waiting for, so it must not
+      // consume the pick the way a chip's own pick is consumed.
+      controller.stage('geo-optimizer', true)
+      await controller.apply()
+      expect(writes).toEqual([])
+
+      // The flow's own blank Session arrives, and the pick is still waiting.
+      currentId = 's2'
+      await controller.apply()
+
+      expect(writes).toEqual([{ ns: 'select', ops: 'geo-optimizer' }])
+    })
+
     it('restores nothing while the roster marks no default', async () => {
       const writes: Recorded[] = []
       const controller = chipOver(

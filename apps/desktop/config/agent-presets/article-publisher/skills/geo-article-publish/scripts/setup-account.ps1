@@ -2,21 +2,24 @@
 .SYNOPSIS
   一次性为「miao云海文章专家」创建发文章专用账号（幂等）。
 .DESCRIPTION
-  1. 用 .env 的 ADMIN_PASSWORD 登录超管；
-  2. 创建 ARTICLE_BOT_USERNAME 账号（已存在则复用）；
+  1. 用后台 .env 的 ADMIN_PASSWORD 登录超管；
+  2. 创建发文账号（已存在则复用，不改其密码）；
   3. 分配角色 3「内容编辑」（含 content.news）；
   4. 把账号关联到当前全部站点（让登录返回站点列表、GET /websites 可见）；
-  5. 把 ARTICLE_BOT_USERNAME / ARTICLE_BOT_PASSWORD 写回 .env。
+  5. 打印账号与密码，供填入「设置 → 插件 → 深度云海」。
+  本脚本不再写后台 .env：密码只留在 DSH 凭据存储里，后台项目不再多存一份。
 .NOTES
-  运行前确保 web-admin-go 已在 8001 端口运行，且 .env 里 ADMIN_PASSWORD 有效。
+  运行前确保 web-admin-go 已在其端口运行，且 .env 里 ADMIN_PASSWORD 有效。
   示例：pwsh -File setup-account.ps1
+         pwsh -File setup-account.ps1 -Password 'Known-Strong-Passw0rd'
 #>
 param(
   [string]$EnvFile   = "D:\Project\GEO\web-admin-go\.env",
   [string]$BaseUrl   = "http://localhost:8001",
   [string]$UserName  = "article-bot",
   [string]$DisplayName = "文章发布专家",
-  [string]$Email     = "article-bot@deepagens.com"
+  [string]$Email     = "article-bot@deepagens.com",
+  [string]$Password  = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -48,17 +51,21 @@ if (-not $token) { Write-Error "登录响应缺少 access_token"; exit 1 }
 $headers = @{ Authorization = "Bearer $token" }
 Write-Host "登录成功，开始创建/复用专用账号…"
 
-# 2) 生成强密码
+# 2) 生成强密码（仅创建新账号时使用）
 $chars = (48..57) + (65..90) + (97..122)
-$password = -join (1..20 | ForEach-Object { [char]($chars | Get-Random) })
+if ($Password -eq "") {
+  $Password = -join (1..20 | ForEach-Object { [char]($chars | Get-Random) })
+}
 
-# 3) 创建账号（幂等：已存在则注销后查找复用）
+# 3) 创建账号（幂等：已存在则复用，不重置密码）
 $userId = $null
+$created = $false
 try {
   $user = Invoke-RestMethod -Method Post -Uri "$BaseUrl/api/v1/users" -Headers $headers `
     -ContentType "application/json" `
-    -Body (ConvertTo-JsonBody @{ username = $UserName; email = $Email; password = $password; full_name = $DisplayName })
+    -Body (ConvertTo-JsonBody @{ username = $UserName; email = $Email; password = $Password; full_name = $DisplayName })
   $userId = $user.data.id
+  $created = $true
   Write-Host "已创建账号 $UserName (id=$userId)"
 } catch {
   $list = Invoke-RestMethod -Method Get -Uri "$BaseUrl/api/v1/users?search=$UserName" -Headers $headers
@@ -93,19 +100,15 @@ try {
   Write-Warning "站点关联失败：$($_.Exception.Message)"
 }
 
-# 6) 写回 .env（幂等：已存在的键覆盖）
-$content = if (Test-Path -LiteralPath $EnvFile) { Get-Content -LiteralPath $EnvFile -Raw } else { "" }
-foreach ($pair in @(
-    @("ARTICLE_BOT_USERNAME", "ARTICLE_BOT_USERNAME=$UserName"),
-    @("ARTICLE_BOT_PASSWORD", "ARTICLE_BOT_PASSWORD=$password")
-  )) {
-  $key = $pair[0]; $line = $pair[1]
-  if ($content -match "(?m)^\s*$([regex]::Escape($key))\s*=.*$") {
-    $content = [regex]::Replace($content, "(?m)^\s*$([regex]::Escape($key))\s*=.*$", $line)
-  } else {
-    $content = $content.TrimEnd("`r", "`n") + "`r`n" + $line
-  }
+# 6) 打印配置：密码只出现在这里，之后由 DSH 凭据存储保管
+Write-Host ""
+Write-Host "把下面三项填入 dsh 的「设置 → 插件 → 深度云海」：" -ForegroundColor Cyan
+Write-Host "  后台地址：$BaseUrl"
+Write-Host "  账号：    $UserName"
+if ($created) {
+  Write-Host "  密码：    $Password" -ForegroundColor Yellow
+  Write-Host "（密码只显示这一次；请立即保存，之后无需再存到后台项目的 .env。）"
+} else {
+  Write-Host "  密码：    账号已存在，本次未改动；请沿用之前保存的密码。" -ForegroundColor Yellow
+  Write-Host "（忘记密码时：在后台用户管理里重置，或换一个 -UserName 重新创建。）"
 }
-Set-Content -LiteralPath $EnvFile -Value $content -Encoding utf8 -NoNewline
-Write-Host "已把 ARTICLE_BOT_USERNAME / ARTICLE_BOT_PASSWORD 写入 $EnvFile"
-Write-Host "完成：技能将用 $UserName 登录并发文。"

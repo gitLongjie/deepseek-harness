@@ -173,6 +173,52 @@ type SettingsUpdateSource = 'update' | 'provider'
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
 
+<a id="ctxgeoadminsettings--geoadminsettingsview"></a>
+
+### `ctx.geoAdminSettings` — `GeoAdminSettingsView`
+
+Live view of the `geo-admin` settings section, published on the host plane.
+
+```ts cordis-catalog
+/**
+ * Read the currently committed section value.
+ * @returns the committed settings section.
+ */
+get(): GeoAdminSettingsSection
+
+/**
+ * Observe committed changes to the section.
+ * @param callback - invoked with the next committed value.
+ * @returns the disposer removing this observer.
+ */
+watch(callback: (next: GeoAdminSettingsSection) => void): () => void
+```
+
+Source: [`packages/geo/tool-geo-admin/src/settings.ts`](../../packages/geo/tool-geo-admin/src/settings.ts)
+
+<a id="ctxh3videosettings--h3videosettingsview"></a>
+
+### `ctx.h3VideoSettings` — `H3VideoSettingsView`
+
+Live view of the `h3-video` settings section, published on the host plane.
+
+```ts cordis-catalog
+/**
+ * Read the currently committed section value.
+ * @returns the committed settings section.
+ */
+get(): H3VideoSettingsSection
+
+/**
+ * Observe committed changes to the section.
+ * @param callback - invoked with the next committed value.
+ * @returns the disposer removing this observer.
+ */
+watch(callback: (next: H3VideoSettingsSection) => void): () => void
+```
+
+Source: [`packages/video/h3-video/src/settings.ts`](../../packages/video/h3-video/src/settings.ts)
+
 <a id="ctxsettings--settingsprovider-abstract-seam"></a>
 
 ### `ctx.settings` — `SettingsProvider` (abstract seam)

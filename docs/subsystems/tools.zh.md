@@ -490,6 +490,101 @@ type ObjectJsonSchema = JsonSchemaNode & { type: 'object' }
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.zh.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
 
+<a id="ctxh3video--h3video-abstract-seam"></a>
+
+### `ctx.h3Video` — `H3Video` (abstract seam)
+
+Video-generation service surface consumed by tool plugins. Every operation takes the caller's explicit backend choice; no call path receives an implicit default.
+
+```ts cordis-catalog
+/**
+ * Query the free space on the volume holding the output directory.
+ * @returns free megabytes, or `undefined` when the volume cannot be queried.
+ */
+abstract diskFreeMegabytes(): Promise<number | undefined>
+
+/**
+ * Static limits of one configured backend.
+ * @param choice - routing label.
+ * @returns the backend's declared capabilities, or `undefined` when that backend is not configured.
+ */
+abstract capabilities(choice: Exclude<BackendChoice, 'auto'>): ProviderCapabilities | undefined
+
+/**
+ * Validate one request against one backend without submitting it.
+ * @param choice - routing policy to check.
+ * @param request - candidate segment request.
+ * @returns whether that backend can serve the request as written.
+ */
+abstract canServe(choice: BackendChoice, request: SegmentRequest): boolean
+
+/**
+ * Route by the caller's policy, validate, and submit one segment.
+ * @param choice - explicit backend policy.
+ * @param request - the segment to generate.
+ * @param signal - submission cancellation.
+ * @returns the chosen backend and its task reference.
+ */
+abstract submit( choice: BackendChoice, request: SegmentRequest, signal: AbortSignal, ): Promise<{ readonly target: RoutedProvider; readonly ref: H3TaskRef }>
+
+/**
+ * Observe a submitted task once through its owning backend.
+ * @param target - the routed provider returned by {@link submit}.
+ * @param ref - the task reference.
+ * @param signal - observation cancellation.
+ * @returns the task's current state, including the local file once it succeeds.
+ */
+abstract poll(target: RoutedProvider, ref: H3TaskRef, signal: AbortSignal): Promise<TaskStatus>
+
+/**
+ * Best-effort cancel on the owning backend.
+ * @param target - routed provider.
+ * @param ref - task reference.
+ */
+abstract cancel(target: RoutedProvider, ref: H3TaskRef): Promise<void>
+
+/**
+ * Generate one still keyframe for a shot, establishing the scene before video generation. Uses
+ * the hosted image model; local ComfyUI has no H3 text-to-image node.
+ * @param request - shot description, aspect ratio, optional seed, and an optional character
+ * reference that keeps the still on the confirmed character.
+ * @param signal - cancellation of the keyframe generation.
+ * @returns the absolute path of the downloaded keyframe file.
+ */
+abstract keyframe(request: KeyframeRequest, signal: AbortSignal): Promise<string>
+
+/**
+ * Concatenate ordered segment files into one mp4.
+ * @param segments - ordered files.
+ * @param options - output location and optional ffmpeg override.
+ * @returns the absolute path of the assembled mp4.
+ */
+abstract assemble(segments: readonly AssemblySegment[], options: AssemblyOptions): Promise<string>
+
+/**
+ * Read the cloud GPU backing the local backend. With a tracked instance the vendor state is
+ * re-read; otherwise the cached lifecycle view answers immediately.
+ * @returns the lifecycle view; `configured: false` when the composition carries no GPU row.
+ */
+abstract gpuStatus(): Promise<GpuStatus>
+
+/**
+ * Boot or reuse the cloud GPU and wait until ComfyUI answers. A routable local submission does
+ * this implicitly; calling it first surfaces boot failures before a render is submitted.
+ * @returns the lifecycle view once the instance is running.
+ */
+abstract gpuUp(): Promise<GpuStatus>
+
+/**
+ * Power the cloud GPU off, or release it and its disk. Cloud GPU time is billed while it runs.
+ * @param mode - `stop` keeps the instance for a later boot; `release` deletes it.
+ * @returns the lifecycle view after the operation.
+ */
+abstract gpuDown(mode: 'stop' | 'release'): Promise<GpuStatus>
+```
+
+Source: [`packages/video/h3-video/src/index.ts`](../../packages/video/h3-video/src/index.ts)
+
 <a id="ctxtools--toolruntime"></a>
 
 ### `ctx.tools` — `ToolRuntime`

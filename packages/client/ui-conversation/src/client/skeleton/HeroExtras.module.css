@@ -1,0 +1,112 @@
+/* NEW SESSION hero extras: the skill-pill row above the composer card and the
+   starter-suggestion list below it. Width caps match the InputBar card so both
+   rows stay aligned with it at every viewport. */
+
+/* Pill row: wraps and centers like the reference; 8px above the card. */
+.skills {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/* Skill pill: hairline l2 stroke on the input surface, r999, 13/20 wt400;
+   hover lifts to the interactive hover fill. */
+.skill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  border-radius: 999px;
+  background: var(--dsw-specific-input-major);
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  line-height: 20px;
+  cursor: pointer;
+}
+
+.skill:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.skillIcon {
+  flex: none;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.skill:hover .skillIcon {
+  color: var(--dsw-alias-label-primary);
+}
+
+/* Suggestion list: left-aligned rows under the card, capped to the card
+   width; the refresh control centers under the rows. */
+.suggestions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  max-width: var(--dsh-composer-card-max-width);
+  margin: 6px auto 0;
+  padding: 0 16px;
+}
+
+/* Suggestion row: quiet caption-tone text; hover answers in primary. */
+.suggestion {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  padding: 4px 6px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 13px;
+  line-height: 20px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.suggestion:hover {
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.suggestionIcon {
+  flex: none;
+}
+
+.suggestion > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Refresh control: centered ghost row under the suggestions. */
+.refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: center;
+  margin-top: 6px;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-caption);
+  font-size: 13px;
+  line-height: 20px;
+  cursor: pointer;
+}
+
+.refresh:hover {
+  color: var(--dsw-alias-label-secondary);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.refreshIcon {
+  flex: none;
+}

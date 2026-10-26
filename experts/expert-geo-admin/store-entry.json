@@ -1,0 +1,18 @@
+{
+  "id": "expert/geo-admin",
+  "name": "深度云海 GEO 专家",
+  "owner": "xmanrui",
+  "url": "https://github.com/xmanrui/expert-geo-admin",
+  "category": "expert",
+  "description": {
+    "zh": "用配置好的账号查询、核对并修改 GEO 多站点内容后台的文章数据。安装后专家页出现该卡片，聘用即以该专家的组合开启新对话。",
+    "en": "Queries, checks, and updates articles on the GEO multi-site content backend with the configured account. After install, the expert page shows the card and hiring starts a session composed as the expert."
+  },
+  "installMethods": [
+    {
+      "kind": "npm",
+      "code": "published_package",
+      "spec": "@xmanrui/expert-geo-admin"
+    }
+  ]
+}
