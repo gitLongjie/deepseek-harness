@@ -29,7 +29,25 @@ export function readDesktopOemConfig(repoRoot, environment = process.env) {
   }
   const knowledgeBase = readOemKnowledgeBase(oemConfig.knowledgeBase)
   const gatewayProviderName = readOemGatewayProviderName(oemConfig.gatewayProviderName)
-  return { productName, brandIcon, updateUrl, knowledgeBase, gatewayProviderName }
+  const helpDocsUrl = readOemHelpDocsUrl(oemConfig.helpDocsUrl)
+  return {
+    productName,
+    brandIcon,
+    updateUrl,
+    knowledgeBase,
+    gatewayProviderName,
+    ...(helpDocsUrl === undefined ? {} : { helpDocsUrl }),
+  }
+}
+
+/** Read the Help-menu documentation URL for packaging: absent stays absent. */
+function readOemHelpDocsUrl(value) {
+  if (value === undefined) return undefined
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new Error('oem.config.json.helpDocsUrl must be a non-empty string')
+  }
+  if (!isHttpsUrl(value)) throw new Error('oem.config.json.helpDocsUrl must be an HTTPS URL')
+  return value
 }
 
 /** Read the OEM Deepagens display name for packaging: absent stays absent. */
@@ -127,6 +145,7 @@ export function createElectronBuilderOemConfig(productName, updateUrl, options =
         ...(options.localUpdateFeed && updateUrl !== undefined ? { localUpdateTest: true } : {}),
         ...(options.knowledgeBase === undefined ? {} : { knowledgeBase: options.knowledgeBase }),
         ...(options.gatewayProviderName === undefined ? {} : { gatewayProviderName: options.gatewayProviderName }),
+        ...(options.helpDocsUrl === undefined ? {} : { helpDocsUrl: options.helpDocsUrl }),
       },
     },
   }

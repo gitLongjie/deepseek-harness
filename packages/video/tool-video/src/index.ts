@@ -102,6 +102,11 @@ const PLAN_VALUE_SCHEMA = {
           id: { type: 'string', required: true },
           prompt: { type: 'string', required: true },
           camera: { type: 'string' },
+          continuity: { type: 'string', enum: ['continue', 'cut', 'time_jump', 'flashback'], description: 'Relation to the preceding shot: continue the same event, cut to another place, jump in time, or show a flashback.' },
+          startState: { type: 'string' },
+          event: { type: 'string', description: 'The one observable event this shot advances.' },
+          endState: { type: 'string' },
+          assetIds: { type: 'array', items: { type: 'string' } },
           durationSeconds: { type: 'integer', required: true },
           resolution: { type: 'string', required: true, enum: ['480P', '768P', '2K'] },
           ratio: { type: 'string', required: true, enum: ['adaptive', '21:9', '16:9', '4:3', '1:1', '3:4', '9:16'] },
@@ -704,6 +709,12 @@ const CUT_MARKERS = /切至|切到|转到|硬切|cut to|cut into|transition to/i
  * @throws Error - naming the pair and the two ways to fix it.
  */
 function validateContinuity(segments: readonly VideoSegment[], assets: readonly PlanAsset[]): void {
+  const assetIds = new Set(assets.map(asset => asset.id))
+  for (const segment of segments) {
+    for (const id of segment.assetIds ?? []) {
+      if (!assetIds.has(id)) throw new Error(`segment ${segment.id}: unknown asset id ${JSON.stringify(id)}`)
+    }
+  }
   const anchored = assets.filter(asset => asset.name.length > 0)
   // Without recorded anchors there is no vocabulary to carry over, so continuity is the planner's
   // prose and nothing here can judge it.
@@ -712,12 +723,15 @@ function validateContinuity(segments: readonly VideoSegment[], assets: readonly 
     const previous = segments[index - 1]
     const current = segments[index]
     if (previous === undefined || current === undefined) continue
-    const namedInPrevious = anchored.filter(asset => previous.prompt.includes(asset.name))
-    const namedInCurrent = anchored.filter(asset => current.prompt.includes(asset.name))
+    const namedInPrevious = anchored.filter(asset => previous.assetIds !== undefined
+      ? previous.assetIds.includes(asset.id) : previous.prompt.includes(asset.name))
+    const namedInCurrent = anchored.filter(asset => current.assetIds !== undefined
+      ? current.assetIds.includes(asset.id) : current.prompt.includes(asset.name))
     // Neither shot names an anchor: the storyboard is prose-only here, and there is nothing to
     // compare. Enforcement starts as soon as one side names a character or set.
     if (namedInPrevious.length === 0 && namedInCurrent.length === 0) continue
-    if (CUT_MARKERS.test(current.prompt)) continue
+    if (current.continuity !== undefined && current.continuity !== 'continue') continue
+    if (current.continuity === undefined && CUT_MARKERS.test(current.prompt)) continue
     const previousSets = namedInPrevious.filter(asset => asset.kind === 'scene')
     const currentSets = namedInCurrent.filter(asset => asset.kind === 'scene')
     const carriedSet = currentSets.some(asset => previousSets.includes(asset))
@@ -794,25 +808,36 @@ const MAX_MULTI_SHOT_SECONDS = 15
 /**
  * Build one H3 prompt that carries the whole storyboard as a shot timeline, the way the official H3
  * multi-shot workflow does: a scene overview, per-shot timecoded entries, and camera guidance.
- * @param goal - the plan goal line, used as the scene overview.
- * @param segments - ordered storyboard shots.
+ * @param plan - the story, assets, style, and ordered shots.
  * @returns the combined multi-shot prompt.
  */
-function buildMultiShotPrompt(goal: string, segments: readonly VideoSegment[]): string {
+function buildMultiShotPrompt(plan: VideoPlan): string {
+  const { goal, segments } = plan
   const parts: string[] = []
-  parts.push(`Scene overview: ${goal}`)
+  parts.push(`Story: ${goal}`)
+  parts.push('The supplied image is the opening frame of the whole film. Animate from its starting state; do not use a later action or a montage as the opening.')
+  const assets = (plan.assets ?? []).filter(asset => segments.some(segment => segment.assetIds !== undefined
+    ? segment.assetIds.includes(asset.id) : segment.prompt.includes(asset.name)))
+  for (const asset of assets) parts.push(`Keep ${asset.name} (${asset.kind}): ${assetBlock(asset)}`)
+  if (plan.style?.trim()) parts.push(`Visual style: ${plan.style.trim()}`)
   parts.push('')
-  parts.push('Storyboard (each shot a separate scene, clean cuts):')
+  parts.push('Storyboard (one continuous story timeline; a shot changes framing only unless its relation declares a cut, time jump, or flashback):')
   let cursor = 0
   segments.forEach((segment, index) => {
     const start = cursor
     const end = cursor + segment.durationSeconds
     const camera = segment.camera !== undefined && segment.camera.length > 0 ? ` Camera: ${segment.camera}.` : ''
-    parts.push(`[${start}s-${end}s] Shot ${index + 1}: ${segment.prompt}${camera}`)
+    const relation = index === 0 ? 'opening' : segment.continuity ?? 'continue'
+    const state = [
+      segment.startState !== undefined ? `Start state: ${segment.startState}` : undefined,
+      segment.event !== undefined ? `Event: ${segment.event}` : undefined,
+      segment.endState !== undefined ? `End state: ${segment.endState}` : undefined,
+    ].filter((value): value is string => value !== undefined)
+    parts.push(`[${start}s-${end}s] Shot ${index + 1} (${relation}): ${segment.prompt}${camera}${state.length > 0 ? ` ${state.join('. ')}.` : ''}`)
     cursor = end
   })
   parts.push('')
-  parts.push('Camera: per-shot angles, clean hard cuts, no dissolves.')
+  parts.push('Use clean hard cuts between shot angles, no dissolves. An angle change does not change place or time. Continue from each preceding end state; do not repeat completed actions. A cut changes place, not established facts; time jumps and flashbacks follow their stated times. Preserve identities, wardrobe, prop ownership, set layout, and lighting unless the timeline explicitly changes them.')
   parts.push('No text, subtitles, logos or watermarks of any kind unless the user requests them.')
   return parts.join('\n')
 }
@@ -833,10 +858,53 @@ function validateMultiShotPlan(plan: Pick<VideoPlan, 'mode' | 'segments'>): void
   }
   const resolution = plan.segments[0]?.resolution
   const ratio = plan.segments[0]?.ratio
-  for (const segment of plan.segments) {
+  for (const [index, segment] of plan.segments.entries()) {
     if (segment.resolution !== resolution || segment.ratio !== ratio) {
       throw new Error('multi_shot segments must share one resolution and ratio (one task has one canvas); use mode per_segment for mixed specs')
     }
+    if (segment.backend !== plan.segments[0]?.backend) {
+      throw new Error('multi_shot segments must share one backend; use per_segment for independent routing')
+    }
+    if (index > 0 && (segment.references?.length ?? 0) > 0) {
+      throw new Error(`multi_shot segment ${segment.id}: later-shot references cannot condition one task; use per_segment`)
+    }
+    for (const reference of segment.references ?? []) {
+      if (reference.type !== 'image' || reference.role !== 'first_frame' || segment.references?.length !== 1) {
+        throw new Error('multi_shot accepts one opening first_frame image on its first shot; use per_segment for other material')
+      }
+    }
+    if (plan.segments.length > 1) {
+      for (const [field, value] of [['start_state', segment.startState], ['event', segment.event], ['end_state', segment.endState]]) {
+        if (value === undefined || value.trim().length === 0) {
+          throw new Error(`multi_shot segment ${segment.id}: ${field} must describe the story state or event`)
+        }
+      }
+      if (index > 0 && segment.continuity === undefined) {
+        throw new Error(`multi_shot segment ${segment.id}: continuity must declare continue, cut, time_jump, or flashback`)
+      }
+    }
+  }
+}
+
+/** Build the complete multi-shot request with exactly one opening frame; later stills are previews. */
+function buildMultiShotRequest(plan: VideoPlan, outputDir: string): SegmentRequest {
+  const first = plan.segments[0]
+  if (first === undefined) throw new Error(`plan ${plan.id} has no segments`)
+  const authored = first.references?.[0]?.source
+  const opening = authored ?? findImageArtifact(imageArtifactBase(keyframesDir(outputDir), plan.id, first.id))
+  if (opening === undefined) {
+    throw new Error(`multi_shot plan ${plan.id} needs an opening frame; run video_keyframes or supply first_frame on its first shot`)
+  }
+  const prompt = buildMultiShotPrompt(plan)
+  if (prompt.length > MAX_PROMPT_CHARS) {
+    throw new Error(`multi_shot prompt exceeds ${MAX_PROMPT_CHARS} characters after combining story, assets, style, and shot states; shorten the plan`)
+  }
+  return {
+    inputs: [{ type: 'text', text: prompt }, { type: 'image', url: opening, role: 'first_frame' }],
+    durationSeconds: plan.segments.reduce((sum, segment) => sum + segment.durationSeconds, 0),
+    resolution: first.resolution,
+    ratio: 'adaptive',
+    ...(plan.seed !== undefined ? { seed: plan.seed } : {}),
   }
 }
 
@@ -1159,7 +1227,8 @@ function requireCharacterAnchors(segments: readonly VideoSegment[], plan: VideoP
   const missing = new Set<string>()
   for (const segment of segments) {
     for (const asset of unanchored) {
-      if (segment.prompt.includes(asset.name)) missing.add(asset.name)
+      const used = segment.assetIds !== undefined ? segment.assetIds.includes(asset.id) : segment.prompt.includes(asset.name)
+      if (used) missing.add(asset.name)
     }
   }
   if (missing.size === 0) return
@@ -1180,6 +1249,7 @@ function requireCharacterAnchors(segments: readonly VideoSegment[], plan: VideoP
  */
 function referencedAssetsFor(segment: VideoSegment, plan: VideoPlan): readonly AnchoredAsset[] {
   const anchored = anchoredAssets(plan)
+  if (segment.assetIds !== undefined) return anchored.filter(asset => segment.assetIds?.includes(asset.id))
   const named = anchored.filter(asset => segment.prompt.includes(asset.name))
   return named.length > 0 ? named : anchored.filter(asset => asset.kind !== 'character')
 }
@@ -1288,7 +1358,7 @@ export function apply(ctx: Context): void {
       mode: {
         type: 'string',
         enum: ['multi_shot', 'per_segment'],
-        description: 'multi_shot (default) folds all segments into one coherent H3 task (≤15s, uniform resolution/ratio); per_segment renders each shot independently then concats. Use per_segment when a shot needs its own material or backend.',
+        description: 'multi_shot (default) sends one story timeline and one opening frame to H3 (≤15s, uniform resolution/ratio/backend). Multiple shots require start_state, event, end_state, and continuity after the opening. Review state continuity before rendering. per_segment renders independent tasks for shot-specific material or routing.',
       },
       assets: {
         type: 'array',
@@ -1307,7 +1377,7 @@ export function apply(ctx: Context): void {
       },
       seed: {
         type: 'integer',
-        description: 'Sampling seed shared by every segment and keyframe of the plan, so separately rendered shots stay on one look; omit to derive one from the plan identity.',
+        description: 'Sampling seed for reproducibility on providers that support it; it does not preserve character identity or story continuity. Omit to derive one from the plan identity. Hosted H3 ignores seed.',
       },
       segments: {
         type: 'array',
@@ -1320,13 +1390,18 @@ export function apply(ctx: Context): void {
             id: { type: 'string', required: true, description: 'Stable segment id, e.g. s1, s2.' },
             prompt: { type: 'string', required: true, description: 'Shot description used as the generation prompt. H3 generates audio in the same pass: state the ambience/SFX layer, wrap Chinese dialogue as <d>[Chinese] 逐字台词</d>, and write non_diegetic_music: N/A when no music is wanted.' },
             camera: { type: 'string', description: 'Camera movement guidance appended to the prompt.' },
+            asset_ids: { type: 'array', items: { type: 'string' }, description: 'Exact plan asset ids appearing in this shot; an empty list means no assets. Prefer this over matching names in prose.' },
+            continuity: { type: 'string', enum: ['continue', 'cut', 'time_jump', 'flashback'], description: 'Required after the opening in a multi-shot story: continue changes framing within continuous action; cut changes place; time_jump and flashback declare time changes.' },
+            start_state: { type: 'string', description: 'Required in multi-shot stories: observable starting state, including positions, held objects, and established facts.' },
+            event: { type: 'string', description: 'Required in multi-shot stories: the single event advanced by this shot.' },
+            end_state: { type: 'string', description: 'Required in multi-shot stories: observable ending state. Review it against the next start_state before rendering; prose is not checked for semantic equality.' },
             duration_seconds: { type: 'integer', required: true, description: 'Segment length in seconds (1..120).' },
             resolution: { type: 'string', required: true, enum: ['480P', '768P', '2K'], description: 'Resolution tier.' },
             ratio: { type: 'string', required: true, enum: ['adaptive', '21:9', '16:9', '4:3', '1:1', '3:4', '9:16'], description: 'Aspect ratio.' },
             backend: { type: 'string', required: true, enum: ['local', 'remote', 'auto'], description: 'Routing policy for this segment.' },
             references: {
               type: 'array',
-              description: 'Optional reference materials conditioning this segment (served by the remote API; local ComfyUI is text-only).',
+              description: 'Conditioning material supported by the selected provider. multi_shot accepts only one image first_frame on its opening shot; later-shot images are previews, not video constraints. Use per_segment for separate material per shot.',
               items: {
                 type: 'object',
                 additionalProperties: false,
@@ -1352,6 +1427,11 @@ export function apply(ctx: Context): void {
       const segments: VideoSegment[] = args.segments.map(segment => ({
         id: segment.id,
         prompt: segment.prompt,
+        ...segment.asset_ids !== undefined ? { assetIds: segment.asset_ids } : {},
+        ...segment.continuity !== undefined ? { continuity: segment.continuity } : {},
+        ...segment.start_state !== undefined ? { startState: segment.start_state } : {},
+        ...segment.event !== undefined ? { event: segment.event } : {},
+        ...segment.end_state !== undefined ? { endState: segment.end_state } : {},
         ...segment.camera !== undefined ? { camera: segment.camera } : {},
         durationSeconds: segment.duration_seconds,
         resolution: segment.resolution,
@@ -1393,7 +1473,7 @@ export function apply(ctx: Context): void {
           goal: args.goal,
           mode,
           ...assets.length > 0 ? { assets } : {},
-          ...args.style !== undefined ? { style: args.style } : {},
+          ...(args.style ?? prior.style) !== undefined ? { style: args.style ?? prior.style } : {},
           ...seed !== undefined ? { seed } : {},
           segments,
           createdAt: prior.createdAt,
@@ -1427,6 +1507,11 @@ export function apply(ctx: Context): void {
         segments: plan.segments.map(segment => ({
           id: segment.id,
           prompt: segment.prompt,
+          ...segment.assetIds !== undefined ? { assetIds: [...segment.assetIds] } : {},
+          ...segment.continuity !== undefined ? { continuity: segment.continuity } : {},
+          ...segment.startState !== undefined ? { startState: segment.startState } : {},
+          ...segment.event !== undefined ? { event: segment.event } : {},
+          ...segment.endState !== undefined ? { endState: segment.endState } : {},
           ...segment.camera !== undefined ? { camera: segment.camera } : {},
           durationSeconds: segment.durationSeconds,
           resolution: segment.resolution,
@@ -1448,10 +1533,10 @@ export function apply(ctx: Context): void {
 
   ctx.tools.register(defineTool({
     name: 'video_keyframes',
-    description: 'Generate one still keyframe per selected segment (remote image model), establishing the scene and visual identity BEFORE video generation. Each still carries the plan style and the anchored character the shot names as a subject reference, so separately rendered shots share one look. Save keyframes to outputDir/keyframes and return their paths; present them to the user for confirmation, then render.',
+    description: 'Generate stills using the configured image provider. multi_shot defaults to one opening frame showing the first shot start_state before its event; explicitly selected later stills are storyboard previews and do not condition the video. per_segment defaults to all shots. A named or explicitly selected character supplies one portrait reference; local generation requires a reference-image workflow. Present the images for confirmation before rendering.',
     parameters: {
       plan_id: { type: 'string', required: true, description: 'Plan id from video_plan.' },
-      segment_ids: { type: 'array', items: { type: 'string' }, description: 'Segment ids to keyframe; defaults to every segment.' },
+      segment_ids: { type: 'array', items: { type: 'string' }, description: 'Shot ids to draw; defaults to the opening shot for multi_shot, or every shot for per_segment.' },
       seed: {
         type: 'integer',
         description: 'Image seed for this batch; defaults to the plan seed, so re-running reproduces the same stills. Pass another value to try a different take.',
@@ -1468,7 +1553,7 @@ export function apply(ctx: Context): void {
       const plan = await readPlan(outputDir, args.plan_id)
       const seed = args.seed ?? plan.seed
       const selected = args.segment_ids === undefined
-        ? plan.segments
+        ? plan.mode === 'multi_shot' ? plan.segments.slice(0, 1) : plan.segments
         : args.segment_ids.map((id) => {
           const segment = plan.segments.find(candidate => candidate.id === id)
           if (segment === undefined) throw new Error(`plan ${plan.id} has no segment ${JSON.stringify(id)}`)
@@ -1491,7 +1576,9 @@ export function apply(ctx: Context): void {
           || (args.identity !== 'text' && subject !== undefined)
         try {
           const generated = await ctx.h3Video.keyframe({
-            prompt: segmentPrompt(segment, plan, assets, keepFace),
+            prompt: plan.mode === 'multi_shot'
+              ? `${segmentPrompt({ ...segment, prompt: segment.startState ?? segment.prompt }, plan, assets, keepFace)}\nDraw one still at this shot's starting state, before its event begins. No montage, timeline, or event outcome.`
+              : segmentPrompt(segment, plan, assets, keepFace),
             ratio: keyframeRatio(segment.ratio),
             ...(seed !== undefined ? { seed } : {}),
             // The portrait edit redraws the whole frame around the reference face, so the still
@@ -1516,9 +1603,10 @@ export function apply(ctx: Context): void {
       }
       const succeeded = keyframes.filter(keyframe => keyframe.state === 'generated').length
       const failed = keyframes.length - succeeded
-      const notice = failed === 0
+      const notice = (failed === 0
         ? `generated ${succeeded} keyframe(s) for plan ${plan.id}`
-        : `generated ${succeeded} keyframe(s), ${failed} failed for plan ${plan.id}`
+        : `generated ${succeeded} keyframe(s), ${failed} failed for plan ${plan.id}`)
+        + (plan.mode === 'multi_shot' ? '; only the first shot image conditions the complete film; later images are storyboard previews' : '')
       return { planId: plan.id, keyframes, notice }
     },
     presentCall: args => presentCall('Generate keyframes', args.plan_id),
@@ -1583,6 +1671,11 @@ export function apply(ctx: Context): void {
         segments: plan.segments.map(segment => ({
           id: segment.id,
           prompt: segment.prompt,
+          ...segment.assetIds !== undefined ? { assetIds: [...segment.assetIds] } : {},
+          ...segment.continuity !== undefined ? { continuity: segment.continuity } : {},
+          ...segment.startState !== undefined ? { startState: segment.startState } : {},
+          ...segment.event !== undefined ? { event: segment.event } : {},
+          ...segment.endState !== undefined ? { endState: segment.endState } : {},
           ...segment.camera !== undefined ? { camera: segment.camera } : {},
           durationSeconds: segment.durationSeconds,
           resolution: segment.resolution,
@@ -1751,10 +1844,10 @@ export function apply(ctx: Context): void {
 
   ctx.tools.register(defineTool({
     name: 'video_render',
-    description: 'Submit one plan\'s segments (or a subset) to the chosen H3 backend and start one background job per segment that polls generation to completion. Returns submission records with job ids; collect results with job_output. A local submission boots the configured cloud GPU when needed, so run video_gpu action=up first to surface boot failures before submitting.',
+    description: 'Submit the complete multi_shot story once, using its opening first_frame or generated opening still; missing opening images fail before submission. Later stills are previews. multi_shot rejects segment_ids and chain=true. per_segment submits selected independent shots and supports chaining. Returns background job ids; collect results with job_output. Local submission boots the configured cloud GPU when needed.',
     parameters: {
       plan_id: { type: 'string', required: true, description: 'Plan id from video_plan.' },
-      segment_ids: { type: 'array', items: { type: 'string' }, description: 'Segment ids to render; defaults to every segment.' },
+      segment_ids: { type: 'array', items: { type: 'string' }, description: 'per_segment only: shot ids to render; defaults to every shot. Omit for multi_shot.' },
       backend: { type: 'string', enum: ['local', 'remote', 'auto'], description: 'Backend override for all selected segments.' },
       allow_remote: {
         type: 'boolean',
@@ -1762,7 +1855,7 @@ export function apply(ctx: Context): void {
       },
       chain: {
         type: 'boolean',
-        description: 'Render the selected shots in plan order and start each one from the previous shot\'s final frame, so consecutive shots share a continuous motion and place. Slower than parallel rendering; use it for shots inside one scene.',
+        description: 'per_segment only: render serially and use the previous clip final frame for the next shot. This carries the picture across tasks but does not validate story continuity. Omit for multi_shot.',
       },
     },
     output: jsonOutput(RENDER_VALUE_SCHEMA),
@@ -1776,13 +1869,17 @@ export function apply(ctx: Context): void {
       // synthetic segment id `all` routes the job's output to segments/<planId>-all.mp4.
       if (plan.mode === 'multi_shot') {
         validateMultiShotPlan(plan)
+        validateContinuity(plan.segments, plan.assets ?? [])
+        if (args.segment_ids !== undefined || args.chain === true) {
+          throw new Error('multi_shot renders the complete storyboard once; omit segment_ids and chain, or use per_segment')
+        }
         const first = plan.segments[0]
         if (first === undefined) throw new Error(`plan ${plan.id} has no segments`)
         const total = plan.segments.reduce((sum, segment) => sum + segment.durationSeconds, 0)
         const combined: VideoSegment = {
           ...first,
           id: 'all',
-          prompt: buildMultiShotPrompt(plan.goal, plan.segments),
+          prompt: buildMultiShotPrompt(plan),
           durationSeconds: total,
         }
         const backend = args.backend ?? first.backend
@@ -1790,11 +1887,7 @@ export function apply(ctx: Context): void {
         try {
           const { target, ref } = await ctx.h3Video.submit(
             backend,
-            buildSegmentRequest(
-              combined,
-              plan,
-              imageArtifactBase(keyframesDir(outputDir), plan.id, plan.segments[0]?.id ?? 's0'),
-            ),
+            buildMultiShotRequest(plan, outputDir),
             exec.signal,
           )
           const jobId = ctx.jobs.start({
@@ -1991,9 +2084,9 @@ export function apply(ctx: Context): void {
           type: 'text',
           text: '用户请求生成视频：' + text + '\n\n'
             + '请按 H3 视频生成流程执行：'
-            + '1) 先用 video_plan 把需求拆成带 id 的分镜（每段含 prompt、duration_seconds、resolution、ratio、backend，可选 references 参考素材）；'
-            + '2) 把分镜呈现给用户确认（场景/镜头/提示词要点/时长/分辨率/路由与预估成本，并询问是否需要参考素材），未经确认不得渲染；'
-            + '3) 确认后用 video_render 提交渲染并用 job_output 等待各段完成；配置了云 GPU 时，本地渲染会自动开机实例，也可先用 video_gpu action=up 确认实例就绪；'
+            + '1) ≤15 秒短片优先 mode=multi_shot，一次生成完整故事；默认一位主角、一个地点、连续时间、约三镜，每镜一个可见事件。用 video_plan 保存素材 id 与分镜，每镜含 prompt、asset_ids、start_state、event、end_state、duration_seconds、resolution、ratio、backend，第二镜起声明 continuity。逐镜审查上一镜 end_state 与下一镜 start_state，避免重复动作、道具换手和无解释跳时空；程序只校验字段与素材引用，不判断剧情语义；'
+            + '2) 记录或生成角色/场景/道具素材，展示分镜与成本。用 video_keyframes 默认只生成开场图，画第一镜 start_state、事件尚未发生；展示并确认画面。后续镜头图片仅是分镜预览，不会分别约束整片。用户提供开场图时放在第一镜 references 的 first_frame；'
+            + '3) 确认分镜与开场图后用 video_render 渲染整片，不传 segment_ids 或 chain。multi_shot 统一后端/分辨率/比例，不能附加后续镜头参考素材；确需逐镜材料或独立路由才用 per_segment。用 job_output 等待完成；配置了云 GPU 时可先用 video_gpu action=up 确认实例就绪；'
             + '4) 全部成功后 video_assemble 拼接成片，最后用 present 交付。\n'
             + 'H3 音画同生（视频与音频同一次生成），写分镜 prompt 时要声明声音层：'
             + '写清环境声与音效（overall_soundscape）；有中文对白时逐字写进 <d>[Chinese] 台词</d>，时长要容得下台词；'

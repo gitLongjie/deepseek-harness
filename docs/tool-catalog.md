@@ -2306,7 +2306,7 @@ Source: [`packages/video/tool-video/src/index.ts`](../packages/video/tool-video/
 
 ### `video_keyframes`
 
-Generate one still keyframe per selected segment (remote image model), establishing the scene and visual identity BEFORE video generation. Each still carries the plan style and the anchored character the shot names as a subject reference, so separately rendered shots share one look. Save keyframes to outputDir/keyframes and return their paths; present them to the user for confirmation, then render.
+Generate stills using the configured image provider. multi_shot defaults to one opening frame showing the first shot start_state before its event; explicitly selected later stills are storyboard previews and do not condition the video. per_segment defaults to all shots. A named or explicitly selected character supplies one portrait reference; local generation requires a reference-image workflow. Present the images for confirmation before rendering.
 
 ```json
 {
@@ -2318,7 +2318,7 @@ Generate one still keyframe per selected segment (remote image model), establish
     },
     "segment_ids": {
       "type": "array",
-      "description": "Segment ids to keyframe; defaults to every segment.",
+      "description": "Shot ids to draw; defaults to the opening shot for multi_shot, or every shot for per_segment.",
       "items": {
         "type": "string"
       }
@@ -2376,7 +2376,7 @@ Structure the current conversation request into a versioned storyboard plan and 
     },
     "mode": {
       "type": "string",
-      "description": "multi_shot (default) folds all segments into one coherent H3 task (≤15s, uniform resolution/ratio); per_segment renders each shot independently then concats. Use per_segment when a shot needs its own material or backend.",
+      "description": "multi_shot (default) sends one story timeline and one opening frame to H3 (≤15s, uniform resolution/ratio/backend). Multiple shots require start_state, event, end_state, and continuity after the opening. Review state continuity before rendering. per_segment renders independent tasks for shot-specific material or routing.",
       "enum": [
         "multi_shot",
         "per_segment"
@@ -2440,7 +2440,7 @@ Structure the current conversation request into a versioned storyboard plan and 
     },
     "seed": {
       "type": "integer",
-      "description": "Sampling seed shared by every segment and keyframe of the plan, so separately rendered shots stay on one look; omit to derive one from the plan identity."
+      "description": "Sampling seed for reproducibility on providers that support it; it does not preserve character identity or story continuity. Omit to derive one from the plan identity. Hosted H3 ignores seed."
     },
     "segments": {
       "type": "array",
@@ -2460,6 +2460,35 @@ Structure the current conversation request into a versioned storyboard plan and 
           "camera": {
             "type": "string",
             "description": "Camera movement guidance appended to the prompt."
+          },
+          "asset_ids": {
+            "type": "array",
+            "description": "Exact plan asset ids appearing in this shot; an empty list means no assets. Prefer this over matching names in prose.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "continuity": {
+            "type": "string",
+            "description": "Required after the opening in a multi-shot story: continue changes framing within continuous action; cut changes place; time_jump and flashback declare time changes.",
+            "enum": [
+              "continue",
+              "cut",
+              "time_jump",
+              "flashback"
+            ]
+          },
+          "start_state": {
+            "type": "string",
+            "description": "Required in multi-shot stories: observable starting state, including positions, held objects, and established facts."
+          },
+          "event": {
+            "type": "string",
+            "description": "Required in multi-shot stories: the single event advanced by this shot."
+          },
+          "end_state": {
+            "type": "string",
+            "description": "Required in multi-shot stories: observable ending state. Review it against the next start_state before rendering; prose is not checked for semantic equality."
           },
           "duration_seconds": {
             "type": "integer",
@@ -2498,7 +2527,7 @@ Structure the current conversation request into a versioned storyboard plan and 
           },
           "references": {
             "type": "array",
-            "description": "Optional reference materials conditioning this segment (served by the remote API; local ComfyUI is text-only).",
+            "description": "Conditioning material supported by the selected provider. multi_shot accepts only one image first_frame on its opening shot; later-shot images are previews, not video constraints. Use per_segment for separate material per shot.",
             "items": {
               "type": "object",
               "additionalProperties": false,
@@ -2558,7 +2587,7 @@ Source: [`packages/video/tool-video/src/index.ts`](../packages/video/tool-video/
 
 ### `video_render`
 
-Submit one plan's segments (or a subset) to the chosen H3 backend and start one background job per segment that polls generation to completion. Returns submission records with job ids; collect results with job_output. A local submission boots the configured cloud GPU when needed, so run video_gpu action=up first to surface boot failures before submitting.
+Submit the complete multi_shot story once, using its opening first_frame or generated opening still; missing opening images fail before submission. Later stills are previews. multi_shot rejects segment_ids and chain=true. per_segment submits selected independent shots and supports chaining. Returns background job ids; collect results with job_output. Local submission boots the configured cloud GPU when needed.
 
 ```json
 {
@@ -2570,7 +2599,7 @@ Submit one plan's segments (or a subset) to the chosen H3 backend and start one 
     },
     "segment_ids": {
       "type": "array",
-      "description": "Segment ids to render; defaults to every segment.",
+      "description": "per_segment only: shot ids to render; defaults to every shot. Omit for multi_shot.",
       "items": {
         "type": "string"
       }
@@ -2590,7 +2619,7 @@ Submit one plan's segments (or a subset) to the chosen H3 backend and start one 
     },
     "chain": {
       "type": "boolean",
-      "description": "Render the selected shots in plan order and start each one from the previous shot's final frame, so consecutive shots share a continuous motion and place. Slower than parallel rendering; use it for shots inside one scene."
+      "description": "per_segment only: render serially and use the previous clip final frame for the next shot. This carries the picture across tasks but does not validate story continuity. Omit for multi_shot."
     }
   },
   "required": [

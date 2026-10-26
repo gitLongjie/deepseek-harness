@@ -60,6 +60,14 @@ export interface WorkbenchShot {
   readonly prompt: string
   /** Camera direction when recorded. */
   readonly camera?: string
+  /** Recorded relation to the previous shot. */
+  readonly continuity?: string
+  /** Recorded starting state, event, and ending state for continuity review. */
+  readonly startState?: string
+  readonly event?: string
+  readonly endState?: string
+  /** Exact assets selected by the storyboard. */
+  readonly assetIds?: readonly string[]
   /** Shot length in seconds when recorded. */
   readonly durationSeconds?: number
   /** Recorded resolution tier. */
@@ -117,6 +125,11 @@ interface PlanSegment {
   id?: unknown
   prompt?: unknown
   camera?: unknown
+  continuity?: unknown
+  startState?: unknown
+  event?: unknown
+  endState?: unknown
+  assetIds?: unknown
   durationSeconds?: unknown
   resolution?: unknown
   ratio?: unknown
@@ -132,6 +145,12 @@ function projectShot(segment: PlanSegment & { id: string }): WorkbenchShot {
     id: segment.id,
     prompt: typeof segment.prompt === 'string' ? segment.prompt : '',
     ...(typeof segment.camera === 'string' ? { camera: segment.camera } : {}),
+    ...(typeof segment.continuity === 'string' ? { continuity: segment.continuity } : {}),
+    ...(typeof segment.startState === 'string' ? { startState: segment.startState } : {}),
+    ...(typeof segment.event === 'string' ? { event: segment.event } : {}),
+    ...(typeof segment.endState === 'string' ? { endState: segment.endState } : {}),
+    ...(Array.isArray(segment.assetIds) && segment.assetIds.every((id: unknown) => typeof id === 'string')
+      ? { assetIds: segment.assetIds } : {}),
     ...(typeof segment.durationSeconds === 'number' && Number.isFinite(segment.durationSeconds)
       ? { durationSeconds: segment.durationSeconds } : {}),
     ...(typeof segment.resolution === 'string' ? { resolution: segment.resolution } : {}),
@@ -355,7 +374,14 @@ export async function scanProjects(outputDir: string): Promise<WorkbenchSummary>
         rendered,
         shots,
         // The whole storyboard renders as one task from the composite prompt.
-        prompt: [typeof plan.goal === 'string' ? plan.goal : '', ...shots.map(shot => shot.prompt)]
+        prompt: [typeof plan.goal === 'string' ? plan.goal : '', ...shots.map(shot => [
+          shot.prompt,
+          ...(shot.continuity !== undefined ? [`Continuity: ${shot.continuity}`] : []),
+          ...(shot.startState !== undefined ? [`Start state: ${shot.startState}`] : []),
+          ...(shot.event !== undefined ? [`Event: ${shot.event}`] : []),
+          ...(shot.endState !== undefined ? [`End state: ${shot.endState}`] : []),
+          ...(shot.assetIds !== undefined ? [`Asset ids: ${shot.assetIds.join(', ')}`] : []),
+        ].join('\n'))]
           .filter(part => part.length > 0)
           .join('\n'),
         ...keyframe !== undefined ? { keyframe } : {},

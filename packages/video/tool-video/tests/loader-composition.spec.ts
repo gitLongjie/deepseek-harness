@@ -36,6 +36,7 @@ let context: Context | undefined
 let server: Server | undefined
 let autodlServer: Server | undefined
 let port = 0
+let submittedGraphs: Array<Record<string, { class_type: string; inputs: Record<string, unknown> }>> = []
 
 afterEach(async () => {
   await context?.fiber.dispose()
@@ -45,6 +46,7 @@ afterEach(async () => {
   autodlServer = undefined
   if (root !== undefined) await rm(root, { recursive: true, force: true })
   root = undefined
+  submittedGraphs = []
 })
 
 async function closeServer(target: Server | undefined): Promise<void> {
@@ -64,8 +66,14 @@ function mockComfyServer(): Server {
       return
     }
     if (req.method === 'POST' && url.pathname === '/prompt') {
-      res.writeHead(200, { 'content-type': 'application/json' })
-      res.end(JSON.stringify({ prompt_id: 'p-real' }))
+      let body = ''
+      req.on('data', (chunk: Buffer) => { body += chunk.toString() })
+      req.on('end', () => {
+        const submitted = JSON.parse(body) as { prompt: Record<string, { class_type: string; inputs: Record<string, unknown> }> }
+        submittedGraphs.push(submitted.prompt)
+        res.writeHead(200, { 'content-type': 'application/json' })
+        res.end(JSON.stringify({ prompt_id: 'p-real' }))
+      })
       return
     }
     if (req.method === 'GET' && url.pathname === '/history/p-real') {
@@ -230,6 +238,7 @@ async function bootComposition(comfyLines: readonly string[]): Promise<Context> 
   root = await mkdtemp(join(tmpdir(), 'dsh-video-loader-'))
   const workflowPath = join(root, 'workflow.json')
   await writeFile(workflowPath, JSON.stringify({
+    '1': { class_type: 'MiniMaxH3ImageToVideo', inputs: { prompt: '{{prompt}}', duration: '{{duration}}' } },
     '9': { class_type: 'SaveImage', inputs: { filename_prefix: 'h3-real', images: [] } },
   }))
   const configPath = join(root, 'cordis.yml')
@@ -245,6 +254,9 @@ async function bootComposition(comfyLines: readonly string[]): Promise<Context> 
     '    comfy:',
     ...comfyLines,
     `      workflowPath: '${workflowPath.replaceAll('\\', '/')}'`,
+    ...(comfyLines.some(line => line.trim() === 'gpu:')
+      ? []
+      : [`      inputDir: '${join(root, 'input').replaceAll('\\', '/')}'`]),
     '      pollIntervalMs: 500',
     '      taskTimeoutMs: 60000',
     '      resolutions: ["768P"]',
@@ -289,6 +301,7 @@ async function bootComposition(comfyLines: readonly string[]): Promise<Context> 
 
 const PLAN_ARGS = {
   goal: 'a short brand film',
+  mode: 'per_segment',
   segments: [
     {
       id: 's1',
@@ -302,6 +315,48 @@ const PLAN_ARGS = {
 }
 
 describe('tool-video real Loader composition through cordis.yml', () => {
+  it('sends one complete timeline and one opening frame through the real local provider', async () => {
+    const ctx = await boot()
+    const owner = await agent(ctx)
+    const call = toolCall(ctx, owner)
+    const opening = join(root!, 'opening.png')
+    await writeFile(opening, Buffer.from([0x89, 0x50, 0x4e, 0x47]))
+    const shots = [
+      { id: 's1', start_state: 'cup on table', event: 'pick up cup', end_state: 'cup in right hand' },
+      { id: 's2', continuity: 'continue', start_state: 'cup in right hand', event: 'look at door', end_state: 'cup held, eyes toward door' },
+    ]
+    const planned = await call('video_plan', {
+      goal: 'pick up cup then look toward a knock', mode: 'multi_shot', seed: 7,
+      segments: shots.map((shot, index) => ({
+        ...PLAN_ARGS.segments[0], ...shot, asset_ids: [], prompt: shot.event,
+        ...(index === 0 ? { references: [{ type: 'image', role: 'first_frame', source: opening }] } : {}),
+      })),
+    })
+    if (planned.isError) throw new Error('expected plan success')
+    const rendered = await call('video_render', { plan_id: (planned.value as { id: string }).id })
+    if (rendered.isError) throw new Error('expected render success')
+    const submission = (rendered.value as { submissions: Array<{ jobId?: string }> }).submissions[0]
+    expect(submission?.jobId).toBeDefined()
+    expect((await ctx.jobs.wait(JobId(submission!.jobId!), 8_000, owner)).status).toBe('completed')
+    expect(submittedGraphs).toHaveLength(1)
+    const graph = submittedGraphs[0]!
+    expect(graph['1']?.inputs.prompt).toContain('[0s-4s] Shot 1')
+    expect(graph['1']?.inputs.prompt).toContain('[4s-8s] Shot 2 (continue)')
+    expect(graph['1']?.inputs.prompt).toContain('End state: cup in right hand')
+    expect(graph['1']?.inputs.duration).toBe(8)
+    const loads = Object.entries(graph).filter(([, node]) => node.class_type === 'LoadImage')
+    expect(loads).toHaveLength(1)
+    expect(graph['1']?.inputs.first_frame).toEqual([loads[0]?.[0], 0])
+    expect(graph['1']?.inputs.ref_images).toBeUndefined()
+    const listing = await ctx.connection.createSharedFetchHandler('/api').fetch(
+      new Request('http://127.0.0.1/api/video-workbench/projects'),
+    )
+    const summary = await listing.json() as Workbench.WorkbenchSummary
+    expect(summary.projects[0]?.segments[0]?.shots[1]).toMatchObject({
+      continuity: 'continue', startState: 'cup in right hand', endState: 'cup held, eyes toward door', assetIds: [],
+    })
+  }, 30_000)
+
   it.skipIf(spawnSync('ffmpeg', ['-version']).status !== 0 || spawnSync('ffprobe', ['-version']).status !== 0)(
     'assembles a default crossfade and serves the completed video through the workbench', async () => {
       const ctx = await boot()
@@ -366,22 +421,20 @@ describe('tool-video real Loader composition through cordis.yml', () => {
     const snapshot = await ctx.jobs.wait(id, 8_000, owner)
     expect(snapshot.status).toBe('completed')
     const read = ctx.jobs.read(id, owner)
-    // multi_shot is the default: one segment renders as one coherent clip under the `all` id.
-    expect(read.text).toContain('[succeeded] all')
-    expect(read.text).toContain('vp-1-all.mp4')
+    expect(read.text).toContain('[succeeded] s1')
+    expect(read.text).toContain('vp-1-s1.mp4')
     const listing = await ctx.connection.createSharedFetchHandler('/api').fetch(
       new Request('http://127.0.0.1/api/video-workbench/projects'),
     )
     expect(listing.status).toBe(200)
     const summary = await listing.json() as Workbench.WorkbenchSummary
     expect(summary.projects[0]?.segments[0]).toMatchObject({
-      id: 'all', rendered: true,
+      id: 's1', rendered: true,
       shots: [{ id: 's1', prompt: PLAN_ARGS.segments[0]!.prompt, durationSeconds: 4, resolution: '768P', ratio: '16:9', backend: 'local' }],
     })
     const file = summary.projects[0]?.segments[0]?.file
     expect(file).toBeDefined()
-    expect(summary.projects[0]?.final).toBe(file)
-    expect(summary.projects[0]?.finalBytes).toBeGreaterThan(0)
+    expect(summary.projects[0]?.final).toBeUndefined()
     const relative = file!.slice(summary.outputDir.length + 1).replaceAll('\\', '/')
     const media = await ctx.connection.createSharedFetchHandler('/api').fetch(
       new Request(`http://127.0.0.1/api/video-workbench/file?path=${encodeURIComponent(relative)}`),

@@ -57,11 +57,19 @@ function provider(
 }
 
 describe('comfy image provider', () => {
+  it('rejects a portrait request when only a text workflow is configured before submitting', async () => {
+    const fetchImpl = vi.fn()
+    const { client } = provider(fetchImpl)
+    await expect(client.generate({ prompt: '小林', ratio: '1:1', subjectReference: 'C:/portrait.png' }, new AbortController().signal))
+      .rejects.toThrow('referenceWorkflowPath')
+    expect(fetchImpl).not.toHaveBeenCalled()
+  })
   it('submits the filled workflow, polls once, and writes the served image', async () => {
     const submitted: Array<{ prompt?: Record<string, { inputs: Record<string, unknown> }> }> = []
     const fetchImpl = vi.fn(async (input: string, init?: RequestInit) => {
       if (input.endsWith('/prompt')) {
-        submitted.push(JSON.parse(String(init?.body)) as typeof submitted[number])
+        if (typeof init?.body !== 'string') throw new Error('expected JSON body')
+        submitted.push(JSON.parse(init.body) as typeof submitted[number])
         return new Response(JSON.stringify({ prompt_id: 'p-1' }), { status: 200 })
       }
       if (input.includes('/history/')) {
@@ -87,11 +95,12 @@ describe('comfy image provider', () => {
     const submitted: Array<Record<string, { inputs: Record<string, unknown> }>> = []
     const fetchImpl = vi.fn(async (input: string, init?: RequestInit) => {
       if (input.endsWith('/upload/image')) {
-        uploads.push(String(input))
+        uploads.push(input)
         return new Response(JSON.stringify({ name: 'ref.png', subfolder: '', type: 'input' }), { status: 200 })
       }
       if (input.endsWith('/prompt')) {
-        const body = JSON.parse(String(init?.body)) as { prompt?: Record<string, { inputs: Record<string, unknown> }> }
+        if (typeof init?.body !== 'string') throw new Error('expected JSON body')
+        const body = JSON.parse(init.body) as { prompt?: Record<string, { inputs: Record<string, unknown> }> }
         submitted.push(body.prompt ?? {})
         return new Response(JSON.stringify({ prompt_id: 'p-3' }), { status: 200 })
       }

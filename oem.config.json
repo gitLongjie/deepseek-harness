@@ -1,9 +1,9 @@
 {
   "productName": "喵工作台",
-  "gatewayProviderName": "miaoworker",
+  "gatewayProviderName": "喵工作台",
   "brandIcon": "/favicon.ico",
-  "loginUrl": "https://claw.deepagens.com/api/claw/login",
-  "updateUrl": "https://github.com/gitLongjie/deepseek-harness/releases/latest/download",
+  "loginUrl": "http://ciyuan.three-friend.com/api/claw/login",
+  "updateUrl": "https://ciyuan.three-friend.com/setup/",
   "knowledgeBase": {
     "baseUrl": "http://localhost:8080/api/v1",
     "apiKeyEnv": "WEKNORA_API_KEY",

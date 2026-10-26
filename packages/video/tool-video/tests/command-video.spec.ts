@@ -126,5 +126,8 @@ describe('/video command', () => {
     expect(agent.followedUp[0]?.text).toContain('拍一段 8 秒的品牌片')
     expect(agent.followedUp[0]?.text).toContain('video_plan')
     expect(agent.followedUp[0]?.text).toContain('video_assemble')
+    expect(agent.followedUp[0]?.text).toContain('start_state')
+    expect(agent.followedUp[0]?.text).toContain('默认只生成开场图')
+    expect(agent.followedUp[0]?.text).toContain('不传 segment_ids 或 chain')
   })
 })

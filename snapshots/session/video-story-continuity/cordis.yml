@@ -1,0 +1,11 @@
+
+- insert:
+    - id: h3-video
+      name: '@deepseek-ai/dsh-h3-video'
+      config:
+        outputDir: !!js process.cwd() + '/video'
+        comfy:
+          url: 'http://127.0.0.1:1'
+          workflowPath: unused-workflow.json
+    - id: tool-video
+      name: '@deepseek-ai/dsh-tool-video'

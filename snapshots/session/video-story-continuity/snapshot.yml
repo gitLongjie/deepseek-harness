@@ -1,0 +1,8 @@
+version: 1
+scenario: video-story-continuity
+profile: headless
+composition: video-story
+recording: authored
+header:
+  class: video-story
+  pin: true

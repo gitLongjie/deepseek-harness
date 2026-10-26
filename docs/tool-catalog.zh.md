@@ -2312,7 +2312,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 
 ### `video_keyframes`
 
-为每个选中片段生成一张静帧关键帧（远端图片模型），在生成视频之前先确立场景与视觉识别。每张静帧都带上计划风格和镜头点名的已锚定角色作为主体参考，因此分开渲染的镜头共享同一观感。关键帧保存到 outputDir/keyframes 并返回其路径；把它们展示给用户确认，然后再渲染。
+使用配置的图片 provider 生成静帧。multi_shot 默认只生成表现第一镜 start_state、事件尚未发生的开场图；显式选择的后续静帧仅是分镜预览，不约束视频。per_segment 默认生成全部镜头。点名或显式选择的角色提供一张定妆照；本地生成需要图生图工作流。渲染前展示图片供用户确认。
 
 ```json
 {
@@ -2324,7 +2324,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
     },
     "segment_ids": {
       "type": "array",
-      "description": "Segment ids to keyframe; defaults to every segment.",
+      "description": "Shot ids to draw; defaults to the opening shot for multi_shot, or every shot for per_segment.",
       "items": {
         "type": "string"
       }
@@ -2382,7 +2382,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
     },
     "mode": {
       "type": "string",
-      "description": "multi_shot (default) folds all segments into one coherent H3 task (≤15s, uniform resolution/ratio); per_segment renders each shot independently then concats. Use per_segment when a shot needs its own material or backend.",
+      "description": "multi_shot (default) sends one story timeline and one opening frame to H3 (≤15s, uniform resolution/ratio/backend). Multiple shots require start_state, event, end_state, and continuity after the opening. Review state continuity before rendering. per_segment renders independent tasks for shot-specific material or routing.",
       "enum": [
         "multi_shot",
         "per_segment"
@@ -2446,7 +2446,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
     },
     "seed": {
       "type": "integer",
-      "description": "Sampling seed shared by every segment and keyframe of the plan, so separately rendered shots stay on one look; omit to derive one from the plan identity."
+      "description": "Sampling seed for reproducibility on providers that support it; it does not preserve character identity or story continuity. Omit to derive one from the plan identity. Hosted H3 ignores seed."
     },
     "segments": {
       "type": "array",
@@ -2466,6 +2466,35 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
           "camera": {
             "type": "string",
             "description": "Camera movement guidance appended to the prompt."
+          },
+          "asset_ids": {
+            "type": "array",
+            "description": "Exact plan asset ids appearing in this shot; an empty list means no assets. Prefer this over matching names in prose.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "continuity": {
+            "type": "string",
+            "description": "Required after the opening in a multi-shot story: continue changes framing within continuous action; cut changes place; time_jump and flashback declare time changes.",
+            "enum": [
+              "continue",
+              "cut",
+              "time_jump",
+              "flashback"
+            ]
+          },
+          "start_state": {
+            "type": "string",
+            "description": "Required in multi-shot stories: observable starting state, including positions, held objects, and established facts."
+          },
+          "event": {
+            "type": "string",
+            "description": "Required in multi-shot stories: the single event advanced by this shot."
+          },
+          "end_state": {
+            "type": "string",
+            "description": "Required in multi-shot stories: observable ending state. Review it against the next start_state before rendering; prose is not checked for semantic equality."
           },
           "duration_seconds": {
             "type": "integer",
@@ -2504,7 +2533,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
           },
           "references": {
             "type": "array",
-            "description": "Optional reference materials conditioning this segment (served by the remote API; local ComfyUI is text-only).",
+            "description": "Conditioning material supported by the selected provider. multi_shot accepts only one image first_frame on its opening shot; later-shot images are previews, not video constraints. Use per_segment for separate material per shot.",
             "items": {
               "type": "object",
               "additionalProperties": false,
@@ -2564,7 +2593,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 
 ### `video_render`
 
-把一个计划的片段（或其中一部分）提交给选定的 H3 后端，并为每个片段启动一个轮询生成直至完成的后台任务。返回带 job id 的提交记录；通过 job_output 收集结果。本地提交会在需要时启动已配置的云 GPU，因此先执行 video_gpu action=up 可在提交前暴露开机失败。
+将完整的 multi_shot 故事一次提交，使用其 first_frame 或生成的开场静帧；缺少开场图时在提交前失败。后续静帧仅是预览。multi_shot 拒绝 segment_ids 和 chain=true。per_segment 提交选中的独立镜头并支持串联。返回后台任务 id，通过 job_output 收集结果；本地提交会按需启动配置的云 GPU。
 
 ```json
 {
@@ -2576,7 +2605,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
     },
     "segment_ids": {
       "type": "array",
-      "description": "Segment ids to render; defaults to every segment.",
+      "description": "per_segment only: shot ids to render; defaults to every shot. Omit for multi_shot.",
       "items": {
         "type": "string"
       }
@@ -2596,7 +2625,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
     },
     "chain": {
       "type": "boolean",
-      "description": "Render the selected shots in plan order and start each one from the previous shot's final frame, so consecutive shots share a continuous motion and place. Slower than parallel rendering; use it for shots inside one scene."
+      "description": "per_segment only: render serially and use the previous clip final frame for the next shot. This carries the picture across tasks but does not validate story continuity. Omit for multi_shot."
     }
   },
   "required": [

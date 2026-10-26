@@ -267,7 +267,7 @@ describe('request-level dynamic configuration', () => {
     })
     expect(ctx.llm.listProviders()).toEqual(expect.arrayContaining([
       { id: 'deepseek-official', name: 'DeepSeek' },
-      { id: 'deepagens', name: 'Deepagens' },
+      { id: 'deepagens', name: '喵工作台' },
     ]))
     expect(observed).toEqual([expect.arrayContaining(['deepseek-official', 'deepagens'])])
   })

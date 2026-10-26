@@ -134,6 +134,12 @@ describe('desktop builder identity', () => {
       updateUrl: 'https://updates.example.test/desktop',
       gatewayProviderName: 'brige',
     })
+    expect(createElectronBuilderOemConfig('Worker', 'https://updates.example.test/desktop', {
+      helpDocsUrl: 'https://docs.acme.test/',
+    }).extraMetadata.dsh).toEqual({
+      updateUrl: 'https://updates.example.test/desktop',
+      helpDocsUrl: 'https://docs.acme.test/',
+    })
   })
 
   it('ships no update metadata when the OEM deployment has no feed', () => {
@@ -164,6 +170,24 @@ describe('desktop builder identity', () => {
       brandIcon: '/brand/acme.ico',
       updateUrl: undefined,
     })
+  })
+
+  it('reads the Help documentation URL from the OEM file and rejects non-HTTPS values', () => {
+    const repoRoot = mkdtempSync(join(tmpdir(), 'dsh-oem-help-'))
+    roots.push(repoRoot)
+    writeFileSync(join(repoRoot, 'oem.config.json'), JSON.stringify({
+      productName: 'Acme Agent',
+      brandIcon: '/brand/acme.ico',
+      helpDocsUrl: 'https://docs.acme.test/',
+    }))
+    expect(readDesktopOemConfig(repoRoot, {})).toMatchObject({ helpDocsUrl: 'https://docs.acme.test/' })
+
+    writeFileSync(join(repoRoot, 'oem.config.json'), JSON.stringify({
+      productName: 'Acme Agent',
+      brandIcon: '/brand/acme.ico',
+      helpDocsUrl: 'http://docs.acme.test/',
+    }))
+    expect(() => readDesktopOemConfig(repoRoot, {})).toThrow(/helpDocsUrl/)
   })
 
   it('projects one configured Web icon into both native desktop icon files', () => {

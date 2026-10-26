@@ -9,6 +9,7 @@
 
 import { app, BrowserWindow, dialog, ipcMain, Menu, shell, type MenuItemConstructorOptions } from 'electron'
 import { isAutostartEnabled, setAutostart } from './autostart.ts'
+import { showContactQr } from './contact-qr.ts'
 import type { DesktopTextKey } from './locales.ts'
 import { requestUpdateCheck, updateChecksEnabled } from '../updater.ts'
 
@@ -24,8 +25,10 @@ type MenuId = (typeof MENU_IDS)[number]
  * function so the shell follows the stored language preference; rebuilding
  * with a new translate keeps accelerators and behavior unchanged.
  * @param t - locale-bound copy resolver (desktop/locales.ts).
+ * @param helpDocsUrl - the documentation URL the Help menu opens; undefined
+ *   omits the entry for deployments that publish no documentation site.
  */
-export function installApplicationMenu(t: (key: DesktopTextKey) => string): void {
+export function installApplicationMenu(t: (key: DesktopTextKey) => string, helpDocsUrl?: string): void {
   const darwinAppMenu: MenuItemConstructorOptions[] = process.platform === 'darwin'
     ? [{ role: 'appMenu' }]
     : []
@@ -79,6 +82,18 @@ export function installApplicationMenu(t: (key: DesktopTextKey) => string): void
       id: 'help',
       label: t('menu.help'),
       submenu: [
+        {
+          label: t('menu.contact'),
+          click: () => {
+            const parent = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+            void showContactQr(parent, t)
+          },
+        },
+        ...(helpDocsUrl === undefined ? [] : [{
+          label: t('menu.helpDocs'),
+          click: () => { void shell.openExternal(helpDocsUrl) },
+        }]),
+        { type: 'separator' },
         {
           label: t('menu.github'),
           click: () => { void shell.openExternal('https://github.com/gitLongjie/deepseek-harness') },

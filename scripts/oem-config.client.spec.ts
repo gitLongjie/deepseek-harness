@@ -79,6 +79,15 @@ describe('OEM configuration', () => {
     expect(() => { parseOemConfig({ ...valid, gatewayProviderName: 3 }, 'fixture') }).toThrow(/gatewayProviderName/)
   })
 
+  it('keeps the desktop Help documentation URL optional but HTTPS-only', () => {
+    expect(parseOemConfig(valid, 'fixture').helpDocsUrl).toBeUndefined()
+    expect(parseOemConfig({ ...valid, helpDocsUrl: 'https://docs.acme.test/' }, 'fixture').helpDocsUrl)
+      .toBe('https://docs.acme.test/')
+    expect(() => { parseOemConfig({ ...valid, helpDocsUrl: 'http://docs.acme.test/' }, 'fixture') })
+      .toThrow(/helpDocsUrl/)
+    expect(() => { parseOemConfig({ ...valid, helpDocsUrl: '  ' }, 'fixture') }).toThrow(/helpDocsUrl/)
+  })
+
   it('keeps the repository OEM file parseable as the build source of truth', () => {
     const path = resolve(import.meta.dirname, '..', 'oem.config.json')
     expect(() => { parseOemConfig(JSON.parse(readFileSync(path, 'utf8')), path) }).not.toThrow()

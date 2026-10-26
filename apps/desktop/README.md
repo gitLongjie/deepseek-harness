@@ -16,6 +16,9 @@ the desktop-only integrations a browser cannot own.
 - **Desktop bridges** — completion notifications, an open-session bridge
   into the web client, plugin enable/disable over the home patch layer, and
   knowledge-base connection management from the OEM configuration.
+- **Help menu** — Contact Us opens the bundled contact QR
+  (`build/contact-qr.png`), and Documentation opens the OEM-configured
+  `helpDocsUrl` beside the repository and update entries.
 - **OEM configuration** — brand name, brand mark, greetings, titles, and
   knowledge-base connection facts resolve from a deployable OEM config file
   and the trusted environment layer, so one code line ships many brands.

@@ -43,8 +43,8 @@ export interface PlanAsset {
   /** User-provided or generated reference image path or URL anchoring this asset. */
   readonly reference?: string
   /**
-   * Character master sheet: front/side/back turnaround plus a face close-up, generated from the
-   * reference portrait. It is the design artifact and project-library record, not a generation
+   * Character master sheet: front/side/back turnaround generated from the character text.
+   * It is the design artifact and project-library record, not a generation
    * input.
    */
   readonly sheet?: string
@@ -58,6 +58,16 @@ export interface VideoSegment {
   readonly prompt: string
   /** Camera movement note folded into the prompt guidance. */
   readonly camera?: string
+  /** How this shot relates to the preceding shot in the story timeline. */
+  readonly continuity?: 'continue' | 'cut' | 'time_jump' | 'flashback'
+  /** State that must be true when this shot starts. */
+  readonly startState?: string
+  /** The single story event this shot advances. */
+  readonly event?: string
+  /** State that the next shot may inherit after this shot ends. */
+  readonly endState?: string
+  /** Explicit asset ids used by this shot; an empty list declares an asset-free shot. */
+  readonly assetIds?: readonly string[]
   /** Seconds for this segment. */
   readonly durationSeconds: number
   /** Resolution tier. */
@@ -80,7 +90,7 @@ export interface VideoPlan {
   readonly goal: string
   /**
    * How the storyboard renders: `multi_shot` (default) folds every segment into ONE H3 task whose
-   * prompt carries the shot timeline, so style/subject/lighting stay coherent and the result is a
+   * prompt carries the shot states and timeline, conditioned on one opening frame, and returns a
    * single clip; `per_segment` renders each segment as an independent task and concats them.
    */
   readonly mode: 'multi_shot' | 'per_segment'
@@ -89,8 +99,8 @@ export interface VideoPlan {
   /** One-line visual style directive injected into generation prompts. */
   readonly style?: string
   /**
-   * Sampling seed shared by every segment and keyframe of this plan, so separately rendered shots
-   * sample the same noise and stay reproducible. Derived from the plan identity when the planner
+   * Sampling seed shared by providers that support reproducibility; it does not preserve identity
+   * or story continuity. Derived from the plan identity when the planner
    * supplies none; the hosted H3 API takes no seed and ignores it.
    */
   readonly seed?: number

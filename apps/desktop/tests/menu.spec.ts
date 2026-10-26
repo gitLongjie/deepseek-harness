@@ -40,7 +40,9 @@ const state = vi.hoisted(() => ({
   ipcOn: vi.fn(),
   fromWebContents: vi.fn(),
   getAllWindows: vi.fn(() => [] as Array<Record<string, unknown>>),
+  getFocusedWindow: vi.fn(() => null as Record<string, unknown> | null),
   openExternal: vi.fn(async () => {}),
+  showContactQr: vi.fn(async () => {}),
   updatesEnabled: true,
 }))
 
@@ -49,6 +51,7 @@ vi.mock('electron', () => ({
   BrowserWindow: {
     fromWebContents: state.fromWebContents,
     getAllWindows: state.getAllWindows,
+    getFocusedWindow: state.getFocusedWindow,
   },
   dialog: { showMessageBox: vi.fn(async () => ({ response: 0 })) },
   ipcMain: { on: state.ipcOn },
@@ -73,6 +76,10 @@ vi.mock('../src/main/desktop/autostart.ts', () => ({
   setAutostart: vi.fn(),
 }))
 
+vi.mock('../src/main/desktop/contact-qr.ts', () => ({
+  showContactQr: state.showContactQr,
+}))
+
 vi.mock('../src/main/updater.ts', () => ({
   requestUpdateCheck: vi.fn(),
   updateChecksEnabled: () => state.updatesEnabled,
@@ -90,16 +97,20 @@ function findItem(items: MenuItemOptions[], id: string): MenuItemOptions | undef
   return undefined
 }
 
+const HELP_DOCS_URL = 'https://docs.acme.test/'
+
 beforeEach(() => {
   state.popup.mockClear()
   state.ipcOn.mockClear()
   state.fromWebContents.mockReset().mockReturnValue(null)
   state.getAllWindows.mockReturnValue([])
+  state.getFocusedWindow.mockReset().mockReturnValue(null)
   state.openExternal.mockClear()
+  state.showContactQr.mockClear()
   state.menu = undefined
   state.updatesEnabled = true
   vi.mocked(requestUpdateCheck).mockClear()
-  installApplicationMenu(key => copy('zh', 'miaoWorker')[key])
+  installApplicationMenu(key => copy('zh', 'miaoWorker')[key], HELP_DOCS_URL)
 })
 
 describe('application menu template', () => {
@@ -131,15 +142,40 @@ describe('application menu template', () => {
     expect(focus).toHaveBeenCalledTimes(1)
   })
 
-  it('opens only the real repository surfaces from the help menu', () => {
+  it('opens the contact popup and the configured documentation URL from the help menu', () => {
+    const items = findItem(state.template, 'help')?.submenu ?? []
+    const contact = items.find(item => item.label === copy('zh', '深度Worker')['menu.contact'])
+    const docs = items.find(item => item.label === copy('zh', '深度Worker')['menu.helpDocs'])
+    expect(contact).toBeDefined()
+    expect(docs).toBeDefined()
+
+    contact?.click?.({}, undefined)
+    expect(state.showContactQr).toHaveBeenCalledOnce()
+    // The popup rides the focused window; the first window answers otherwise.
+    expect(state.getFocusedWindow).toHaveBeenCalled()
+
+    docs?.click?.({}, undefined)
+    expect(state.openExternal).toHaveBeenCalledWith(HELP_DOCS_URL)
+  })
+
+  it('opens only the real product surfaces from the help menu', () => {
     const items = findItem(state.template, 'help')?.submenu ?? []
     for (const item of items) {
       item.click?.({}, undefined)
     }
     const urls = state.openExternal.mock.calls.map(call => call[0] as string)
-    expect(urls).toContain('https://github.com/gitLongjie/deepseek-harness')
-    expect(urls).toContain('https://github.com/gitLongjie/deepseek-harness/issues')
-    expect(urls.every(url => url.startsWith('https://github.com/gitLongjie/deepseek-harness'))).toBe(true)
+    expect(new Set(urls)).toEqual(new Set([
+      HELP_DOCS_URL,
+      'https://github.com/gitLongjie/deepseek-harness',
+      'https://github.com/gitLongjie/deepseek-harness/issues',
+    ]))
+  })
+
+  it('omits the documentation entry when the deployment publishes no docs URL', () => {
+    installApplicationMenu(key => copy('zh', '深度Worker')[key])
+    const label = copy('zh', '深度Worker')['menu.helpDocs']
+    const items = findItem(state.template, 'help')?.submenu ?? []
+    expect(items.some(item => item.label === label)).toBe(false)
   })
 
   it('routes the check-updates entry to the updater while the deployment has a feed', () => {

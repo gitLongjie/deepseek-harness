@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 
 const GREETING_SLOTS = ['morning', 'noon', 'afternoon', 'evening', 'night'] as const
 const REQUIRED_CONFIG_KEYS = ['brandIcon', 'greetings', 'knowledgeBase', 'loginTagline', 'loginUrl', 'productName'] as const
-const OPTIONAL_CONFIG_KEYS = ['gatewayProviderName', 'updateUrl'] as const
+const OPTIONAL_CONFIG_KEYS = ['gatewayProviderName', 'helpDocsUrl', 'updateUrl'] as const
 const KNOWLEDGE_BASE_KEYS = ['apiKeyEnv', 'baseUrl', 'tenantId', 'webUiUrl'] as const
 
 /** One complete locale-specific set of blank-panel greetings. */
@@ -33,6 +33,11 @@ export interface OemConfig {
    * check for updates at all (the desktop updater and its menu entry stay off).
    */
   readonly updateUrl?: string
+  /**
+   * The documentation URL the desktop Help menu opens, or undefined for
+   * deployments that publish no documentation site (the menu entry is omitted).
+   */
+  readonly helpDocsUrl?: string
   readonly loginTagline: { readonly zh: string; readonly en: string }
   readonly greetings: { readonly zh: OemGreetings; readonly en: OemGreetings }
   readonly knowledgeBase: OemKnowledgeBase
@@ -53,6 +58,12 @@ export function parseOemConfig(value: unknown, source: string): OemConfig {
   const gatewayProviderName = root.gatewayProviderName === undefined
     ? undefined
     : nonEmptyString(root.gatewayProviderName, `${source}.gatewayProviderName`)
+  const helpDocsUrl = root.helpDocsUrl === undefined
+    ? undefined
+    : nonEmptyString(root.helpDocsUrl, `${source}.helpDocsUrl`)
+  if (helpDocsUrl !== undefined && !isHttpsUrl(helpDocsUrl)) {
+    throw new Error(`${source}.helpDocsUrl must be an HTTPS URL`)
+  }
   const loginTagline = objectWithKeys(root.loginTagline, ['en', 'zh'], `${source}.loginTagline`)
   const greetings = objectWithKeys(root.greetings, ['en', 'zh'], `${source}.greetings`)
   return {
@@ -61,6 +72,7 @@ export function parseOemConfig(value: unknown, source: string): OemConfig {
     loginUrl,
     ...(gatewayProviderName === undefined ? {} : { gatewayProviderName }),
     ...(updateUrl === undefined ? {} : { updateUrl }),
+    ...(helpDocsUrl === undefined ? {} : { helpDocsUrl }),
     loginTagline: {
       zh: nonEmptyString(loginTagline.zh, `${source}.loginTagline.zh`),
       en: nonEmptyString(loginTagline.en, `${source}.loginTagline.en`),

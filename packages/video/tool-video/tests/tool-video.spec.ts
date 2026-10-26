@@ -6,7 +6,7 @@
  */
 
 import { afterEach, describe, expect, it } from 'vitest'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync, existsSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync, existsSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
@@ -194,6 +194,20 @@ const PLAN_ARGS = {
       ratio: '16:9',
       backend: 'auto',
     },
+  ],
+}
+
+const MULTI_ARGS = {
+  goal: '拿杯后听到敲门声，停住并看向门口',
+  mode: 'multi_shot',
+  seed: 7,
+  style: '暖色侧光',
+  assets: [{ id: 'hero', name: '小林', kind: 'character', prompt: '黑发，蓝衬衣', reference: 'C:/hero.png' }],
+  segments: [
+    { ...PLAN_ARGS.segments[0], prompt: '中景：拿起红杯', asset_ids: ['hero'],
+      start_state: '小林右手空着，红杯在桌上', event: '右手拿起红杯', end_state: '红杯在右手胸前' },
+    { ...PLAN_ARGS.segments[1], backend: 'local', prompt: '近景：听见敲门后停住', asset_ids: ['hero'],
+      continuity: 'continue', start_state: '红杯在右手胸前', event: '听见敲门，停住', end_state: '杯仍在右手，视线朝门口' },
   ],
 }
 
@@ -403,13 +417,19 @@ describe('dsh-tool-video', () => {
   })
 
   it('multi_shot renders the whole storyboard as ONE coherent task', async () => {
-    const { ctx, h3Video } = await setup()
+    const { ctx, h3Video, outputDir } = await setup()
     const agent = agentWithSession()
-    const planned = await callTool(ctx, 'video_plan', { ...PLAN_ARGS, mode: 'multi_shot' }, agent)
+    const planned = await callTool(ctx, 'video_plan', MULTI_ARGS, agent)
     expect(planned.isError).toBe(false)
     if (planned.isError) throw new Error('expected plan success')
     expect((planned.value as { mode: string }).mode).toBe('multi_shot')
     const planId = (planned.value as { id: string }).id
+    const keyframed = await callTool(ctx, 'video_keyframes', { plan_id: planId }, agent)
+    expect(keyframed.isError).toBe(false)
+    expect(h3Video.keyframeRequests).toHaveLength(1)
+    expect(h3Video.keyframeRequests[0]?.prompt).toContain('小林右手空着，红杯在桌上')
+    expect(h3Video.keyframeRequests[0]?.prompt).not.toContain('右手拿起红杯')
+    const opening = join(outputDir, 'keyframes', `${planId}-s1.png`)
 
     const rendered = await callTool(ctx, 'video_render', { plan_id: planId }, agent)
     expect(rendered.isError).toBe(false)
@@ -423,13 +443,69 @@ describe('dsh-tool-video', () => {
     const prompt = h3Video.requests[0]?.inputs.find(input => input.type === 'text')
     expect(prompt?.type === 'text' && prompt.text).toContain('[0s-6s] Shot 1')
     expect(prompt?.type === 'text' && prompt.text).toContain('[6s-12s] Shot 2')
+    expect(prompt?.type === 'text' && prompt.text).toContain('End state: 红杯在右手胸前')
+    expect(prompt?.type === 'text' && prompt.text).toContain('Start state: 红杯在右手胸前')
+    expect(prompt?.type === 'text' && prompt.text).toContain('do not repeat completed actions')
+    expect(prompt?.type === 'text' && prompt.text).not.toContain('each shot a separate scene')
+    expect(h3Video.requests[0]?.inputs).toHaveLength(2)
+    expect(h3Video.requests[0]?.inputs[1]).toEqual({ type: 'image', url: opening, role: 'first_frame' })
+    expect(h3Video.requests[0]?.ratio).toBe('adaptive')
+    expect(h3Video.requests[0]?.seed).toBe(7)
+    const stored = JSON.parse(readFileSync(join(outputDir, 'plans', `${planId}.json`), 'utf8')) as { segments: unknown[] }
+    expect(stored.segments[1]).toMatchObject({ assetIds: ['hero'], continuity: 'continue', startState: '红杯在右手胸前' })
+    expect((planned.value as { segments: unknown[] }).segments[1]).toEqual(stored.segments[1])
     expect(h3Video.requests[0]?.durationSeconds).toBe(12)
+  })
+
+  it('multi_shot refuses to render without an opening frame and rejects partial or chained requests', async () => {
+    const { ctx, h3Video, jobs } = await setup()
+    const agent = agentWithSession()
+    const planned = await callTool(ctx, 'video_plan', MULTI_ARGS, agent)
+    if (planned.isError) throw new Error('expected plan success')
+    const planId = (planned.value as { id: string }).id
+    const rendered = await callTool(ctx, 'video_render', { plan_id: planId }, agent)
+    const failed = rendered.value as { submissions: Array<{ state: string; error?: string }> }
+    expect(failed.submissions[0]?.state).toBe('failed')
+    expect(failed.submissions[0]?.error).toContain('opening frame')
+    for (const options of [{ segment_ids: ['s2'] }, { chain: true }]) {
+      expect((await callTool(ctx, 'video_render', { plan_id: planId, ...options }, agent)).isError).toBe(true)
+    }
+    expect(h3Video.requests).toHaveLength(0)
+    expect(jobs.starts).toBe(0)
+  })
+
+  it('multi_shot rejects unsupported material, mixed routing, incomplete story states, and unknown assets', async () => {
+    const { ctx } = await setup()
+    const agent = agentWithSession()
+    const variants = [
+      { ...MULTI_ARGS, segments: [{ ...MULTI_ARGS.segments[0], start_state: ' ' }, MULTI_ARGS.segments[1]] },
+      { ...MULTI_ARGS, segments: [MULTI_ARGS.segments[0], { ...MULTI_ARGS.segments[1], continuity: undefined }] },
+      { ...MULTI_ARGS, segments: [MULTI_ARGS.segments[0], { ...MULTI_ARGS.segments[1], backend: 'remote' }] },
+      { ...MULTI_ARGS, segments: [MULTI_ARGS.segments[0], { ...MULTI_ARGS.segments[1], asset_ids: ['missing'] }] },
+      { ...MULTI_ARGS, segments: [MULTI_ARGS.segments[0], { ...MULTI_ARGS.segments[1], references: [{ type: 'image', role: 'first_frame', source: 'C:/later.png' }] }] },
+      { ...MULTI_ARGS, segments: [{ ...MULTI_ARGS.segments[0], references: [{ type: 'image', role: 'reference_image', source: 'C:/ref.png' }] }, MULTI_ARGS.segments[1]] },
+    ]
+    for (const variant of variants) expect((await callTool(ctx, 'video_plan', variant, agent)).isError).toBe(true)
+  })
+
+  it('multi_shot preserves an authored opening frame and reports later stills as previews', async () => {
+    const { ctx, h3Video } = await setup()
+    const agent = agentWithSession()
+    const planned = await callTool(ctx, 'video_plan', {
+      ...MULTI_ARGS, segments: [{ ...MULTI_ARGS.segments[0], references: [{ type: 'image', role: 'first_frame', source: 'C:/opening.png' }] }, MULTI_ARGS.segments[1]],
+    }, agent)
+    if (planned.isError) throw new Error('expected plan success')
+    const id = (planned.value as { id: string }).id
+    const preview = await callTool(ctx, 'video_keyframes', { plan_id: id, segment_ids: ['s2'] }, agent)
+    expect((preview.value as { notice: string }).notice).toContain('storyboard previews')
+    await callTool(ctx, 'video_render', { plan_id: id }, agent)
+    expect(h3Video.requests[0]?.inputs[1]).toEqual({ type: 'image', url: 'C:/opening.png', role: 'first_frame' })
   })
 
   it('multi_shot assembly returns the single rendered clip without concat', async () => {
     const { ctx, outputDir } = await setup()
     const agent = agentWithSession()
-    const planned = await callTool(ctx, 'video_plan', { ...PLAN_ARGS, mode: 'multi_shot' }, agent)
+    const planned = await callTool(ctx, 'video_plan', MULTI_ARGS, agent)
     if (planned.isError) throw new Error('expected plan success')
     const planId = (planned.value as { id: string }).id
     const allFile = join(outputDir, 'segments', `${planId}-all.mp4`)
@@ -443,6 +519,21 @@ describe('dsh-tool-video', () => {
     expect(value.outputFile).toBe(allFile)
     expect(value.segments).toEqual([allFile])
     expect(value.durationSeconds).toBe(12)
+  })
+
+  it('rejects the complete multi-shot prompt when state and asset text exceed the provider limit', async () => {
+    const { ctx, h3Video, jobs } = await setup()
+    const agent = agentWithSession()
+    const planned = await callTool(ctx, 'video_plan', {
+      ...MULTI_ARGS, style: 'x'.repeat(7000),
+      segments: [{ ...MULTI_ARGS.segments[0], references: [{ type: 'image', role: 'first_frame', source: 'C:/opening.png' }] }, MULTI_ARGS.segments[1]],
+    }, agent)
+    if (planned.isError) throw new Error('expected plan success')
+    const rendered = await callTool(ctx, 'video_render', { plan_id: (planned.value as { id: string }).id }, agent)
+    const submissions = (rendered.value as { submissions: Array<{ error?: string }> }).submissions
+    expect(submissions[0]?.error).toContain('7000 characters')
+    expect(h3Video.requests).toHaveLength(0)
+    expect(jobs.starts).toBe(0)
   })
 
   it('multi_shot rejects a plan over the 15s single-task ceiling', async () => {
@@ -766,6 +857,9 @@ describe('dsh-tool-video', () => {
     const revised = await callTool(ctx, 'video_plan', { ...PLAN_ARGS, plan_id: plan.id, style: '新风格' }, agent)
     if (revised.isError) throw new Error('expected revision success')
     expect((revised.value as { seed?: number }).seed).toBe(777)
+    const restyled = await callTool(ctx, 'video_plan', { ...PLAN_ARGS, plan_id: plan.id }, agent)
+    if (restyled.isError) throw new Error('expected revision success')
+    expect((restyled.value as { style?: string }).style).toBe('新风格')
 
     const derived = await callTool(ctx, 'video_plan', PLAN_ARGS, agent)
     if (derived.isError) throw new Error('expected plan success')

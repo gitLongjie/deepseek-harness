@@ -43,6 +43,7 @@ import {
   applyGatewayProviderNameEnvironment, resolveDesktopGatewayProviderName,
   type DesktopProviderNameManifest,
 } from './desktop/provider-name.ts'
+import { resolveDesktopHelpDocsUrl, type DesktopHelpManifest } from './desktop/help-links.ts'
 import {
   findMissingPackagedResources,
   type MissingPackagedResource,
@@ -97,6 +98,9 @@ let trayHandle: TrayHandle | undefined
 /** The active desktop-shell locale (defaults to Chinese). */
 let currentLocale: DesktopLocaleId = 'zh'
 
+/** The Help menu's documentation URL, resolved once at startup. */
+let helpDocsUrl: string | undefined
+
 /** The locale-bound translate function for the shell surfaces. */
 function shellT(locale: DesktopLocaleId): (key: DesktopTextKey) => string {
   const strings = copy(locale, DESKTOP_PRODUCT_NAME)
@@ -137,7 +141,7 @@ function waitForTransportGateway(): Promise<TypertGateway> {
 function rebuildShell(win?: BrowserWindow): void {
   currentLocale = readLocalePreference()
   const t = shellT(currentLocale)
-  installApplicationMenu(t)
+  installApplicationMenu(t, helpDocsUrl)
   trayHandle?.rebuild(t)
   setUpdaterLocale(t)
   if (win !== undefined && !win.isDestroyed()) {
@@ -217,6 +221,12 @@ async function main(): Promise<void> {
     if (gatewayProviderName !== undefined) {
       applyGatewayProviderNameEnvironment(process.env, gatewayProviderName)
     }
+    // The Help menu's documentation link follows the same dual route: the
+    // source oem.config.json in a checkout, the packaged manifest otherwise.
+    helpDocsUrl = resolveDesktopHelpDocsUrl(
+      INSTALL_ANCHOR,
+      JSON.parse(readFileSync(join(app.getAppPath(), 'package.json'), 'utf8')) as DesktopHelpManifest,
+    )
     const environment = loadLayeredEnv('desktop')
     log(`desktop: booting (packaged=${String(app.isPackaged)}) execArgv=${JSON.stringify(process.execArgv)} node=${process.versions.node}`)
     const result = await runDesktopBoot({
@@ -304,7 +314,7 @@ async function main(): Promise<void> {
       await host.shutdown?.prepare()
       updateInstallPrepared = true
     })
-    installApplicationMenu(shellT(currentLocale))
+    installApplicationMenu(shellT(currentLocale), helpDocsUrl)
     host.ctx?.on('session/event', (session, event) => {
       notifyTurnCompletion(win, currentLocale, String(session.id), event)
     })

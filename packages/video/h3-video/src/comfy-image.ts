@@ -22,7 +22,8 @@ export interface ComfyImageOptions {
   /**
    * JSON workflow template for a request that carries `subjectReference`. It gets the same
    * placeholders plus `"{{reference}}"`, the uploaded reference image name, so the still is drawn
-   * from the confirmed portrait instead of from the prompt alone.
+   * from the confirmed portrait instead of from the prompt alone. A subject reference without
+   * this workflow fails before network access; it never falls back to text-only generation.
    */
   referenceWorkflowPath?: string
   /** Placeholder replaced with the prompt text. */
@@ -153,6 +154,9 @@ export function createComfyUIImageProvider(options: ComfyImageOptions): {
   }
 
   async function generate(request: KeyframeRequest, signal: AbortSignal): Promise<string> {
+    if (request.subjectReference !== undefined && options.referenceWorkflowPath === undefined) {
+      throw new Error('ComfyUI image generation needs referenceWorkflowPath to preserve a supplied subject; configure a reference workflow instead of text-only generation')
+    }
     const size = RATIO_SIZES[request.ratio]
     const usesReference = request.subjectReference !== undefined && options.referenceWorkflowPath !== undefined
     const templatePath = usesReference ? options.referenceWorkflowPath as string : options.workflowPath

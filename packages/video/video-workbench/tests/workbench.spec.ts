@@ -209,9 +209,15 @@ describe('scanProjects', () => {
 
   it('retains the authored storyboard and generation settings of a combined render', async () => {
     const dir = outputTree()
-    writePlan(dir, { ...PLAN, mode: 'multi_shot' })
+    const shots = PLAN.segments.map((shot, index) => ({
+      ...shot, continuity: index === 0 ? 'continue' : 'cut',
+      startState: 'cup on table', event: 'lift cup', endState: 'cup in right hand', assetIds: ['hero'],
+    }))
+    writePlan(dir, { ...PLAN, mode: 'multi_shot', segments: shots })
     const project = (await scanProjects(dir)).projects[0]
-    expect(project?.segments[0]).toMatchObject({ id: 'all', shots: PLAN.segments })
+    expect(project?.segments[0]).toMatchObject({ id: 'all', shots })
+    expect(project?.segments[0]?.prompt).toContain('End state: cup in right hand')
+    expect(project?.segments[0]?.prompt).toContain('Asset ids: hero')
   })
 
   it('uses the combined render as the completed video instead of an old assembly', async () => {
