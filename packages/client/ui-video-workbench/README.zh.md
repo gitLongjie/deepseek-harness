@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-本包是视频工作台的浏览器半边：侧栏的一个全局面板行（id `video-workbench`，排在定时任务行旁边）与对应的 `main` 页面。页面列出宿主路由报告的视频项目——目标、模式、版本、逐镜头渲染状态——并在选中项目下先展示角色与场景素材（每个素材的参考图、角色母图、规范 prompt 块与项目资产库状态），再展示关键帧缩略图与成片 `<video>` 播放。数据来自 [`@deepseek-ai/dsh-video-workbench`](../../video/video-workbench/README.zh.md) 的只读路由；本包除选择与刷新外不持有状态。
+本包是视频工作台的浏览器半边：侧栏的一个全局面板行（id `video-workbench`，排在定时任务行旁边）与对应的 `main` 页面。页面列出宿主路由报告的视频项目——目标、模式、版本、逐镜头渲染状态——并在选中项目下先展示角色与场景素材（每个素材的参考图、规范 prompt 块与项目资产库状态），再展示关键帧缩略图与成片 `<video>` 播放。旧项目如果还记录角色母图，页面会兼容显示。数据来自 [`@deepseek-ai/dsh-video-workbench`](../../video/video-workbench/README.zh.md) 的只读路由；本包除选择与刷新外不持有状态。
 
 ## 目录
 

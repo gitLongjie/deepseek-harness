@@ -84,7 +84,7 @@ export interface RegenerationAsset {
   readonly description?: string
   /** Absolute reference image, when one exists. */
   readonly reference?: string
-  /** Absolute character master sheet, when one exists. */
+  /** Absolute legacy character master sheet, when an older plan carries one. */
   readonly sheet?: string
 }
 

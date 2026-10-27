@@ -85,3 +85,13 @@ description: 为 MiniMax H3 编写可执行的场景提示词（T2VA 文生视�
 ## 示例
 
 三条完整成品见 [references/examples.md](references/examples.md)：T2VA、I2VA 首尾帧、Ref2VA。
+
+## 连续短片与执行交接
+
+15 秒以内优先一条 H3 多镜头任务；不要把一个连续动作拆成多条独立参考图生成。连续镜头的下一起始状态复用上一结束状态；换地点时写出出口、跨门槛、行进方向、入口和到达。拿起、交接、换手与落位都需可见，不能用切镜省略。时长不足时减少事件。
+
+必须分段时，由执行工具传递上一段实际生成的尾帧作为下一段首帧；静态计划图不代表实际尾帧。尾帧不可用则停止，不能假定已经续接。明确的跳时、回忆和另起地点才重新建立画面。单张尾帧不能保存完整运动速度或全场景身份，生成后仍需检查动作、人物与空间。
+
+官方 H3 模式结构以 [h3-prompt-writing](https://github.com/MiniMax-AI/MiniMax-H3/tree/main/skills/h3-prompt-writing) 为依据：Base/I2VA 使用 `integrated_multimodal_description`、`overall_soundscape`、`non_diegetic_music`；Ref2VA 使用 `subject_definitions`、`summary`、`retention_analysis`、`detailed_description` 和两个音频字段。原始对白保留其语言，参考标签使用实际上传顺序。本文是本地适配规则，不是上游 skill 的完整副本。
+
+上游剧本与空间调度可参考 [drama-skills](https://github.com/zenstory-ai/drama-skills)；模型级身份保持可评估 [Stand-In](https://github.com/WeChatCV/Stand-In)，但它需要兼容模型和推理工作流，不能靠给 H3 增加提示词启用。

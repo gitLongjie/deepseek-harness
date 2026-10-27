@@ -30,7 +30,7 @@ export interface WorkbenchAssetRow {
   readonly description?: string
   /** Served reference image path inside the projected directory. */
   readonly reference?: string
-  /** Served character master-sheet path inside the projected directory. */
+  /** Served legacy character master-sheet path inside the projected directory, when an old plan has one. */
   readonly sheet?: string
   /** Whether the project asset library carries an asset of this name. */
   readonly saved: boolean

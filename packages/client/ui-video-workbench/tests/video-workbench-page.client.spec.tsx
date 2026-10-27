@@ -197,8 +197,8 @@ describe('VideoWorkbenchPage', () => {
     expect(sources).toContain('/api/video-workbench/file?path=assets%2Fvp-1-char-1.png')
     expect(sources).toContain('/api/video-workbench/file?path=assets%2Fvp-1-char-1-sheet.png')
     expect(sources).toContain('/api/video-workbench/file?path=assets%2Fvp-1-scene-1.jpg')
-    // The master sheet carries its own label, so two images of one character stay distinguishable.
-    expect(document.querySelector('img[alt="Master sheet 小明"]')).not.toBeNull()
+    // Legacy master sheets carry their own label, so old two-image records stay distinguishable.
+    expect(document.querySelector('img[alt="Legacy master sheet 小明"]')).not.toBeNull()
   })
 
   it('previews an asset image larger and closes it from the button, Escape, or the backdrop', async () => {
@@ -221,8 +221,8 @@ describe('VideoWorkbenchPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close preview' }))
     expect(screen.queryByRole('dialog')).toBeNull()
 
-    // The master sheet gets its own preview.
-    fireEvent.click(screen.getByRole('button', { name: 'Open preview Master sheet 小明' }))
+    // A legacy master sheet gets its own preview.
+    fireEvent.click(screen.getByRole('button', { name: 'Open preview Legacy master sheet 小明' }))
     expect(screen.getByRole('dialog').querySelector('img')?.getAttribute('src'))
       .toBe('/api/video-workbench/file?path=assets%2Fvp-1-char-1-sheet.png')
     fireEvent.keyDown(window, { key: 'Escape' })
