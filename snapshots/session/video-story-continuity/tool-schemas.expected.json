@@ -506,7 +506,7 @@
     },
     {
       "name": "video_asset_images",
-      "description": "Generate the anchor images for plan assets that need them. A character gets a front-facing half-body portrait — the subject reference every keyframe is conditioned on — plus a wide master sheet carrying front, side, and back full-body views side by side. The sheet is drawn from the character description rather than from the portrait, because conditioning on the bust keeps that framing. Scenes get a reusable establishing shot without people; props get a neutral reference image. Images are saved under outputDir/assets and recorded on the plan; pass regenerate with a new seed to try another take.",
+      "description": "Generate the anchor images for plan assets that need them. The agent analyzes the story and reference material before this call and stores the resulting character identity prompt in asset.prompt; the user does not hand-write image prompts. A character gets one 3:4 full-body reference image — head to shoes fully visible — plus a front/side/back turnaround sheet drawn from that reference, so the design records every angle while every keyframe keeps conditioning on the single reference. Scenes get a reusable establishing shot without people; props get a neutral reference image. Images are saved under outputDir/assets and recorded on the plan; pass regenerate with a new seed to try another take.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -620,7 +620,7 @@
     },
     {
       "name": "video_keyframes",
-      "description": "Generate stills using the configured image provider. multi_shot defaults to one opening frame showing the first shot start_state before its event; explicitly selected later stills are storyboard previews and do not condition the video. per_segment defaults to all shots. A named or explicitly selected character supplies one portrait reference; local generation requires a reference-image workflow. Present the images for confirmation before rendering.",
+      "description": "Generate stills using the configured image provider. multi_shot defaults to one opening frame showing the first shot start_state before its event; explicitly selected later stills are storyboard previews and do not condition the video. per_segment defaults to all shots. A named or explicitly selected character supplies one full-body reference image; local generation requires a reference-image workflow. Present the images for confirmation before rendering.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -641,7 +641,7 @@
           },
           "identity": {
             "type": "string",
-            "description": "How the still is conditioned on the cast. \"auto\" (default) keeps the face when the shot names a character the plan carries an image for, by editing that portrait into the scene; open shots draw from text alone. \"text\" forces text-to-image; \"portrait\" forces the portrait edit even when no character is named.",
+            "description": "How the still is conditioned on the cast. \"auto\" (default) keeps the face, clothing, shoes, and body proportions when the shot names a character the plan carries an image for, by editing that full-body reference into the scene; open shots draw from text alone. \"text\" forces text-to-image; \"portrait\" forces the reference edit even when no character is named.",
             "enum": [
               "auto",
               "text",
@@ -656,7 +656,7 @@
     },
     {
       "name": "video_library",
-      "description": "List the project asset library: characters, scenes, and props confirmed in earlier plans, each with its canonical prompt block, reference image, and character master sheet. Attach one to a new plan with video_plan library_assets instead of redefining it.",
+      "description": "List the project asset library: characters, scenes, and props confirmed in earlier plans, each with its canonical prompt block and reference image; a character also lists the front/side/back turnaround sheet drawn from its reference. Attach one to a new plan with video_plan library_assets instead of redefining it.",
       "parameters": {
         "type": "object",
         "properties": {}

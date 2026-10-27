@@ -2177,7 +2177,7 @@ Source: [`packages/video/tool-video/src/index.ts`](../packages/video/tool-video/
 
 ### `video_asset_images`
 
-Generate the anchor images for plan assets that need them. A character gets a front-facing half-body portrait — the subject reference every keyframe is conditioned on — plus a wide master sheet carrying front, side, and back full-body views side by side. The sheet is drawn from the character description rather than from the portrait, because conditioning on the bust keeps that framing. Scenes get a reusable establishing shot without people; props get a neutral reference image. Images are saved under outputDir/assets and recorded on the plan; pass regenerate with a new seed to try another take.
+Generate the anchor images for plan assets that need them. The agent analyzes the story and reference material before this call and stores the resulting character identity prompt in asset.prompt; the user does not hand-write image prompts. A character gets one 3:4 full-body reference image — head to shoes fully visible — plus a front/side/back turnaround sheet drawn from that reference, so the design records every angle while every keyframe keeps conditioning on the single reference. Scenes get a reusable establishing shot without people; props get a neutral reference image. Images are saved under outputDir/assets and recorded on the plan; pass regenerate with a new seed to try another take.
 
 ```json
 {
@@ -2213,7 +2213,7 @@ Source: [`packages/video/tool-video/src/index.ts`](../packages/video/tool-video/
 
 ### `video_assets`
 
-Record the reusable asset anchors (characters/scenes/props) and their user-provided reference images on an existing plan, after asking the user for materials. Each asset reference must be an absolute local path or http(s) URL of an image the user supplied.
+Record reusable asset anchors on an existing plan. The agent must first analyze the story and any supplied reference image, then write each character's complete observable visual prompt and negative constraints into asset.prompt; the user only supplies the story, character facts, and optional image path. Each reference must be an absolute local path or http(s) URL.
 
 ```json
 {
@@ -2225,7 +2225,7 @@ Record the reusable asset anchors (characters/scenes/props) and their user-provi
     },
     "assets": {
       "type": "array",
-      "description": "Asset anchors with user-provided reference images; names must match the storyboard references exactly.",
+      "description": "Asset anchors; names must match the storyboard references exactly. For characters, asset.prompt is an agent-authored identity block covering age impression, body, face, hair, makeup, gaze, mouth/expression, clothing, shoes, accessories, posture, and forbidden contradictory traits. Do not ask the user to hand-write an image prompt.",
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -2248,7 +2248,8 @@ Record the reusable asset anchors (characters/scenes/props) and their user-provi
             "type": "string"
           },
           "prompt": {
-            "type": "string"
+            "type": "string",
+            "description": "Agent-authored canonical visual identity block. For characters, include observable age impression, body, face, hair, makeup, gaze, mouth/expression, clothing, shoes, accessories, posture, and negative constraints; the user does not need to write this prompt."
           },
           "reference": {
             "type": "string"
@@ -2306,7 +2307,7 @@ Source: [`packages/video/tool-video/src/index.ts`](../packages/video/tool-video/
 
 ### `video_keyframes`
 
-Generate stills using the configured image provider. multi_shot defaults to one opening frame showing the first shot start_state before its event; explicitly selected later stills are storyboard previews and do not condition the video. per_segment defaults to all shots. A named or explicitly selected character supplies one portrait reference; local generation requires a reference-image workflow. Present the images for confirmation before rendering.
+Generate stills using the configured image provider. multi_shot defaults to one opening frame showing the first shot start_state before its event; explicitly selected later stills are storyboard previews and do not condition the video. per_segment defaults to all shots. A named or explicitly selected character supplies one full-body reference image; local generation requires a reference-image workflow. Present the images for confirmation before rendering.
 
 ```json
 {
@@ -2329,7 +2330,7 @@ Generate stills using the configured image provider. multi_shot defaults to one 
     },
     "identity": {
       "type": "string",
-      "description": "How the still is conditioned on the cast. \"auto\" (default) keeps the face when the shot names a character the plan carries an image for, by editing that portrait into the scene; open shots draw from text alone. \"text\" forces text-to-image; \"portrait\" forces the portrait edit even when no character is named.",
+      "description": "How the still is conditioned on the cast. \"auto\" (default) keeps the face, clothing, shoes, and body proportions when the shot names a character the plan carries an image for, by editing that full-body reference into the scene; open shots draw from text alone. \"text\" forces text-to-image; \"portrait\" forces the reference edit even when no character is named.",
       "enum": [
         "auto",
         "text",
@@ -2347,7 +2348,7 @@ Source: [`packages/video/tool-video/src/index.ts`](../packages/video/tool-video/
 
 ### `video_library`
 
-List the project asset library: characters, scenes, and props confirmed in earlier plans, each with its canonical prompt block, reference image, and character master sheet. Attach one to a new plan with video_plan library_assets instead of redefining it.
+List the project asset library: characters, scenes, and props confirmed in earlier plans, each with its canonical prompt block and reference image; a character also lists the front/side/back turnaround sheet drawn from its reference. Attach one to a new plan with video_plan library_assets instead of redefining it.
 
 ```json
 {
@@ -2360,7 +2361,7 @@ Source: [`packages/video/tool-video/src/index.ts`](../packages/video/tool-video/
 
 ### `video_plan`
 
-Structure the current conversation request into a versioned storyboard plan and persist it. The agent writes the shots; this tool validates and stores them. Pass an existing plan_id to revise it.
+Structure the current conversation request into a versioned storyboard plan and persist it. Before calling this tool, the agent must analyze each character from the story and any supplied reference image, then write an observable identity anchor in the asset prompt: age impression, build, face shape, hair, makeup, gaze, mouth/expression, wardrobe, shoes, accessories, posture, and explicit negative constraints. The agent owns this prompt writing; the user only describes the story and characters. This tool validates and stores the plan. Pass an existing plan_id to revise it.
 
 ```json
 {
@@ -2384,7 +2385,7 @@ Structure the current conversation request into a versioned storyboard plan and 
     },
     "assets": {
       "type": "array",
-      "description": "Reusable asset anchors (characters/scenes/props) confirmed with the user; each may carry a user-provided reference image path or URL and a fixed prompt block. The storyboard must reference these names exactly.",
+      "description": "Reusable asset anchors (characters/scenes/props). For characters, the agent must derive a complete observable visual prompt from the story and references, including positive identity facts and negative constraints that prevent contradictory age, face, expression, makeup, clothing, or body-proportion choices. Do not make the user hand-write an image prompt. The storyboard must reference these names exactly.",
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -2407,7 +2408,8 @@ Structure the current conversation request into a versioned storyboard plan and 
             "type": "string"
           },
           "prompt": {
-            "type": "string"
+            "type": "string",
+            "description": "Agent-authored canonical visual identity block. For characters, include observable age impression, body, face, hair, makeup, gaze, mouth/expression, clothing, shoes, accessories, posture, and negative constraints; the user does not need to write this prompt."
           },
           "reference": {
             "type": "string"

@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-10-18-cross-segment-shot-consistency.md
-2026-10-18-cross-segment-shot-consistency.md: 6a0812d41f43fa3ab19758ea21e8fc686a65ba02
-2026-10-18-cross-segment-shot-consistency.zh.md: 9f6b083a5da812381114e3921bcfc976f1ecdce5
+2026-10-18-cross-segment-shot-consistency.md: 29d03329ba83f5eb6d8bd556a9f4d5552f798d0c
+2026-10-18-cross-segment-shot-consistency.zh.md: 238a0220c0b5c89e40daaa6df5bff515578703c2

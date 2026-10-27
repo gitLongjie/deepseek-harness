@@ -1,8 +1,8 @@
 /**
  * The project asset library: characters, scenes, and props confirmed once and reused by every
- * later plan in the same output directory. A record carries the reference image, the character
- * master sheet, and the canonical prompt block, so a new episode attaches the same settings
- * instead of redefining them.
+ * later plan in the same output directory. A record carries the reference image and canonical
+ * prompt block, so a new episode attaches the same settings instead of redefining them. Legacy
+ * character master-sheet fields remain readable for older libraries but are not generated now.
  * @module @deepseek-ai/dsh-tool-video/library
  */
 

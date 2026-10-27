@@ -60,7 +60,10 @@ const ASSET_SCHEMA = {
     name: { type: 'string', required: true },
     kind: { type: 'string', required: true, enum: ['character', 'scene', 'prop'] },
     description: { type: 'string' },
-    prompt: { type: 'string' },
+    prompt: {
+      type: 'string',
+      description: 'Agent-authored canonical visual identity block. For characters, include observable age impression, body, face, hair, makeup, gaze, mouth/expression, clothing, shoes, accessories, posture, and negative constraints; the user does not need to write this prompt.',
+    },
     reference: { type: 'string' },
     sheet: { type: 'string' },
   },
@@ -339,6 +342,15 @@ const IMAGE_MEDIA_TYPES: Readonly<Record<string, ImageMediaType>> = {
 }
 
 /**
+ * Render a thrown value as the text a tool result and notice carry.
+ * @param error - whatever a provider or the filesystem threw.
+ * @returns its message, or the value itself when it is not an `Error`.
+ */
+function errorText(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+/**
  * Commit one generated material image to the durable attachment store, so the tool result can
  * carry the image itself beside its path.
  * @param ctx - plugin context carrying the optional attachments service.
@@ -350,7 +362,14 @@ async function saveImageAttachment(ctx: Context, filePath: string): Promise<Imag
   if (attachments === undefined) return undefined
   const mediaType = IMAGE_MEDIA_TYPES[extname(filePath).toLowerCase()]
   if (mediaType === undefined) return undefined
-  const data = await readFile(filePath)
+  let data: Buffer
+  try {
+    data = await readFile(filePath)
+  } catch {
+    // A reference the user supplied as a URL, or one this host cannot read, still anchors
+    // generation; only the in-conversation copy is missing, so the envelope falls back to a path.
+    return undefined
+  }
   return await attachments.saveImage({ data, mediaType, name: basename(filePath) })
 }
 
@@ -425,7 +444,7 @@ function keyframeContent(value: InferValue<typeof KEYFRAME_VALUE_SCHEMA>): Conte
   return blocks
 }
 
-/** Model-facing content for an asset-image run: each asset's image and master sheet, then failures and the notice. */
+/** Model-facing content for an asset-image run: each asset's reference image, then failures and the notice. */
 function assetImageContent(value: InferValue<typeof ASSET_IMAGE_VALUE_SCHEMA>): ContentBlock[] {
   const blocks: ContentBlock[] = []
   for (const asset of value.assets) {
@@ -505,7 +524,6 @@ function imageArtifactBase(dir: string, planId: string, id: string): string {
  * @param outputDir - the h3-video output directory.
  * @param planId - owning plan id.
  * @param assetId - asset id.
- * @param suffix - artifact suffix (`''` for the reference, `-sheet` for the master sheet).
  * @returns the absolute target path.
  */
 async function commitAssetImage(
@@ -513,9 +531,8 @@ async function commitAssetImage(
   outputDir: string,
   planId: string,
   assetId: string,
-  suffix: string,
 ): Promise<string> {
-  const base = `${imageArtifactBase(assetsDir(outputDir), planId, assetId)}${suffix}`
+  const base = imageArtifactBase(assetsDir(outputDir), planId, assetId)
   const target = `${base}${extname(source)}`
   await mkdir(dirname(target), { recursive: true })
   await rename(source, target)
@@ -537,7 +554,7 @@ function findImageArtifact(base: string): string | undefined {
 /**
  * The canonical text block one asset contributes to every prompt: the fixed `prompt` block when
  * the planner wrote one, else the short description, else the name. Reusing one block verbatim in
- * the portrait, the master sheet, every keyframe, and every clip is the prompt half of consistency.
+ * the full-body reference, every keyframe, and every clip is the prompt half of consistency.
  * @param asset - the plan asset.
  * @returns the block copied into generation prompts.
  */
@@ -555,32 +572,41 @@ function styleSuffix(style: string | undefined): string {
 }
 
 /**
- * Front-facing portrait prompt: the identity anchor every keyframe of this character is
- * conditioned on, and the single-person front image the API documents for `subject_reference`.
+ * Full-body character reference prompt: the identity anchor every keyframe of this character is
+ * conditioned on, and the single-person image the API documents for `subject_reference`.
  * @param asset - the character asset.
  * @param style - the plan's one-line style directive, when it has one.
  * @returns the image-01 prompt.
  */
-function buildPortraitPrompt(asset: PlanAsset, style: string | undefined): string {
-  return `角色定妆照，单人正面半身像，正面平视镜头，中性表情，${assetBlock(asset)}，纯白背景，柔和均匀的光线，面部清晰居中，发型与服装完整呈现，电影质感${styleSuffix(style)}`
+function buildCharacterReferencePrompt(asset: PlanAsset, style: string | undefined): string {
+  return [
+    '单人全身角色参考图，single full-body character reference。',
+    '人物正面站立，头顶到鞋底完整入画，完整展示发型、脸部、上衣、裤子、手部、鞋子和所有配饰。',
+    '人物居中，双脚完整可见，头顶和脚底留出边距，不裁切。',
+    `角色外观：${assetBlock(asset)}。`,
+    '纯白背景 plain white background，柔和均匀的棚拍光，清晰展示服装结构、颜色、材质、褶皱、鞋子和身体比例。',
+    '只出现一个人物。不要半身像，不要特写，不要三视图，不要多个角色，不要拼贴，不要人物重叠，不要文字、水印、logo。',
+    styleSuffix(style),
+  ].join('')
 }
 
 /**
- * Master-sheet prompt: a three-view turnaround of one character. The layout is spelled out in both
- * Chinese and the English tokens image models weight most, and the exclusions name the failure the
- * prompt exists to avoid — a half-body crop repeated twice instead of three full standing views.
+ * Turnaround sheet prompt for a character whose full-body reference already exists: front, side,
+ * and back views of that same design. The sheet is drawn from the reference as its subject, so the
+ * views cannot disagree with the anchor about hair, wardrobe, shoes, or proportions, and it
+ * documents the design without ever conditioning a keyframe or a clip.
  * @param asset - the character asset.
  * @param style - the plan's one-line style directive, when it has one.
  * @returns the image-01 prompt.
  */
-function buildSheetPrompt(asset: PlanAsset, style: string | undefined): string {
+function buildCharacterSheetPrompt(asset: PlanAsset, style: string | undefined): string {
   return [
-    '角色设定三视图，character turnaround sheet。画面里同一角色三人并排站立：左边正面 front view、中间侧面 side view、右边背面 back view。',
-    '全身 full body 入画，头顶到脚底完整可见、不裁切，三人身高一致、脚底对齐、间距均匀。',
-    '纯白背景 plain white background，柔和均匀的棚拍光，无投影。',
+    '同一人物的角色三视图设定表，character turnaround sheet：正面、侧面、背面三个视角横向并排。',
+    '三个视角是同一个人、同一套衣服、同一发型、同样的身高和体型比例，发型、五官、服装结构、鞋子细节逐一对应。',
     `角色外观：${assetBlock(asset)}。`,
-    '三视图的发型、五官、服装、配饰、身高与体型比例完全一致，是同一张脸。',
-    '不要：半身像，特写，裁切，只画一个人，人物重叠，文字，水印，logo。',
+    '每个视角都是头顶到鞋底完整入画的全身，人物站直、双臂自然下垂，三个视角间距均匀、互不遮挡。',
+    '纯白背景 plain white background，柔和均匀的棚拍光，侧面展示轮廓，背面展示后背的发型与衣服结构。',
+    '画面中只出现这一个角色的三个视角，不要第四个人，不要拼贴边框，不要文字、标注、水印、logo。',
     styleSuffix(style),
   ].join('')
 }
@@ -624,10 +650,10 @@ function buildSegmentRequest(segment: VideoSegment, plan: VideoPlan, keyframeBas
   const keyframePath = findImageArtifact(keyframeBase)
   const hasAuthoredMaterial = request.inputs.some(input => input.type !== 'text')
   if (!hasAuthoredMaterial && keyframePath !== undefined) {
-    // The keyframe was drawn from the confirmed portraits, so it already carries the cast and the
-    // set. Starting the clip from it anchors every frame to that still; passing the portraits as
-    // loose references instead makes the model re-invent the scene on every shot, which is exactly
-    // the drift the references were supposed to prevent.
+    // The keyframe was drawn from the confirmed reference images, so it already carries the cast
+    // and the set. Starting the clip from it anchors every frame to that still; passing the
+    // references as loose inputs instead makes the model re-invent the scene on every shot, which
+    // is exactly the drift the references were supposed to prevent.
     // Frame-image requests determine their ratio from the image (H3 content rule), so force adaptive.
     return {
       ...request,
@@ -1273,9 +1299,9 @@ function segmentPrompt(
   const camera = segment.camera !== undefined && segment.camera.length > 0 ? ` [Camera: ${segment.camera}]` : ''
   const parts = [`${segment.prompt}${camera}`]
   if (keepFace) {
-    // The still is an edit of the character's confirmed portrait: say so explicitly, or the model
+    // The still is an edit of the character's confirmed reference: say so explicitly, or the model
     // treats the reference as loose inspiration and repaints a different person.
-    parts.push('保持参考图中人物的脸、发型、妆容与服装不变，只改变场景、姿态与构图。')
+    parts.push('保持参考图中人物的脸、发型、妆容、服装、裤子、鞋子、配饰与身体比例不变，只改变场景、姿态与构图。')
   }
   for (const asset of assets) {
     const block = assetBlock(asset)
@@ -1351,7 +1377,7 @@ export function apply(ctx: Context): void {
 
   ctx.tools.register(defineTool({
     name: 'video_plan',
-    description: 'Structure the current conversation request into a versioned storyboard plan and persist it. The agent writes the shots; this tool validates and stores them. Pass an existing plan_id to revise it.',
+    description: 'Structure the current conversation request into a versioned storyboard plan and persist it. Before calling this tool, the agent must analyze each character from the story and any supplied reference image, then write an observable identity anchor in the asset prompt: age impression, build, face shape, hair, makeup, gaze, mouth/expression, wardrobe, shoes, accessories, posture, and explicit negative constraints. The agent owns this prompt writing; the user only describes the story and characters. This tool validates and stores the plan. Pass an existing plan_id to revise it.',
     parameters: {
       goal: { type: 'string', required: true, description: 'One-line goal the plan serves.' },
       plan_id: { type: 'string', description: 'Existing plan id to revise; omit to create a new plan.' },
@@ -1362,7 +1388,7 @@ export function apply(ctx: Context): void {
       },
       assets: {
         type: 'array',
-        description: 'Reusable asset anchors (characters/scenes/props) confirmed with the user; each may carry a user-provided reference image path or URL and a fixed prompt block. The storyboard must reference these names exactly.',
+        description: 'Reusable asset anchors (characters/scenes/props). For characters, the agent must derive a complete observable visual prompt from the story and references, including positive identity facts and negative constraints that prevent contradictory age, face, expression, makeup, clothing, or body-proportion choices. Do not make the user hand-write an image prompt. The storyboard must reference these names exactly.',
         items: ASSET_SCHEMA,
       },
       library_assets: {
@@ -1533,7 +1559,7 @@ export function apply(ctx: Context): void {
 
   ctx.tools.register(defineTool({
     name: 'video_keyframes',
-    description: 'Generate stills using the configured image provider. multi_shot defaults to one opening frame showing the first shot start_state before its event; explicitly selected later stills are storyboard previews and do not condition the video. per_segment defaults to all shots. A named or explicitly selected character supplies one portrait reference; local generation requires a reference-image workflow. Present the images for confirmation before rendering.',
+    description: 'Generate stills using the configured image provider. multi_shot defaults to one opening frame showing the first shot start_state before its event; explicitly selected later stills are storyboard previews and do not condition the video. per_segment defaults to all shots. A named or explicitly selected character supplies one full-body reference image; local generation requires a reference-image workflow. Present the images for confirmation before rendering.',
     parameters: {
       plan_id: { type: 'string', required: true, description: 'Plan id from video_plan.' },
       segment_ids: { type: 'array', items: { type: 'string' }, description: 'Shot ids to draw; defaults to the opening shot for multi_shot, or every shot for per_segment.' },
@@ -1544,7 +1570,7 @@ export function apply(ctx: Context): void {
       identity: {
         type: 'string',
         enum: ['auto', 'text', 'portrait'],
-        description: 'How the still is conditioned on the cast. "auto" (default) keeps the face when the shot names a character the plan carries an image for, by editing that portrait into the scene; open shots draw from text alone. "text" forces text-to-image; "portrait" forces the portrait edit even when no character is named.',
+        description: 'How the still is conditioned on the cast. "auto" (default) keeps the face, clothing, shoes, and body proportions when the shot names a character the plan carries an image for, by editing that full-body reference into the scene; open shots draw from text alone. "text" forces text-to-image; "portrait" forces the reference edit even when no character is named.',
       },
     },
     output: imageOutput(KEYFRAME_VALUE_SCHEMA, keyframeContent),
@@ -1581,8 +1607,8 @@ export function apply(ctx: Context): void {
               : segmentPrompt(segment, plan, assets, keepFace),
             ratio: keyframeRatio(segment.ratio),
             ...(seed !== undefined ? { seed } : {}),
-            // The portrait edit redraws the whole frame around the reference face, so the still
-            // keeps both the approved face and the shot's own scene.
+            // The reference edit redraws the whole frame around the approved identity, so the still
+            // keeps the character and the shot's own scene.
             ...(keepFace && subject !== undefined ? { subjectReference: subject.reference } : {}),
           }, exec.signal)
           const base = imageArtifactBase(keyframesDir(outputDir), plan.id, segment.id)
@@ -1614,12 +1640,12 @@ export function apply(ctx: Context): void {
 
   ctx.tools.register(defineTool({
     name: 'video_assets',
-    description: 'Record the reusable asset anchors (characters/scenes/props) and their user-provided reference images on an existing plan, after asking the user for materials. Each asset reference must be an absolute local path or http(s) URL of an image the user supplied.',
+    description: 'Record reusable asset anchors on an existing plan. The agent must first analyze the story and any supplied reference image, then write each character\'s complete observable visual prompt and negative constraints into asset.prompt; the user only supplies the story, character facts, and optional image path. Each reference must be an absolute local path or http(s) URL.',
     parameters: {
       plan_id: { type: 'string', required: true, description: 'Plan id from video_plan.' },
       assets: {
         type: 'array',
-        description: 'Asset anchors with user-provided reference images; names must match the storyboard references exactly.',
+        description: 'Asset anchors; names must match the storyboard references exactly. For characters, asset.prompt is an agent-authored identity block covering age impression, body, face, hair, makeup, gaze, mouth/expression, clothing, shoes, accessories, posture, and forbidden contradictory traits. Do not ask the user to hand-write an image prompt.',
         items: ASSET_SCHEMA,
       },
       style: { type: 'string', description: 'One-line visual style directive injected into generation prompts.' },
@@ -1697,7 +1723,7 @@ export function apply(ctx: Context): void {
 
   ctx.tools.register(defineTool({
     name: 'video_asset_images',
-    description: 'Generate the anchor images for plan assets that need them. A character gets a front-facing half-body portrait — the subject reference every keyframe is conditioned on — plus a wide master sheet carrying front, side, and back full-body views side by side. The sheet is drawn from the character description rather than from the portrait, because conditioning on the bust keeps that framing. Scenes get a reusable establishing shot without people; props get a neutral reference image. Images are saved under outputDir/assets and recorded on the plan; pass regenerate with a new seed to try another take.',
+    description: 'Generate the anchor images for plan assets that need them. The agent analyzes the story and reference material before this call and stores the resulting character identity prompt in asset.prompt; the user does not hand-write image prompts. A character gets one 3:4 full-body reference image — head to shoes fully visible — plus a front/side/back turnaround sheet drawn from that reference, so the design records every angle while every keyframe keeps conditioning on the single reference. Scenes get a reusable establishing shot without people; props get a neutral reference image. Images are saved under outputDir/assets and recorded on the plan; pass regenerate with a new seed to try another take.',
     parameters: {
       plan_id: { type: 'string', required: true, description: 'Plan id from video_plan.' },
       asset_ids: { type: 'array', items: { type: 'string' }, description: 'Asset ids to generate; defaults to every asset without a reference.' },
@@ -1718,10 +1744,12 @@ export function apply(ctx: Context): void {
       const assetIds = args.asset_ids
       const scoped = assetIds === undefined ? allAssets : allAssets.filter(asset => assetIds.includes(asset.id))
       const regenerate = args.regenerate === true
-      // A character needs both its portrait and its master sheet; a scene or prop needs one still.
-      const needsWork = (asset: PlanAsset): boolean => asset.kind === 'character'
-        ? regenerate || asset.reference === undefined || asset.sheet === undefined
-        : regenerate || asset.reference === undefined
+      // One reference image per asset, plus a turnaround sheet for a character. A character that
+      // already carries a reference but no sheet is selected so an ordinary call backfills the
+      // sheet without redrawing the reference.
+      const needsWork = (asset: PlanAsset): boolean => regenerate
+        || asset.reference === undefined
+        || (asset.kind === 'character' && asset.sheet === undefined)
       const selected = scoped.filter(needsWork)
       const results: Array<{
         assetId: string
@@ -1735,66 +1763,67 @@ export function apply(ctx: Context): void {
         error?: string
       }> = []
       const assets: PlanAsset[] = [...allAssets]
+      const sheetFailures: string[] = []
+      // One draw path for the run: the same plan seed and the same cancellation signal.
+      const drawImage = (prompt: string, ratio: '3:4' | '16:9' | '1:1'): Promise<string> =>
+        ctx.h3Video.keyframe({ prompt, ratio, ...(args.seed !== undefined ? { seed: args.seed } : {}) }, exec.signal)
       for (const asset of selected) {
         let reference = asset.reference
-        let sheet = asset.sheet
+        let sheet: string | undefined
+        let sheetAttachment: ImageAttachmentRef | undefined
+        let attachment: ImageAttachmentRef | undefined
+        let failure: string | undefined
         try {
-          if (asset.kind === 'character') {
-            if (regenerate || reference === undefined) {
-              const portrait = await ctx.h3Video.keyframe({
-                prompt: buildPortraitPrompt(asset, prior.style),
-                ratio: '1:1',
-                ...(args.seed !== undefined ? { seed: args.seed } : {}),
-              }, exec.signal)
-              reference = await commitAssetImage(portrait, outputDir, prior.id, asset.id, '')
-            }
-            if (regenerate || sheet === undefined) {
-              // Text-to-image on purpose: an image-to-image pass from the half-body portrait keeps
-              // that framing, which is how a "turnaround" came back as the same bust twice. The
-              // wide canvas is what lets three full standing views stand side by side.
-              const master = await ctx.h3Video.keyframe({
-                prompt: buildSheetPrompt(asset, prior.style),
-                ratio: '21:9',
-                ...(args.seed !== undefined ? { seed: args.seed } : {}),
-              }, exec.signal)
-              sheet = await commitAssetImage(master, outputDir, prior.id, asset.id, '-sheet')
-            }
-          } else if (regenerate || reference === undefined) {
-            const still = await ctx.h3Video.keyframe({
-              prompt: buildStillPrompt(asset, prior.style),
-              ratio: asset.kind === 'scene' ? '16:9' : '1:1',
+          const existing = asset.reference
+          const redraw = regenerate || existing === undefined
+          reference = redraw
+            ? await commitAssetImage(
+              await drawImage(
+                asset.kind === 'character'
+                  ? buildCharacterReferencePrompt(asset, prior.style)
+                  : buildStillPrompt(asset, prior.style),
+                asset.kind === 'character' ? '3:4' : asset.kind === 'scene' ? '16:9' : '1:1',
+              ),
+              outputDir,
+              prior.id,
+              asset.id,
+            )
+            : existing
+          attachment = await saveImageAttachment(ctx, reference)
+        } catch (error: unknown) {
+          failure = errorText(error)
+        }
+        // The sheet is the design record drawn from the reference, never an anchor. A failed sheet
+        // leaves the reference and any earlier sheet in place and does not fail the asset.
+        const anchor = failure === undefined ? reference : undefined
+        if (asset.kind === 'character' && anchor !== undefined) {
+          try {
+            const drawn = await ctx.h3Video.keyframe({
+              prompt: buildCharacterSheetPrompt(asset, prior.style),
+              ratio: '16:9',
+              subjectReference: anchor,
               ...(args.seed !== undefined ? { seed: args.seed } : {}),
             }, exec.signal)
-            reference = await commitAssetImage(still, outputDir, prior.id, asset.id, '')
+            sheet = await commitAssetImage(drawn, outputDir, prior.id, `${asset.id}-sheet`)
+            sheetAttachment = await saveImageAttachment(ctx, sheet)
+          } catch (error: unknown) {
+            sheetFailures.push(`${asset.name}: ${errorText(error)}`)
           }
-          const attachment = await saveImageAttachment(ctx, reference)
-          const sheetAttachment = sheet !== undefined ? await saveImageAttachment(ctx, sheet) : undefined
-          results.push({
-            assetId: asset.id,
-            name: asset.name,
-            kind: asset.kind,
-            image: reference,
-            ...(attachment !== undefined ? { attachment } : {}),
-            ...(sheet !== undefined ? { sheet } : {}),
-            ...(sheetAttachment !== undefined ? { sheetAttachment } : {}),
-            state: 'generated',
-          })
-        } catch (error: unknown) {
-          const message = error instanceof Error ? error.message : String(error)
-          results.push({
-            assetId: asset.id,
-            name: asset.name,
-            kind: asset.kind,
-            ...(reference !== undefined && reference !== asset.reference ? { image: reference } : {}),
-            ...(sheet !== undefined && sheet !== asset.sheet ? { sheet } : {}),
-            state: 'failed',
-            error: message,
-          })
         }
-        // Persist whatever the run produced, including a portrait whose sheet failed.
+        results.push({
+          assetId: asset.id,
+          name: asset.name,
+          kind: asset.kind,
+          ...(failure === undefined && reference !== undefined ? { image: reference } : {}),
+          ...(attachment !== undefined ? { attachment } : {}),
+          ...(sheet !== undefined ? { sheet } : {}),
+          ...(sheetAttachment !== undefined ? { sheetAttachment } : {}),
+          state: failure === undefined ? 'generated' : 'failed',
+          ...(failure !== undefined ? { error: failure } : {}),
+        })
         const index = assets.findIndex(candidate => candidate.id === asset.id)
         const current = index !== -1 ? assets[index] : undefined
-        if (current !== undefined && (reference !== current.reference || sheet !== current.sheet)) {
+        if (current !== undefined && (reference !== current.reference || sheet !== undefined)) {
           assets[index] = {
             ...copyAsset(current),
             ...(reference !== undefined ? { reference } : {}),
@@ -1813,6 +1842,7 @@ export function apply(ctx: Context): void {
       const generatedCount = results.filter(result => result.state === 'generated').length
       const failedCount = results.filter(result => result.state === 'failed').length
       const notice = `generated ${generatedCount} asset image(s) for plan ${prior.id}${failedCount > 0 ? `, ${failedCount} failed` : ''}`
+        + (sheetFailures.length > 0 ? `, ${sheetFailures.length} turnaround sheet(s) failed — ${sheetFailures.join('; ')}` : '')
       return { planId: prior.id, assets: results, notice }
     },
     presentCall: args => presentCall('Generate asset images', args.plan_id),
@@ -1820,7 +1850,7 @@ export function apply(ctx: Context): void {
 
   ctx.tools.register(defineTool({
     name: 'video_library',
-    description: 'List the project asset library: characters, scenes, and props confirmed in earlier plans, each with its canonical prompt block, reference image, and character master sheet. Attach one to a new plan with video_plan library_assets instead of redefining it.',
+    description: 'List the project asset library: characters, scenes, and props confirmed in earlier plans, each with its canonical prompt block and reference image; a character also lists the front/side/back turnaround sheet drawn from its reference. Attach one to a new plan with video_plan library_assets instead of redefining it.',
     parameters: {},
     output: jsonOutput(LIBRARY_VALUE_SCHEMA),
     async execute() {
@@ -2085,7 +2115,7 @@ export function apply(ctx: Context): void {
           text: '用户请求生成视频：' + text + '\n\n'
             + '请按 H3 视频生成流程执行：'
             + '1) ≤15 秒短片优先 mode=multi_shot，一次生成完整故事；默认一位主角、一个地点、连续时间、约三镜，每镜一个可见事件。用 video_plan 保存素材 id 与分镜，每镜含 prompt、asset_ids、start_state、event、end_state、duration_seconds、resolution、ratio、backend，第二镜起声明 continuity。逐镜审查上一镜 end_state 与下一镜 start_state，避免重复动作、道具换手和无解释跳时空；程序只校验字段与素材引用，不判断剧情语义；'
-            + '2) 记录或生成角色/场景/道具素材，展示分镜与成本。用 video_keyframes 默认只生成开场图，画第一镜 start_state、事件尚未发生；展示并确认画面。后续镜头图片仅是分镜预览，不会分别约束整片。用户提供开场图时放在第一镜 references 的 first_frame；'
+            + '2) 先由导演智能体自动分析剧情和已有参考图中的角色身份：把年龄感、职业与生活状态、体型、脸型、发型、妆感、眼神、嘴角/表情、服装、鞋子、配饰和姿态改写为可观察的 asset.prompt，并根据该角色的剧情要求写明负面约束，禁止与设定相反的年龄感、脸型、表情、服装或比例；不要把某个角色的冷感或疲惫套给所有角色。角色提示词由智能体编写，用户只需描述剧情和人物，无需手写提示词；已有参考图要继承稳定身份特征，只补足全身构图并修正与剧情冲突的表现。记录或生成角色/场景/道具素材，展示分镜与成本。用 video_keyframes 默认只生成开场图，画第一镜 start_state、事件尚未发生；展示并确认画面。后续镜头图片仅是分镜预览，不会分别约束整片。用户提供开场图时放在第一镜 references 的 first_frame；生成角色图后逐项检查年龄、脸型、眼神、表情、服装、鞋子和全身完整性，不符合就用 regenerate 重抽；'
             + '3) 确认分镜与开场图后用 video_render 渲染整片，不传 segment_ids 或 chain。multi_shot 统一后端/分辨率/比例，不能附加后续镜头参考素材；确需逐镜材料或独立路由才用 per_segment。用 job_output 等待完成；配置了云 GPU 时可先用 video_gpu action=up 确认实例就绪；'
             + '4) 全部成功后 video_assemble 拼接成片，最后用 present 交付。\n'
             + 'H3 音画同生（视频与音频同一次生成），写分镜 prompt 时要声明声音层：'

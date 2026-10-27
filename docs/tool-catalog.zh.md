@@ -2183,7 +2183,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 
 ### `video_asset_images`
 
-通过托管图片模型为需要锚点图的计划素材生成锚点图片。角色会得到一张正面半身定妆照——每个关键帧所依据的主体参考——外加一张由该定妆照生成的母图（正面/侧面/背面三视图与面部特写），因此各视图共享同一张脸、发型、服装与比例。场景得到无人物、可复用的空镜建立镜头；道具得到中性参考图。图片保存在 outputDir/assets 下并记录到计划上；传入 regenerate 与新 seed 可以再要一个方案。
+为需要锚点图的计划素材生成图片。导演智能体会先从剧情和参考素材分析角色，并把身份提示词写入 asset.prompt；用户不需要手写绘图提示词。角色只生成一张 3:4 全身参考图，头顶到鞋底完整可见，关键帧使用它来保持面孔、服装、鞋子、表情和身体比例。场景得到无人物、可复用的建立图；道具得到中性参考图。图片保存在 outputDir/assets 下并记录到计划上；传入 regenerate 与新 seed 可以再要一个方案。
 
 ```json
 {
@@ -2219,7 +2219,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 
 ### `video_assets`
 
-在询问用户素材后，把可复用的素材锚点（角色/场景/道具）及其用户提供的参考图记录到已有计划上。每个素材引用都必须是用户提供的图片的绝对本地路径或 http(s) URL。
+把可复用的素材锚点（角色/场景/道具）及可选的用户参考图记录到已有计划上。导演智能体必须先从剧情和参考图分析角色，再把完整的可观察身份提示词与负面约束写入 asset.prompt；用户只需提供剧情和人物信息，不需要手写绘图提示词。每个素材引用都必须是绝对本地路径或 http(s) URL。
 
 ```json
 {
@@ -2231,7 +2231,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
     },
     "assets": {
       "type": "array",
-      "description": "Asset anchors with user-provided reference images; names must match the storyboard references exactly.",
+      "description": "Asset anchors; names must match the storyboard references exactly. For characters, asset.prompt is an agent-authored identity block covering age impression, body, face, hair, makeup, gaze, mouth/expression, clothing, shoes, accessories, posture, and forbidden contradictory traits. Do not ask the user to hand-write an image prompt.",
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -2254,7 +2254,8 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
             "type": "string"
           },
           "prompt": {
-            "type": "string"
+            "type": "string",
+            "description": "Agent-authored canonical visual identity block. For characters, include observable age impression, body, face, hair, makeup, gaze, mouth/expression, clothing, shoes, accessories, posture, and negative constraints; the user does not need to write this prompt."
           },
           "reference": {
             "type": "string"
@@ -2312,7 +2313,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 
 ### `video_keyframes`
 
-使用配置的图片 provider 生成静帧。multi_shot 默认只生成表现第一镜 start_state、事件尚未发生的开场图；显式选择的后续静帧仅是分镜预览，不约束视频。per_segment 默认生成全部镜头。点名或显式选择的角色提供一张定妆照；本地生成需要图生图工作流。渲染前展示图片供用户确认。
+使用配置的图片 provider 生成静帧。multi_shot 默认只生成表现第一镜 start_state、事件尚未发生的开场图；显式选择的后续静帧仅是分镜预览，不约束视频。per_segment 默认生成全部镜头。点名或显式选择的角色提供一张全身参考图；本地生成需要图生图工作流。渲染前展示图片供用户确认。
 
 ```json
 {
@@ -2335,7 +2336,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
     },
     "identity": {
       "type": "string",
-      "description": "How the still is conditioned on the cast. \"auto\" (default) keeps the face when the shot names a character the plan carries an image for, by editing that portrait into the scene; open shots draw from text alone. \"text\" forces text-to-image; \"portrait\" forces the portrait edit even when no character is named.",
+      "description": "How the still is conditioned on the cast. \"auto\" (default) keeps the face, clothing, shoes, and body proportions when the shot names a character the plan carries an image for, by editing that full-body reference into the scene; open shots draw from text alone. \"text\" forces text-to-image; \"portrait\" forces the reference edit even when no character is named.",
       "enum": [
         "auto",
         "text",
@@ -2353,7 +2354,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 
 ### `video_library`
 
-列出项目资产库：先前计划中确认过的角色、场景与道具，每项都带有其规范 prompt 块、参考图与角色母图。用 video_plan 的 library_assets 将其挂到新计划上，而不是重新定义它。
+列出项目素材库：先前计划中确认过的角色、场景与道具，每项带有规范 prompt 块和参考图。如果旧记录中保留了角色母图，也会兼容列出。用 video_plan 的 library_assets 将其挂到新计划上，无需重新定义。
 
 ```json
 {
@@ -2390,7 +2391,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
     },
     "assets": {
       "type": "array",
-      "description": "Reusable asset anchors (characters/scenes/props) confirmed with the user; each may carry a user-provided reference image path or URL and a fixed prompt block. The storyboard must reference these names exactly.",
+      "description": "Reusable asset anchors (characters/scenes/props). For characters, the agent must derive a complete observable visual prompt from the story and references, including positive identity facts and negative constraints that prevent contradictory age, face, expression, makeup, clothing, or body-proportion choices. Do not make the user hand-write an image prompt. The storyboard must reference these names exactly.",
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -2413,7 +2414,8 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
             "type": "string"
           },
           "prompt": {
-            "type": "string"
+            "type": "string",
+            "description": "Agent-authored canonical visual identity block. For characters, include observable age impression, body, face, hair, makeup, gaze, mouth/expression, clothing, shoes, accessories, posture, and negative constraints; the user does not need to write this prompt."
           },
           "reference": {
             "type": "string"

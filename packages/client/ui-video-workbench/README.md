@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package is the browser half of the video workbench: one global panel row in the sidebar (id `video-workbench`, beside the scheduled-work row) and the matching `main` page. The page lists the video projects the host routes report — goal, mode, revision, per-shot rendering state — and shows the selected project's cast and sets (each asset's reference image, character master sheet, canonical prompt block, and project-library state), keyframe thumbnails, and its final assembly in a `<video>` element. Data arrives from [`@deepseek-ai/dsh-video-workbench`](../../video/video-workbench/README.md)'s read-only routes; this package holds no state beyond selection and refresh.
+This package is the browser half of the video workbench: one global panel row in the sidebar (id `video-workbench`, beside the scheduled-work row) and the matching `main` page. The page lists the video projects the host routes report — goal, mode, revision, per-shot rendering state — and shows the selected project's cast and sets (each asset's reference image, canonical prompt block, and project-library state), keyframe thumbnails, and its final assembly in a `<video>` element. Legacy character master sheets are shown only when an older project records one. Data arrives from [`@deepseek-ai/dsh-video-workbench`](../../video/video-workbench/README.md)'s read-only routes; this package holds no state beyond selection and refresh.
 
 ## Table of Contents
 

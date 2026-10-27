@@ -35,17 +35,17 @@ export interface PlanAsset {
   readonly description?: string
   /**
    * Canonical generation block for this asset, copied verbatim into every prompt that conditions
-   * on it (portrait, master sheet, keyframes, clips). Keeping one fixed block is what stops
+   * on it (full-body reference, keyframes, clips). Keeping one fixed block is what stops
    * separately rendered shots from drifting in wording; `description` is the short human-facing
    * summary used when no block is written.
    */
   readonly prompt?: string
-  /** User-provided or generated reference image path or URL anchoring this asset. */
+  /** User-provided or generated image path or URL; generated character references show one full body. */
   readonly reference?: string
   /**
-   * Character master sheet: front/side/back turnaround generated from the character text.
-   * It is the design artifact and project-library record, not a generation
-   * input.
+   * Legacy character master sheet retained only so old plan and library records can still be read.
+   * New `video_asset_images` runs generate one full-body `reference` image and do not write this
+   * field.
    */
   readonly sheet?: string
 }
