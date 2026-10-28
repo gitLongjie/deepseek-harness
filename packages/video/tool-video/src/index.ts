@@ -265,6 +265,7 @@ const ASSET_IMAGE_SCHEMA = {
     kind: { type: 'string', required: true },
     image: { type: 'string' },
     attachment: IMAGE_ATTACHMENT_SCHEMA,
+    referenceLayout: { type: 'string', enum: ['four-column'] },
     sheet: { type: 'string' },
     sheetAttachment: IMAGE_ATTACHMENT_SCHEMA,
     state: { type: 'string', required: true, enum: ['generated', 'skipped', 'failed'] },
@@ -581,13 +582,15 @@ function styleSuffix(style: string | undefined): string {
  */
 function buildCharacterReferencePrompt(asset: PlanAsset, style: string | undefined): string {
   return [
-    '一张四栏角色设定图，single character design sheet，three full-body views plus one face close-up。',
-    '横向四等宽栏，从左到右依次：正面全身、左侧面全身、背面全身、正面面部特写。',
-    '前三栏每栏只展示同一个角色的一个视角，头顶到鞋底完整入画，双脚可见，头顶和脚底留边距；不要半身像。',
+    '输出一张横向 16:9 的角色设定板，不是单人海报。画布必须被三条竖直分隔线分成四个等宽、都被内容填满的独立面板；四个面板必须同时出现在同一张图片中。',
+    '四栏顺序摘要：正面全身、左侧面全身、背面全身、正面面部特写。',
+    '从左到右严格标记并绘制：PANEL 1 FRONT FULL BODY 正面全身（full-body）；PANEL 2 LEFT SIDE FULL BODY 左侧面全身（full-body）；PANEL 3 BACK FULL BODY 背面全身（full-body）；PANEL 4 FACE CLOSE-UP 正面面部特写。',
+    '前三个面板各自从头顶到鞋底完整入画，头顶到鞋底必须可见，双脚可见，人物不能跨越面板分隔线；第四个面板只做清晰面部特写。四个面板缺一不可，不能留白。',
+    '禁止输出单一居中的正面人物、3:4 竖图、单视图、半身像（不要半身像）、只有一栏、空白栏、重复正面视图或把四个视图叠在同一位置。',
     '第四栏清晰展示脸型、下颌线、眼神、眼线和嘴角表情，不要美化成另一张脸。',
     `四栏共享同一角色外观：${assetBlock(asset)}。`,
     '各视角保持相同年龄、体型、发型、服装结构、颜色、材质、鞋子和所有配饰，正侧背对应同一个人。',
-    '纯白背景，柔和均匀棚拍光，四栏不重叠，不跨栏，不额外增加人物、视角或图片文件，不要文字、水印、logo。',
+    '纯白背景，柔和均匀棚拍光，四栏边界清楚，不重叠，不跨栏，不额外增加人物、视角或图片文件，不要文字、水印、logo。',
     styleSuffix(style),
   ].join('')
 }
@@ -1840,6 +1843,7 @@ export function apply(ctx: Context): void {
           assetId: asset.id,
           name: asset.name,
           kind: asset.kind,
+          ...(asset.kind === 'character' && failure === undefined ? { referenceLayout: 'four-column' as const } : {}),
           ...(failure === undefined && reference !== undefined ? { image: reference } : {}),
           ...(attachment !== undefined ? { attachment } : {}),
           state: failure === undefined ? 'generated' : 'failed',

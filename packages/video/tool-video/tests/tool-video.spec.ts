@@ -940,10 +940,14 @@ describe('dsh-tool-video', () => {
     expect(h3Video.keyframeRequests[0]?.prompt).toContain('短发，深蓝工装')
     expect(h3Video.keyframeRequests[0]?.prompt).toContain('不要半身像')
     expect(h3Video.keyframeRequests[0]?.prompt).toContain('正面全身、左侧面全身、背面全身、正面面部特写')
+    expect(h3Video.keyframeRequests[0]?.prompt).toContain('三条竖直分隔线')
+    expect(h3Video.keyframeRequests[0]?.prompt).toContain('PANEL 1 FRONT FULL BODY')
+    expect(h3Video.keyframeRequests[0]?.prompt).toContain('四个面板缺一不可')
     expect(h3Video.keyframeRequests[0]?.ratio).toBe('16:9')
     expect(h3Video.keyframeRequests[0]?.subjectReference).toBeUndefined()
-    const firstAsset = (first.value as { assets: Array<{ image?: string; sheet?: string }> }).assets[0]
+    const firstAsset = (first.value as { assets: Array<{ image?: string; sheet?: string; referenceLayout?: string }> }).assets[0]
     expect(firstAsset?.image).toContain(`${planId}-char-1.png`)
+    expect(firstAsset?.referenceLayout).toBe('four-column')
     expect(firstAsset?.sheet).toBeUndefined()
 
     const second = await callTool(ctx, 'video_asset_images', { plan_id: planId }, agent)
