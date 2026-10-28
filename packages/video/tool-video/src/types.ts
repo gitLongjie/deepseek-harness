@@ -40,11 +40,13 @@ export interface PlanAsset {
    * summary used when no block is written.
    */
   readonly prompt?: string
-  /** User-provided or generated image path or URL; generated character references show one full body. */
+  /** User-provided or generated image path or URL; generated character designs contain three full-body views and a face close-up. */
   readonly reference?: string
+  /** Four equal-width columns: front, side, back full bodies, then face close-up; absent on older images. */
+  readonly referenceLayout?: 'four-column'
   /**
    * Legacy character master sheet retained only so old plan and library records can still be read.
-   * New `video_asset_images` runs generate one full-body `reference` image and do not write this
+   * New `video_asset_images` runs generate one combined four-view `reference` image and do not write this
    * field.
    */
   readonly sheet?: string

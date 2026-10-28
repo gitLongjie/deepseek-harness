@@ -10,9 +10,11 @@ Character asset generation could produce a cropped portrait and a separate turna
 
 ## Decision
 
-`video_asset_images` generates exactly one 3:4 image for each character. The prompt requires one centered standing person with the complete head-to-shoes figure visible, including hands, clothing, shoes, accessories, and body proportions. It excludes half-body crops, multiple views, collages, text, and watermarks. The reference is saved on the plan and in the project library and is the only character image used for keyframes and clips.
+`video_asset_images` generates exactly one 16:9 image for each character. The prompt requires four equal columns: front full body, left side full body, back full body, and a face close-up. The first three columns show the complete head-to-shoes figure, and all columns describe the same person. The design image is saved on the plan and in the project library. Single-subject keyframes crop the front column into a temporary conditioning image; no second identity is generated.
 
 The director derives observable age, build, face, hair, makeup, gaze, mouth, wardrobe, shoes, accessories, posture, and exclusion constraints from the story and supplied evidence before calling the tool. Users provide story information or existing images; they do not need to write image prompts manually. `regenerate` replaces the selected reference and removes any legacy `sheet` field from the new record.
+
+The direct video workflow now makes screenplay analysis explicit before `video_plan`: it writes short observable beats, one event per shot, concrete state handoffs, physical routes for movement, and a review gate before rendering. A requested 15-second short keeps the full duration instead of silently shortening it.
 
 Legacy plans may still contain `sheet` for read compatibility. New generation never creates a sheet, and the library can still display an old sheet without sending it to a new render.
 
@@ -26,4 +28,4 @@ Legacy plans may still contain `sheet` for read compatibility. New generation ne
 
 ## Consequences
 
-Each new character uses one image request. A single full-body source reduces clothing and proportion conflicts, but it cannot prove the unseen back of a costume; video output still needs visual review. The structural tests assert one request, 3:4 ratio, full-body constraints, legacy read compatibility, and regeneration cleanup.
+Each new character uses one image request. The four-column source reduces clothing, face, and proportion conflicts while allowing side and back review. Video output still needs visual review. The structural tests assert one request, 16:9 ratio, four-view constraints, legacy read compatibility, and regeneration cleanup.

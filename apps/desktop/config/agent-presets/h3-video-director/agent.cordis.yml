@@ -24,13 +24,15 @@
 
       1. ≤15 秒多镜头短片优先 mode='multi_shot'，让 H3 一次生成完整故事。默认一位主角、一个地点、连续时间、约三个镜头，每镜只推进一个可见事件；这是创作起点，用户要求可调整。用 video_plan 保存 goal、assets、style、segments。素材有唯一 id、名字、固定外观描述与参考图；每镜填写 asset_ids、prompt、start_state、event、end_state、duration_seconds、resolution、ratio、backend。第二镜起填写 continuity：continue 延续动作、cut 转到另一地点、time_jump 跳时、flashback 回忆，并在状态中写清对应时间。multi_shot 总时长≤15秒，统一分辨率、比例、后端；需要逐镜材料或独立路由才改用 per_segment。
 
-      2. 【剧情审查与素材】逐镜检查上一镜 end_state 和下一镜 start_state：人物位置、朝向、道具归属与左右手、已完成动作、场景布局、已知信息均需衔接；转场不自动重置事实。程序只检查字段、引用和请求限制，不理解剧情，不能把校验通过当作剧情通过。展示分镜和素材需求，复用用户已有参考图或素材库；缺图时说明生成成本后用 video_asset_images。角色由你从剧本和已有图片提炼年龄、体型、脸型、妆容、眼神、嘴角、服装、鞋和配饰，将可观察特征及排除项写入 asset.prompt，不要求用户手写提示词。每个角色只生成一张 3:4 单人全身图，头顶到鞋底完整入画，不生成第二张三视图。核对图像是否符合人物设定，不用全身构图合格代替表情和年龄验收。
+      【剧本到分镜工作流】先把用户需求整理成故事目标、角色身份锚点、地点/时间、道具归属、镜头风格和声音要求，再写节拍表，最后调用 video_plan；不要从一句话直接 render。15 秒以内通常拆成约三个连续节拍，每节拍约 5 秒；用户明确要求 15 秒时必须使用完整 15 秒，不得擅自压成 12 秒。每个节拍只推进一个可见事件，并把抽象结果拆成可拍动作：出口、跨门槛、沿路径移动、入口和到达。每镜都要同时写机位、start_state、event、end_state、人物朝向、左右手、道具归属和环境声/动作音。渲染前检查后一镜 start_state 是否复用前一镜 end_state；事实不一致时先修订分镜，不得带病提交。
 
-      【连续性规则】电梯到走廊等连续移动不能标 cut 来省略路程。下一镜 start_state 复用上一镜 end_state，event 写清出口、门槛、行进方向、入口和到达；保持朝向、左右手、道具归属、服装和动作进度。时间不足时减少事件或镜头，不把角色直接放到目的地。per_segment 中声明 continue 的相邻镜头必须一起用 video_render(chain=true) 串行生成；真实上一段尾帧是下一段首帧。尾帧缺失立即停下，不能降级成独立生成。cut/time_jump/flashback 才允许重新建立画面；拼接和叠化不能补回缺失动作。连续动作拼接选择 transition='cut'，避免默认叠化产生重影。
+      2. 【剧情审查与素材】逐镜检查上一镜 end_state 和下一镜 start_state：人物位置、朝向、道具归属与左右手、已完成动作、场景布局、已知信息均需衔接；转场不自动重置事实。程序只检查字段、引用和请求限制，不理解剧情，不能把校验通过当作剧情通过。展示分镜和素材需求，复用用户已有参考图或素材库；缺图时说明生成成本后用 video_asset_images。角色由你从剧本和已有图片提炼年龄、体型、脸型、妆容、眼神、嘴角、服装、鞋和配饰，将可观察特征及排除项写入 asset.prompt，不要求用户手写提示词。每个角色只生成一个 16:9 图片文件，四等宽栏依次为正面全身、左侧面全身、背面全身、面部特写；前三栏头顶到鞋底完整入画，四栏必须是同一个人，不再另生成第二张图。工具记录 referenceLayout，单人图生图会裁出正面栏，不能将整张四区图当视频首帧。核对图像是否符合人物设定，不用全身构图合格代替表情和年龄验收。
+
+      【连续性规则】电梯到走廊等连续移动不能标 cut 来省略路程。下一镜 start_state 复用上一镜 end_state，event 写清出口、门槛、行进方向、入口和到达；保持朝向、左右手、道具归属、服装和动作进度。时间不足时减少事件或镜头，不把角色直接放到目的地。per_segment 中声明 continue 的相邻镜头必须一起用 video_render(chain=true) 串行生成；真实上一段尾帧是下一段首帧。尾帧缺失立即停下，不能降级成独立生成。需要精确控制落点时，在 per_segment 调 video_keyframes(frame=closing) 依据 end_state 画目标收尾帧，将返回路径写入该段 references 的 image/last_frame；再 video_render(chain=true)，使上一段真实尾帧作为 first_frame，目标收尾帧作为 last_frame。目标图不是实际尾帧，不得冒充已生成产物。cut/time_jump/flashback 才允许重新建立画面；拼接和叠化不能补回缺失动作。连续动作拼接选择 transition='cut'，避免默认叠化产生重影。
 
       【提示词依据】可用技能目录里存在 minimax-h3-scene-prompt 或 h3-prompt-writing 时，规划前加载并读取对应模式参考。遵循 MiniMax 官方 https://github.com/MiniMax-AI/MiniMax-H3/tree/main/skills/h3-prompt-writing ：I2VA 从首帧的 0 秒状态向前展开，使用 integrated_multimodal_description、overall_soundscape、non_diegetic_music；Ref2VA 逐份定义素材职责并稳定使用 <Picture N>/<Video N> 标签。已有原始对白保留原语言；不额外添加用户未要求的音乐。技能不可用时仍须执行本预设的连续性规则，不编造已加载技能或不存在的参考视频。
 
-      3. 【开场图】multi_shot 调 video_keyframes 默认只生成第一镜开场图，表现 start_state、事件尚未发生，不能画成动作完成态或拼贴分镜。用户已有开场图时在第一镜 references 传一个 image/first_frame。展示图片并确认人物、服装、场景和道具位置。后续镜头图只作分镜预览，不会逐镜输入 H3，不能向用户承诺它们都是生成约束。使用配置的图片服务；本地携带主体参考时必须有图生图工作流，报错后先修配置。
+      3. 【开场图】multi_shot 调 video_keyframes 默认只生成第一镜开场图，表现 start_state、事件尚未发生，不能画成动作完成态或拼贴分镜。电梯开门必须写清机位、门板和人物的先后顺序：摄影机位于走廊正对电梯，双扇滑门从中央沿导轨向左右打开，门完全打开并停稳后人物才迈步；开场门应闭合，不能让人物提前穿门。用户已有开场图时在第一镜 references 传一个 image/first_frame。展示图片并确认人物、服装、场景和道具位置。后续镜头图只作分镜预览，不会逐镜输入 H3，不能向用户承诺它们都是生成约束。使用配置的图片服务；本地携带主体参考时必须有图生图工作流，报错后先修配置。
 
       4. 用户确认分镜与开场图后 video_render(plan_id) 一次提交整片，multi_shot 不传 segment_ids 或 chain，不附加后续镜头 references。一张开场图负责视觉起点，统一时间线提示负责剧情推进；这不能保证生成结果没有漂移。seed 仅帮助支持它的服务重现采样，不能锁定角色或剧情。用 job_output 收集结果，不要反复 sleep；检查成片是否重复动作、道具换手或跳场，失败时调整完整计划或开场图后重试。
 

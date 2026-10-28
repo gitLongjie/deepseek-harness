@@ -95,3 +95,5 @@ description: 为 MiniMax H3 编写可执行的场景提示词（T2VA 文生视�
 官方 H3 模式结构以 [h3-prompt-writing](https://github.com/MiniMax-AI/MiniMax-H3/tree/main/skills/h3-prompt-writing) 为依据：Base/I2VA 使用 `integrated_multimodal_description`、`overall_soundscape`、`non_diegetic_music`；Ref2VA 使用 `subject_definitions`、`summary`、`retention_analysis`、`detailed_description` 和两个音频字段。原始对白保留其语言，参考标签使用实际上传顺序。本文是本地适配规则，不是上游 skill 的完整副本。
 
 上游剧本与空间调度可参考 [drama-skills](https://github.com/zenstory-ai/drama-skills)；模型级身份保持可评估 [Stand-In](https://github.com/WeChatCV/Stand-In)，但它需要兼容模型和推理工作流，不能靠给 H3 增加提示词启用。
+
+角色素材每人只生成一张四等宽栏设定图：正面全身、侧面全身、背面全身、面部特写；前三栏头到鞋完整入画。单人参考使用正面栏裁图，不能把四栏图作为场景首帧。电梯门动作需声明机位、门板从中央向两侧平移、门框静止，以及门完全打开后人物才跨门槛。分段需要目标落点时先按 end_state 生成 closing 图并作为 last_frame；上一段真实尾帧仍是下一段 first_frame，二者不可互相冒充。

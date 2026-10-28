@@ -2183,7 +2183,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 
 ### `video_asset_images`
 
-为需要锚点图的计划素材生成图片。导演智能体会先从剧情和参考素材分析角色，并把身份提示词写入 asset.prompt；用户不需要手写绘图提示词。角色只生成一张 3:4 全身参考图，头顶到鞋底完整可见，关键帧使用它来保持面孔、服装、鞋子、表情和身体比例。场景得到无人物、可复用的建立图；道具得到中性参考图。图片保存在 outputDir/assets 下并记录到计划上；传入 regenerate 与新 seed 可以再要一个方案。
+为需要锚点图的计划素材生成图片。导演智能体会先从剧情和参考素材分析角色，并把身份提示词写入 asset.prompt；用户不需要手写绘图提示词。角色只生成一张 16:9 四栏设定图（正面、侧面、背面全身和面部特写），头顶到鞋底完整可见，关键帧使用它来保持面孔、服装、鞋子、表情和身体比例。场景得到无人物、可复用的建立图；道具得到中性参考图。图片保存在 outputDir/assets 下并记录到计划上；传入 regenerate 与新 seed 可以再要一个方案。
 
 ```json
 {
@@ -2260,6 +2260,12 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
           "reference": {
             "type": "string"
           },
+          "referenceLayout": {
+            "type": "string",
+            "enum": [
+              "four-column"
+            ]
+          },
           "sheet": {
             "type": "string"
           }
@@ -2329,6 +2335,14 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
       "items": {
         "type": "string"
       }
+    },
+    "frame": {
+      "type": "string",
+      "description": "Defaults to opening. In per_segment, closing draws end_state into a separate target image; pass its returned path as image/last_frame in video_plan before rendering. It never replaces the actual preceding tail frame.",
+      "enum": [
+        "opening",
+        "closing"
+      ]
     },
     "seed": {
       "type": "integer",
@@ -2419,6 +2433,12 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
           },
           "reference": {
             "type": "string"
+          },
+          "referenceLayout": {
+            "type": "string",
+            "enum": [
+              "four-column"
+            ]
           },
           "sheet": {
             "type": "string"

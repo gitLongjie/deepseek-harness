@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync, existsSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { execFileSync } from 'node:child_process'
 import { Context } from '@deepseek-ai/cordis'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import CommandRuntime from '@deepseek-ai/dsh-commands'
@@ -616,32 +617,80 @@ describe('dsh-tool-video', () => {
     expect(request?.ratio).toBe('adaptive')
   })
 
-  it('degrades an authored first frame to reference_image when asset anchors exist', async () => {
+  it('preserves authored first and last frames instead of degrading them to asset references', async () => {
     const { ctx, h3Video } = await setup()
     const agent = agentWithSession()
     const planned = await callTool(ctx, 'video_plan', {
       ...PLAN_ARGS,
-      assets: [{ id: 'scene-1', name: '山顶', kind: 'scene', reference: 'C:/Users/demo/summit.png' }],
-      segments: [{
-        ...PLAN_ARGS.segments[0],
-        references: [{ type: 'image', source: 'C:/Users/demo/first-frame.png', role: 'first_frame' }],
-      }],
+      assets: [{ id: 'scene-1', name: '山顶', kind: 'scene', reference: 'C:/summit.png' }],
+      segments: [{ ...PLAN_ARGS.segments[0], references: [
+        { type: 'image', source: 'C:/first.png', role: 'first_frame' },
+        { type: 'image', source: 'C:/last.png', role: 'last_frame' },
+      ] }],
     }, agent)
     if (planned.isError) throw new Error('expected plan success')
-    const planId = (planned.value as { id: string }).id
+    await callTool(ctx, 'video_render', { plan_id: (planned.value as { id: string }).id }, agent)
+    expect(h3Video.requests[0]?.inputs.filter(input => input.type === 'image')).toEqual([
+      { type: 'image', url: 'C:/first.png', role: 'first_frame' },
+      { type: 'image', url: 'C:/last.png', role: 'last_frame' },
+    ])
+    expect(h3Video.requests[0]?.ratio).toBe('adaptive')
+  })
 
-    const rendered = await callTool(ctx, 'video_render', { plan_id: planId, segment_ids: ['s1'] }, agent)
-    expect(rendered.isError).toBe(false)
-    const request = h3Video.requests[0]
-    expect(request?.inputs.some(input => input.type === 'image' && input.role === 'first_frame')).toBe(false)
-    const references = request?.inputs.filter((input): input is Extract<SegmentInput, { type: 'image' }> =>
-      input.type === 'image' && input.role === 'reference_image') ?? []
-    expect(references).toHaveLength(2)
-    expect(references.some(ref => ref.url === 'C:/Users/demo/first-frame.png')).toBe(true)
-    expect(references.some(ref => ref.url === 'C:/Users/demo/summit.png')).toBe(true)
-    const prompt = request?.inputs.find(input => input.type === 'text')
-    expect(prompt?.type === 'text' && prompt.text).toContain('<Picture 1> opening frame')
-    expect(prompt?.type === 'text' && prompt.text).toContain('<Picture 2> 山顶 (scene)')
+  it('draws a closing target from end_state without overwriting the opening still', async () => {
+    const { ctx, h3Video, outputDir } = await setup()
+    const agent = agentWithSession()
+    const planned = await callTool(ctx, 'video_plan', {
+      ...PLAN_ARGS,
+      segments: [{ ...PLAN_ARGS.segments[0], end_state: '电梯门完全打开，人物仍在门内等待' }],
+    }, agent)
+    if (planned.isError) throw new Error('expected plan success')
+    const id = (planned.value as { id: string }).id
+    await callTool(ctx, 'video_keyframes', { plan_id: id }, agent)
+    const opening = readFileSync(join(outputDir, 'keyframes', `${id}-s1.png`))
+    const result = await callTool(ctx, 'video_keyframes', { plan_id: id, frame: 'closing' }, agent)
+    expect(result.isError).toBe(false)
+    expect(h3Video.keyframeRequests[1]?.prompt).toContain('电梯门完全打开，人物仍在门内等待')
+    expect(existsSync(join(outputDir, 'keyframes', `${id}-s1-closing.png`))).toBe(true)
+    expect(readFileSync(join(outputDir, 'keyframes', `${id}-s1.png`))).toEqual(opening)
+  })
+
+  it('rejects a closing target for multi_shot before generating images', async () => {
+    const { ctx, h3Video } = await setup()
+    const agent = agentWithSession()
+    const planned = await callTool(ctx, 'video_plan', MULTI_ARGS, agent)
+    if (planned.isError) throw new Error('expected plan success')
+    const result = await callTool(ctx, 'video_keyframes', {
+      plan_id: (planned.value as { id: string }).id, frame: 'closing',
+    }, agent)
+    expect(result.isError).toBe(true)
+    expect(h3Video.keyframeRequests).toHaveLength(0)
+  })
+
+  it('uses only the front column of a four-view design for single-subject keyframes', async () => {
+    const { ctx, h3Video, outputDir } = await setup()
+    const agent = agentWithSession()
+    const reference = join(outputDir, 'design.ppm')
+    const pixels = Buffer.alloc(80 * 40 * 3)
+    for (let y = 0; y < 40; y += 1) {
+      for (let x = 0; x < 80; x += 1) pixels[(y * 80 + x) * 3 + (x < 20 ? 0 : 2)] = 255
+    }
+    writeFileSync(reference, Buffer.concat([Buffer.from('P6\n80 40\n255\n'), pixels]))
+    const planned = await callTool(ctx, 'video_plan', {
+      ...PLAN_ARGS,
+      assets: [{ id: 'hero', name: '林晓', kind: 'character', reference, referenceLayout: 'four-column' }],
+      segments: [{ ...PLAN_ARGS.segments[0], prompt: '林晓站在门口', asset_ids: ['hero'] }],
+    }, agent)
+    if (planned.isError) throw new Error('expected plan success')
+    const result = await callTool(ctx, 'video_keyframes', { plan_id: (planned.value as { id: string }).id }, agent)
+    expect(result.isError).toBe(false)
+    const subject = h3Video.keyframeRequests[0]?.subjectReference
+    expect(subject).toBeDefined()
+    if (subject === undefined) throw new Error('expected cropped subject')
+    expect(subject).not.toBe(reference)
+    const cropped = execFileSync('ffmpeg', ['-v', 'error', '-i', subject, '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-'])
+    expect(cropped.length).toBe(20 * 40 * 3)
+    expect(cropped.subarray(0, 3)).toEqual(Buffer.from([255, 0, 0]))
   })
 
   it('video_assets records user-provided materials and render anchors shots on them', async () => {
@@ -871,7 +920,7 @@ describe('dsh-tool-video', () => {
     expect(derivedSeed).toBeLessThan(2 ** 32)
   })
 
-  it('generates one full-body character reference and can replace it on request', async () => {
+  it('generates one four-view character design and can replace it on request', async () => {
     const { ctx, h3Video } = await setup()
     const agent = agentWithSession()
     const planned = await callTool(ctx, 'video_plan', {
@@ -890,7 +939,8 @@ describe('dsh-tool-video', () => {
     expect(h3Video.keyframeRequests[0]?.prompt).toContain('鞋子')
     expect(h3Video.keyframeRequests[0]?.prompt).toContain('短发，深蓝工装')
     expect(h3Video.keyframeRequests[0]?.prompt).toContain('不要半身像')
-    expect(h3Video.keyframeRequests[0]?.ratio).toBe('3:4')
+    expect(h3Video.keyframeRequests[0]?.prompt).toContain('正面全身、左侧面全身、背面全身、正面面部特写')
+    expect(h3Video.keyframeRequests[0]?.ratio).toBe('16:9')
     expect(h3Video.keyframeRequests[0]?.subjectReference).toBeUndefined()
     const firstAsset = (first.value as { assets: Array<{ image?: string; sheet?: string }> }).assets[0]
     expect(firstAsset?.image).toContain(`${planId}-char-1.png`)
@@ -1209,7 +1259,7 @@ describe('dsh-tool-video', () => {
     expect(h3Video.requests[1]?.inputs.some(input => input.type === 'image' && input.role === 'first_frame')).toBe(false)
   })
 
-  it('generates one character image and never a turnaround sheet', async () => {
+  it('generates three full-body views and a face close-up in one image', async () => {
     const { ctx, h3Video } = await setup()
     const agent = agentWithSession()
     const planned = await callTool(ctx, 'video_plan', {
@@ -1221,8 +1271,8 @@ describe('dsh-tool-video', () => {
     const generated = await callTool(ctx, 'video_asset_images', { plan_id: (planned.value as { id: string }).id }, agent)
     expect(generated.isError).toBe(false)
     expect(h3Video.keyframeRequests).toHaveLength(1)
-    expect(h3Video.keyframeRequests[0]?.ratio).toBe('3:4')
-    expect(h3Video.keyframeRequests[0]?.prompt).toContain('不要多个角色')
+    expect(h3Video.keyframeRequests[0]?.ratio).toBe('16:9')
+    expect(h3Video.keyframeRequests[0]?.prompt).toContain('正面面部特写')
   })
 
   it('dips through black between shots when the caller asks for it', async () => {

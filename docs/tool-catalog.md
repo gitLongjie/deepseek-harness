@@ -2177,7 +2177,7 @@ Source: [`packages/video/tool-video/src/index.ts`](../packages/video/tool-video/
 
 ### `video_asset_images`
 
-Generate the anchor images for plan assets that need them. The agent analyzes the story and reference material before this call and stores the resulting character identity prompt in asset.prompt; the user does not hand-write image prompts. A character gets exactly one 3:4 full-body reference image — head to shoes fully visible — and every keyframe uses that same image. Scenes get a reusable establishing shot without people; props get a neutral reference image. Images are saved under outputDir/assets and recorded on the plan; pass regenerate with a new seed to try another take. Legacy turnaround sheets are never generated.
+Generate the anchor images for plan assets that need them. The agent analyzes the story and reference material before this call and stores the resulting character identity prompt in asset.prompt; the user does not hand-write image prompts. A character gets exactly one 16:9 four-column design image: front, side, and back full-body views (head to shoes visible), plus a face close-up. Single-subject keyframes use a crop of its front column, never a second generated identity. Scenes get a reusable establishing shot without people; props get a neutral reference image. Images are saved under outputDir/assets and recorded on the plan; pass regenerate with a new seed to try another take. No separate turnaround file is generated; the four views share one image.
 
 ```json
 {
@@ -2254,6 +2254,12 @@ Record reusable asset anchors on an existing plan. The agent must first analyze 
           "reference": {
             "type": "string"
           },
+          "referenceLayout": {
+            "type": "string",
+            "enum": [
+              "four-column"
+            ]
+          },
           "sheet": {
             "type": "string"
           }
@@ -2324,6 +2330,14 @@ Generate stills using the configured image provider. multi_shot defaults to one 
         "type": "string"
       }
     },
+    "frame": {
+      "type": "string",
+      "description": "Defaults to opening. In per_segment, closing draws end_state into a separate target image; pass its returned path as image/last_frame in video_plan before rendering. It never replaces the actual preceding tail frame.",
+      "enum": [
+        "opening",
+        "closing"
+      ]
+    },
     "seed": {
       "type": "integer",
       "description": "Image seed for this batch; defaults to the plan seed, so re-running reproduces the same stills. Pass another value to try a different take."
@@ -2361,7 +2375,7 @@ Source: [`packages/video/tool-video/src/index.ts`](../packages/video/tool-video/
 
 ### `video_plan`
 
-Structure the current conversation request into a versioned storyboard plan and persist it. Before calling this tool, the agent must analyze each character from the story and any supplied reference image, then write an observable identity anchor in the asset prompt: age impression, build, face shape, hair, makeup, gaze, mouth/expression, wardrobe, shoes, accessories, posture, and explicit negative constraints. The agent owns this prompt writing; the user only describes the story and characters. This tool validates and stores the plan. Pass an existing plan_id to revise it.
+Structure the current conversation request into a versioned storyboard plan and persist it. The agent must first analyze the screenplay into short observable beats, then write one executable event and a concrete start/end state for every shot; a continuous route must include exit, threshold crossing, travel direction, entry, and arrival. Before calling this tool, the agent must analyze each character from the story and any supplied reference image, then write an observable identity anchor in the asset prompt: age impression, build, face shape, hair, makeup, gaze, mouth/expression, wardrobe, shoes, accessories, posture, and explicit negative constraints. The agent owns this prompt writing; the user only describes the story and characters. This tool validates and stores the plan. Pass an existing plan_id to revise it.
 
 ```json
 {
@@ -2413,6 +2427,12 @@ Structure the current conversation request into a versioned storyboard plan and 
           },
           "reference": {
             "type": "string"
+          },
+          "referenceLayout": {
+            "type": "string",
+            "enum": [
+              "four-column"
+            ]
           },
           "sheet": {
             "type": "string"
