@@ -10,6 +10,8 @@ The video tools accepted a multi-shot plan, but the renderer previously spread t
 
 ## Decision
 
+The director prefers two shots in one request for a 10-second story and three for a 15-second story, preserving the requested total duration and explicit shot count. Shot timing belongs to the shared timeline; an individual shot does not require a separate render task. Independent frame targets and routing remain reasons to use `per_segment`.
+
 `multi_shot` sends one H3 request for a complete story of at most 15 seconds. Each shot records its starting state, one observable event, ending state, continuity relation, and explicit asset ids. The plan validator requires these fields for multi-shot stories with more than one shot, checks asset ids, and rejects mixed backends, mixed canvas settings, later-shot references, partial selection, and chaining because those inputs cannot be represented by the one request.
 
 The request uses exactly one confirmed opening frame. `video_keyframes` defaults to the first shot in this mode; selected later stills are storyboard previews. The combined prompt carries the story goal, fixed asset blocks, style, timecoded shot states, and explicit continuity guidance. It is bounded by the provider's 7000-character prompt limit before submission.

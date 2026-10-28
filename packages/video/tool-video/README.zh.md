@@ -49,7 +49,7 @@ kind: "package-reference"
 
 ### 模型能做什么
 
-- **`video_plan(goal, segments, mode?, assets?, library_assets?, style?, seed?, allow_remote?)`**——保存和修订分镜。导演应先把剧本拆成可观察节拍，并在调用工具前审查每一镜的状态交接。`mode` 默认 `multi_shot`：≤15 秒故事在一次 H3 任务中生成，统一后端、分辨率和比例。超过一镜时每镜必须记录 `start_state`、`event`、`end_state`，第二镜起填写 `continuity`；`asset_ids` 明确选择素材，空列表表示不使用素材。只接受第一镜的一张 image/first_frame，后续参考图和独立路由需改用 `per_segment`。省略 seed 时按计划派生；它仅帮助支持种子的服务重现采样，不能锁定角色或剧情。
+- **`video_plan(goal, segments, mode?, assets?, library_assets?, style?, seed?, allow_remote?)`**——保存和修订分镜。导演应先把剧本拆成可观察节拍，并在调用工具前审查每一镜的状态交接。10 秒以内优先把两个约 5 秒镜头放入一次 `multi_shot`；只有需要真实尾帧链、独立收尾帧、不同素材或不同路由时才用 `per_segment`。`mode` 默认 `multi_shot`：≤15 秒故事在一次 H3 任务中生成，统一后端、分辨率和比例。超过一镜时每镜必须记录 `start_state`、`event`、`end_state`，第二镜起填写 `continuity`；`asset_ids` 明确选择素材，空列表表示不使用素材。只接受第一镜的一张 image/first_frame，后续参考图和独立路由需改用 `per_segment`。省略 seed 时按计划派生；它仅帮助支持种子的服务重现采样，不能锁定角色或剧情。
 - **`video_assets(plan_id, assets, style?)`**——记录可复用锚点和用户提供的参考图。规范 `prompt` 块由导演智能体根据剧情和参考图自动编写，用户不需要手写绘图提示词。素材引用必须是绝对本地路径或 http(s) URL。记录同时进入项目素材库，后续剧集可复用相同设定。
 - **`video_asset_images(plan_id, asset_ids?, regenerate?, seed?)`**——为角色生成一张 16:9 四栏设定图，依次包含正面全身、左侧面全身、背面全身和面部特写；前三栏从头到鞋完整入画，四栏必须是同一个人。单人关键帧会裁出正面栏作为临时条件图，不会重新生成第二套角色。场景生成无人物建立图，道具生成中性参考图；`regenerate` 替换选中图片。
 - **`video_keyframes(plan_id, segment_ids?, frame?, seed?)`**——在视频之前生成静帧。`multi_shot` 默认只生成第一镜的开场图，表现 `start_state` 且事件尚未发生；`per_segment` 使用 `frame="closing"` 时按所选镜头的 `end_state` 生成目标收尾图，确认后把路径作为该镜 `last_frame` 参考再渲染。目标图只约束目的地，不能冒充前一镜实际尾帧。展示图片供用户确认。本地图片工作流在收到主体参考时必须显式支持图生图。

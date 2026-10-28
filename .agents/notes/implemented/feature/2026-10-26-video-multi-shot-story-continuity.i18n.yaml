@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-10-26-video-multi-shot-story-continuity.md
-2026-10-26-video-multi-shot-story-continuity.md: 64668f9f06a9cf1223c20d7f31939778a49bcb2e
-2026-10-26-video-multi-shot-story-continuity.zh.md: 335903b3f33d80955116f59f5d377624760d857b
+2026-10-26-video-multi-shot-story-continuity.md: 6041a2e0763410757bc046f8fca916811b7e8378
+2026-10-26-video-multi-shot-story-continuity.zh.md: 1edc08b23f9110c04224b0051c3c449e8a39e4f9

@@ -477,6 +477,24 @@ describe('dsh-tool-video', () => {
     expect(jobs.starts).toBe(0)
   })
 
+  it('folds two five-second shots into one ten-second multi_shot request', async () => {
+    const { ctx, h3Video } = await setup()
+    const agent = agentWithSession()
+    const planned = await callTool(ctx, 'video_plan', {
+      ...MULTI_ARGS,
+      goal: 'ten second two-shot story',
+      segments: MULTI_ARGS.segments.map(segment => ({ ...segment, duration_seconds: 5 })),
+    }, agent)
+    if (planned.isError) throw new Error('expected plan success')
+    const planId = (planned.value as { id: string }).id
+    await callTool(ctx, 'video_keyframes', { plan_id: planId }, agent)
+    const rendered = await callTool(ctx, 'video_render', { plan_id: planId }, agent)
+    expect(rendered.isError).toBe(false)
+    expect(h3Video.requests).toHaveLength(1)
+    expect(h3Video.requests[0]?.durationSeconds).toBe(10)
+    expect((rendered.value as { submissions: Array<{ segmentId: string }> }).submissions[0]?.segmentId).toBe('all')
+  })
+
   it('multi_shot rejects unsupported material, mixed routing, incomplete story states, and unknown assets', async () => {
     const { ctx } = await setup()
     const agent = agentWithSession()

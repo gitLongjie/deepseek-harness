@@ -945,7 +945,7 @@ function buildMultiShotRequest(plan: VideoPlan, outputDir: string): SegmentReque
  */
 const STORYBOARD_WORKFLOW_GUIDANCE = [
   '先做剧本分析，再做分镜：把用户需求归纳为故事目标、角色与身份锚点、地点/时间、道具归属、镜头风格和声音要求。不要直接从一句话跳到 render。',
-  '为不超过 15 秒的短片先写节拍表：通常 3 个连续节拍，每节拍约 5 秒；用户明确要 15 秒时使用完整 15 秒，不擅自压成 12 秒。每个节拍只推进一个可见事件。',
+  '为不超过 15 秒的短片先写节拍表：10 秒以内优先两个约 5 秒的连续镜头并合并为一次 multi_shot；需要完整 15 秒时优先三个约 5 秒镜头并合并为一次 multi_shot，不擅自压成 12 秒。镜头数和分配以用户要求为准，总时长必须等于请求时长；8 秒可拆为 4+4 秒，不能为了凑两个 5 秒镜头扩为 10 秒。每个节拍只推进一个可见事件。',
   '把每个节拍转换为可执行分镜：写清机位、开场状态、一个动作事件、收尾状态、空间路径、人物朝向、左右手和道具归属，并加入环境声/动作音。抽象结果（例如“到了走廊”）必须拆成出口、跨门槛、沿路径移动、到达。',
   '分镜审查门禁：后一镜 start_state 必须复用前一镜 end_state 的可观察事实；continue 不得用 cut 省略路程；同一地点的连续动作不得重置人物、道具或光线。发现状态不一致时先修改 video_plan，不得带病 render。',
   '只在分镜和开场图通过审查后渲染。渲染完成后检查实际时长、镜头跳跃、动作重复、人物/道具变化和声音连续性，再交付成片。',
@@ -1418,7 +1418,7 @@ export function apply(ctx: Context): void {
 
   ctx.tools.register(defineTool({
     name: 'video_plan',
-    description: 'Structure the current conversation request into a versioned storyboard plan and persist it. The agent must first analyze the screenplay into short observable beats, then write one executable event and a concrete start/end state for every shot; a continuous route must include exit, threshold crossing, travel direction, entry, and arrival. Before calling this tool, the agent must analyze each character from the story and any supplied reference image, then write an observable identity anchor in the asset prompt: age impression, build, face shape, hair, makeup, gaze, mouth/expression, wardrobe, shoes, accessories, posture, and explicit negative constraints. The agent owns this prompt writing; the user only describes the story and characters. This tool validates and stores the plan. Pass an existing plan_id to revise it.',
+    description: 'Structure the current conversation request into a versioned storyboard plan and persist it. For stories up to 10 seconds, prefer two roughly 5-second shots in one multi_shot request; for stories up to 15 seconds, prefer three roughly 5-second shots in one request. Use per_segment only when real tail-frame chaining, independent closing frames, different materials, or different routing is required. The agent must first analyze the screenplay into short observable beats, then write one executable event and a concrete start/end state for every shot; a continuous route must include exit, threshold crossing, travel direction, entry, and arrival. Before calling this tool, the agent must analyze each character from the story and any supplied reference image, then write an observable identity anchor in the asset prompt: age impression, build, face shape, hair, makeup, gaze, mouth/expression, wardrobe, shoes, accessories, posture, and explicit negative constraints. The agent owns this prompt writing; the user only describes the story and characters. This tool validates and stores the plan. Pass an existing plan_id to revise it.',
     parameters: {
       goal: { type: 'string', required: true, description: 'One-line goal the plan serves.' },
       plan_id: { type: 'string', description: 'Existing plan id to revise; omit to create a new plan.' },
@@ -2157,7 +2157,7 @@ export function apply(ctx: Context): void {
           text: '用户请求生成视频：' + text + '\n\n'
             + '请按 H3 视频生成流程执行：'
             + STORYBOARD_WORKFLOW_GUIDANCE + '\n'
-            + '1) ≤15 秒短片优先 mode=multi_shot，一次生成完整故事；默认一位主角、一个地点、连续时间、约三镜，每镜一个可见事件。用 video_plan 保存素材 id 与分镜，每镜含 prompt、asset_ids、start_state、event、end_state、duration_seconds、resolution、ratio、backend，第二镜起声明 continuity。逐镜审查上一镜 end_state 与下一镜 start_state，避免重复动作、道具换手和无解释跳时空；程序只校验字段与素材引用，不判断剧情语义；'
+            + '1) ≤15 秒短片优先 mode=multi_shot，一次生成完整故事；10 秒以内默认两个约 5 秒镜头，15 秒以内默认三个约 5 秒镜头，并把它们合并为一次 H3 任务；只有需要真实尾帧链、独立 closing frame、不同素材或不同路由时才用 per_segment。默认一位主角、一个地点、连续时间，每镜一个可见事件。用 video_plan 保存素材 id 与分镜，每镜含 prompt、asset_ids、start_state、event、end_state、duration_seconds、resolution、ratio、backend，第二镜起声明 continuity。逐镜审查上一镜 end_state 与下一镜 start_state，避免重复动作、道具换手和无解释跳时空；程序只校验字段与素材引用，不判断剧情语义；'
             + '2) 先由导演智能体自动分析剧情和已有参考图中的角色身份：把年龄感、职业与生活状态、体型、脸型、发型、妆感、眼神、嘴角/表情、服装、鞋子、配饰和姿态改写为可观察的 asset.prompt，并根据该角色的剧情要求写明负面约束，禁止与设定相反的年龄感、脸型、表情、服装或比例；不要把某个角色的冷感或疲惫套给所有角色。角色提示词由智能体编写，用户只需描述剧情和人物，无需手写提示词；已有参考图要继承稳定身份特征，只补足全身构图并修正与剧情冲突的表现。记录或生成角色/场景/道具素材，展示分镜与成本。用 video_keyframes 默认只生成开场图，画第一镜 start_state、事件尚未发生；展示并确认画面。后续镜头图片仅是分镜预览，不会分别约束整片。用户提供开场图时放在第一镜 references 的 first_frame；生成角色图后逐项检查年龄、脸型、眼神、表情、服装、鞋子和全身完整性，不符合就用 regenerate 重抽；'
             + '3) 确认分镜与开场图后用 video_render 渲染整片，不传 segment_ids 或 chain。multi_shot 统一后端/分辨率/比例，不能附加后续镜头参考素材；确需逐镜材料或独立路由才用 per_segment。用 job_output 等待完成；配置了云 GPU 时可先用 video_gpu action=up 确认实例就绪；'
             + '4) 全部成功后 video_assemble 拼接成片，最后用 present 交付。\n'
