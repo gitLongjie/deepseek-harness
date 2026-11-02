@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-12-desktop-plugin-toggle-home-patch.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-12-desktop-plugin-toggle-home-patch.md
-2026-09-12-desktop-plugin-toggle-home-patch.md: 09a326e6bdd98507b61788269dc7c98cf0ca69d5
-2026-09-12-desktop-plugin-toggle-home-patch.zh.md: 2b7964047b3b1154d12536ae740e61ad7d8f213f
+/agent-note-desktop-plugin-toggle-rides-the-home-patch-layer:
+  en: 5ac17e37da70cb8c
+  zh: ed5465100f338f34
+/agent-note-desktop-plugin-toggle-rides-the-home-patch-layer/problem:
+  en: 80e3e9edbd54b374
+  zh: fc85169d70445367
+/agent-note-desktop-plugin-toggle-rides-the-home-patch-layer/decision:
+  en: 167a2ce731b1c6a3
+  zh: 6e9e8bce73efad2f
+/agent-note-desktop-plugin-toggle-rides-the-home-patch-layer/alternatives-considered:
+  en: 80f2cb0bd0de4bbc
+  zh: 7d4a41ed45a7dbdb
+/agent-note-desktop-plugin-toggle-rides-the-home-patch-layer/verification:
+  en: 7db88af1a7121323
+  zh: 4d43250de9556e72
+/agent-note-desktop-plugin-toggle-rides-the-home-patch-layer/consequences:
+  en: 12ac4c9aa909871e
+  zh: faca19f3abe54459

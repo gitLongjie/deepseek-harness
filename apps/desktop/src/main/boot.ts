@@ -18,14 +18,11 @@ import type { EntryOptions } from '@deepseek-ai/cordis-plugin-loader'
 import {
   boot,
   composeEntries,
-  healProfilesModuleFallback,
   installFailLoud,
   loadOptionalPatches,
   loadOverlayPatches,
   loadProfile,
   PROFILE_PATCH_FILENAME,
-  resolveInstallationModuleLinks,
-  watchUserPatches,
 } from '@deepseek-ai/dsh-app-boot'
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import { DSH_LAUNCH_ENVIRONMENT_KEY, type LaunchEnvironmentSnapshot } from '@deepseek-ai/dsh-launch-environment'
@@ -106,15 +103,18 @@ export function ensureRootPluginLinks(dirs: RootPluginLinkDirs = {}): void {
     mkdirSync(rootAi, { recursive: true })
     // rootAi is one package scope directory; only that scope's closure entries
     // belong here, named without the scope prefix. Other closure packages
-    // resolve beside their dependents and stay out of this mirror.
+    // resolve beside their dependents and stay out of this mirror. The
+    // installation-closure enumeration (upstream-removed
+    // resolveInstallationModuleLinks) is disabled; the mirror tracks the
+    // shared profiles farm only.
+    // FIXME(host-module-fallback): re-port the closure enumeration onto the
+    // upstream profile-resolution service.
     const scope = `${basename(rootAi)}/`
     const targets = new Map<string, string>()
-    for (const [packageName, target] of resolveInstallationModuleLinks(dirs.installAnchor ?? INSTALL_ANCHOR)) {
-      if (packageName.startsWith(scope)) targets.set(packageName.slice(scope.length), target)
-    }
     if (existsSync(profilesAi)) {
-      for (const name of readdirSync(profilesAi)) {
-        if (!targets.has(name)) targets.set(name, join(profilesAi, name))
+      for (const entry of readdirSync(profilesAi, { withFileTypes: true })) {
+        if (!entry.name.startsWith(scope)) continue
+        targets.set(entry.name.slice(scope.length), join(profilesAi, entry.name))
       }
     }
     let created = 0
@@ -255,13 +255,13 @@ export interface DesktopBootResult {
  * @returns the settled root context and the shutdown controller.
  */
 export async function runDesktopBoot(options: DesktopBootOptions): Promise<DesktopBootResult> {
-  // Heal the shared module fallback in every open runtime, the branded dev
-  // executable included ({@link healsSharedModuleFallback}). Only a closed
-  // packaged runtime skips the heal and resolves bare plugins through
-  // bareModuleBaseUrl instead, because creating $DSH_HOME/profiles/node_modules
-  // links cannot reach inside app.asar.
+  // The shared module-fallback heal (junction farm repair for sibling-checkout
+  // overwrites) is disabled: the upstream app-boot rework removed the
+  // installation-module-link introspection it was built on.
+  // FIXME(host-module-fallback): re-port the heal onto the upstream
+  // profile-resolution service or inline the link enumeration here.
   if (healsSharedModuleFallback(options.bareModuleBaseUrl)) {
-    await healProfilesModuleFallback({ installAnchor: INSTALL_ANCHOR })
+    console.warn('desktop: shared module-fallback heal is disabled after the upstream merge; a sibling checkout may have overwritten $DSH_HOME/profiles links')
     ensureRootPluginLinks()
   }
   const profile = loadProfile(NAME, 'web', INSTALL_ANCHOR)
@@ -343,33 +343,14 @@ export async function runDesktopBoot(options: DesktopBootOptions): Promise<Deskt
   // surface: the web bundle disables the shared `hmr` row, so mount a
   // watch-only instance with no module roots when the composition left none.
   if (ctx.fiber.state === FiberState.ACTIVE && ctx.get('loader') !== undefined) {
-    const composeLive = (): PatchOptions[] => structuredClone([
-      ...bundlePatches,
-      ...loadOptionalPatches(NAME, profile.patchPath) ?? [],
-      ...loadOptionalPatches(NAME, homePatchPath()) ?? [],
-      ...overlays,
-    ])
-    try {
-      if (ctx.get('hmr') === undefined) {
-        if (ctx.get('timer') === undefined) {
-          await ctx.loader.create({ name: '@deepseek-ai/cordis-plugin-timer' })
-        }
-        await ctx.loader.create({ name: '@deepseek-ai/cordis-plugin-hmr', config: { root: [] } })
+    // FIXME(host-patches): user-patch hot reload (the upstream-removed
+    // watchUserPatches) is disabled; committed patch edits now apply on the
+    // next launch. The hmr/timer plugins stay available for entry-level HMR.
+    if (ctx.get('hmr') === undefined) {
+      if (ctx.get('timer') === undefined) {
+        await ctx.loader.create({ name: '@deepseek-ai/cordis-plugin-timer' })
       }
-      await watchUserPatches(ctx, {
-        binName: NAME,
-        filename: profile.patchPath,
-        compose: composeLive,
-      })
-      await watchUserPatches(ctx, {
-        binName: NAME,
-        filename: homePatchPath(),
-        compose: composeLive,
-      })
-    } catch (error) {
-      // The tree already exited as asked, or watching failed; a broken watch
-      // must not take the app down with it.
-      ctx.logger.warn(`desktop: user-patch watching failed: ${String(error)}`)
+      await ctx.loader.create({ name: '@deepseek-ai/cordis-plugin-hmr', config: { root: [] } })
     }
   }
   return { ctx, shutdown }

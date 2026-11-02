@@ -126,7 +126,7 @@ kind: "package-reference"
 
 - [h3-video 包](../h3-video/README.zh.md)——本工具背后的 `ctx.h3Video` 服务接口。
 - [生成的工具目录](../../../docs/tool-catalog.zh.md)——模型收到的每个工具 schema。
-- [通用长任务运行时 Agent Note](../../../.agents/notes/implemented/architecture/2026-06-20-generic-long-running-tool-runtime.zh.md)——后台任务 producer 契约。
+- [通用长任务运行时 Agent Note](../../../.agents/notes/archived/architecture/2026-06-20-generic-long-running-tool-runtime.md)——后台任务 producer 契约。
 
 -----
 

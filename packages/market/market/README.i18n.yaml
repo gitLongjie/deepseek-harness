@@ -1,6 +1,46 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/market/market/README.md
-README.md: e077ccee77f7855f2b61eecf575895bf11680480
-README.zh.md: 190afb531bd797d653f3455f516043b76e139d50
+/:
+  en: 477db4d723fb2ce5
+  zh: fb3be1f6fb22ecd8
+/deepseek-ai-dsh-market:
+  en: 48a3bf073b92dc74
+  zh: 83fc3437b2ce8b46
+/deepseek-ai-dsh-market/summary:
+  en: c03b2a6701623d4b
+  zh: 30e16127d1a9ea76
+/deepseek-ai-dsh-market/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 9f0a46ca555d0bb9
+/deepseek-ai-dsh-market/use-this-package:
+  en: 7bda321ca97e484d
+  zh: f20dd7b6b2f27df0
+/deepseek-ai-dsh-market/use-this-package/when-to-choose-it:
+  en: d7a49edcec5c2a28
+  zh: 6430051efd3942a6
+/deepseek-ai-dsh-market/use-this-package/smallest-working-composition:
+  en: cfba0d82a78a5b04
+  zh: fbd6f075e9cb0cc1
+/deepseek-ai-dsh-market/use-this-package/what-can-go-wrong:
+  en: cf15272161fd6376
+  zh: 1ced7bddb9ebb94a
+/deepseek-ai-dsh-market/understand-the-implementation:
+  en: 45e29cd4a2ee64f6
+  zh: 9ecde48d6ecaa26c
+/deepseek-ai-dsh-market/further-exploration:
+  en: 7d4b52dccd2da94e
+  zh: 5114eaefa014061e
+/deepseek-ai-dsh-market/model-experience:
+  en: e44710286dbde11c
+  zh: 4536b330d98819de
+/deepseek-ai-dsh-market/model-experience/kv-cache-effect:
+  en: fd311819825fd562
+  zh: d033e73faa42d6cb
+/deepseek-ai-dsh-market/known-limitations-and-deferred-work:
+  en: e95bc88fe1fc0856
+  zh: 5e774268803e383c
+/deepseek-ai-dsh-market/known-limitations-and-deferred-work/dev-note:
+  en: e67f633dc6fe7773
+  zh: 4c879960b94cc733

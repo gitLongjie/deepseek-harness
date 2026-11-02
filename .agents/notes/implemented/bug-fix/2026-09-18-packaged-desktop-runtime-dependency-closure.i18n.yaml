@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-18-packaged-desktop-runtime-dependency-closure.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-18-packaged-desktop-runtime-dependency-closure.md
-2026-09-18-packaged-desktop-runtime-dependency-closure.md: 81c30980a45dcd0e2712443d5ac8ce9a32d65a1c
-2026-09-18-packaged-desktop-runtime-dependency-closure.zh.md: 8c7e7f14bc0106da606bc73b6d37a82f26d448be
+/agent-note-the-packaged-desktop-ships-its-whole-runtime-dependency-closure:
+  en: cbd2e61f688108c1
+  zh: 919cf572579c0ffa
+/agent-note-the-packaged-desktop-ships-its-whole-runtime-dependency-closure/problem:
+  en: 252d1a211059ea83
+  zh: dc61a41b4ba20f7a
+/agent-note-the-packaged-desktop-ships-its-whole-runtime-dependency-closure/decision:
+  en: 10f8e420ec4d9d70
+  zh: 74ef7fc1a642c351
+/agent-note-the-packaged-desktop-ships-its-whole-runtime-dependency-closure/alternatives-considered:
+  en: 40a3f3b60b458a96
+  zh: 0cbb4c1926a5cff6
+/agent-note-the-packaged-desktop-ships-its-whole-runtime-dependency-closure/consequences:
+  en: c7ffaceb23afeca0
+  zh: 4bc898636f1d1959
+/agent-note-the-packaged-desktop-ships-its-whole-runtime-dependency-closure/verification:
+  en: ed7cb206547d29c3
+  zh: 19df822dbd336dc3

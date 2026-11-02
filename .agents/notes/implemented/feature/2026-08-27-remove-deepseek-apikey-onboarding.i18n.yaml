@@ -1,6 +1,25 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-27-remove-deepseek-apikey-onboarding.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-27-remove-deepseek-apikey-onboarding.md
-2026-08-27-remove-deepseek-apikey-onboarding.md: 55f1d0a7ae8e4019f2827e555078987aba7d7892
-2026-08-27-remove-deepseek-apikey-onboarding.zh.md: 974d98a3606f0bfe07ff2afb5ac7d1296a3d35b7
+/agent-note-removed-the-first-run-deepseek-api-key-onboarding-prompt:
+  en: 83572b1aa0cc4e28
+  zh: 2bccdcc78ac20842
+/agent-note-removed-the-first-run-deepseek-api-key-onboarding-prompt/problem:
+  en: 9238a1bbb34fab33
+  zh: 5852624e452ac4cd
+/agent-note-removed-the-first-run-deepseek-api-key-onboarding-prompt/decision:
+  en: 7e97b12c04289fd5
+  zh: 05b50b7f0670a9d6
+/agent-note-removed-the-first-run-deepseek-api-key-onboarding-prompt/kept:
+  en: ec6e97a313475e28
+  zh: 90934b913ffa3ec0
+/agent-note-removed-the-first-run-deepseek-api-key-onboarding-prompt/alternatives-considered:
+  en: f8bca12eb8c78723
+  zh: 595ed0bb55dea9cf
+/agent-note-removed-the-first-run-deepseek-api-key-onboarding-prompt/verification:
+  en: bc04bdb4d1a3c1c1
+  zh: 596a89148c2b3573
+/agent-note-removed-the-first-run-deepseek-api-key-onboarding-prompt/consequences:
+  en: 9eb595297ffae38e
+  zh: 2c0b2b8972976475

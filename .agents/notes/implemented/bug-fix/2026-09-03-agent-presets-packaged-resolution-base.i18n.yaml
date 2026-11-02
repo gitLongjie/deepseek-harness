@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-03-agent-presets-packaged-resolution-base.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-03-agent-presets-packaged-resolution-base.md
-2026-09-03-agent-presets-packaged-resolution-base.md: 936122b3137bfa5bf70c165cc6bf066fadc7ac11
-2026-09-03-agent-presets-packaged-resolution-base.zh.md: f50c40d66eb89711529a82024a2756a624550068
+/agent-note-agent-presets-resolve-packaged-rows-from-the-archive-root:
+  en: e31b162cd6889610
+  zh: 740a01ed1bbade5a
+/agent-note-agent-presets-resolve-packaged-rows-from-the-archive-root/problem:
+  en: 0322585fb95a9b29
+  zh: cf82c03b876113e8
+/agent-note-agent-presets-resolve-packaged-rows-from-the-archive-root/decision:
+  en: 75ee69288011d6a2
+  zh: 2c31d3dafe3a6fc2
+/agent-note-agent-presets-resolve-packaged-rows-from-the-archive-root/alternatives-considered:
+  en: 0dff49c4f1e2ca54
+  zh: 0f3966a6124f2262
+/agent-note-agent-presets-resolve-packaged-rows-from-the-archive-root/consequences:
+  en: d711ca3bc75d8aed
+  zh: 4c61099d2c13beac

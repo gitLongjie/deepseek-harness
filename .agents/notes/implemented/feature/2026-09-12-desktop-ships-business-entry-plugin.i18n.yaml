@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-12-desktop-ships-business-entry-plugin.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-12-desktop-ships-business-entry-plugin.md
-2026-09-12-desktop-ships-business-entry-plugin.md: 1d807e28562ea602915215e6266311e5dcfc0a82
-2026-09-12-desktop-ships-business-entry-plugin.zh.md: fcbe2e1628c803fad4e6c5f1e2b329b9d8c74ebe
+/agent-note-the-desktop-installer-ships-the-business-entry-sidebar-plugin:
+  en: e56665a1afe1c41c
+  zh: 476d066ad5121d3d
+/agent-note-the-desktop-installer-ships-the-business-entry-sidebar-plugin/problem:
+  en: e68d56409d4d7e59
+  zh: 857e5d8e148bd67c
+/agent-note-the-desktop-installer-ships-the-business-entry-sidebar-plugin/decision:
+  en: 1f3fcb90e6a2e256
+  zh: 0faf32be583a0432
+/agent-note-the-desktop-installer-ships-the-business-entry-sidebar-plugin/alternatives-considered:
+  en: 2d929f285798ce32
+  zh: f623c6a0b66b6fbc
+/agent-note-the-desktop-installer-ships-the-business-entry-sidebar-plugin/verification:
+  en: 6c80405a982473bd
+  zh: 572692959d50f680
+/agent-note-the-desktop-installer-ships-the-business-entry-sidebar-plugin/consequences:
+  en: 0c6cfdec172d2f57
+  zh: fd9c91a931f4114f

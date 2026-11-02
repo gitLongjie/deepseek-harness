@@ -1,6 +1,43 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/kb/kb-weknora/README.md
-README.md: 7439cd29164bac8489c547e68f523c759c6032dc
-README.zh.md: 0a4717cd15a649d8ed94f70d85c1cff0904d3f57
+/:
+  en: bf16708cdb58f236
+  zh: 09874efd64f0d479
+/deepseek-ai-dsh-kb-weknora:
+  en: 0354e9a325c890e9
+  zh: a442e110ae932a37
+/deepseek-ai-dsh-kb-weknora/summary:
+  en: 5c1fc10f6be708e4
+  zh: f5673f596adf76ff
+/deepseek-ai-dsh-kb-weknora/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 238974c18b5d629d
+/deepseek-ai-dsh-kb-weknora/use-this-package:
+  en: ea33abde2b013561
+  zh: aaf7bfa549569573
+/deepseek-ai-dsh-kb-weknora/use-this-package/minimal-configuration:
+  en: b8a8840dbf67c127
+  zh: 9acf97bb31f5e82c
+/deepseek-ai-dsh-kb-weknora/use-this-package/what-can-go-wrong:
+  en: ff480d36759f88fc
+  zh: 8e29d33a70c48901
+/deepseek-ai-dsh-kb-weknora/understand-the-implementation:
+  en: 7f232ed2a7de6d29
+  zh: f5308743ab078f97
+/deepseek-ai-dsh-kb-weknora/further-exploration:
+  en: cb03b48db7d09063
+  zh: 64dc4347ef64857c
+/deepseek-ai-dsh-kb-weknora/model-experience:
+  en: dd3b285fd94a1b73
+  zh: a2099ad4d1ebda62
+/deepseek-ai-dsh-kb-weknora/model-experience/kv-cache-effect:
+  en: ca75c51c89c2c9b0
+  zh: 13e8295b72ca6b2b
+/deepseek-ai-dsh-kb-weknora/known-limitations-and-deferred-work:
+  en: 8624d35f887e8847
+  zh: d898e75829aa183d
+/deepseek-ai-dsh-kb-weknora/known-limitations-and-deferred-work/dev-note:
+  en: e67f633dc6fe7773
+  zh: 3bb0c20c93f16f98

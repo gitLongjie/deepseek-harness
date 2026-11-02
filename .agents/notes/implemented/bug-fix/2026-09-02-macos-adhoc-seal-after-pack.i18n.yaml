@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-02-macos-adhoc-seal-after-pack.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-02-macos-adhoc-seal-after-pack.md
-2026-09-02-macos-adhoc-seal-after-pack.md: 4c943bd624b97cded28a5b7f342ae93a13bd690b
-2026-09-02-macos-adhoc-seal-after-pack.zh.md: 1dbd4063a8681b4c25750bb983fbb5e6f2b61f1a
+/agent-note-macos-bundles-without-a-signing-certificate-are-ad-hoc-sealed-after-pack:
+  en: 9461f4da44251a1f
+  zh: 5c9cd191f2d86497
+/agent-note-macos-bundles-without-a-signing-certificate-are-ad-hoc-sealed-after-pack/problem:
+  en: 3a73cdb06d7c1b16
+  zh: f77b1131b2470692
+/agent-note-macos-bundles-without-a-signing-certificate-are-ad-hoc-sealed-after-pack/decision:
+  en: 5514db795f456f61
+  zh: 837c54c8d91ce2ac
+/agent-note-macos-bundles-without-a-signing-certificate-are-ad-hoc-sealed-after-pack/alternatives-considered:
+  en: 7d943697d35c83bc
+  zh: a69b192430d02fe1
+/agent-note-macos-bundles-without-a-signing-certificate-are-ad-hoc-sealed-after-pack/consequences:
+  en: 3a8e3403c097a0cb
+  zh: 966093c066b8a85d
+/agent-note-macos-bundles-without-a-signing-certificate-are-ad-hoc-sealed-after-pack/testing:
+  en: da075c57f1c7bde3
+  zh: f60d55755cacf95e

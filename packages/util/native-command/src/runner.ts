@@ -5,50 +5,29 @@
 
 import { execFile } from 'node:child_process'
 
-/** Windows process-visibility policy for one spawned command. */
-export interface NativeCommandOptions {
-  /**
-   * Suppress the transient console a console-subsystem child raises. Defaults
-   * to true. A GUI-subsystem child that raises its own window needs false:
-   * the flag hides the first window the child creates, so Explorer started
-   * with it hands the folder over without ever showing it.
-   */
-  readonly windowsHide?: boolean
-}
-
-/**
- * Testable command boundary; native implementations never invoke a shell. The
- * caller states the visibility policy for the command it is spawning, and the
- * runner applies it, so an injected runner keeps that decision with the
- * command rather than replacing it.
- */
+/** Testable command boundary; native implementations never invoke a shell. */
 export type NativeCommandRunner = (
   command: string,
   args: readonly string[],
   signal: AbortSignal,
-  options?: NativeCommandOptions,
+  window: 'hidden' | 'visible',
 ) => Promise<{ stdout: string; stderr: string }>
 
 /**
- * Run a host command with utf8 stdio, abort propagation, and Windows console
- * hiding.
+ * Run a host command with utf8 stdio, abort propagation, and explicit GUI visibility.
  * @param command - executable path or PATH name.
  * @param args - argv (never a shell string).
  * @param signal - caller/connection lifetime; abort terminates the child.
- * @param options - Windows process-visibility policy.
+ * @param window - Windows startup visibility: `hidden` for background commands,
+ * `visible` for GUI launchers. Ignored on other platforms.
  * @returns captured stdout/stderr on exit 0.
  */
-export function runNativeCommand(
-  command: string,
-  args: readonly string[],
-  signal: AbortSignal,
-  options: NativeCommandOptions = {},
-): Promise<{ stdout: string; stderr: string }> {
-  return new Promise((resolve, reject) => {
+export const runNativeCommand: NativeCommandRunner = (command, args, signal, window) =>
+  new Promise((resolve, reject) => {
     execFile(
       command,
       [...args],
-      { encoding: 'utf8', signal, windowsHide: options.windowsHide ?? true },
+      { encoding: 'utf8', signal, windowsHide: window === 'hidden' },
       (error, stdout, stderr) => {
         if (error !== null) {
           const failure = Object.assign(new Error(error.message, { cause: error }), {
@@ -63,4 +42,3 @@ export function runNativeCommand(
       },
     )
   })
-}

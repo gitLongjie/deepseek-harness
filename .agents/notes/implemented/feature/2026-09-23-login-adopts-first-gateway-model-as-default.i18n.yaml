@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-23-login-adopts-first-gateway-model-as-default.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-23-login-adopts-first-gateway-model-as-default.md
-2026-09-23-login-adopts-first-gateway-model-as-default.md: 4295b473e9ca5a380fc9297094506f169478c621
-2026-09-23-login-adopts-first-gateway-model-as-default.zh.md: 2fd5a1f3fb5060415d1f782edd2641f236068db3
+/agent-note-login-adopts-the-first-gateway-model-as-the-default:
+  en: 6b80addeb5eebea3
+  zh: 2223a066c7bfc4d0
+/agent-note-login-adopts-the-first-gateway-model-as-the-default/problem:
+  en: bf164580bcffa8b8
+  zh: 3eb1708f9111343d
+/agent-note-login-adopts-the-first-gateway-model-as-the-default/decision:
+  en: 8c4dcfdfb859caae
+  zh: bc4d8304fda8cf56
+/agent-note-login-adopts-the-first-gateway-model-as-the-default/alternatives-considered:
+  en: 44e79b4b3af8e905
+  zh: 8f5dc8c52987a06d
+/agent-note-login-adopts-the-first-gateway-model-as-the-default/consequences:
+  en: 44e4e3f21da627dc
+  zh: 40fce636b6a5de50
+/agent-note-login-adopts-the-first-gateway-model-as-the-default/testing:
+  en: 2d3a1b00ba57e643
+  zh: fe2ae124b87320ac

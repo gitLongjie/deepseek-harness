@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-10-20-hosted-render-consent.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-10-20-hosted-render-consent.md
-2026-10-20-hosted-render-consent.md: 347ab39c3b665fbf59241a4fba044b8dd93f62e1
-2026-10-20-hosted-render-consent.zh.md: b79d04579f77a9d3997ccc3fdcea9d4204c9395b
+/agent-note-paid-h3-renders-require-explicit-consent:
+  en: 3cd4c3ed345d8519
+  zh: 9a564cca9d7925fd
+/agent-note-paid-h3-renders-require-explicit-consent/problem:
+  en: dff88f4468ddae25
+  zh: 457a965ac83974e5
+/agent-note-paid-h3-renders-require-explicit-consent/decision:
+  en: 4f19a5bfbb10d777
+  zh: ce5d4b795fe5973b
+/agent-note-paid-h3-renders-require-explicit-consent/alternatives-considered:
+  en: 5ebd8f706b72e48d
+  zh: 327a2975fb112ebe
+/agent-note-paid-h3-renders-require-explicit-consent/consequences:
+  en: 286bbd34ccefeb86
+  zh: bc7e8be3ec8a59d5
+/agent-note-paid-h3-renders-require-explicit-consent/verification:
+  en: 93d3731bb9948fab
+  zh: 0505ab6caabae0dd

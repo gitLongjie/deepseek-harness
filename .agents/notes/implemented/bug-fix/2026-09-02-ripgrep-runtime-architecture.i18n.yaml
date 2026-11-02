@@ -1,4 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority.
-2026-09-02-ripgrep-runtime-architecture.md: 3292b61b763b106f14666ad24880694b19494412
-2026-09-02-ripgrep-runtime-architecture.zh.md: 8f225c657e1fe7c265d39a622ac1f58edd94c80a
+# Bilingual-pair consistency record for 2026-09-02-ripgrep-runtime-architecture.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-02-ripgrep-runtime-architecture.md
+/agent-note-resolve-ripgrep-for-the-running-architecture:
+  en: 454db6fd66a63310
+  zh: 5789d20e7dc7ccbd
+/agent-note-resolve-ripgrep-for-the-running-architecture/problem:
+  en: ea26cbc4473938f6
+  zh: 9eb02281d80d6adf
+/agent-note-resolve-ripgrep-for-the-running-architecture/decision:
+  en: 60915923d6b98796
+  zh: 471a0d4660217147
+/agent-note-resolve-ripgrep-for-the-running-architecture/alternatives-considered:
+  en: 97b934bcff1d636a
+  zh: 9066006606404d84
+/agent-note-resolve-ripgrep-for-the-running-architecture/consequences:
+  en: dc57dff75eb40e80
+  zh: 51892a77de5ecce6

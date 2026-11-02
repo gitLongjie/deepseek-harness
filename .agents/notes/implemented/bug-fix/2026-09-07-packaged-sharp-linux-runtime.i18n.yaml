@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-07-packaged-sharp-linux-runtime.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-07-packaged-sharp-linux-runtime.md
-2026-09-07-packaged-sharp-linux-runtime.md: b505e50e61f462c79771b6310b164d603d8d72fc
-2026-09-07-packaged-sharp-linux-runtime.zh.md: 32aaacda0937bd548ca2a23670532855a3ecbde8
+/agent-note-the-packaged-linux-runtime-ships-sharp-s-binding-libvips-and-unpacked-so-files:
+  en: cc9cf54a30dd1608
+  zh: 09c36cbd8aca1efa
+/agent-note-the-packaged-linux-runtime-ships-sharp-s-binding-libvips-and-unpacked-so-files/problem:
+  en: 65c3d2ed594ed82f
+  zh: d8aa81dee5df0c3c
+/agent-note-the-packaged-linux-runtime-ships-sharp-s-binding-libvips-and-unpacked-so-files/decision:
+  en: f19417105da8daba
+  zh: 9f7cc935eec9992b
+/agent-note-the-packaged-linux-runtime-ships-sharp-s-binding-libvips-and-unpacked-so-files/alternatives-considered:
+  en: 5632679e30a59f39
+  zh: 0b6355336f79f69f
+/agent-note-the-packaged-linux-runtime-ships-sharp-s-binding-libvips-and-unpacked-so-files/verification:
+  en: 2bdaae9d68b84316
+  zh: 0487e73ca4f85419
+/agent-note-the-packaged-linux-runtime-ships-sharp-s-binding-libvips-and-unpacked-so-files/consequences:
+  en: ebb3da0a5b10acc4
+  zh: ced5077ab19bf7a5

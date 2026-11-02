@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-30-oem-client-build-configuration.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-30-oem-client-build-configuration.md
-2026-08-30-oem-client-build-configuration.md: b47960abb87b4a06541c34c30dc554a3dc09aaf9
-2026-08-30-oem-client-build-configuration.zh.md: c8a599c22480e5e7a63a544e9b54fd59dfb55d6d
+/agent-note-oem-client-build-configuration:
+  en: 9e142967d77b211a
+  zh: 5d05f447c2cd67ac
+/agent-note-oem-client-build-configuration/problem:
+  en: 842de46077744a2a
+  zh: efa1b3d8821cd508
+/agent-note-oem-client-build-configuration/decision:
+  en: 5f265b004447a6e5
+  zh: 96ec8eaac0f48d2e
+/agent-note-oem-client-build-configuration/alternatives-considered:
+  en: ed954d6f697ef6d9
+  zh: 8753dd3eeb6940c6
+/agent-note-oem-client-build-configuration/consequences:
+  en: ff6decf55c543927
+  zh: 9d5c92affc09f75f

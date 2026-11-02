@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for 2026-09-21-session-controller-wire-subscription-disposal.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-21-session-controller-wire-subscription-disposal.md
+/agent-note-dispose-the-session-controller-s-wire-subscriptions-on-reload:
+  en: 5bdfed72b86fa293
+  zh: 223eb5c6897fa91f
+/agent-note-dispose-the-session-controller-s-wire-subscriptions-on-reload/problem:
+  en: be62c21628d99635
+  zh: aa6b2df1f6ec1f16
+/agent-note-dispose-the-session-controller-s-wire-subscriptions-on-reload/decision:
+  en: 99ad71e000233820
+  zh: 8a4c4e075031364d
+/agent-note-dispose-the-session-controller-s-wire-subscriptions-on-reload/alternatives-considered:
+  en: 89c91144567003bb
+  zh: d7d88f1ff1b8bf1c
+/agent-note-dispose-the-session-controller-s-wire-subscriptions-on-reload/consequences:
+  en: 586346aadeac12b8
+  zh: d058e3eaa2998e2d

@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-10-20-plan-ids-per-directory.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-10-20-plan-ids-per-directory.md
-2026-10-20-plan-ids-per-directory.md: 85ee28938f6fbbee4235269ee0b03424cdad02cf
-2026-10-20-plan-ids-per-directory.zh.md: 9eacb837ec7392c91d3c50d27c92d21a747da426
+/agent-note-plan-ids-are-numbered-per-output-directory:
+  en: 4acb949bd251caf2
+  zh: 2a5bb4607e3f7c95
+/agent-note-plan-ids-are-numbered-per-output-directory/problem:
+  en: 36b9ad61ff19395d
+  zh: 398497e914a49fd5
+/agent-note-plan-ids-are-numbered-per-output-directory/decision:
+  en: 8ffcae0d7bd08fc5
+  zh: c57051ef9b86f828
+/agent-note-plan-ids-are-numbered-per-output-directory/alternatives-considered:
+  en: 401fb72b3c680323
+  zh: b1d1f5a672c7449f
+/agent-note-plan-ids-are-numbered-per-output-directory/consequences:
+  en: 1aaf79f26979117a
+  zh: 2d9044657c23ed70
+/agent-note-plan-ids-are-numbered-per-output-directory/verification:
+  en: 7e5c60467b465edf
+  zh: 1f9d37f0aad1b7a4

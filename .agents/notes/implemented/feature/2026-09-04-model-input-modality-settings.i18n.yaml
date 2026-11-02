@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-04-model-input-modality-settings.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-04-model-input-modality-settings.md
-2026-09-04-model-input-modality-settings.md: 34505261af3abc979acf0dcc2d51af65f0d80edb
-2026-09-04-model-input-modality-settings.zh.md: f9808120a30bebd66a247369bd59f093c4805651
+/agent-note-model-input-modality-settings:
+  en: 2ab3ad6caaeeba58
+  zh: b69c4661f3e5bc41
+/agent-note-model-input-modality-settings/problem:
+  en: bb7472c7dd7bf98e
+  zh: ea13a902e4504f5f
+/agent-note-model-input-modality-settings/decision:
+  en: 515be611b149130b
+  zh: 8ac7a124fc9cfd09
+/agent-note-model-input-modality-settings/alternatives-considered:
+  en: 6fcb5a20484bfaa1
+  zh: ff38d072bae62d02
+/agent-note-model-input-modality-settings/consequences:
+  en: 2d20493210788926
+  zh: a70e984ace2a5af5
+/agent-note-model-input-modality-settings/verification:
+  en: a984ee4569f779e0
+  zh: 2acce9a9a0c688ce

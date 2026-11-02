@@ -6,9 +6,9 @@
  * always reaches the console, the fiber owns the runner's teardown, and the
  * node half remains inert.
  */
-/* oxlint-disable typescript/no-unsafe-assignment -- Vitest asymmetric matchers are typed as any. */
 
 import { Context } from '@deepseek-ai/cordis'
+import { TimerService } from '@deepseek-ai/cordis-plugin-timer'
 import { describe, expect, it, vi } from 'vitest'
 import type {
   ApprovalRequestId, CordisDynamicPackageId, CordisDynamicPluginId, CordisDynamicPluginRunId,
@@ -68,8 +68,7 @@ interface Bench {
 }
 
 /** Mount the browser half over a module table and a loader standing on real fibers. */
-async function boot(): Promise<Bench> {
-  const ctx = new Context()
+async function boot(ctx = new Context()): Promise<Bench> {
   await ctx.plugin(SlotRegistry)
   const factories = new Map<string, () => unknown>()
   const fibers = new Map<string, { fiber: unknown }>()
@@ -142,7 +141,6 @@ async function boot(): Promise<Bench> {
     ) => {
       invoked.push({ pluginId, pluginRunId, method, args })
       const refusal = invokeThrow.current
-      // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- the non-Error rejection is a case under test
       if (refusal !== undefined) return Promise.reject(refusal)
       return answered(invokeResult.current)
     },
@@ -194,6 +192,49 @@ async function boot(): Promise<Bench> {
 }
 
 describe('browser half', () => {
+  it('installs the shared Timer and disposes scheduled work with its consumer', async () => {
+    const moduleLoader = Object.getOwnPropertyDescriptor(globalThis, '__ModuleLoader__')
+    const ctx = new Context()
+    vi.useFakeTimers()
+    try {
+      const bench = await boot(ctx)
+      expect(bench.ctx.timer).toBeInstanceOf(TimerService)
+      const timeout = vi.fn()
+      const interval = vi.fn()
+      const delayed = vi.fn()
+      const consumer = bench.ctx.plugin({
+        inject: ['timer'],
+        apply(ctx: Context) {
+          ctx.timeout(timeout, 20)
+          ctx.interval(interval, 20)
+          ctx.debounce(delayed, 40)()
+        },
+      })
+      await consumer
+      await vi.advanceTimersByTimeAsync(20)
+      expect(timeout).toHaveBeenCalledOnce()
+      expect(interval).toHaveBeenCalledOnce()
+      expect(delayed).not.toHaveBeenCalled()
+      await consumer.dispose()
+      await vi.advanceTimersByTimeAsync(40)
+      expect(interval).toHaveBeenCalledOnce()
+      expect(delayed).not.toHaveBeenCalled()
+      expect(vi.getTimerCount()).toBe(0)
+      expect(bench.ctx.timer).toBeInstanceOf(TimerService)
+      await bench.dispose()
+      expect(bench.ctx.get('timer')).toBeUndefined()
+      expect(bench.ctx.timeout).toBeUndefined()
+    } finally {
+      try {
+        await ctx.fiber.dispose()
+      } finally {
+        vi.useRealTimers()
+        if (moduleLoader) Object.defineProperty(globalThis, '__ModuleLoader__', moduleLoader)
+        else Reflect.deleteProperty(globalThis, '__ModuleLoader__')
+      }
+    }
+  })
+
   it('provides the load engine as the page run-state face', async () => {
     const bench = await boot()
     expect(bench.ctx.dynamicCordisRunner.getSnapshot()).toEqual([])

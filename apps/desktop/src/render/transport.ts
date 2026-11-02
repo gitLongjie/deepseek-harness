@@ -55,11 +55,11 @@ async function ipcFetch(ipc: IpcBridge, input: URL, init: RequestInit): Promise<
 }
 
 /** A fetch-shaped IPC caller for the generic RPC channels (Typert gateway). */
-export function createIpcFetch(ipc: IpcBridge): (input: URL, init: RequestInit) => Promise<Response> {
-  return (input, init) => ipcFetch(ipc, input, init)
+export function createIpcFetch(ipc: IpcBridge): (input: string | URL, init: RequestInit) => Promise<Response> {
+  return (input, init) => ipcFetch(ipc, new URL(input), init)
 }
 
-type StreamFrame = { streamId: string; item: unknown } | { streamId: string; kind: 'end' }
+type StreamFrame = { streamId: string; kind: 'item'; item: unknown } | { streamId: string; kind: 'end' }
 
 /** Worker-local opener for decoded Gateway Remote streams (client face's contract, restated
  * locally because the desktop render half compiles against the host face). */
@@ -97,7 +97,7 @@ export function createIpcStreamOpen(ipc: IpcBridge): RpcStreamOpen {
     }
     const offFrame = ipc.on('dsh:stream:frame', (data) => {
       const frame = data as { streamId: string; item: unknown }
-      enqueue({ streamId: frame.streamId, item: frame.item })
+      enqueue({ streamId: frame.streamId, kind: 'item', item: frame.item })
     })
     const offEnd = ipc.on('dsh:stream:end', (data) => {
       enqueue({ streamId: (data as { streamId: string }).streamId, kind: 'end' })
@@ -106,7 +106,8 @@ export function createIpcStreamOpen(ipc: IpcBridge): RpcStreamOpen {
     // the accepting side of the filter above, from the first one on.
     const opened = ipc
       .invoke('dsh:stream:open', { endpoint, payload })
-      .then(({ streamId: id }) => {
+      .then((claimed) => {
+        const { streamId: id } = claimed as { streamId: string }
         streamId = id
         ipc.send('dsh:stream:claim', id)
       })

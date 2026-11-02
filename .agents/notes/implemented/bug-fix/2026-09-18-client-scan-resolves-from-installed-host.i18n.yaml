@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-18-client-scan-resolves-from-installed-host.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-18-client-scan-resolves-from-installed-host.md
-2026-09-18-client-scan-resolves-from-installed-host.md: 2f7ea101a8b06d79a760fccdef1bc5fad91bf7ad
-2026-09-18-client-scan-resolves-from-installed-host.zh.md: 4f1ca177c9984186e7648fc2be7f881c523ea532
+/agent-note-the-packaged-client-scan-resolves-bare-entries-from-the-installed-host:
+  en: 4dac83179d2279e5
+  zh: 011e91270dc0fde3
+/agent-note-the-packaged-client-scan-resolves-bare-entries-from-the-installed-host/problem:
+  en: 4322914b9e1cfa82
+  zh: 8b37fe3e549ff7c4
+/agent-note-the-packaged-client-scan-resolves-bare-entries-from-the-installed-host/decision:
+  en: fb4d17db1e3bf263
+  zh: 52589d85576f05a6
+/agent-note-the-packaged-client-scan-resolves-bare-entries-from-the-installed-host/alternatives-considered:
+  en: a27099c9cc6d43e4
+  zh: fc417b537a4a4039
+/agent-note-the-packaged-client-scan-resolves-bare-entries-from-the-installed-host/consequences:
+  en: 36901e87dad7f31c
+  zh: 5981133cf7c2a25e
+/agent-note-the-packaged-client-scan-resolves-bare-entries-from-the-installed-host/verification:
+  en: 793aa2950efa9493
+  zh: a4470b5f75bfd1a2

@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-18-desktop-persona-preset-prefix-key.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-18-desktop-persona-preset-prefix-key.md
-2026-09-18-desktop-persona-preset-prefix-key.md: 9c105a7fb222c798203ed564542913f98e74ed0a
-2026-09-18-desktop-persona-preset-prefix-key.zh.md: ef2d019395a3eab23de553c901eb4c02a93e9534
+/agent-note-rename-the-desktop-presets-persona-row-key-after-the-upstream-text-prefix-change:
+  en: 2a229968dc768a78
+  zh: cc192669205dc60a
+/agent-note-rename-the-desktop-presets-persona-row-key-after-the-upstream-text-prefix-change/problem:
+  en: dec447c4fc9f4862
+  zh: fee76bf99585fcc2
+/agent-note-rename-the-desktop-presets-persona-row-key-after-the-upstream-text-prefix-change/decision:
+  en: 03937af3d689ad75
+  zh: ec50e13547c3f0ac
+/agent-note-rename-the-desktop-presets-persona-row-key-after-the-upstream-text-prefix-change/alternatives-considered:
+  en: b412591f831818eb
+  zh: 0e5fb458f194022a
+/agent-note-rename-the-desktop-presets-persona-row-key-after-the-upstream-text-prefix-change/consequences:
+  en: cba3904748a99b86
+  zh: b1b60fe1d5a0a132

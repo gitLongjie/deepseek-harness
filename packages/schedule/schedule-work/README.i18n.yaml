@@ -1,6 +1,55 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/schedule/schedule-work/README.md
-README.md: 0611fa7db03b2819020a5c6387e3868dd88c845a
-README.zh.md: 88159d662633b9f58809449e4079547c2232bdc0
+/:
+  en: 5eaebf9b522fb7ac
+  zh: 5eaebf9b522fb7ac
+/deepseek-ai-dsh-schedule-work:
+  en: 4712121a9a43382b
+  zh: 95692b4e70e6541f
+/deepseek-ai-dsh-schedule-work/summary:
+  en: d02241107c13ec34
+  zh: 23a6088f523250ec
+/deepseek-ai-dsh-schedule-work/table-of-contents:
+  en: b0412b20a3553911
+  zh: badd136e56290f8a
+/deepseek-ai-dsh-schedule-work/use-this-package:
+  en: 7eaa7fd68a0a1bd6
+  zh: ed39d5afec3257c7
+/deepseek-ai-dsh-schedule-work/use-this-package/rules:
+  en: 123ae76c5f59361c
+  zh: 2c0b83e5ca655ae0
+/deepseek-ai-dsh-schedule-work/understand-the-implementation:
+  en: 4d26b9f6da2408b4
+  zh: bb773c65d4a47516
+/deepseek-ai-dsh-schedule-work/understand-the-implementation/source-map:
+  en: 7fc29dd0f885ab5d
+  zh: 97ce6d6840b6526c
+/deepseek-ai-dsh-schedule-work/dispatch-semantics:
+  en: cdbe2dbb5b14143d
+  zh: b82149d3fcc986ad
+/deepseek-ai-dsh-schedule-work/further-exploration:
+  en: 9a7301b41c54dbb0
+  zh: 6b55cbba91c9e14b
+/deepseek-ai-dsh-schedule-work/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-schedule-work/model-experience/scheduled-dispatch:
+  en: c6d18a85740289fa
+  zh: eff67ca6089a6efa
+/deepseek-ai-dsh-schedule-work/model-experience/scheduled-dispatch/what-the-model-sees:
+  en: af61a0580020dc03
+  zh: 78e4c1fcda50b5c1
+/deepseek-ai-dsh-schedule-work/model-experience/scheduled-dispatch/token-effect:
+  en: a91864ca6cf39cc4
+  zh: ad9fb1ae61ca9804
+/deepseek-ai-dsh-schedule-work/model-experience/scheduled-dispatch/kv-cache-effect:
+  en: 52238d9d403ef090
+  zh: 7375bfdb860b4f81
+/deepseek-ai-dsh-schedule-work/known-limitations-and-deferred-work:
+  en: d2a3e91e16d696af
+  zh: e7bfbcba072a1a8b
+/deepseek-ai-dsh-schedule-work/known-limitations-and-deferred-work/dev-note:
+  en: 0217cdb4fc24db43
+  zh: 361111518863013c

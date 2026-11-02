@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-19-schedule-work-app-tasks.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-19-schedule-work-app-tasks.md
-2026-09-19-schedule-work-app-tasks.md: 929075138a173e7099132e81fb51e114cf0d8cd7
-2026-09-19-schedule-work-app-tasks.zh.md: d4f9aef8a4cb03931c1c3f2afef698819c45b772
+/agent-note-scheduled-work-an-app-level-task-capability-and-the-desktop-management-page:
+  en: 76d3216901d47f54
+  zh: 75bb9ba697f4c368
+/agent-note-scheduled-work-an-app-level-task-capability-and-the-desktop-management-page/problem:
+  en: 28aa347f9ccb7b1c
+  zh: 344cbc0b77ee819f
+/agent-note-scheduled-work-an-app-level-task-capability-and-the-desktop-management-page/decision:
+  en: 85e749c71c7eb991
+  zh: cfbe475136f299ba
+/agent-note-scheduled-work-an-app-level-task-capability-and-the-desktop-management-page/alternatives-considered:
+  en: 4e63bd844d7ee5f4
+  zh: d84f32e08ff65c19
+/agent-note-scheduled-work-an-app-level-task-capability-and-the-desktop-management-page/consequences:
+  en: 04eeffedd62a15ef
+  zh: c161fb037457d0fb
+/agent-note-scheduled-work-an-app-level-task-capability-and-the-desktop-management-page/verification:
+  en: 0c8bc5483f3212a1
+  zh: 42bb85f20d58e406

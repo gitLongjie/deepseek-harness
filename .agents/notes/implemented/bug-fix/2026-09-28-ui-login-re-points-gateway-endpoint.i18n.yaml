@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-09-28-ui-login-re-points-gateway-endpoint.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-28-ui-login-re-points-gateway-endpoint.md
+/agent-note-the-login-flow-re-points-the-deepagens-endpoint-even-when-the-catalog-read-is-refused:
+  en: 58e40e56c5c9732d
+  zh: 0a784b1993c37d29
+/agent-note-the-login-flow-re-points-the-deepagens-endpoint-even-when-the-catalog-read-is-refused/problem:
+  en: 857641b29fcd8fbe
+  zh: b24faeb52f5e3d19
+/agent-note-the-login-flow-re-points-the-deepagens-endpoint-even-when-the-catalog-read-is-refused/decision:
+  en: 799dd3c5f4fb2495
+  zh: 1511210acf44c268
+/agent-note-the-login-flow-re-points-the-deepagens-endpoint-even-when-the-catalog-read-is-refused/alternatives-considered:
+  en: 12bc997df5562d79
+  zh: 5a129fa537bc66aa
+/agent-note-the-login-flow-re-points-the-deepagens-endpoint-even-when-the-catalog-read-is-refused/consequences:
+  en: 92b6f55501e2cd7e
+  zh: c48fe061db4be8c4
+/agent-note-the-login-flow-re-points-the-deepagens-endpoint-even-when-the-catalog-read-is-refused/testing:
+  en: 9e5213ebc1d4f736
+  zh: 3ec481cc0be7cfa6

@@ -4,9 +4,9 @@
  * The shell renders the surrounding chrome (button, nav heading row) and
  * reads each entry's `label` option for aria text.
  */
-import { IconSettingsOutline14, IconSettingsOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
-import css from './chrome.module.css'
+import { IconSettingsOutlineMedium } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import css from './chrome.module.css'
 
 /** Trigger content props: the sidebar column state + the standard locale seat. */
 export type TriggerContentProps = PropsRuntime<'settings.trigger'> & PropsLocale<'settings'>
@@ -24,9 +24,10 @@ export function TriggerContent({ wide, t }: TriggerContentProps) {
   // trigger stays icon-only; the wrapper title supplies the button's
   // accessible name through name-from-content.
   return (
-    <span className={css.triggerIcon} title={t('trigger')}>
-      {wide ? <IconSettingsOutline16 size={16} /> : <IconSettingsOutline14 size={18} />}
-    </span>
+    <>
+      <IconSettingsOutlineMedium size={wide ? 16 : 18} />
+      {wide && <span className={css.triggerLabel}>{t('trigger')}</span>}
+    </>
   )
 }
 

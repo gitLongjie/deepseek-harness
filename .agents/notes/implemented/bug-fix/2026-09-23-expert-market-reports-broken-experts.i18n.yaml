@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-23-expert-market-reports-broken-experts.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-23-expert-market-reports-broken-experts.md
-2026-09-23-expert-market-reports-broken-experts.md: 6895e4a41c133e59461e43da85397cc0f3e58e0c
-2026-09-23-expert-market-reports-broken-experts.zh.md: c004044349afeec69e8e412e3d120ea78fe7e513
+/agent-note-the-expert-market-reports-a-broken-expert-instead-of-hiring-into-silence:
+  en: 8ccdc8663896afa5
+  zh: a49bb4606a06bec1
+/agent-note-the-expert-market-reports-a-broken-expert-instead-of-hiring-into-silence/problem:
+  en: 5afe41cf96cab558
+  zh: 461de0c7320e789e
+/agent-note-the-expert-market-reports-a-broken-expert-instead-of-hiring-into-silence/decision:
+  en: 9089447e0b5afc86
+  zh: 8219c8b99dc30feb
+/agent-note-the-expert-market-reports-a-broken-expert-instead-of-hiring-into-silence/alternatives-considered:
+  en: 68070e4de6f1ab40
+  zh: bb770b29ff05e502
+/agent-note-the-expert-market-reports-a-broken-expert-instead-of-hiring-into-silence/consequences:
+  en: 8bde90d3a56a3d9f
+  zh: cf581fa1decccc31

@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-26-miao-workbench-oem-rebrand.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-26-miao-workbench-oem-rebrand.md
-2026-09-26-miao-workbench-oem-rebrand.md: 5c332b83ba20ef0dba7f3a1860d90bf1d792f9a5
-2026-09-26-miao-workbench-oem-rebrand.zh.md: 68c72a5f88cd8b4b5b8d2a5c564eae6dddee9f58
+/agent-note-oem-rebrand-to-with-the-ascii-miaoworker-disk-identity:
+  en: db247b9517b9ba5c
+  zh: 25e871873e088875
+/agent-note-oem-rebrand-to-with-the-ascii-miaoworker-disk-identity/problem:
+  en: 91133b766f16a4b3
+  zh: 82cbf1bf511e2244
+/agent-note-oem-rebrand-to-with-the-ascii-miaoworker-disk-identity/decision:
+  en: edf275dc527f83d3
+  zh: ec8cf9bffd1f3e3c
+/agent-note-oem-rebrand-to-with-the-ascii-miaoworker-disk-identity/alternatives-considered:
+  en: 480341aa7d149102
+  zh: 0629fca2707937f7
+/agent-note-oem-rebrand-to-with-the-ascii-miaoworker-disk-identity/consequences:
+  en: c88f3e15b62a0915
+  zh: 54ad187f99870474
+/agent-note-oem-rebrand-to-with-the-ascii-miaoworker-disk-identity/verification:
+  en: 878b49aa421d09c0
+  zh: c4a1985b57779109

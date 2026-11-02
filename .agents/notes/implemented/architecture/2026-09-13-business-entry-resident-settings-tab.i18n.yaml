@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-13-business-entry-resident-settings-tab.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-13-business-entry-resident-settings-tab.md
-2026-09-13-business-entry-resident-settings-tab.md: bceb76511d40ea98f65bfbab490866bc1d168d95
-2026-09-13-business-entry-resident-settings-tab.zh.md: f8902182415317f5455b54c9e7ceab2c2e997e28
+/agent-note-the-resident-business-entries-settings-tab-and-the-decoupled-toggle-state:
+  en: 500e745439d76d74
+  zh: 8a65cbd4c7c63443
+/agent-note-the-resident-business-entries-settings-tab-and-the-decoupled-toggle-state/problem:
+  en: 84989d8fb6aec849
+  zh: c3836db23eb87371
+/agent-note-the-resident-business-entries-settings-tab-and-the-decoupled-toggle-state/decision:
+  en: 52b6fb7cae44a729
+  zh: b73eee2d6d5328bf
+/agent-note-the-resident-business-entries-settings-tab-and-the-decoupled-toggle-state/alternatives-considered:
+  en: a55af9e1e42b43fa
+  zh: 560fa9e811aeda54
+/agent-note-the-resident-business-entries-settings-tab-and-the-decoupled-toggle-state/consequences:
+  en: b3a05fc10e544259
+  zh: e4e117c5e973edb8
+/agent-note-the-resident-business-entries-settings-tab-and-the-decoupled-toggle-state/verification:
+  en: 7dc5439501276fd1
+  zh: 1d2fd1a9f25a507b

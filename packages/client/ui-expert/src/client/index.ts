@@ -20,11 +20,11 @@ import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 // Type-only: pulls the Remote namespaces (ctx.remote.agentPresets).
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 // Type-only: the shipped roster row shape the market admits experts from.
-import type { AgentPresetRow } from '@deepseek-ai/dsh-agent-presets/types'
+import type { AgentPresetRow } from '@deepseek-ai/dsh-agent-preset-registry/types'
 // The expert marker the market admits by — the same predicate the mode
 // surfaces exclude by, so the two rules cannot drift. The display fold is
 // the shared inline-safe home a client bundle may inline.
-import { isExpertPreset } from '@deepseek-ai/dsh-agent-presets/display'
+import { isExpertPreset } from '@deepseek-ai/dsh-agent-preset-registry/display'
 // Type-only: pulls the uiAgentPreset and uiWorkspace service merges.
 import type {} from '@deepseek-ai/dsh-client-ui-agent-preset/client'
 // Type-only: pulls the uiWorkspace service merges.

@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-18-renderer-boot-stall-logging.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-18-renderer-boot-stall-logging.md
-2026-09-18-renderer-boot-stall-logging.md: 7238324fcdfdd9252c678a848d36408d0924d35e
-2026-09-18-renderer-boot-stall-logging.zh.md: 70ea38329134b2bd869dceaaad8a54c75073802c
+/agent-note-the-renderer-boot-logs-its-progress-and-warn-snapshots-stalls:
+  en: dc9ee756b61287da
+  zh: d2080a21b0c05099
+/agent-note-the-renderer-boot-logs-its-progress-and-warn-snapshots-stalls/problem:
+  en: 5f3f35e1fddc0930
+  zh: a92569bb518e32d6
+/agent-note-the-renderer-boot-logs-its-progress-and-warn-snapshots-stalls/decision:
+  en: 6b1765de8be52f7d
+  zh: 1df8203f90f346b4
+/agent-note-the-renderer-boot-logs-its-progress-and-warn-snapshots-stalls/alternatives-considered:
+  en: 541cbd7a5bbe31cd
+  zh: 14465f753ad1a886
+/agent-note-the-renderer-boot-logs-its-progress-and-warn-snapshots-stalls/consequences:
+  en: ea3995dd3f7ac2f2
+  zh: 7d9e49d1027a7f7e
+/agent-note-the-renderer-boot-logs-its-progress-and-warn-snapshots-stalls/verification:
+  en: 21c94a354e4cfcd9
+  zh: b5c6dcba6eaa6589

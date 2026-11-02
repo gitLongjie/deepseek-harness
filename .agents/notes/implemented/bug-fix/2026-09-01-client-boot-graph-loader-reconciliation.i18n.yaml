@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-01-client-boot-graph-loader-reconciliation.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-01-client-boot-graph-loader-reconciliation.md
-2026-09-01-client-boot-graph-loader-reconciliation.md: b4dc9b406f8112199cf04705d50ab1dad3558073
-2026-09-01-client-boot-graph-loader-reconciliation.zh.md: 1446ce79eae804d09135b27079ff81c23ad4e9f5
+/agent-note-client-boot-graph-loader-reconciliation:
+  en: 2b4af5fa0151101d
+  zh: 3df93810f789a423
+/agent-note-client-boot-graph-loader-reconciliation/problem:
+  en: b80e45a69137b468
+  zh: 5d2a061f6a1e0862
+/agent-note-client-boot-graph-loader-reconciliation/decision:
+  en: 313330924585d58d
+  zh: 0ae65ef4b81ca874
+/agent-note-client-boot-graph-loader-reconciliation/alternatives-considered:
+  en: 2e00d93e5d8b09bb
+  zh: 289e3328b56903d4
+/agent-note-client-boot-graph-loader-reconciliation/consequences:
+  en: d801fd533518db80
+  zh: e1004ce73367562e

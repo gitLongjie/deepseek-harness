@@ -1,6 +1,43 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/client/ui-expert/README.md
-README.md: d30f16dc779b6bae26727c197947a51a2e841367
-README.zh.md: a2f17132c7b650424778a818758a2ae91a268ecb
+/:
+  en: ffe339438a377c87
+  zh: ceee827ebc998105
+/deepseek-ai-dsh-client-ui-expert:
+  en: 31adbc9820ff7409
+  zh: 9c08ff84257ec458
+/deepseek-ai-dsh-client-ui-expert/summary:
+  en: 8fcb2614eabd4266
+  zh: f9a4fd2c484a77ca
+/deepseek-ai-dsh-client-ui-expert/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: f14f34fce35a8d90
+/deepseek-ai-dsh-client-ui-expert/use-this-package:
+  en: f65bbc768f77ea14
+  zh: 7eb863ee0c1e5410
+/deepseek-ai-dsh-client-ui-expert/use-this-package/minimal-configuration:
+  en: 16c6b894be1bbf6c
+  zh: 51ee59b8381b7840
+/deepseek-ai-dsh-client-ui-expert/use-this-package/what-can-go-wrong:
+  en: eb4000ddfbfd5a28
+  zh: b5f6d00ac9086ccf
+/deepseek-ai-dsh-client-ui-expert/understand-the-implementation:
+  en: 4984a95aec5ad7f5
+  zh: d0249c90876fb309
+/deepseek-ai-dsh-client-ui-expert/further-exploration:
+  en: 09eb22cb3774a9f8
+  zh: 5979335517cd8ad1
+/deepseek-ai-dsh-client-ui-expert/model-experience:
+  en: efa9575e411fb007
+  zh: 471f5ed2eb13bb26
+/deepseek-ai-dsh-client-ui-expert/model-experience/kv-cache-effect:
+  en: ca75c51c89c2c9b0
+  zh: bacec35330ccc487
+/deepseek-ai-dsh-client-ui-expert/known-limitations-and-deferred-work:
+  en: 4d5131f3c32c4ff5
+  zh: f7b2827932364d95
+/deepseek-ai-dsh-client-ui-expert/known-limitations-and-deferred-work/dev-note:
+  en: e67f633dc6fe7773
+  zh: cdd2a143b725accd

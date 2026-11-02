@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-08-knowledge-base-document-browser.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-08-knowledge-base-document-browser.md
-2026-09-08-knowledge-base-document-browser.md: 60af7e5ece9cf3697b511b461c28b46862244548
-2026-09-08-knowledge-base-document-browser.zh.md: 1091d368cb5899f5b54d29243508860a6f727433
+/agent-note-knowledge-base-document-browser:
+  en: 067d85967e03468e
+  zh: a724792564357fbd
+/agent-note-knowledge-base-document-browser/problem:
+  en: 5f29f0886326318e
+  zh: 4d673b812b55ff4b
+/agent-note-knowledge-base-document-browser/decision:
+  en: 325771b43feb2ef5
+  zh: ce82e781798f58e2
+/agent-note-knowledge-base-document-browser/alternatives-considered:
+  en: 7c9a547afdd17b87
+  zh: 5ba353b564bc0b96
+/agent-note-knowledge-base-document-browser/consequences:
+  en: f8a4e9d546afcd07
+  zh: 756d7686cc355a59
+/agent-note-knowledge-base-document-browser/verification:
+  en: 93981e28cc82ccd4
+  zh: 9a04388b69e6dc8d

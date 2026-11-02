@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-10-07-video-workbench-connection-fetch-routes.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-10-07-video-workbench-connection-fetch-routes.md
-2026-10-07-video-workbench-connection-fetch-routes.md: 1f5541d59a0af6c51874150e705a3558a7498983
-2026-10-07-video-workbench-connection-fetch-routes.zh.md: fd4eb55e78d698ee556993e09a377f2926b6d91a
+/agent-note-the-video-workbench-routes-ride-the-connection-fetch-registry:
+  en: 03a0de632b4841a1
+  zh: 1e7999ec5e375bce
+/agent-note-the-video-workbench-routes-ride-the-connection-fetch-registry/problem:
+  en: 9545be0c12006554
+  zh: 4c82e8138801a453
+/agent-note-the-video-workbench-routes-ride-the-connection-fetch-registry/decision:
+  en: 4ed253c269faea9b
+  zh: 93e3b0faea5a2d25
+/agent-note-the-video-workbench-routes-ride-the-connection-fetch-registry/alternatives-considered:
+  en: 6beae514212495b7
+  zh: b5551262835d21c1
+/agent-note-the-video-workbench-routes-ride-the-connection-fetch-registry/consequences:
+  en: a9ffbc42d97c6eb7
+  zh: ca8cbad32f7fafbf

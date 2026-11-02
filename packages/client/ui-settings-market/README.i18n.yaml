@@ -1,6 +1,43 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/client/ui-settings-market/README.md
-README.md: 6cf18141f591ceeb37d128d125e0130a224c97bc
-README.zh.md: 90c7ac30b9d80cc80cc7709a2f319738467d6084
+/:
+  en: 600c12b384034cf9
+  zh: ac866e92f22a6f54
+/deepseek-ai-dsh-client-ui-settings-market:
+  en: b2037134372d5496
+  zh: a5936f2770e4ac81
+/deepseek-ai-dsh-client-ui-settings-market/summary:
+  en: 7e9a47e99fef9459
+  zh: c13456f2210ce2b3
+/deepseek-ai-dsh-client-ui-settings-market/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 9f0a46ca555d0bb9
+/deepseek-ai-dsh-client-ui-settings-market/use-this-package:
+  en: 48d8ab22024ee9dc
+  zh: cb3fdeaed3c2ea0f
+/deepseek-ai-dsh-client-ui-settings-market/use-this-package/minimal-configuration:
+  en: f1507ab14b564fa1
+  zh: 62b967e6b8761bcb
+/deepseek-ai-dsh-client-ui-settings-market/use-this-package/what-can-go-wrong:
+  en: 00ef2913cc24829a
+  zh: 5557e69d67df0efe
+/deepseek-ai-dsh-client-ui-settings-market/understand-the-implementation:
+  en: 9d6809a5b154d763
+  zh: 3f8638cf3139db65
+/deepseek-ai-dsh-client-ui-settings-market/further-exploration:
+  en: a8de1fc570d1ef8a
+  zh: 6347a79ada51a1bf
+/deepseek-ai-dsh-client-ui-settings-market/model-experience:
+  en: 20d005337b05b034
+  zh: 006ea270bb963ba3
+/deepseek-ai-dsh-client-ui-settings-market/model-experience/kv-cache-effect:
+  en: 32944f122bd859df
+  zh: 832a027c278b9691
+/deepseek-ai-dsh-client-ui-settings-market/known-limitations-and-deferred-work:
+  en: a368d64cef1f3c9d
+  zh: 95899828efbd9de6
+/deepseek-ai-dsh-client-ui-settings-market/known-limitations-and-deferred-work/dev-note:
+  en: e67f633dc6fe7773
+  zh: 4c879960b94cc733

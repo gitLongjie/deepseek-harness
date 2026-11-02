@@ -1,6 +1,43 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/video/video-workbench/README.md
-README.md: 4b9b5174e6d0bff90ec4305f0c9af617b893e298
-README.zh.md: faad0c60cee8e5cf9eef7a706de04582bbfa5be1
+/:
+  en: 549d94b06881fd54
+  zh: 7aa847019b3ca955
+/deepseek-ai-dsh-video-workbench:
+  en: a38454f1250557bc
+  zh: 16a7b1d4db51c23b
+/deepseek-ai-dsh-video-workbench/summary:
+  en: d552efbba163140f
+  zh: 0f98d635d32c051d
+/deepseek-ai-dsh-video-workbench/table-of-contents:
+  en: cbfb676bb9a7a2de
+  zh: e040c3118757a57f
+/deepseek-ai-dsh-video-workbench/use-this-package:
+  en: 822affa7949efb62
+  zh: b2f91e3e9925f908
+/deepseek-ai-dsh-video-workbench/understand-the-implementation:
+  en: 5209b8d2401ea34e
+  zh: 3735e198090a4364
+/deepseek-ai-dsh-video-workbench/model-experience:
+  en: 215e7ba838619b7b
+  zh: 215e7ba838619b7b
+/deepseek-ai-dsh-video-workbench/model-experience/model-facing-contract:
+  en: fa56266b2731f7ba
+  zh: fa56266b2731f7ba
+/deepseek-ai-dsh-video-workbench/model-experience/model-facing-contract/what-the-model-sees:
+  en: 1c084108693ce9fd
+  zh: d0fbd2e30caa1a12
+/deepseek-ai-dsh-video-workbench/model-experience/model-facing-contract/token-effect:
+  en: 82021d3a0553b13c
+  zh: 4a93d82b029d17bf
+/deepseek-ai-dsh-video-workbench/model-experience/model-facing-contract/kv-cache-effect:
+  en: 44a4813bba6fdc42
+  zh: 14ded335e5a0ab16
+/deepseek-ai-dsh-video-workbench/known-limitations-and-deferred-work:
+  en: 1bb3d4151647df76
+  zh: ad993c56f996cdcd
+/deepseek-ai-dsh-video-workbench/known-limitations-and-deferred-work/dev-note:
+  en: 91033b7a91836069
+  zh: 0f2d46b538dd6507

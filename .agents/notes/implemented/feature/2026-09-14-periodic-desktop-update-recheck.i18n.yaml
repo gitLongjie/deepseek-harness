@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-14-periodic-desktop-update-recheck.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-14-periodic-desktop-update-recheck.md
-2026-09-14-periodic-desktop-update-recheck.md: 982d913e8be5f6d8dcd1b778ff36abd8664314e1
-2026-09-14-periodic-desktop-update-recheck.zh.md: 2ff59492e3f4f5bc56d658a464399d8ce2a494d9
+/agent-note-periodic-silent-desktop-update-re-checks:
+  en: 9a96da721c0628e4
+  zh: 02352f263f584154
+/agent-note-periodic-silent-desktop-update-re-checks/problem:
+  en: 5609bdf6e8a51c8a
+  zh: 3532a0bb74eebb1e
+/agent-note-periodic-silent-desktop-update-re-checks/decision:
+  en: e524e33fc3c26a2b
+  zh: 300fe4b4b01808f4
+/agent-note-periodic-silent-desktop-update-re-checks/alternatives-considered:
+  en: b473619a02b8edad
+  zh: 61a76d3aa285d6f1
+/agent-note-periodic-silent-desktop-update-re-checks/consequences:
+  en: 1c8f0be334f1725e
+  zh: afdbea28bb1ccf49
+/agent-note-periodic-silent-desktop-update-re-checks/verification:
+  en: 526ab32761dd6c9e
+  zh: 9c72880ebd8a7c7b

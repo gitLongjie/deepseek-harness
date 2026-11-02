@@ -6,13 +6,15 @@
  * up with exactly the stated mode. `withFileLock` serializes cross-process
  * writers of one file through a `wx`-created `<file>.lock` sibling, so a
  * read-modify-write cycle can never resurrect a state another writer just
- * replaced; readers stay lock-free because the rename commit is atomic.
+ * replaced; readers stay lock-free because the rename commit is atomic. A lock
+ * whose recorded holder process no longer exists is taken over.
  * @module @deepseek-ai/dsh-atomic-write
  */
 
-import { randomBytes } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import { lstat, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
+import { setTimeout as wait } from 'node:timers/promises'
 
 const WINDOWS_TRANSIENT_RENAME_ERRORS: ReadonlySet<string> = new Set(['EACCES', 'EBUSY', 'EPERM'])
 const WINDOWS_RENAME_RETRY_INITIAL_MS = 20
@@ -75,7 +77,7 @@ export interface WriteFileAtomicOptions {
  * @param content - complete next file content.
  * @param options - permission bits for the replacement inode.
  */
-export async function writeFileAtomic(filename: string, content: string, options: WriteFileAtomicOptions): Promise<void> {
+export async function writeFileAtomic(filename: string, content: string | Uint8Array, options: WriteFileAtomicOptions): Promise<void> {
   await mkdir(dirname(filename), {
     recursive: true,
     ...options.dirMode === undefined ? {} : { mode: options.dirMode },
@@ -106,34 +108,73 @@ async function isLockContention(error: unknown, lockPath: string): Promise<boole
   }
 }
 
-/**
- * Whether `pid` still names a live process. Signal 0 is the existence probe:
- * `ESRCH` means the process is gone; every other outcome — alive, or a
- * permission refusal that implies existence — keeps the lock treated as held.
- */
-function isPidAlive(pid: number): boolean {
+/** Whether the holder a `<pid>\n` record names is proven gone: a signal probe finds no such process. */
+function holderExited(record: string): boolean {
+  // Any other content is being written or was cut short, which proves nothing about its holder.
+  if (!/^\d+\n$/.test(record)) return false
+  const pid = Number(record.trim())
+  // PID 0 addresses the caller's process group, and the probe accepts only positive int32 PIDs.
+  if (pid === 0 || pid > 0x7fffffff) return false
+  // This process is running; a runtime whose probe cannot see itself must not take over its own lock.
+  if (pid === process.pid) return false
   try {
     process.kill(pid, 0)
-    return true
+    return false
   } catch (error) {
-    return (error as NodeJS.ErrnoException | null)?.code !== 'ESRCH'
+    // EPERM means the process exists under another user.
+    return (error as NodeJS.ErrnoException).code === 'ESRCH'
+  }
+}
+
+/** The lock file's content, or undefined when it cannot be read. */
+async function readLockRecord(lockPath: string): Promise<string | undefined> {
+  try {
+    return await readFile(lockPath, 'utf8')
+  } catch (error) {
+    // A lock that vanished, or that Windows is still deleting, proves nothing about a holder.
+    void error
+    return undefined
   }
 }
 
 /**
- * Read the holder pid recorded in the lock. `undefined` when the file is
- * unreadable or its content is not a pid — a shape this protocol cannot judge,
- * which keeps the lock treated as held.
+ * Remove the lock when its recorded holder exited. Contenders that read the
+ * same record serialize on a claim file named after it. Under the claim, the
+ * claimant re-reads the lock and probes its PID again, and removes it only
+ * when it still holds that record and that PID is still gone: the record's
+ * holder can no longer release it, and no other contender can remove it
+ * without the claim, so a removal never deletes a lock another contender
+ * acquired after the dead holder's, including one whose holder reused the PID.
+ * @returns Whether this call removed the dead holder's lock.
  */
-async function lockPidOf(lockPath: string): Promise<number | undefined> {
-  let raw: string
+async function takeOverExitedLock(lockPath: string): Promise<boolean> {
+  const record = await readLockRecord(lockPath)
+  if (record === undefined || !holderExited(record)) return false
+  const claim = `${lockPath}.takeover-${createHash('sha256').update(record).digest('hex').slice(0, 16)}`
   try {
-    raw = await readFile(lockPath, 'utf8')
-  } catch {
-    return undefined
+    await writeFile(claim, `${process.pid}\n`, { mode: 0o600, flag: 'wx' })
+  } catch (error) {
+    // Another contender owns the claim for this record, or Windows still deletes the claim it released.
+    const code = (error as NodeJS.ErrnoException).code
+    if (code === 'EEXIST' || code === 'EPERM') return false
+    throw error
   }
-  const pid = Number.parseInt(raw.trim(), 10)
-  return Number.isInteger(pid) && pid > 0 ? pid : undefined
+  try {
+    if (await readLockRecord(lockPath) !== record || !holderExited(record)) return false
+    try {
+      await rm(lockPath, { force: true })
+    } catch (error) {
+      // Windows can refuse the removal while other software briefly holds the file; the next attempt retries.
+      void error
+      return false
+    }
+    return true
+  } finally {
+    await rm(claim, { force: true }).catch((error: unknown) => {
+      // A claim left behind names a record that is no longer the lock, so it blocks no later takeover.
+      void error
+    })
+  }
 }
 
 /**
@@ -157,6 +198,8 @@ const DEFAULT_LOCK_WAIT_MS = 2_000
 
 /** Options for one {@link withFileLock} acquisition. */
 export interface FileLockOptions {
+  /** Cancel acquisition and contention waits; the operation owns cancellation after it starts. */
+  signal?: AbortSignal
   /**
    * Maximum time to wait for the lock, in milliseconds. State one when the
    * holder's operation legitimately runs longer than file work — a credential
@@ -170,17 +213,23 @@ export interface FileLockOptions {
 
 /**
  * Hold the cross-process writer lock for `filename` around one operation. The
- * lock is a `wx`-created sibling (`<filename>.lock`) recording the holder's
- * pid; paired with the rename-based commit of {@link writeFileAtomic}, readers
- * stay lock-free and only writers contend. `EEXIST` is contention directly; an
- * `EPERM` is contention only when a fresh `lstat` confirms the lock path
- * exists, covering Windows exclusive-create behavior without hiding an
- * unrelated permission failure. Contention backs off exponentially and fails
- * with a timed-out error after the deadline. A contender removes the lock only
- * when its recorded pid names no live process — a holder that died before its
- * release step — and every other contention (a live owner, a reused pid, or
- * content it cannot judge) waits out the deadline and fails without deleting a
- * lock it cannot prove orphaned. The parent directory must exist.
+ * lock is a `wx`-created sibling (`<filename>.lock`); paired with the
+ * rename-based commit of {@link writeFileAtomic}, readers stay lock-free and
+ * only writers contend. `EEXIST` is contention directly; an `EPERM` is
+ * contention only when a fresh `lstat` confirms the lock path exists, covering
+ * Windows exclusive-create behavior. Windows retries one unconfirmed EPERM
+ * because the holder can release before the probe; a repeated unconfirmed
+ * permission error is rethrown. The lock records its holder's PID. A contender
+ * removes the lock and retries at once when no process with that PID exists
+ * (`ESRCH`); any other lock, including one whose holder exists under another
+ * user (`EPERM`) or whose record is incomplete, is waited for. Contention backs
+ * off exponentially and times out after the deadline. A holder whose PID a
+ * live process reused keeps its lock until an operator removes it. Takeover
+ * proves only that the recorded process exited: an operation that starts other
+ * writers must stop them with it or leave its successor a way to find them.
+ * PIDs are compared on the contender's host, so writers on other hosts or in
+ * other PID namespaces sharing the file are unsupported and could both hold
+ * the lock. The parent directory must exist.
  * @param filename - the file whose writers this lock serializes.
  * @param operation - the read-render-commit cycle to run while holding the lock.
  * @param options - acquisition options; omitted waits {@link DEFAULT_LOCK_WAIT_MS}.
@@ -194,30 +243,29 @@ export async function withFileLock<T>(
   const lockPath = `${filename}.lock`
   const deadline = Date.now() + (options?.waitMs ?? DEFAULT_LOCK_WAIT_MS)
   let delay = LOCK_RETRY_INITIAL_MS
+  let retriedUnconfirmedPermissionError = false
   for (;;) {
+    options?.signal?.throwIfAborted()
     try {
       await writeFile(lockPath, `${process.pid}\n`, { mode: 0o600, flag: 'wx' })
       break
     } catch (error) {
-      if (!await isLockContention(error, lockPath)) throw error
-    }
-    // A lock whose recorded owner is provably gone is an orphan: the holder
-    // died before its release step could run. Breaking it here is the
-    // automatic recovery a dead owner can never perform for itself; every
-    // judgeable-otherwise case keeps the wait-and-fail path, which is the
-    // fail-safe direction.
-    const holder = await lockPidOf(lockPath)
-    if (holder !== undefined && !isPidAlive(holder)) {
-      await rm(lockPath, { force: true })
-      continue
+      if (!await isLockContention(error, lockPath)) {
+        // Windows can release the competing lock between exclusive create and lstat.
+        if (process.platform !== 'win32'
+          || (error as NodeJS.ErrnoException | null)?.code !== 'EPERM'
+          || retriedUnconfirmedPermissionError) throw error
+        retriedUnconfirmedPermissionError = true
+      } else if (await takeOverExitedLock(lockPath)) continue
     }
     if (Date.now() >= deadline) {
       throw new Error(`atomic-write: timed out waiting for the writer lock at ${lockPath}`)
     }
-    await new Promise(resolve => setTimeout(resolve, delay))
+    await wait(delay, undefined, { signal: options?.signal })
     delay = Math.min(delay * 2, LOCK_RETRY_MAX_MS)
   }
   try {
+    options?.signal?.throwIfAborted()
     return await operation()
   } finally {
     await rm(lockPath, { force: true })

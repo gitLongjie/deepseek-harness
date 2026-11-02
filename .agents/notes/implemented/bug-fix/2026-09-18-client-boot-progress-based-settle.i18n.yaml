@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-18-client-boot-progress-based-settle.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-18-client-boot-progress-based-settle.md
-2026-09-18-client-boot-progress-based-settle.md: 66fc19e6af032df0e059002ef1076bf4d8a39d1f
-2026-09-18-client-boot-progress-based-settle.zh.md: 09018082944b5744f3d7569e280486711e039a32
+/agent-note-the-client-boot-drains-pending-chains-by-progress-not-by-a-fixed-window:
+  en: e998205c6ad2dffa
+  zh: e51ddb90505a5e4a
+/agent-note-the-client-boot-drains-pending-chains-by-progress-not-by-a-fixed-window/problem:
+  en: 88d5b5e3a69f07f2
+  zh: 1c4183d2e1f5cbf8
+/agent-note-the-client-boot-drains-pending-chains-by-progress-not-by-a-fixed-window/decision:
+  en: f94375d3cc11ed85
+  zh: f3d6ec737de88ff1
+/agent-note-the-client-boot-drains-pending-chains-by-progress-not-by-a-fixed-window/alternatives-considered:
+  en: 9da2d74e58f421d8
+  zh: ad49ceccc5785fe8
+/agent-note-the-client-boot-drains-pending-chains-by-progress-not-by-a-fixed-window/consequences:
+  en: 12a5f5b55426b966
+  zh: 8fa9e5bea8714dd4
+/agent-note-the-client-boot-drains-pending-chains-by-progress-not-by-a-fixed-window/verification:
+  en: 72d616ed1bdfcbbd
+  zh: a76337d53643faf0

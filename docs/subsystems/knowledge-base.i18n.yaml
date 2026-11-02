@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for knowledge-base.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/subsystems/knowledge-base.md
-knowledge-base.md: 83d87c86c6d580ea8947b9f78ab4f440e95d64a8
-knowledge-base.zh.md: 9a1d9b9434aad73f3e68de3f9852f92412e45f6a
+/knowledge-base:
+  en: c3fdcf162808f063
+  zh: fb486002d6c86c3c
+/knowledge-base/identities:
+  en: 325b80e5ce7ba1a6
+  zh: e8f583cd8e4a3628
+/knowledge-base/provider:
+  en: e3753e0dd7306776
+  zh: 56d02d917d348f6c
+/knowledge-base/documents:
+  en: 3a6e31ac0db1f8da
+  zh: c4dd64d5f8a23a04
+/knowledge-base/client-surface:
+  en: d80e5bc766e0c549
+  zh: 31991e617ca2c710

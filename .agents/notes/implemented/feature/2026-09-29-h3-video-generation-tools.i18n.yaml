@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-29-h3-video-generation-tools.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-29-h3-video-generation-tools.md
-2026-09-29-h3-video-generation-tools.md: edecb4c0dde333b1b9ba47b6a6679e552002eec9
-2026-09-29-h3-video-generation-tools.zh.md: 4596bd1c2f7329849775d73b899276fa0866ffca
+/agent-note-h3-video-generation-tools:
+  en: c5358575562966f7
+  zh: c9f2901287c4e1bb
+/agent-note-h3-video-generation-tools/problem:
+  en: c123b517770b2fc5
+  zh: 46921c5e8662cfa4
+/agent-note-h3-video-generation-tools/decision:
+  en: de5b530a0c3a9beb
+  zh: 459e76ab84142693
+/agent-note-h3-video-generation-tools/testing:
+  en: b6a347487878ef5b
+  zh: 3072ea11f61015f5
+/agent-note-h3-video-generation-tools/alternatives-considered:
+  en: bf607fc9ea1ffaa3
+  zh: b5fe58be7d978929
+/agent-note-h3-video-generation-tools/consequences:
+  en: 39c46442c6eaccfd
+  zh: 32da90b05d4c0a5e

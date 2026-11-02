@@ -11,6 +11,7 @@ import {
   readOemConfig,
 } from '../../scripts/oem-config.ts'
 import { productWebBundleIsolation } from './product-isolation.ts'
+import { katexWoff2Fonts } from './katex-fonts.ts'
 
 const src = (rel: string): string => fileURLToPath(new URL(rel, import.meta.url))
 const OEM_CONFIG = readOemConfig(src('../..'))
@@ -23,8 +24,8 @@ const WEB_MANIFEST_CONFIG = {
 }
 const STANDALONE_ERROR = 'apps/web is not a standalone application: bare Vite cannot inject window.__DSH_BOOT__. '
   + 'From a repository checkout, run `pnpm dsh web`; an installed package uses `dsh web`. '
-  + 'For client-plugin HMR, run `pnpm dsh web` together with `pnpm run dev:web`.'
-const DEFAULT_CLIENT_TITLE = '喵工作台'
+  + 'For client-plugin HMR, run `pnpm run dev:web`, which starts `dsh web` and the rebuild watchers together.'
+const DEFAULT_CLIENT_TITLE = 'DSH Local Build'
 
 /** Escape build-time text before placing it in the HTML title element. */
 function escapeHtmlText(value: string): string {
@@ -41,7 +42,7 @@ function clientDocumentTitle(): Plugin {
       order: 'pre',
       handler(html) {
         return html
-          .replace('<title>喵工作台</title>', `<title>${title}</title>`)
+          .replace('<title>DSH Local Build</title>', `<title>${title}</title>`)
           .replace('href="/favicon.ico"', `href="${icon}"`)
       },
     },
@@ -65,6 +66,20 @@ function emitOemWebManifest(): Plugin {
       const path = resolve(outDir, 'manifest.webmanifest')
       const manifest: unknown = JSON.parse(await readFile(path, 'utf8'))
       await writeFile(path, `${JSON.stringify(projectOemWebManifest(manifest, WEB_MANIFEST_CONFIG), null, 2)}\n`)
+    },
+  }
+}
+
+/** Keep the redistribution license beside the bundled brand font. */
+function brandFontLicense(): Plugin {
+  return {
+    name: 'dsh-brand-font-license',
+    async generateBundle() {
+      this.emitFile({
+        type: 'asset',
+        fileName: 'assets/fonts/Montserrat-OFL.txt',
+        source: await readFile(src('../../packages/client/ui-theme/src/styles/Montserrat-OFL.txt')),
+      })
     },
   }
 }
@@ -175,7 +190,7 @@ const BOOT_GRAMMAR_FILES: readonly string[] = [
   'dist/json.mjs',
 ]
 
-/** Font asset extensions routed to assets/fonts/ (KaTeX's woff2/woff/ttf faces). */
+/** Font asset extensions routed to assets/fonts/. */
 const FONT_EXTENSIONS: readonly string[] = ['.woff2', '.woff', '.ttf']
 
 /**
@@ -196,8 +211,8 @@ export default defineConfig({
   // directory, and the served index resolves identically from the site root.
   base: './',
   plugins: [
-    rejectStandaloneServe(), clientDocumentTitle(), react(), emitPreviewPage(),
-    emitOemWebManifest(), productWebBundleIsolation(src('../..'), src('.')),
+    rejectStandaloneServe(), clientDocumentTitle(), brandFontLicense(), katexWoff2Fonts(), react(), emitPreviewPage(),
+    productWebBundleIsolation(src('../..'), src('.')),
   ],
   build: {
     // The worker bootstrap holds its page at top-level await; Vite's default
@@ -267,8 +282,11 @@ export default defineConfig({
     // through its own package.json exports from the importer's directory, and
     // CSS still rides Vite's pipeline because the client build preset emits it
     // beside the bundle. Plugin packages never enter this graph; they arrive as
-    // runtime bundles through the client module system. The remaining alias
-    // browserizes the vendored Cordis Loader's only Node import.
+    // runtime bundles through the client module system. The node:module alias
+    // supports Loader initialization; its filesystem resolver's other Node
+    // imports must stay default imports for Vite's browser-external stubs.
+    // Browser boot supplies loader.internal before importing plugin entries,
+    // so the filesystem resolver is never invoked in the browser.
     alias: [
       { find: /^node:module$/, replacement: src('./src/node-module-stub.ts') },
     ],

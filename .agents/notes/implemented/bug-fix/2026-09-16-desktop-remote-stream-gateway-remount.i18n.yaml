@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-16-desktop-remote-stream-gateway-remount.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-16-desktop-remote-stream-gateway-remount.md
-2026-09-16-desktop-remote-stream-gateway-remount.md: 88c536e01f4ad1e173209c5e85066d6b47f22699
-2026-09-16-desktop-remote-stream-gateway-remount.zh.md: 4a4482c2b59e69a4ec491651d9c53bbb34669d18
+/agent-note-wait-for-desktop-gateway-remounts-before-opening-remote-streams:
+  en: 8f434cabecbd3943
+  zh: c5257e0dabd3960e
+/agent-note-wait-for-desktop-gateway-remounts-before-opening-remote-streams/problem:
+  en: 202c12dd3875dd13
+  zh: 9db5946b9732314e
+/agent-note-wait-for-desktop-gateway-remounts-before-opening-remote-streams/decision:
+  en: ef3bfc06da92cb0f
+  zh: 8b43062824156c1a
+/agent-note-wait-for-desktop-gateway-remounts-before-opening-remote-streams/alternatives-considered:
+  en: b8bf713493f7595c
+  zh: fb7ce65fb9eb25d9
+/agent-note-wait-for-desktop-gateway-remounts-before-opening-remote-streams/consequences:
+  en: f21990ddde74a53d
+  zh: b6c2044aa7cda702

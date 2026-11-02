@@ -1,6 +1,73 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/video/tool-video/README.md
-README.md: 56f705916e71f69b8dfd28ce2d1797b6f17968d4
-README.zh.md: 56fe38c0560caf7149db6b086e0ae5a90c80d8a0
+/:
+  en: f13ccb49dbb89bf8
+  zh: c24347dc475d7c45
+/deepseek-ai-dsh-tool-video:
+  en: 1b144a1e8069b2e5
+  zh: 54e5912091465b3e
+/deepseek-ai-dsh-tool-video/summary:
+  en: 7c542a52043a7471
+  zh: 22018e60582a8bf9
+/deepseek-ai-dsh-tool-video/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: c72b311df185caf1
+/deepseek-ai-dsh-tool-video/use-this-package:
+  en: 0589078db17d5d9e
+  zh: 36b0fb2dd773666a
+/deepseek-ai-dsh-tool-video/use-this-package/when-to-choose-it:
+  en: 12cf8f2261f3455a
+  zh: 0d5470fea130b958
+/deepseek-ai-dsh-tool-video/use-this-package/smallest-working-example:
+  en: 7a8336b6b393e16b
+  zh: 1b16e251f1838d99
+/deepseek-ai-dsh-tool-video/use-this-package/what-the-model-can-do:
+  en: 7b692c8a5bcccaac
+  zh: dc4ade5750dfd8a3
+/deepseek-ai-dsh-tool-video/use-this-package/keeping-separately-rendered-shots-on-one-look:
+  en: b24ce008a0a3040e
+  zh: eb78a7a9ead381d3
+/deepseek-ai-dsh-tool-video/use-this-package/what-success-and-failure-look-like:
+  en: 5f17155b37041584
+  zh: 94289450b90a4f92
+/deepseek-ai-dsh-tool-video/understand-the-implementation:
+  en: 32a36a3fe388e2c1
+  zh: 0ce7f1d43a7f62a9
+/deepseek-ai-dsh-tool-video/understand-the-implementation/design-philosophy:
+  en: 2ef3a742901880b2
+  zh: 2336629ccdaf4c01
+/deepseek-ai-dsh-tool-video/understand-the-implementation/source-map:
+  en: a2fcfc3d9b093633
+  zh: 83f0797086171bff
+/deepseek-ai-dsh-tool-video/understand-the-implementation/plan-storage:
+  en: 958b202fea20c20d
+  zh: 4b34d0097dec8c74
+/deepseek-ai-dsh-tool-video/understand-the-implementation/job-lifecycle:
+  en: 13cc11aff3e6f3ca
+  zh: f320779a0f55a81f
+/deepseek-ai-dsh-tool-video/further-exploration:
+  en: 7f65d36897663633
+  zh: 959baed0e3a903b5
+/deepseek-ai-dsh-tool-video/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-tool-video/model-experience/model-facing-contract:
+  en: fa56266b2731f7ba
+  zh: fb3285abc6c4420d
+/deepseek-ai-dsh-tool-video/model-experience/model-facing-contract/what-the-model-sees:
+  en: 482e0624970c17c5
+  zh: e6b70df33cf0c21a
+/deepseek-ai-dsh-tool-video/model-experience/model-facing-contract/token-effect:
+  en: af18ae63dc95b156
+  zh: fb8ff33ab807fee4
+/deepseek-ai-dsh-tool-video/model-experience/model-facing-contract/kv-cache-effect:
+  en: 3896b9922da10855
+  zh: d733656421a35cc3
+/deepseek-ai-dsh-tool-video/known-limitations-and-deferred-work:
+  en: c722428f6caa351f
+  zh: 99d639e6ebbef6c8
+/deepseek-ai-dsh-tool-video/known-limitations-and-deferred-work/dev-note:
+  en: f429577a1d67803d
+  zh: 56e1ea3b772827af

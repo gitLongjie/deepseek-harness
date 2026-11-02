@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-10-18-autodl-gpu-provisioning.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-10-18-autodl-gpu-provisioning.md
-2026-10-18-autodl-gpu-provisioning.md: 8e9f40eb76d05a3030d606558c867e3c96fd4cda
-2026-10-18-autodl-gpu-provisioning.zh.md: 5d2f269c6150d9e621fd23f2f3ca0d4c755c9be0
+/agent-note-the-local-video-backend-provisions-its-own-autodl-gpu:
+  en: fac963434bb4c1f7
+  zh: e36f33314f2dcc54
+/agent-note-the-local-video-backend-provisions-its-own-autodl-gpu/problem:
+  en: cdf9305402a95af5
+  zh: 7eba360739092485
+/agent-note-the-local-video-backend-provisions-its-own-autodl-gpu/decision:
+  en: 358289b7661d6d17
+  zh: 28a85292a8005ba7
+/agent-note-the-local-video-backend-provisions-its-own-autodl-gpu/alternatives-considered:
+  en: b527ca2e87420cca
+  zh: 73e7b5cb81f25cec
+/agent-note-the-local-video-backend-provisions-its-own-autodl-gpu/consequences:
+  en: 55284c3f8e1f9ecc
+  zh: 33013d9168217189
+/agent-note-the-local-video-backend-provisions-its-own-autodl-gpu/references:
+  en: a97433144831f928
+  zh: a658ddfa2db0c71e

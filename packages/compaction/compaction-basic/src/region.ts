@@ -23,7 +23,6 @@ import { SessionSeq, type Session, type SessionEvent } from '@deepseek-ai/dsh-se
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import { frameSummary } from './summarizer.ts'
 import type { SummarizationInput, SummaryResult } from './summarizer.ts'
-
 interface RegionDependencies {
   readonly meter: TokenMeter
   summarize(input: SummarizationInput, agent: Agent, signal?: AbortSignal): Promise<SummaryResult>
@@ -100,7 +99,7 @@ interface TransactionFailure {
 function systemHead(session: Session, headSeq: SessionSeq): SessionEvent<'system/message'> | undefined {
   // Surface nodes are current log seqs, so the event exists.
   // Existing Session history read; migration deferred.
-  // oxlint-disable-next-line typescript/no-non-null-assertion, typescript/no-deprecated
+  // oxlint-disable-next-line typescript/no-non-null-assertion
   const head = session.eventAt(headSeq)!
   return head.type === 'system/message' ? head : undefined
 }
@@ -554,7 +553,7 @@ function buildSummarizationInput(
   const regionMessages = shadowedSeqs
     // shadowedSeqs are current surface seqs, so each is a valid log index.
     // Existing Session history read; migration deferred.
-    // oxlint-disable-next-line typescript/no-non-null-assertion, typescript/no-deprecated
+    // oxlint-disable-next-line typescript/no-non-null-assertion
     .map(seq => session.deriveEventMessage(session.eventAt(seq)!))
     .filter((message): message is Message => message !== null)
   return {
@@ -572,7 +571,7 @@ function inspectCompactionEntryState(session: Session): CompactionEntryState {
   let latestEndSeedSeq: SessionSeq | undefined
   for (let seq = session.seq - 1; seq >= 0; seq -= 1) {
     // Existing Session history read; migration deferred.
-    // oxlint-disable-next-line typescript/no-non-null-assertion, typescript/no-deprecated
+    // oxlint-disable-next-line typescript/no-non-null-assertion
     const event = session.eventAt(SessionSeq(seq))!
     if (latestEndSeedSeq === undefined && event.type === 'session/end-seed') {
       latestEndSeedSeq = event.seq

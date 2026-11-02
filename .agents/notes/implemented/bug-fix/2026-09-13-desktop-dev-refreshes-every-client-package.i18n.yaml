@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-13-desktop-dev-refreshes-every-client-package.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-13-desktop-dev-refreshes-every-client-package.md
-2026-09-13-desktop-dev-refreshes-every-client-package.md: 399b231ef5faabf248b2b0654977843525c744ad
-2026-09-13-desktop-dev-refreshes-every-client-package.zh.md: de0a24585a53decd5459f6a699e04aa8d91acdcf
+/agent-note-the-desktop-dev-build-refreshes-every-client-package-s-emit:
+  en: 8d1665c41f29eb65
+  zh: df2dde78faab6b02
+/agent-note-the-desktop-dev-build-refreshes-every-client-package-s-emit/problem:
+  en: 96b443a4845a63bf
+  zh: 2916ee3fcf62f9fc
+/agent-note-the-desktop-dev-build-refreshes-every-client-package-s-emit/decision:
+  en: d442dd90fdf78349
+  zh: a7fb308759060d3f
+/agent-note-the-desktop-dev-build-refreshes-every-client-package-s-emit/alternatives-considered:
+  en: e12051701fb597b4
+  zh: 2b8024e032a5afda
+/agent-note-the-desktop-dev-build-refreshes-every-client-package-s-emit/verification:
+  en: eea5330e92775cad
+  zh: c6fb3443939b3e98
+/agent-note-the-desktop-dev-build-refreshes-every-client-package-s-emit/consequences:
+  en: 95bdbb40eb77934b
+  zh: 1a1d14077fbcd0b0

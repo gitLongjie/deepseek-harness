@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-03-desktop-packaged-smoke-gate.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-03-desktop-packaged-smoke-gate.md
-2026-09-03-desktop-packaged-smoke-gate.md: 1be4f622f3b4cca7c12c48fda8b8af094de7f788
-2026-09-03-desktop-packaged-smoke-gate.zh.md: 98279f9ad4f692f226da1ece6ff8029083c5ad49
+/agent-note-desktop-artifacts-ship-behind-a-packaged-boot-smoke-gate:
+  en: 386eda48aa7bec42
+  zh: 9a3cfce1abe24b1d
+/agent-note-desktop-artifacts-ship-behind-a-packaged-boot-smoke-gate/problem:
+  en: 105433f1c4ae4e67
+  zh: 6eea013c0343e50a
+/agent-note-desktop-artifacts-ship-behind-a-packaged-boot-smoke-gate/decision:
+  en: f66ba710ccf730a2
+  zh: 8ae9a1ffb8febf2a
+/agent-note-desktop-artifacts-ship-behind-a-packaged-boot-smoke-gate/alternatives-considered:
+  en: 2693c9b57dc6fd64
+  zh: 3e51080cc6b4041b
+/agent-note-desktop-artifacts-ship-behind-a-packaged-boot-smoke-gate/consequences:
+  en: 6f57bcc44f7e997d
+  zh: 68d8b81ffb30cf92
+/agent-note-desktop-artifacts-ship-behind-a-packaged-boot-smoke-gate/testing:
+  en: f1704e4d86da8ef1
+  zh: 169cf09f11924a14

@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-10-07-h3-video-installer-distribution.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-10-07-h3-video-installer-distribution.md
-2026-10-07-h3-video-installer-distribution.md: d101203001f0efa7d19f2cb1e25d8d397b36914f
-2026-10-07-h3-video-installer-distribution.zh.md: 3ba6ca8470a5c47dfe8bb37570a64bdd129bff99
+/agent-note-the-h3-video-stack-ships-with-the-installer:
+  en: 7fcc7db3e7e22c89
+  zh: acde8842c2ac46ba
+/agent-note-the-h3-video-stack-ships-with-the-installer/problem:
+  en: b2e139469e749a04
+  zh: 552e4c7711951fd7
+/agent-note-the-h3-video-stack-ships-with-the-installer/decision:
+  en: 6f4e415690450921
+  zh: 2820224902426824
+/agent-note-the-h3-video-stack-ships-with-the-installer/alternatives-considered:
+  en: 6cb7cf7cfb108f18
+  zh: 080269c9e60dbc7c
+/agent-note-the-h3-video-stack-ships-with-the-installer/consequences:
+  en: 89a3039d2584fd4e
+  zh: 4f8d9cb9d1ffec52
+/agent-note-the-h3-video-stack-ships-with-the-installer/references:
+  en: 8716480e00fe3c35
+  zh: 1cdbf450b204bd45

@@ -406,7 +406,6 @@ export class LocalPtySession implements TerminalBackendSession {
         return
       }
       // Closing can race the awaited provider write even though static analysis sees only local assignments.
-      // oxlint-disable-next-line typescript/no-unnecessary-condition -- awaited provider writes can close the session.
       if (this.active === operation && !this.closing) {
         this.pollingReady = operation
         this.schedulePoll(operation)
@@ -584,7 +583,15 @@ export class LocalPtySession implements TerminalBackendSession {
       // on waiting for shell ownership instead of letting a child marker suppress
       // readiness until the absolute timeout.
       const handoffGrace = this.promptSeen ? this.config.handoffGraceMs : 0
-      if (startupHasOutput && idleFor >= this.config.idleSilenceMs + handoffGrace) {
+      // A seen marker whose printable tail has not arrived yet is the prompt function's own
+      // evidence that the shell reached its prompt: the tail is written by the same render, so
+      // its absence within the bound is a delivery delay rather than an absent prompt. The
+      // configured tolerance holds the send on the exact path for that state alone: a tail that
+      // arrived and was then invalidated by later output can no longer complete, so it keeps the
+      // plain bound. Zero leaves the bound at `idleSilenceMs + handoffGraceMs`.
+      const tailPending = this.promptSeen && !this.promptTextSeen && CONTROLLED_PROMPT.startsWith(this.promptTail)
+      const tailGrace = tailPending ? this.config.promptTailGraceMs : 0
+      if (startupHasOutput && idleFor >= this.config.idleSilenceMs + handoffGrace + tailGrace) {
         this.settleActive('inferred_idle')
       }
     } catch (error: unknown) {
@@ -594,7 +601,6 @@ export class LocalPtySession implements TerminalBackendSession {
       this.polling = false
       const active = this.active
       // Awaited provider inspection can clear or replace the active send despite static analysis.
-      // oxlint-disable-next-line typescript/no-unnecessary-condition -- awaited inspection can replace the active send.
       if (active !== undefined && this.pollingReady === active) this.schedulePoll(active)
     }
   }

@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-10-21-video-workbench-consistency.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-10-21-video-workbench-consistency.md
-2026-10-21-video-workbench-consistency.md: 59af62a4d6dbcc83adda1cea64397fb57e8e9697
-2026-10-21-video-workbench-consistency.zh.md: 85744eae3f97f23051ea1d07ab3fb2f0d587a183
+/agent-note-video-workbench-storyboard-and-shared-asset-consistency:
+  en: 8441a673c541eb48
+  zh: f61ac59a133ede41
+/agent-note-video-workbench-storyboard-and-shared-asset-consistency/problem:
+  en: 165b4e6fe6207310
+  zh: 145c78260c332d43
+/agent-note-video-workbench-storyboard-and-shared-asset-consistency/decision:
+  en: 8128128ef53efe71
+  zh: 862babd71fc2293e
+/agent-note-video-workbench-storyboard-and-shared-asset-consistency/alternatives-considered:
+  en: 5266c0d7f5d000a0
+  zh: 39d39a6958625646
+/agent-note-video-workbench-storyboard-and-shared-asset-consistency/consequences:
+  en: 16e0fef64b1e72fd
+  zh: 4d8d1ec4618dfdc7

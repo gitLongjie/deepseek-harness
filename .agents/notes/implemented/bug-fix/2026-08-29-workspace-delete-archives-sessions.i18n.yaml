@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-29-workspace-delete-archives-sessions.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-29-workspace-delete-archives-sessions.md
-2026-08-29-workspace-delete-archives-sessions.md: 54feb7d44783d7caede6cc909dc1d5f2b16dea5c
-2026-08-29-workspace-delete-archives-sessions.zh.md: 4d0473d51f8cc939b68481b840c5004249a0038e
+/agent-note-deleting-a-workspace-archives-its-member-sessions:
+  en: d1383d77daf5a40f
+  zh: 068b9f5ca8bd115c
+/agent-note-deleting-a-workspace-archives-its-member-sessions/problem:
+  en: 9750524b093b6c8a
+  zh: 5ce9c9d572cf4015
+/agent-note-deleting-a-workspace-archives-its-member-sessions/decision:
+  en: 9fbae46070bddefe
+  zh: 2ad57880c513495d
+/agent-note-deleting-a-workspace-archives-its-member-sessions/alternatives-considered:
+  en: a11599a92b80c603
+  zh: e8985d30c3037926
+/agent-note-deleting-a-workspace-archives-its-member-sessions/verification:
+  en: 7c163b0aa2716128
+  zh: 6087b1f2eab71df0
+/agent-note-deleting-a-workspace-archives-its-member-sessions/consequences:
+  en: 7bc3065d9adf8951
+  zh: 5ead5bc255225489

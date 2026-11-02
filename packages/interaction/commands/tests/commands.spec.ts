@@ -141,7 +141,6 @@ describe('CommandRuntime', () => {
 
     const warn = vi.spyOn(ctx.logger, 'warn').mockImplementation(() => undefined)
     ctx.on('commands/change', () => { throw new Error('observer threw') })
-    // oxlint-disable-next-line typescript/no-misused-promises -- exercises rejected-listener containment
     ctx.on('commands/change', () => Promise.reject(new Error('observer rejected')))
     const afterFailures = vi.fn()
     ctx.on('commands/change', afterFailures)
@@ -234,7 +233,6 @@ describe('CommandRuntime', () => {
     ctx.commands.register({
       name: 'reject-value',
       description: 'Reject a non-Error value',
-      // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- exercise untyped plugin normalization
       handler: () => Promise.reject('not an Error'),
     })
     await expect(ctx.commands.execute(agent, '/reject-value', [], new AbortController().signal))
@@ -244,7 +242,6 @@ describe('CommandRuntime', () => {
     ctx.commands.register({
       name: 'reject-hostile',
       description: 'Reject an unrenderable value',
-      // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- exercise hostile plugin normalization
       handler: () => Promise.reject(hostile),
     })
     await expect(ctx.commands.execute(agent, '/reject-hostile', [], new AbortController().signal))
@@ -299,7 +296,7 @@ describe('CommandRuntime', () => {
     [{ ...command('bad-handler'), handler: undefined }, /handler/],
   ] as const)('rejects invalid definition %#', async (definition, expected) => {
     const ctx = await mount()
-    expect(() => ctx.commands.register(definition as unknown as CommandDefinition)).toThrow(expected)
+    expect(() => ctx.commands.register(definition as CommandDefinition)).toThrow(expected)
   })
 
   it('logs a paired command/run + command/done around a successful handler', async () => {

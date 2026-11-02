@@ -15,12 +15,19 @@ import type {
 } from '@deepseek-ai/dsh-attachment'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import { LocalCredentialProvider } from '@deepseek-ai/dsh-credentials-local'
-import { FileSettingsProvider } from '@deepseek-ai/dsh-settings-file'
-import * as LlmDeepSeek from '@deepseek-ai/dsh-llm-deepseek'
+import { liveConfig } from '../../../settings/settings/tests/live-config.ts'
+import * as LlmDeepSeek from '@deepseek-ai/dsh-llm-deepseek-api-key'
+import type { ContextFormed } from '@deepseek-ai/dsh-llm'
 import { assemble } from './assemble.ts'
 import { closeMockServers, mockServer, textEvents } from './mock-server.ts'
 
-const NS = 'llm-deepseek'
+declare module '@deepseek-ai/dsh-llm' {
+  interface MessageSourceMap {
+    'test': { kind: 'test' } & ContextFormed
+  }
+}
+
+const configurations = new WeakMap<Context, Awaited<ReturnType<typeof liveConfig>>>()
 const KEY_REF = credentialRef('DEEPSEEK_API_KEY')
 const IMAGE_REF: ImageAttachmentRef = {
   attachmentId: AttachmentId(`sha256:${'a'.repeat(64)}`),
@@ -104,11 +111,10 @@ async function home(): Promise<string> {
 
 interface Harness {
   ctx: Context
-  settingsFiber: { dispose(): Promise<void> }
 }
 
 /**
- * Real dynamic composition: llm + settings-file + credentials-local +
+ * Real dynamic composition: llm + profile Config edits + credentials-local +
  * llm-deepseek over one temp harness home. `watch: false` keeps every change
  * flowing through the in-process write path, which is deterministic; external
  * file watching is the providers' own covered concern.
@@ -121,11 +127,9 @@ async function boot(dir: string, config: object): Promise<Harness> {
   })
   await ctx.plugin(LlmRuntime)
   await ctx.plugin(StaticAttachmentStore)
-  const settingsFiber = ctx.plugin(FileSettingsProvider, { path: join(dir, 'settings.yaml'), watch: false })
-  await settingsFiber
   await ctx.plugin(LocalCredentialProvider, { path: join(dir, '.credentials.yaml'), watch: false })
-  await ctx.plugin(LlmDeepSeek, { protocol: 'chat-completions', ...config })
-  return { ctx, settingsFiber }
+  configurations.set(ctx, await liveConfig(ctx, LlmDeepSeek, config))
+  return { ctx }
 }
 
 function prompt(ctx: Context) {
@@ -142,15 +146,15 @@ describe('request-level dynamic configuration', () => {
     const { ctx } = await boot(dir, { baseURL: serverA.url })
 
     await prompt(ctx)
-    expect(serverA.headers[0]?.authorization).toBe('Bearer first-key')
+    expect(serverA.headers[0]?.['x-api-key']).toBe('first-key')
 
-    await ctx.settings.update(NS, { baseURL: serverB.url })
+    await configurations.get(ctx)!.update({ baseURL: serverB.url })
     await ctx.credentials.set(KEY_REF, 'second-key')
 
     await prompt(ctx)
     // No restart, no re-registration: the next request resolved both facts.
     expect(serverA.requests).toHaveLength(1)
-    expect(serverB.headers[0]?.authorization).toBe('Bearer second-key')
+    expect(serverB.headers[0]?.['x-api-key']).toBe('second-key')
   })
 
   it('starts keyless and serves the next request once the key arrives', async () => {
@@ -164,7 +168,7 @@ describe('request-level dynamic configuration', () => {
     await expect(access(join(dir, '.anonymous-user-id'))).rejects.toMatchObject({ code: 'ENOENT' })
     await ctx.credentials.set(KEY_REF, 'sk-arrived')
     await prompt(ctx)
-    expect(server.headers[0]?.authorization).toBe('Bearer sk-arrived')
+    expect(server.headers[0]?.['x-api-key']).toBe('sk-arrived')
     await expect(access(join(dir, '.anonymous-user-id'))).resolves.toBeUndefined()
   })
 
@@ -188,11 +192,12 @@ describe('request-level dynamic configuration', () => {
   })
 
   it('advertises a live settings catalog without re-registration', async () => {
+    vi.stubEnv('DEEPSEEK_API_KEY', 'catalog-fixture-key')
     const dir = await home()
     const { ctx } = await boot(dir, { baseURL: 'http://127.0.0.1:1' })
 
-    await expect(ctx.llm.listModels('deepseek-official')).resolves.toHaveLength(4)
-    await ctx.settings.update(NS, {
+    await expect(ctx.llm.listModels('deepseek-official')).resolves.toHaveLength(2)
+    await configurations.get(ctx)!.update({
       models: [{ id: 'settings-model', name: 'From Settings', inputModalities: ['text', 'image'] }],
     })
     await expect(ctx.llm.listModels('deepseek-official')).resolves.toEqual([
@@ -214,11 +219,11 @@ describe('request-level dynamic configuration', () => {
         { type: 'image', attachment: IMAGE_REF },
         { type: 'image', attachment: IMAGE_REF },
       ],
-      source: { kind: 'plugin', plugin: 'test' },
+      source: { kind: 'test' },
     })]
 
     await assemble(ctx, { model: 'deepseek-flash', messages })
-    await ctx.settings.update(NS, { maxRequestFilesBytes: 4, imageOffloadByteQuantum: 2 })
+    await configurations.get(ctx)!.update({ maxRequestFilesBytes: 4, imageOffloadByteQuantum: 2 })
     // A request whose retained exact bytes exceed the tightened budget names the occurrences to offload.
     const rejected = await assemble(ctx, { model: 'deepseek-flash', messages })
     expect(rejected.finish).toMatchObject({
@@ -232,17 +237,17 @@ describe('request-level dynamic configuration', () => {
           { type: 'image', attachment: IMAGE_REF, offloaded: true },
           { type: 'image', attachment: IMAGE_REF },
         ],
-        source: { kind: 'plugin', plugin: 'test' },
+        source: { kind: 'test' },
       })],
     })
 
     const first = (server.requests[0] as { messages: Array<{ content: unknown }> }).messages[0]?.content
     const second = (server.requests[1] as { messages: Array<{ content: unknown }> }).messages[0]?.content
     expect(server.requests).toHaveLength(2)
-    expect(JSON.stringify(first).match(/"type":"file"/g)).toHaveLength(2)
+    expect(JSON.stringify(first).match(/"type":"image"/g)).toHaveLength(2)
     expect(JSON.stringify(second)).toContain('[image omitted to fit request image limits')
     expect(JSON.stringify(second)).toContain(MODEL_IMAGE_PATH)
-    expect(JSON.stringify(second).match(/"type":"file"/g)).toHaveLength(1)
+    expect(JSON.stringify(second).match(/"type":"image"/g)).toHaveLength(1)
   })
   it('re-registers the route in place when the captured retry policy changes, without an empty-registry window', async () => {
     const dir = await home()
@@ -256,7 +261,7 @@ describe('request-level dynamic configuration', () => {
       observed.push(ctx.llm.listProviders().map(provider => provider.id))
     })
 
-    await ctx.settings.update(NS, {
+    await configurations.get(ctx)!.update({
       retryPolicy: { mode: 'always', backoff: { initialDelayMs: 25, maxDelayMs: 100, jitterRatio: 0.2 } },
     })
     expect(ctx.llm.providerRetryPolicy('deepseek-official')).toEqual({
@@ -265,28 +270,26 @@ describe('request-level dynamic configuration', () => {
       maxDelayMs: 100,
       jitterRatio: 0.2,
     })
-    expect(ctx.llm.listProviders()).toEqual(expect.arrayContaining([
-      { id: 'deepseek-official', name: 'DeepSeek' },
-      { id: 'deepagens', name: '喵工作台' },
-    ]))
-    expect(observed).toEqual([expect.arrayContaining(['deepseek-official', 'deepagens'])])
+    expect(ctx.llm.listProviders()).toEqual([{ id: 'deepseek-official', name: 'DeepSeek' }])
+    expect(observed).toEqual([['deepseek-official']])
   })
 
-  it('keeps the last good options when a settings snapshot fails beyond-schema validation', async () => {
+  it('fails catalog reads while a stored snapshot fails beyond-schema validation, and recovers on repair', async () => {
+    vi.stubEnv('DEEPSEEK_API_KEY', 'catalog-fixture-key')
     const dir = await home()
     const { ctx } = await boot(dir, { baseURL: 'http://127.0.0.1:1' })
 
     // Schema-valid but resolver-invalid: duplicate catalog ids pass the array
-    // schema and fail the explicit resolve step.
-    await ctx.settings.update(NS, { models: [{ id: 'dup' }, { id: 'dup' }] })
-    await expect(ctx.llm.listModels('deepseek-official')).resolves.toHaveLength(4)
-    await ctx.settings.update(NS, { models: [{ id: 'recovered' }] })
+    // schema; the profile stores them and every resolve step fails until the row is repaired.
+    await configurations.get(ctx)!.update({ models: [{ id: 'dup' }, { id: 'dup' }] })
+    await expect(ctx.llm.listModels('deepseek-official')).rejects.toThrow('duplicate')
+    await configurations.get(ctx)!.update({ models: [{ id: 'recovered' }] })
     await expect(ctx.llm.listModels('deepseek-official')).resolves.toEqual([
       { provider: 'deepseek-official', id: 'recovered', name: 'recovered', inputModalities: ['text'] },
     ])
   })
 
-  it('keeps the whole last-good snapshot when a rejected one changed the URL', async () => {
+  it('sends nothing while a stored snapshot fails beyond-schema validation', async () => {
     const dir = await home()
     const good = await mockServer([{ kind: 'sse', events: textEvents }])
     const rejected = await mockServer([{ kind: 'sse', events: textEvents }])
@@ -294,63 +297,21 @@ describe('request-level dynamic configuration', () => {
     const { ctx } = await boot(dir, { baseURL: good.url })
 
     // One snapshot moves the endpoint and fails the resolve step beyond the
-    // schema (duplicate catalog ids).
-    await ctx.settings.update(NS, {
-      baseURL: rejected.url,
-      models: [{ id: 'dup' }, { id: 'dup' }],
-    })
-
-    await prompt(ctx)
-    // The rejected generation contributes nothing: not its endpoint, and — the
-    // regression this pins — not its key either.
+    // schema (duplicate catalog ids): no request reaches either endpoint.
+    await configurations.get(ctx)!.update({ baseURL: rejected.url, models: [{ id: 'dup' }, { id: 'dup' }] })
+    expect(JSON.stringify((await prompt(ctx)).finish)).toContain('duplicate catalog model')
     expect(rejected.requests).toHaveLength(0)
-    expect(good.requests).toHaveLength(1)
-    expect(good.headers[0]?.authorization).toBe('Bearer good-key')
-  })
+    expect(good.requests).toHaveLength(0)
 
-  it('falls back to the composition entry when settings detach', async () => {
-    vi.stubEnv('DEEPSEEK_API_KEY', '')
-    const dir = await home()
-    await writeFile(join(dir, '.credentials.yaml'), 'version: 1\nrefs:\n  DEEPSEEK_API_KEY: steady-key\n', { mode: 0o600 })
-    const serverA = await mockServer([{ kind: 'sse', events: textEvents }])
-    const serverB = await mockServer([{ kind: 'sse', events: textEvents }])
-    const { ctx, settingsFiber } = await boot(dir, { baseURL: serverA.url })
-
-    await ctx.settings.update(NS, { baseURL: serverB.url })
+    await configurations.get(ctx)!.update({ models: [{ id: 'deepseek-v4-flash' }] })
     await prompt(ctx)
-    expect(serverB.requests).toHaveLength(1)
-
-    await settingsFiber.dispose()
-    await prompt(ctx)
-    expect(serverA.requests).toHaveLength(1)
-    expect(serverA.headers[0]?.authorization).toBe('Bearer steady-key')
+    expect(rejected.requests).toHaveLength(1)
+    expect(rejected.headers[0]?.['x-api-key']).toBe('good-key')
   })
 
-  it('serves the deepagens gateway route over chat completions on its seeded /v1 endpoint', async () => {
-    vi.stubEnv('DEEPAGENS_API_KEY', 'gateway-key')
-    // A key stored for the DeepSeek route must not authenticate the gateway
-    // route: the login flow re-issues the gateway's key at every launch, and a
-    // shared reference made that launch overwrite this one.
-    vi.stubEnv('DEEPSEEK_API_KEY', 'user-deepseek-key')
+  it.each(['messages', 'chat-completions'])('refuses a stored protocol=%s when the adapter mounts', async (protocol) => {
     const dir = await home()
-    const server = await mockServer([{ kind: 'sse', events: textEvents }])
-    const { ctx } = await boot(dir, { baseURL: server.url })
-
-    // The login flow seeds a baseURL ending in /v1 and the gateway speaks chat
-    // completions there; the namespace's composition base pins that protocol so
-    // the shared schema's `messages` default cannot append a second /v1.
-    await ctx.settings.update('llm-deepagens', {
-      baseURL: `${server.url}/v1`,
-      models: [{ id: 'gateway-model', name: 'Gateway Model', inputModalities: ['text'] }],
-    })
-    expect((ctx.settings.get('llm-deepagens') as { protocol?: string }).protocol).toBe('chat-completions')
-    expect((ctx.settings.get('llm-deepagens') as { apiKeyEnv?: string }).apiKeyEnv).toBe('DEEPAGENS_API_KEY')
-    await assemble(ctx, { provider: 'deepagens', model: 'gateway-model', messages: [] })
-    expect(server.paths).toEqual(['/v1/chat/completions'])
-    expect(server.headers[0]?.authorization).toBe('Bearer gateway-key')
-
-    // The base is below the user layer, so an explicit stored protocol wins.
-    await ctx.settings.update('llm-deepagens', { protocol: 'messages' })
-    expect((ctx.settings.get('llm-deepagens') as { protocol?: string }).protocol).toBe('messages')
+    await expect(boot(dir, { baseURL: 'http://127.0.0.1:1', protocol })).rejects.toThrow(/protocol/)
   })
+
 })

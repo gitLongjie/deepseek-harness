@@ -8,9 +8,11 @@ import type { PermissionCatalog } from '@deepseek-ai/dsh-permission-presets/clie
 import { PermissionCatalogDirectory } from '../src/client/catalog.ts'
 
 const FIRST: PermissionCatalog = {
+  defaultPreset: 'read-only', defaultOptions: [{ value: 'read-only', name: 'read-only' }, { value: 'workspace-write', name: 'workspace-write' }, { value: 'danger-full-access', name: 'danger-full-access' }],
   options: [{ value: 'read-only', name: 'Read only' }],
 }
 const SECOND: PermissionCatalog = {
+  defaultPreset: 'read-only', defaultOptions: [{ value: 'read-only', name: 'read-only' }, { value: 'workspace-write', name: 'workspace-write' }, { value: 'danger-full-access', name: 'danger-full-access' }],
   options: [{ value: 'workspace-write', name: 'Workspace write' }],
 }
 
@@ -128,7 +130,6 @@ describe('PermissionCatalogDirectory', () => {
               error: { code: 'catalog/unavailable', message: 'catalog unavailable', details: {} },
             })
           }
-          // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- non-Error Remote rejection is the scenario.
           return Promise.reject('raw catalog failure')
         },
       },

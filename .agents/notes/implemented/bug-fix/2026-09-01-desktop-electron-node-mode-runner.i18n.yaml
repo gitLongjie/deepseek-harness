@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-01-desktop-electron-node-mode-runner.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-01-desktop-electron-node-mode-runner.md
-2026-09-01-desktop-electron-node-mode-runner.md: ae4e969b17d5048751789a87a366c418ef6c6a10
-2026-09-01-desktop-electron-node-mode-runner.zh.md: f23a8bb9becc378d6724d717c4665c8272a8298d
+/agent-note-desktop-electron-host-runs-the-sandbox-runner-in-node-mode:
+  en: 603a57a2d62529fa
+  zh: 20082609207400c6
+/agent-note-desktop-electron-host-runs-the-sandbox-runner-in-node-mode/problem:
+  en: d9f564b1c8f5ce09
+  zh: 4127d004d77f1b7c
+/agent-note-desktop-electron-host-runs-the-sandbox-runner-in-node-mode/decision:
+  en: b12700fc90d262f5
+  zh: a2d248e047be5656
+/agent-note-desktop-electron-host-runs-the-sandbox-runner-in-node-mode/alternatives-considered:
+  en: bdc2576d5e6d33fe
+  zh: b4fc8799b2766d0f
+/agent-note-desktop-electron-host-runs-the-sandbox-runner-in-node-mode/consequences:
+  en: fec1ef02128882d4
+  zh: b2099c9b87c401ad
+/agent-note-desktop-electron-host-runs-the-sandbox-runner-in-node-mode/testing:
+  en: 3015b95a71c5c82d
+  zh: c80c818f3bcaca81

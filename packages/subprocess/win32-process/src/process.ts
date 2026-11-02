@@ -199,20 +199,9 @@ function createRestrictedProcess(
   )
 }
 
-/** Build startup fields that preserve stdio while suppressing a child console window. */
-function hiddenStartupInfo(stdIn: NativePtr, stdOut: NativePtr, stdErr: NativePtr): Parameters<typeof encodeStartupInfo>[1] {
-  return {
-    cb: abi.STARTUPINFOW_SIZE,
-    dwFlags: abi.STARTF_USESTDHANDLES | abi.STARTF_USESHOWWINDOW,
-    wShowWindow: abi.SW_HIDE,
-    hStdInput: stdIn,
-    hStdOutput: stdOut,
-    hStdError: stdErr,
-  }
-}
-
 /**
  * Spawn a process with anonymous-pipe stdout/stderr and immediate stdin EOF.
+ * New console windows start hidden without changing console inheritance.
  * @param api - active binding table.
  * @param options - command, cwd, args, and restricted primary token.
  * @returns caller-owned process and pipe read handles.
@@ -238,7 +227,14 @@ export function spawnPipedProcess(
       }
     }
     startupInfo = allocStartupInfo()
-    encodeStartupInfo(startupInfo, hiddenStartupInfo(stdIn.read, stdOut.write, stdErr.write))
+    encodeStartupInfo(startupInfo, {
+      cb: abi.STARTUPINFOW_SIZE,
+      dwFlags: abi.STARTF_USESTDHANDLES | abi.STARTF_USESHOWWINDOW,
+      wShowWindow: abi.SW_HIDE,
+      hStdInput: stdIn.read,
+      hStdOutput: stdOut.write,
+      hStdError: stdErr.write,
+    })
     processInfo = allocProcessInfo()
     const created = createRestrictedProcess(
       api,
@@ -454,7 +450,13 @@ function spawnJobProcess(
     }
     startupInfo = allocStartupInfo()
     encodeStartupInfo(startupInfo, {
-      ...hiddenStartupInfo(stdio.stdin, stdio.stdout, stdio.stderr),
+      cb: abi.STARTUPINFOW_SIZE,
+      // Preserve console inheritance: CREATE_NO_WINDOW can fail restricted-token DLL initialization.
+      dwFlags: abi.STARTF_USESTDHANDLES | abi.STARTF_USESHOWWINDOW,
+      wShowWindow: abi.SW_HIDE,
+      hStdInput: stdio.stdin,
+      hStdOutput: stdio.stdout,
+      hStdError: stdio.stderr,
       ...controlDescriptorBlock === undefined ? {} : {
         cbReserved2: controlDescriptorBlock.length,
         lpReserved2: controlDescriptorBlock.pointer,
@@ -518,7 +520,7 @@ function spawnJobProcess(
 }
 
 /**
- * Spawn a restricted-token process suspended, assign its Job, then resume it.
+ * Spawn a restricted-token process suspended with hidden initial windows, assign its Job, then resume it.
  * @param api - active binding table.
  * @param options - command, cwd, args, and restricted primary token.
  * @returns caller-owned process and Job handles after successful resume.
@@ -544,7 +546,7 @@ export function spawnInheritedJobProcess(
 }
 
 /**
- * Spawn an ordinary process suspended, assign its Job, then resume it.
+ * Spawn an ordinary process suspended with hidden initial windows, assign its Job, then resume it.
  * @param api - active binding table.
  * @param options - command, cwd, argv, and target carrier descriptors.
  * @returns caller-owned process and Job handles after successful resume.

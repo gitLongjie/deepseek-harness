@@ -6,11 +6,12 @@
  * registers the view tab into a real SlotRegistry ring. Skips when dist/ is
  * not built (`pnpm --filter @deepseek-ai/dsh-client-ui-trajectory bundle`).
  */
+import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
-import { stubSettingsScope } from '@deepseek-ai/dsh-client-test-runtime'
-import { afterEach, describe, expect, it } from 'vitest'
+import { stubConfigForm } from '@deepseek-ai/dsh-client-test-runtime'
+import { afterEach, describe, expect, it, onTestFinished } from 'vitest'
 import { UiConversation } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 
@@ -42,13 +43,13 @@ describe('tsdown client artifact', () => {
     ;(window as Win).__ModuleLoader__ = { load: (h) => { handoff = h } }
     // The implied-eval ban targets accidental string execution, not this
     // deliberate built-bundle fixture running in the window scope.
-    // oxlint-disable-next-line typescript/no-implied-eval, typescript/no-unsafe-call
     new Function(code!)()
     expect(handoff).toBeDefined()
     const modules = new Map<string, unknown>([
       ['react', await import('react')],
       ['react/jsx-runtime', await import('react/jsx-runtime')],
       ['react-dom', await import('react-dom')],
+      ['@tanstack/react-virtual', await import('@tanstack/react-virtual')],
       ['@deepseek-ai/dsh-client-store', await import('@deepseek-ai/dsh-client-store')],
       ['@deepseek-ai/dsh-client-ui-conversation/client', await import('@deepseek-ai/dsh-client-ui-conversation/client')],
       ['@deepseek-ai/dsh-client-ui-primitives', await import('@deepseek-ai/dsh-client-ui-primitives')],
@@ -65,13 +66,14 @@ describe('tsdown client artifact', () => {
     expect(handoff.id).toBe(PLUGIN_ID)
     expect(exports.apply).toBeTypeOf('function')
     expect(exports.inject).toEqual([
-      'slots', 'sessions', 'uiSession', 'uiConversation', 'locale',
+      'slots', 'sessions', 'uiSession', 'uiConversation', 'locale', 'remote', 'remote.toolResults',
     ])
   })
 
   it.skipIf(code === undefined)('mounted as an object plugin, apply registers the view tab on the real ring', async () => {
     const { exports } = await loadArtifact()
     const ctx = new Context()
+    onTestFinished(() => ctx.fiber.dispose())
     const slots = new SlotRegistry(ctx)
     ctx.provide('uiSession', { provide: () => () => {} } as never)
     // The conversation entry's role: the ring must be declared before riders land.
@@ -89,9 +91,10 @@ describe('tsdown client artifact', () => {
     const { events, views } = uiConversation
     ctx.provide('connection', { api: { settings: {} }, isLoopback: false } as never)
     ctx.provide('remote', { $on: () => () => {} } as never)
-    ctx.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
+    ctx.provide('remote.toolResults', {})
+    ctx.provide('configForms', { developerTools: { enabled: createSnapshotStore(true) }, get: () => stubConfigForm().scope } as never)
     const locale = await import('@deepseek-ai/dsh-client-locale/client')
-    ctx.plugin({ inject: [...locale.inject], apply: locale.apply })
+    await ctx.plugin({ inject: [...locale.inject], apply: locale.apply })
     const fiber = ctx.plugin(exports as { apply: (ctx: Context) => void })
     await fiber.await()
     expect(slots.entries('conversation.view').map(e => e.options.id)).toEqual(['trajectory'])

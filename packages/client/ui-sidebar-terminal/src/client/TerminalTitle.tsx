@@ -4,7 +4,7 @@ import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-cli
 import { TerminalIcon } from './TerminalIcon.tsx'
 import type { TerminalInjected } from './face.ts'
 import type {} from './locales.ts'
-import css from './TerminalBody.module.css'
+import css from './TerminalTitle.module.css'
 
 /**
  * Render the terminal name, editable in place on double-click.
@@ -48,7 +48,6 @@ export function TerminalTitle({ useTabInfo, useTerminal, view, t }: PropsRuntime
       }}
       onKeyDown={(event) => {
         event.stopPropagation()
-        // oxlint-disable-next-line typescript/no-deprecated -- Some IMEs report composition only through keyCode 229.
         if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return
         if (event.key === 'Escape') {
           cancelled.current = true

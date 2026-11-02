@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-13-expert-market-ships-its-own-roster.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-13-expert-market-ships-its-own-roster.md
-2026-09-13-expert-market-ships-its-own-roster.md: da1d3ca0dc27b4794219581e1dd5d32d5bfcf000
-2026-09-13-expert-market-ships-its-own-roster.zh.md: 4c1a2a96f6c2138b8e98957b2f9720392d1736a8
+/agent-note-the-expert-market-ships-its-own-curated-roster:
+  en: bf7aae508ace1df2
+  zh: 3684660143de640f
+/agent-note-the-expert-market-ships-its-own-curated-roster/problem:
+  en: c8a858ffdde507c2
+  zh: 14752e1d8e4b474d
+/agent-note-the-expert-market-ships-its-own-curated-roster/decision:
+  en: 6443792f9a948661
+  zh: 3a583d2c2c09dcd3
+/agent-note-the-expert-market-ships-its-own-curated-roster/alternatives-considered:
+  en: 51385d9c4bf049c9
+  zh: 2bba745fec084179
+/agent-note-the-expert-market-ships-its-own-curated-roster/verification:
+  en: 1b176d2754c174c7
+  zh: 45cc86f6632f60e1
+/agent-note-the-expert-market-ships-its-own-curated-roster/consequences:
+  en: 612f43aecfb6b3cb
+  zh: bdea18065c3fa268

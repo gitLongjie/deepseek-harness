@@ -113,8 +113,10 @@ describe('bootClient', () => {
 })
 
 describe('assertEntriesActive', () => {
+  const silent = { importError: () => undefined }
+
   it('passes when every entry is active', () => {
-    expect(() => { assertEntriesActive(auditCtx([{ name: 'a', fiber: { state: FIBER_STATE.ACTIVE, inject: {} } }])) }).not.toThrow()
+    expect(() => { assertEntriesActive(auditCtx([{ name: 'a', fiber: { state: FIBER_STATE.ACTIVE, inject: {} } }]), silent) }).not.toThrow()
   })
 
   it('names import failures, missing services, and other non-active states', () => {
@@ -125,7 +127,7 @@ describe('assertEntriesActive', () => {
       { name: 'broken', fiber: { state: FIBER_STATE.FAILED, inject: {} } },
     ], { present: {} })
 
-    expect(() => { assertEntriesActive(ctx) }).toThrow([
+    expect(() => { assertEntriesActive(ctx, silent) }).toThrow([
       'web boot: 4 entries did not activate',
       'lost: import failed (see console for the import error)',
       'waiting: pending (waiting for services: a, b)',
@@ -135,7 +137,17 @@ describe('assertEntriesActive', () => {
   })
 
   it('uses the singular form for one failing entry', () => {
-    expect(() => { assertEntriesActive(auditCtx([{ name: 'lost' }])) }).toThrow('web boot: 1 entry did not activate\n')
+    expect(() => { assertEntriesActive(auditCtx([{ name: 'lost' }]), silent) }).toThrow('web boot: 1 entry did not activate\n')
+  })
+
+  it('names the recorded import error of a fiberless entry when the module system is supplied', () => {
+    const recorded = new Map([['lost', new Error('client-modules: could not load "lost": plugins/??lost/client.js&rev=0: bundle script failed to load')]])
+    const modules = { importError: (id: string) => recorded.get(id) }
+    expect(() => { assertEntriesActive(auditCtx([{ name: 'lost' }, { name: 'quiet' }]), modules) }).toThrow([
+      'web boot: 2 entries did not activate',
+      'lost: import failed: client-modules: could not load "lost": plugins/??lost/client.js&rev=0: bundle script failed to load',
+      'quiet: import failed (see console for the import error)',
+    ].join('\n'))
   })
 })
 

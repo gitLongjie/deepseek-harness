@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-03-provider-editor-family-declaration.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-03-provider-editor-family-declaration.md
-2026-09-03-provider-editor-family-declaration.md: f117b5e84d648901f076a2aca2b3d68d19d3b915
-2026-09-03-provider-editor-family-declaration.zh.md: 860deb7bda1d298c38914f6474e95f24bf6f2e23
+/agent-note-provider-cards-render-the-family-the-adapter-declares:
+  en: cce1e8fa35637938
+  zh: ef7f0fff67b4519f
+/agent-note-provider-cards-render-the-family-the-adapter-declares/problem:
+  en: 67ae62d0a9d5fcbf
+  zh: d757e59e469249eb
+/agent-note-provider-cards-render-the-family-the-adapter-declares/decision:
+  en: 81e461fe02e00617
+  zh: e92d7b1e1512b5c4
+/agent-note-provider-cards-render-the-family-the-adapter-declares/alternatives-considered:
+  en: 5f4b7ace4c4dbf3e
+  zh: 95027cae7518f2f1
+/agent-note-provider-cards-render-the-family-the-adapter-declares/consequences:
+  en: bf1d0b4971fe29f3
+  zh: 2bae91eea66f1da2

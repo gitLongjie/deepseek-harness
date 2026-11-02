@@ -1,6 +1,8 @@
+import type { ContextMenuTriggerProps } from '@deepseek-ai/dsh-client-ui-context-menu/client'
 import type { ReactNode } from 'react'
 import {
-  IconApiOutline14, IconBrowseOutline16, IconCodeOutline16, IconEditOutline16, IconSearchOutline16, IconSparkle16,
+  IconApiOutlineRegular, IconBrowseOutlineRegular, IconCodeOutlineRegular, IconEditOutlineRegular, IconSearchOutlineRegular,
+  IconSparkleRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ToolCallOwnerProps, ToolTreeProps } from '../../contract/slots.ts'
@@ -16,18 +18,20 @@ import { ToolRow } from '../components/ToolRow.tsx'
 
 /** Variant leading icons (figma table); all glyphs render at 14 inside the 16px leading box. */
 const VARIANT_ICONS: Record<ToolRowVariant, ReactNode> = {
-  search: <IconSearchOutline16 size={14} />,
-  read: <IconBrowseOutline16 size={14} />,
-  bash: <IconApiOutline14 size={14} />,
-  write: <IconEditOutline16 size={14} />,
-  edit: <IconEditOutline16 size={14} />,
-  code: <IconCodeOutline16 size={14} />,
-  others: <IconSparkle16 size={14} />,
+  search: <IconSearchOutlineRegular size={14} />,
+  read: <IconBrowseOutlineRegular size={14} />,
+  bash: <IconApiOutlineRegular size={14} />,
+  write: <IconEditOutlineRegular size={14} />,
+  edit: <IconEditOutlineRegular size={14} />,
+  code: <IconCodeOutlineRegular size={14} />,
+  others: <IconSparkleRegular size={14} />,
 }
 
 /** Card props: the owner payload, the gallery dispatcher, and the locale seat (plain prop). */
 export interface GenericToolCardProps extends ToolCallOwnerProps {
   t: ToolTreeProps['t']
+  /** Bind the recorded file to the original Session. */
+  getFileTriggerProps: (path: string) => ContextMenuTriggerProps
   /**
    * Dispatch the generic row's image gallery through `tool.call.result-images`,
    * the child slot this row's entry declares. Absent when the row is rendered
@@ -36,8 +40,9 @@ export interface GenericToolCardProps extends ToolCallOwnerProps {
   renderSlot?: PropsRenderSlots<'tool.call.result-images'>['renderSlot'] | undefined
 }
 
+/** @param props - current tool stage and locale. @returns its preparation or dispatched card. */
 export function GenericToolCard({
-  toolName, block, cwd, home, openFile, inspect, loadImage, renderSlot, t,
+  toolName, block, cwd, home, openFile, getFileTriggerProps, inspect, loadImage, renderSlot, useDisclosure, t,
 }: GenericToolCardProps) {
   const model = toolRowModel(toolName, block, cwd, home)
   const autoReview = model.autoReviewDenial === null
@@ -51,15 +56,17 @@ export function GenericToolCard({
   // A tool without a keyed view that returns images still shows them: the result's
   // own blocks are the evidence, so a generated material is visible here rather
   // than only named by the paths in its text.
-  const image = imageCardModel(block, cwd, home)
+  const image = imageCardModel(block)
   // A failing exit status is the terminal card's own error signal (the call
-  // itself settles isError:false), surfaced as the row's red state dot.
+  // itself settles isError:false), surfaced through the row's error summary.
   const state = model.state === 'ok' && terminal !== null && terminalFailed(terminal)
     ? 'error'
     : model.state
   const singleFile = model.filePath !== undefined
   return (
     <ToolRow
+      fileContextMenuProps={model.filePath === undefined ? undefined : getFileTriggerProps(model.filePath)}
+      useDisclosure={useDisclosure}
       t={t}
       variant={model.variant}
       toolName={toolName}

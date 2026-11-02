@@ -1,6 +1,25 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/market/README.md
-README.md: 3464a1b9dc685247815f5c89161976b8342a5595
-README.zh.md: 9adf7fa0643f450bab10d48fe4b2dbadece9449d
+/:
+  en: 764b5a118b2bf0b8
+  zh: c5c06efa91fd8cc4
+/market-plugin-market-capability-family:
+  en: 3a80440d5adb0bef
+  zh: f45224a890c06429
+/market-plugin-market-capability-family/summary:
+  en: 4087fb6498a61aa9
+  zh: 1a75f93c8f5d2a3d
+/market-plugin-market-capability-family/table-of-contents:
+  en: 1eb35b015a6c423f
+  zh: a120f34f802b44db
+/market-plugin-market-capability-family/packages:
+  en: 7f5f9cc10a4d0d36
+  zh: 617d8ddbcdc55c35
+/market-plugin-market-capability-family/related-documentation:
+  en: c51ac7cf43452db9
+  zh: f97a8ff886c227f1
+/market-plugin-market-capability-family/dev-note:
+  en: 5de1d6304e00c58f
+  zh: cae1c6f6baffd7d8

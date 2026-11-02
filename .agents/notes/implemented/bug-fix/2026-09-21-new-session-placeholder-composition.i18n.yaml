@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-09-21-new-session-placeholder-composition.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-21-new-session-placeholder-composition.md
+/agent-note-the-new-session-placeholder-keeps-the-composition-a-new-session-gets:
+  en: 7eb84ce6c3886391
+  zh: 905894fe666105c8
+/agent-note-the-new-session-placeholder-keeps-the-composition-a-new-session-gets/problem:
+  en: e4d40ba63cb9e4b0
+  zh: 0884c0031fe6291e
+/agent-note-the-new-session-placeholder-keeps-the-composition-a-new-session-gets/decision:
+  en: d8018f1f7bc04202
+  zh: d95c10faa7c2d44c
+/agent-note-the-new-session-placeholder-keeps-the-composition-a-new-session-gets/alternatives-considered:
+  en: 87e7127c31df3790
+  zh: 92f0de9b2ee4b940
+/agent-note-the-new-session-placeholder-keeps-the-composition-a-new-session-gets/consequences:
+  en: 21485bbd0df6f1fd
+  zh: 77544ec0569528a4
+/agent-note-the-new-session-placeholder-keeps-the-composition-a-new-session-gets/testing:
+  en: 5d0b617baef9ee66
+  zh: ff047f0c0e62e726

@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-21-open-workspace-directory-in-file-manager.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-21-open-workspace-directory-in-file-manager.md
-2026-09-21-open-workspace-directory-in-file-manager.md: 372d9c7fe29aebbe86617a37850f5aa0f1938c9a
-2026-09-21-open-workspace-directory-in-file-manager.zh.md: 2e1cdb1f7f7d86a190c29d1a7f09ebfb20df3a11
+/agent-note-opening-a-workspace-directory-reaches-the-file-manager:
+  en: ab50189c8c9a6ba8
+  zh: ab50189c8c9a6ba8
+/agent-note-opening-a-workspace-directory-reaches-the-file-manager/problem:
+  en: a84b95ba4b9bf13f
+  zh: 5f9c9a7cda095c59
+/agent-note-opening-a-workspace-directory-reaches-the-file-manager/decision:
+  en: 1a7f3bee232709a2
+  zh: 6f3338e6c18fadcc
+/agent-note-opening-a-workspace-directory-reaches-the-file-manager/alternatives-considered:
+  en: 5c92c39184955fda
+  zh: 83199cc8171b22de
+/agent-note-opening-a-workspace-directory-reaches-the-file-manager/consequences:
+  en: 02518714fedd2c45
+  zh: 1854ff823b42de13
+/agent-note-opening-a-workspace-directory-reaches-the-file-manager/testing:
+  en: ab1dccb05c078509
+  zh: 65b02f92d943996d

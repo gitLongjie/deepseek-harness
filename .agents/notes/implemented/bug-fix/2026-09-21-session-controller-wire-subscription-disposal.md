@@ -2,7 +2,7 @@
 
 Status: implemented
 
-[English](2026-09-21-session-controller-wire-subscription-disposal.md) | 中文
+English | [中文](2026-09-21-session-controller-wire-subscription-disposal.zh.md)
 
 ## Problem
 

@@ -18,7 +18,7 @@ export function offloadOldestImages(session: Session, sourceEventSeqs: readonly 
   for (const seq of sourceEventSeqs) {
     if (count === 0) break
     // Existing Session history read; migration deferred. Current surface nodes index the durable log.
-    // oxlint-disable-next-line typescript/no-non-null-assertion, typescript/no-deprecated
+    // oxlint-disable-next-line typescript/no-non-null-assertion
     const event = session.eventAt(seq)!
     if (event.type !== 'user/message' && event.type !== 'tool/result') continue
     // oxlint-disable-next-line typescript/no-non-null-assertion -- both input node types produce a message
@@ -34,8 +34,6 @@ export function offloadOldestImages(session: Session, sourceEventSeqs: readonly 
             count -= 1
           }
           imageIndex += 1
-        } else if (block.type === 'tool-result') {
-          visit(block.content)
         }
       }
     }

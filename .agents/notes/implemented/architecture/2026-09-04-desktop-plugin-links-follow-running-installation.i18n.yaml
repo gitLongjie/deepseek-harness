@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-04-desktop-plugin-links-follow-running-installation.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-04-desktop-plugin-links-follow-running-installation.md
-2026-09-04-desktop-plugin-links-follow-running-installation.md: 58f7320a1c245a842f5872ce5ff0e3030c5f99a0
-2026-09-04-desktop-plugin-links-follow-running-installation.zh.md: 7be459bf972351d2db65e1b71c2198142711d944
+/agent-note-desktop-plugin-links-follow-the-running-installation:
+  en: 0c0dfaae7fcc4c0e
+  zh: 069f5cb319e966ed
+/agent-note-desktop-plugin-links-follow-the-running-installation/problem:
+  en: 3282f4a84f263c74
+  zh: 49a7a61cf447cefd
+/agent-note-desktop-plugin-links-follow-the-running-installation/decision:
+  en: 81271dba164097e8
+  zh: c9958a0f2d7d9394
+/agent-note-desktop-plugin-links-follow-the-running-installation/alternatives-considered:
+  en: 8822a9926e786ba1
+  zh: 696f4e9711c58dcf
+/agent-note-desktop-plugin-links-follow-the-running-installation/consequences:
+  en: f7d075009477322a
+  zh: a0cda66127bafd58
+/agent-note-desktop-plugin-links-follow-the-running-installation/verification:
+  en: dd5928fe6efa3974
+  zh: c82a2a1e9bf73592

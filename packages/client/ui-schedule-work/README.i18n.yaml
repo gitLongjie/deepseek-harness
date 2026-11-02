@@ -1,6 +1,43 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/client/ui-schedule-work/README.md
-README.md: fe610ffef1e51bc6a938fce13027a16d262ff770
-README.zh.md: 135639679dd17b5423d177773dde84f8c9eaf11a
+/:
+  en: f358b13eba5d6395
+  zh: f358b13eba5d6395
+/deepseek-ai-dsh-client-ui-schedule-work:
+  en: 5992f965a929c477
+  zh: f5a9b7ac8e9cd01b
+/deepseek-ai-dsh-client-ui-schedule-work/summary:
+  en: 538dea749327f9a4
+  zh: 648a9ec70b008e9f
+/deepseek-ai-dsh-client-ui-schedule-work/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 0b7944056ec2588c
+/deepseek-ai-dsh-client-ui-schedule-work/use-this-package:
+  en: d150c5d71e55594c
+  zh: 94f1a29c023e4f4d
+/deepseek-ai-dsh-client-ui-schedule-work/use-this-package/status-and-summaries:
+  en: 844e6ce8f6e4d02e
+  zh: b8263d77ac4db006
+/deepseek-ai-dsh-client-ui-schedule-work/understand-the-implementation:
+  en: 43d0f53bdcd69876
+  zh: c90a15c5686b82d9
+/deepseek-ai-dsh-client-ui-schedule-work/understand-the-implementation/source-map:
+  en: c909c7abde412fab
+  zh: 9f8103d2ff126f23
+/deepseek-ai-dsh-client-ui-schedule-work/further-exploration:
+  en: a63e7e0cbd9f06f2
+  zh: be4df35ab4f00454
+/deepseek-ai-dsh-client-ui-schedule-work/model-experience:
+  en: 551efdf4c7f5699a
+  zh: 75f8d71c2a0d6612
+/deepseek-ai-dsh-client-ui-schedule-work/model-experience/kv-cache-effect:
+  en: 6a2e72971532b351
+  zh: d1cdbf59b2bdbc4b
+/deepseek-ai-dsh-client-ui-schedule-work/known-limitations-and-deferred-work:
+  en: cccd449df8dced27
+  zh: d9bcfd503c6e74fa
+/deepseek-ai-dsh-client-ui-schedule-work/known-limitations-and-deferred-work/dev-note:
+  en: e67f633dc6fe7773
+  zh: e88aeb617ffb74ea

@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-02-model-error-system-notification.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-02-model-error-system-notification.md
-2026-09-02-model-error-system-notification.md: 7347f19cd195b8ed18416f3006154addecb0d13d
-2026-09-02-model-error-system-notification.zh.md: 03c7927d0b207fd426a7e361cde6759f038c3a40
+/agent-note-model-errors-use-desktop-notifications:
+  en: ef407da41b58079f
+  zh: 82099709344ed770
+/agent-note-model-errors-use-desktop-notifications/problem:
+  en: c8abeeaebbf28743
+  zh: 26ae13eebcc1ba43
+/agent-note-model-errors-use-desktop-notifications/decision:
+  en: e275282cde76d94c
+  zh: f8a5fbb5fff9d243
+/agent-note-model-errors-use-desktop-notifications/alternatives-considered:
+  en: 73ce16bc0b3c903a
+  zh: bd27668f535c90bf
+/agent-note-model-errors-use-desktop-notifications/consequences:
+  en: d39331247db065ff
+  zh: 9133618d6042e44c

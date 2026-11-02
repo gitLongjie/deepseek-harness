@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-25-ui-login-launch-time-pair-replay.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-25-ui-login-launch-time-pair-replay.md
-2026-09-25-ui-login-launch-time-pair-replay.md: 276509d7d65b72dc383ea60b15f2c480f79332dd
-2026-09-25-ui-login-launch-time-pair-replay.zh.md: c2fd61b0e400976ce20e1bcbefde6c7deb0529ab
+/agent-note-the-login-gate-replays-the-stored-pair-at-every-launch:
+  en: b78c3c38c9fb876b
+  zh: 334fe8e44995fcd3
+/agent-note-the-login-gate-replays-the-stored-pair-at-every-launch/problem:
+  en: dee996e8c132b309
+  zh: ed3ba394dc2e1cd5
+/agent-note-the-login-gate-replays-the-stored-pair-at-every-launch/decision:
+  en: 9bc0a839be825d1d
+  zh: 3c739943bb4a98b5
+/agent-note-the-login-gate-replays-the-stored-pair-at-every-launch/alternatives-considered:
+  en: 20f1266ba091e782
+  zh: 4c1257184aa20012
+/agent-note-the-login-gate-replays-the-stored-pair-at-every-launch/consequences:
+  en: 21629abce9567bab
+  zh: 960b0ce163d42d48
+/agent-note-the-login-gate-replays-the-stored-pair-at-every-launch/testing:
+  en: 117c7185000bc056
+  zh: 923d3ec7edc61270

@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-10-19-geo-admin-tools-and-experts.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-10-19-geo-admin-tools-and-experts.md
-2026-10-19-geo-admin-tools-and-experts.md: 3878d5e02b26cf07c2033c77ad14112c9c017657
-2026-10-19-geo-admin-tools-and-experts.zh.md: 66a17d2ade810ef8f6da13e459126b63ad2ac260
+/agent-note-configuration-moves-to-a-settings-card-and-the-tools-stop-shelling-out:
+  en: f86d3f70e0649bc1
+  zh: c8cc2a78e512a9d1
+/agent-note-configuration-moves-to-a-settings-card-and-the-tools-stop-shelling-out/problem:
+  en: bfd364bbd98feaf5
+  zh: a3620c4e557f4cb4
+/agent-note-configuration-moves-to-a-settings-card-and-the-tools-stop-shelling-out/decision:
+  en: 5c14869454011b65
+  zh: 5cc4b848d3fc6463
+/agent-note-configuration-moves-to-a-settings-card-and-the-tools-stop-shelling-out/alternatives-considered:
+  en: ef041c6023b2bae1
+  zh: 1c9847ea73147f3a
+/agent-note-configuration-moves-to-a-settings-card-and-the-tools-stop-shelling-out/consequences:
+  en: bfebd28d9c4d7ad9
+  zh: 75892d8f400079da
+/agent-note-configuration-moves-to-a-settings-card-and-the-tools-stop-shelling-out/references:
+  en: 521f52b7edc36343
+  zh: 312f3f2faedf5496

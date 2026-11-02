@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-04-plugin-market-capability.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-04-plugin-market-capability.md
-2026-09-04-plugin-market-capability.md: 807a9d483eef74de4700d69a6144f8a144c2c5bb
-2026-09-04-plugin-market-capability.zh.md: 5e4f2d19235c8438341eacac32491c567b06ffe2
+/agent-note-the-plugin-market-capability:
+  en: 7a74bca93034b780
+  zh: 2bbdecd57f34bacf
+/agent-note-the-plugin-market-capability/problem:
+  en: d08c8cf02c79253d
+  zh: 76bd4e723c1c485b
+/agent-note-the-plugin-market-capability/decision:
+  en: f23e90b93edf1dc5
+  zh: 242bdbc04ce0839c
+/agent-note-the-plugin-market-capability/alternatives-considered:
+  en: be1ceecdc352cd8a
+  zh: a4f09d14889d28cb
+/agent-note-the-plugin-market-capability/consequences:
+  en: 830e3edf4c905435
+  zh: b0da28015af0a6d3
+/agent-note-the-plugin-market-capability/verification:
+  en: 80ca49efaed09a07
+  zh: ecbcb583d995d78f

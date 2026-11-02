@@ -26,6 +26,7 @@
  * @module @deepseek-ai/dsh-tool-fs-search
  */
 
+import type {} from '@deepseek-ai/dsh-working-directory'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
@@ -67,7 +68,7 @@ export type { GrepMatch, RipgrepRun, SearchErrorCode } from './search-core.ts'
 export const name = 'tool-fs-search'
 
 /** Services required by the search tool suite (`spillStore` is optional, read via `ctx.get()`). */
-export const inject = ['tools', 'systemPrompt', 'subprocess']
+export const inject = ['tools', 'systemPrompt', 'subprocess', 'workingDirectory']
 
 /** Plugin config; over-cap glob sampling is an explicit deployment choice and the remaining fields have defaults. */
 export interface Config {
@@ -124,7 +125,6 @@ function assertPositiveInteger(name: string, value: number): void {
  * @param ctx - plugin context; registrations are effects scoped to this plugin.
  * @param config - resolved plugin configuration from schemastery.
  */
-// oxlint-disable-next-line typescript/require-await -- async keeps a load-time config rejection a rejection, not a synchronous throw
 export async function apply(ctx: Context, config: Config): Promise<void> {
   // schemastery (Config) has already filled every defaulted field.
   const resolved = config as ResolvedConfig

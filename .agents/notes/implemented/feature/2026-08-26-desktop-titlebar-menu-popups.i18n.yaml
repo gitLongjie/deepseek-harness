@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-26-desktop-titlebar-menu-popups.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-26-desktop-titlebar-menu-popups.md
-2026-08-26-desktop-titlebar-menu-popups.md: 8302b1dc506b38461d5bcfcddb269de236cf9247
-2026-08-26-desktop-titlebar-menu-popups.zh.md: 0c2e93882afbdba2bdb8a5544dcc8a8c5bcf9f0f
+/agent-note-desktop-title-bar-menu-buttons-popping-native-submenus:
+  en: fcf77cb9cce628be
+  zh: 295968f9f4673489
+/agent-note-desktop-title-bar-menu-buttons-popping-native-submenus/problem:
+  en: 90917dc1b3412a29
+  zh: a19e54d307f61960
+/agent-note-desktop-title-bar-menu-buttons-popping-native-submenus/decision:
+  en: 13787ecd03ef7566
+  zh: 66b4e55e61157445
+/agent-note-desktop-title-bar-menu-buttons-popping-native-submenus/alternatives-considered:
+  en: 78e1977d6de2f388
+  zh: 003aa3d834253b94
+/agent-note-desktop-title-bar-menu-buttons-popping-native-submenus/verification:
+  en: b3d39dddcc42cb97
+  zh: 13c66f80a3bed2fc
+/agent-note-desktop-title-bar-menu-buttons-popping-native-submenus/consequences:
+  en: d673cb788e01abb0
+  zh: 3ba86c82a0f2d31a

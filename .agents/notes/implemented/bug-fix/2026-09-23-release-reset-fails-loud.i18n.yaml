@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-23-release-reset-fails-loud.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-23-release-reset-fails-loud.md
-2026-09-23-release-reset-fails-loud.md: 7c145a1fcd0b42e236e243f4b192b7d0e1246840
-2026-09-23-release-reset-fails-loud.zh.md: 890366db231ec46781b5a2e8ec53ba305244d634
+/agent-note-the-desktop-release-reset-verifies-the-delete-and-the-create:
+  en: ae726d65a27dc875
+  zh: 22ff3da300e5bf55
+/agent-note-the-desktop-release-reset-verifies-the-delete-and-the-create/problem:
+  en: 516be17575af703c
+  zh: ed396aee675c111f
+/agent-note-the-desktop-release-reset-verifies-the-delete-and-the-create/decision:
+  en: 171fb9a67df937b3
+  zh: a9accf35ce2bdb65
+/agent-note-the-desktop-release-reset-verifies-the-delete-and-the-create/consequences:
+  en: 9e8d34da80a27f31
+  zh: b7f4adfe6dd6d0e6
+/agent-note-the-desktop-release-reset-verifies-the-delete-and-the-create/testing:
+  en: 580b6c386ededc7c
+  zh: 4f460a180390fb11

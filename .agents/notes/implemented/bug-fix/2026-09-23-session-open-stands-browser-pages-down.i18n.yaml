@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-23-session-open-stands-browser-pages-down.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-23-session-open-stands-browser-pages-down.md
-2026-09-23-session-open-stands-browser-pages-down.md: 6322562e7c3b83ad77181e8f35eda947251217d0
-2026-09-23-session-open-stands-browser-pages-down.zh.md: 37edb511b6f26d3fb60c34a1a93588dc91662243
+/agent-note-opening-a-session-stands-the-browser-pages-down:
+  en: 0af4cafde3b0ca78
+  zh: 8c18812a5c6f6d81
+/agent-note-opening-a-session-stands-the-browser-pages-down/problem:
+  en: 2ee91b25724efd7f
+  zh: ab8bc76b59887316
+/agent-note-opening-a-session-stands-the-browser-pages-down/decision:
+  en: 072c36db6ee99718
+  zh: b7c40b1715e9d304
+/agent-note-opening-a-session-stands-the-browser-pages-down/alternatives-considered:
+  en: 22c23f72fb4ff5c0
+  zh: bd61de1ded01a8da
+/agent-note-opening-a-session-stands-the-browser-pages-down/consequences:
+  en: 5a0403d9b8ae245b
+  zh: 9b6d4b2c75785690
+/agent-note-opening-a-session-stands-the-browser-pages-down/testing:
+  en: 709d6aae192d7f04
+  zh: e319f46581d2a1c8

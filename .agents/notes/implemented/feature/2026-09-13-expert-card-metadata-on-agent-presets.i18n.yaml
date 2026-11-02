@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-13-expert-card-metadata-on-agent-presets.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-13-expert-card-metadata-on-agent-presets.md
-2026-09-13-expert-card-metadata-on-agent-presets.md: dc34a504556b42fbb94d97fd56aa586bb1e7d456
-2026-09-13-expert-card-metadata-on-agent-presets.zh.md: 010175934e3e1515896f1efe42aad0c5dcc3ef87
+/agent-note-expert-cards-ride-the-preset-roster-not-a-new-expert-registry:
+  en: 3c70035fbea3906f
+  zh: 82acc48cc354fa6b
+/agent-note-expert-cards-ride-the-preset-roster-not-a-new-expert-registry/problem:
+  en: 8e80ecd744d326c8
+  zh: e15aeb53be38c830
+/agent-note-expert-cards-ride-the-preset-roster-not-a-new-expert-registry/decision:
+  en: 6e9bed5dee34f861
+  zh: dae7a168e117dfbb
+/agent-note-expert-cards-ride-the-preset-roster-not-a-new-expert-registry/alternatives-considered:
+  en: f3be73577ede2ae0
+  zh: 5b9b553188fcdf6e
+/agent-note-expert-cards-ride-the-preset-roster-not-a-new-expert-registry/verification:
+  en: e8b948f99da632e1
+  zh: fb8d35699caecdff
+/agent-note-expert-cards-ride-the-preset-roster-not-a-new-expert-registry/consequences:
+  en: c499ba9c6357e7cb
+  zh: 9285d309a9abb46c

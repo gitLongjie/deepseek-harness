@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-10-07-video-packages-promoted-to-product.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-10-07-video-packages-promoted-to-product.md
-2026-10-07-video-packages-promoted-to-product.md: cd7b367171329da0341c273988b9de4d0066e224
-2026-10-07-video-packages-promoted-to-product.zh.md: 3a667976d938dd81e133151f564f064d46085406
+/agent-note-promote-the-video-packages-into-a-product-role-group:
+  en: 26f148da2a5d179c
+  zh: 775972d7f39f80fa
+/agent-note-promote-the-video-packages-into-a-product-role-group/problem:
+  en: 17340550a275ec9e
+  zh: 2a5d96d5cc292be0
+/agent-note-promote-the-video-packages-into-a-product-role-group/decision:
+  en: 78298d6c8fd13603
+  zh: aed238192ab13f65
+/agent-note-promote-the-video-packages-into-a-product-role-group/alternatives-considered:
+  en: e68268b926f6feae
+  zh: c176fc5c29470dfc
+/agent-note-promote-the-video-packages-into-a-product-role-group/consequences:
+  en: 41b0097cc7227e1b
+  zh: 8d7fec5206d1357c

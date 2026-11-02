@@ -5,7 +5,7 @@
  * @module @deepseek-ai/dsh-desktop/render/entry
  */
 
-import type { ClientTransportHooks } from '@deepseek-ai/dsh-client-connection'
+import type { ClientTransportHooks } from '@deepseek-ai/dsh-client-connection/client'
 import { createIpcFetch, createIpcStreamOpen, type IpcBridge } from './transport.ts'
 import { installTitleBar } from './title-bar.ts'
 import { installUpdateBadge } from './update-badge.ts'
@@ -40,7 +40,7 @@ installTitleBar(document, ipc, () => {
 installUpdateBadge(document, ipc)
 
 const transport: ClientTransportHooks = {
-  fetch: (input: URL, init: RequestInit) => createIpcFetch(ipc)(input, init),
+  fetch: (input, init) => createIpcFetch(ipc)(input, init),
   openStream: createIpcStreamOpen(ipc),
   loadBundle: async (url: string) => {
     const started = performance.now()

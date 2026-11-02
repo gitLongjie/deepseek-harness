@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-26-login-gateway-group-rebrand-and-endpoint-self-heal.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-26-login-gateway-group-rebrand-and-endpoint-self-heal.md
-2026-09-26-login-gateway-group-rebrand-and-endpoint-self-heal.md: 7bbdfe00edfda78d3af4054f2eca6dc70b531116
-2026-09-26-login-gateway-group-rebrand-and-endpoint-self-heal.zh.md: 05906ca783cd0524ff0ca3712f3ce617fb5547e8
+/agent-note-rebrand-the-sign-in-gateway-model-group-and-self-heal-a-stored-session-s-endpoint:
+  en: 1a8b997187b8b0d5
+  zh: 7e320fca7b079b1d
+/agent-note-rebrand-the-sign-in-gateway-model-group-and-self-heal-a-stored-session-s-endpoint/problem:
+  en: 445c0b0237744fcb
+  zh: e0f6fa74937985b3
+/agent-note-rebrand-the-sign-in-gateway-model-group-and-self-heal-a-stored-session-s-endpoint/decision:
+  en: 49773fd3bf36ef26
+  zh: 06c048b01baf560f
+/agent-note-rebrand-the-sign-in-gateway-model-group-and-self-heal-a-stored-session-s-endpoint/alternatives-considered:
+  en: aabe41d141b0642e
+  zh: b1fe7f6e28e496c7
+/agent-note-rebrand-the-sign-in-gateway-model-group-and-self-heal-a-stored-session-s-endpoint/consequences:
+  en: be81e36114683b16
+  zh: 42d2f5e16622e7e0
+/agent-note-rebrand-the-sign-in-gateway-model-group-and-self-heal-a-stored-session-s-endpoint/verification:
+  en: a5c2fcd0b73f0c15
+  zh: 509c422c7c36e6ad

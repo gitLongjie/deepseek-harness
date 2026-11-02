@@ -1,6 +1,82 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/video/h3-video/README.md
-README.md: cb185f8d3e3a9216f940a91f63a4acac6fb0d362
-README.zh.md: 1721b671ea1cd07849f6ead7b0cb1f46b2d836cf
+/:
+  en: 1d9306ba365712a6
+  zh: 06bdc76c841813e0
+/deepseek-ai-dsh-h3-video:
+  en: 5b6b7b82d17b01e7
+  zh: 8b33e2543421e1f5
+/deepseek-ai-dsh-h3-video/summary:
+  en: eb30aac28e218c77
+  zh: 7230ec77818de357
+/deepseek-ai-dsh-h3-video/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: c72b311df185caf1
+/deepseek-ai-dsh-h3-video/use-this-package:
+  en: 874946d7178e7cc8
+  zh: 7893b9362c5fa2a2
+/deepseek-ai-dsh-h3-video/use-this-package/when-to-choose-it:
+  en: 13a2db3dc21b8a5e
+  zh: 5c78d8e3690a1975
+/deepseek-ai-dsh-h3-video/use-this-package/smallest-working-example:
+  en: a9d87523439b360b
+  zh: 51c6edec5e56c0b6
+/deepseek-ai-dsh-h3-video/use-this-package/cloud-gpu-provisioning-autodl:
+  en: c3b32b06a646852e
+  zh: 772af84e1b97594f
+/deepseek-ai-dsh-h3-video/use-this-package/user-settings-overlay:
+  en: e82968d7bc358750
+  zh: 2f80c0f3cdfc44d8
+/deepseek-ai-dsh-h3-video/use-this-package/what-the-service-does:
+  en: 488b38009ddd1ccd
+  zh: 0944d01e3f9b955e
+/deepseek-ai-dsh-h3-video/use-this-package/storage-layout:
+  en: dfe7e2f44396287c
+  zh: f890539e9e7683f8
+/deepseek-ai-dsh-h3-video/use-this-package/disk-space-guard:
+  en: 5c7f7cabbd9211bf
+  zh: 8737ca56247aa67f
+/deepseek-ai-dsh-h3-video/use-this-package/what-success-and-failure-look-like:
+  en: 23fe75c164bb72c4
+  zh: 984f93bc63dffaab
+/deepseek-ai-dsh-h3-video/understand-the-implementation:
+  en: 39f5a6bae0aa6879
+  zh: 366dcb83d596e089
+/deepseek-ai-dsh-h3-video/understand-the-implementation/design-philosophy:
+  en: 6b5200cac4e283aa
+  zh: 58b78a79d8f483da
+/deepseek-ai-dsh-h3-video/understand-the-implementation/source-map:
+  en: 4b40c05c466c1433
+  zh: b1277d78c67f9451
+/deepseek-ai-dsh-h3-video/understand-the-implementation/comfyui-workflow-template:
+  en: 0ff057d983b58065
+  zh: a2f44e83722a940a
+/deepseek-ai-dsh-h3-video/understand-the-implementation/hosted-api-surface:
+  en: f75310b109dbf674
+  zh: 39d6359dcc6fb39f
+/deepseek-ai-dsh-h3-video/further-exploration:
+  en: 7533304f329a41ed
+  zh: 58ef91e0977b2232
+/deepseek-ai-dsh-h3-video/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-h3-video/model-experience/model-facing-contract:
+  en: fa56266b2731f7ba
+  zh: fb3285abc6c4420d
+/deepseek-ai-dsh-h3-video/model-experience/model-facing-contract/what-the-model-sees:
+  en: 57e81bd47df40207
+  zh: 65e2415e63e34096
+/deepseek-ai-dsh-h3-video/model-experience/model-facing-contract/token-effect:
+  en: d82fcc707c6ed863
+  zh: 9c0aef0014ff5abb
+/deepseek-ai-dsh-h3-video/model-experience/model-facing-contract/kv-cache-effect:
+  en: 1bc59230a54881d4
+  zh: a1ddc6b96999efd7
+/deepseek-ai-dsh-h3-video/known-limitations-and-deferred-work:
+  en: 7c612bcbbdb6e3d5
+  zh: 1d07ccd4146b0ab2
+/deepseek-ai-dsh-h3-video/known-limitations-and-deferred-work/dev-note:
+  en: 13569f1547ec0541
+  zh: b41238b2993fb9d9

@@ -2,7 +2,9 @@
  * Structural not-implemented stubs: a replaced module must expose every symbol
  * its importers name (a missing CommonJS symbol degrades to `undefined` at call
  * time instead of failing at link time), and every one of those symbols must
- * report exactly what is unavailable when it is finally called.
+ * report exactly what is unavailable when it is finally called. The refusal
+ * carries Node's `ERR_FEATURE_UNAVAILABLE_ON_PLATFORM` code, so a caller that
+ * can run without the feature distinguishes it from other failures.
  */
 
 /**
@@ -22,12 +24,14 @@
  * @param symbol - exported symbol name.
  * @returns the throwing stand-in, typed as the member it replaces.
  */
-// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- only the return position carries the Node declaration
 export function notImplementedFail<Face = (...args: never[]) => never>(module: string, symbol: string): Face {
   return (function refuse(): never {
     throw notAvailableError(module, symbol)
   }) as Face
 }
+
+/** Node's standard code for a feature the running platform cannot provide. */
+const FEATURE_UNAVAILABLE_ON_PLATFORM = 'ERR_FEATURE_UNAVAILABLE_ON_PLATFORM'
 
 /**
  * Build the refusal error and write it to the console first, for stubs that
@@ -35,10 +39,10 @@ export function notImplementedFail<Face = (...args: never[]) => never>(module: s
  * fakes).
  * @param module - module specifier being stubbed.
  * @param symbol - unavailable member, named as the importer sees it.
- * @returns the error to throw.
+ * @returns the error to throw, with `code` set to Node's `ERR_FEATURE_UNAVAILABLE_ON_PLATFORM`.
  */
-export function notAvailableError(module: string, symbol: string): Error {
+export function notAvailableError(module: string, symbol: string): Error & { code: string } {
   const message = `web-preview: ${module}.${symbol} is not available in the worker host`
   console.error(message)
-  return new Error(message)
+  return Object.assign(new Error(message), { code: FEATURE_UNAVAILABLE_ON_PLATFORM })
 }

@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-17-subprocess-runner-electron-node-mode.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-17-subprocess-runner-electron-node-mode.md
-2026-09-17-subprocess-runner-electron-node-mode.md: d85885f7432f4496ec4b97d27128e3450ddbe1af
-2026-09-17-subprocess-runner-electron-node-mode.zh.md: d5dcf71471131892c41d503c3b3aafcf15a45518
+/agent-note-run-the-windows-job-runner-in-node-mode-inside-electron-hosts:
+  en: 1533079d46bc656e
+  zh: c3c5b2cd4ef68dbb
+/agent-note-run-the-windows-job-runner-in-node-mode-inside-electron-hosts/problem:
+  en: d0986c333784c61c
+  zh: 64c5e4cdc99dd686
+/agent-note-run-the-windows-job-runner-in-node-mode-inside-electron-hosts/decision:
+  en: 2050d3d74e970c27
+  zh: d93c5ce9e3cbc57f
+/agent-note-run-the-windows-job-runner-in-node-mode-inside-electron-hosts/alternatives-considered:
+  en: a90105619ce7fc69
+  zh: ba5225f429a05ad0
+/agent-note-run-the-windows-job-runner-in-node-mode-inside-electron-hosts/consequences:
+  en: 08cf077e6652702d
+  zh: e62abcba2f69d2c0

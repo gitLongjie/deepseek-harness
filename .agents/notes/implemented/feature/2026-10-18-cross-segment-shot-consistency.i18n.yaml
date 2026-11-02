@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-10-18-cross-segment-shot-consistency.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-10-18-cross-segment-shot-consistency.md
-2026-10-18-cross-segment-shot-consistency.md: df60588d08d7e4c83211493e56260c044dfc2ccb
-2026-10-18-cross-segment-shot-consistency.zh.md: 634188c34927e112f06465f4b6d8f66011bc5737
+/agent-note-separately-rendered-shots-share-one-look:
+  en: 783ea63b2a96b765
+  zh: 7400403fa3738fe4
+/agent-note-separately-rendered-shots-share-one-look/problem:
+  en: 8c4aaca87fdff3eb
+  zh: c933ace374a05ba8
+/agent-note-separately-rendered-shots-share-one-look/decision:
+  en: 617ddbd6b1dfccb3
+  zh: dffd62537404e61e
+/agent-note-separately-rendered-shots-share-one-look/alternatives-considered:
+  en: 3a1c6d912e16aeac
+  zh: 47181a64e6aa2de9
+/agent-note-separately-rendered-shots-share-one-look/consequences:
+  en: 1eafc40670987401
+  zh: 3072666f7533004a
+/agent-note-separately-rendered-shots-share-one-look/references:
+  en: da2b866254411697
+  zh: ea98fca6059cc783

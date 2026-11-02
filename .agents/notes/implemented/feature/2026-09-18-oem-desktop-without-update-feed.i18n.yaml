@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-18-oem-desktop-without-update-feed.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-18-oem-desktop-without-update-feed.md
-2026-09-18-oem-desktop-without-update-feed.md: a431e22cd3bf753a4ad06a6fa893b8a9e3e64f61
-2026-09-18-oem-desktop-without-update-feed.zh.md: 3af3aca0605b2b1a21892737f0b119042bd4fe41
+/agent-note-oem-desktop-builds-without-an-update-feed-disable-auto-update:
+  en: a500c341b84d578e
+  zh: 863c066a524c4dc3
+/agent-note-oem-desktop-builds-without-an-update-feed-disable-auto-update/problem:
+  en: 24f9d83a769f5250
+  zh: c90c2ed395804a3f
+/agent-note-oem-desktop-builds-without-an-update-feed-disable-auto-update/decision:
+  en: 331b0f43579f2b28
+  zh: 0439d2cd1ef15354
+/agent-note-oem-desktop-builds-without-an-update-feed-disable-auto-update/alternatives-considered:
+  en: 99843dfe10adb161
+  zh: 8ad06215d5044cf4
+/agent-note-oem-desktop-builds-without-an-update-feed-disable-auto-update/consequences:
+  en: 7c17035632c3165b
+  zh: 9ba3704408f04c30
+/agent-note-oem-desktop-builds-without-an-update-feed-disable-auto-update/verification:
+  en: 1bf0c68dd490610c
+  zh: 18d4552178e5c7e0

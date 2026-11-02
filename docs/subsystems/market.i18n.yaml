@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for market.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/subsystems/market.md
-market.md: 0562bd2b977c99fd16bb4e66a9162d7bf5b90f6e
-market.zh.md: eeb9f86f0fc0fef9a1e06a7ec29b1c4f3e4feb86
+/plugin-market:
+  en: e848ffb016bc48d8
+  zh: bcca3a4aeb8dfab4
+/plugin-market/identities:
+  en: 9e85c98f3fb7dc5e
+  zh: 986dab51949096f9
+/plugin-market/sources:
+  en: d9b7ce14818c8d65
+  zh: e1a15df2ff8d17c4
+/plugin-market/entries-and-browsing:
+  en: cae50b06750bc222
+  zh: fae4ef887f21c88d
+/plugin-market/installability-and-install:
+  en: 0930d7770c90580a
+  zh: beea1149dc52c932

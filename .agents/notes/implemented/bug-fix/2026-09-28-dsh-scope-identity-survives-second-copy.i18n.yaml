@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-09-28-dsh-scope-identity-survives-second-copy.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-28-dsh-scope-identity-survives-second-copy.md
+/agent-note-dsh-scope-identity-survives-a-second-copy-of-the-package:
+  en: 80bde9e6491d9444
+  zh: 4bd80f0fd5243cfb
+/agent-note-dsh-scope-identity-survives-a-second-copy-of-the-package/problem:
+  en: 54698227c8d93eb3
+  zh: 1424f5839a1ef60f
+/agent-note-dsh-scope-identity-survives-a-second-copy-of-the-package/decision:
+  en: 12e1902fc94179ef
+  zh: 08636317852ffac6
+/agent-note-dsh-scope-identity-survives-a-second-copy-of-the-package/alternatives-considered:
+  en: 0d53490122c7d237
+  zh: a5eb7dbe9b936860
+/agent-note-dsh-scope-identity-survives-a-second-copy-of-the-package/consequences:
+  en: ff37deae81a5dee4
+  zh: 1e8f78a664257c38
+/agent-note-dsh-scope-identity-survives-a-second-copy-of-the-package/testing:
+  en: e977bafd747e6375
+  zh: 0a8c081406824615

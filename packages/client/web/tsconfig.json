@@ -36,7 +36,10 @@
       "path": "../ui-renderer"
     },
     {
-      "path": "../../runtime-diagnostics/invariants"
+      "path": "../../host/webserver"
+    },
+    {
+      "path": "../ui-workspace"
     }
   ],
   "exclude": [

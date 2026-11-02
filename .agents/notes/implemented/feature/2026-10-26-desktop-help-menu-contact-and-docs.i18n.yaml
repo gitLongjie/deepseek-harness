@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-10-26-desktop-help-menu-contact-and-docs.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-10-26-desktop-help-menu-contact-and-docs.md
-2026-10-26-desktop-help-menu-contact-and-docs.md: f39115b75dfc920c73ab22a868a7a5c8d8dd8957
-2026-10-26-desktop-help-menu-contact-and-docs.zh.md: 0d3a819b9537c276a69efb4905a3d45d41f9c739
+/agent-note-the-desktop-help-menu-carries-contact-qr-and-documentation-links:
+  en: 3393e651a7913d45
+  zh: d55f3424c6db2de2
+/agent-note-the-desktop-help-menu-carries-contact-qr-and-documentation-links/problem:
+  en: 9066ea82eb2b577f
+  zh: 938f0f8b3dad246f
+/agent-note-the-desktop-help-menu-carries-contact-qr-and-documentation-links/decision:
+  en: 48db8e1bfc53a900
+  zh: e09fa18ab24fadb9
+/agent-note-the-desktop-help-menu-carries-contact-qr-and-documentation-links/alternatives-considered:
+  en: 7cddca1f26e3b99c
+  zh: 6b162c3c28db00c1
+/agent-note-the-desktop-help-menu-carries-contact-qr-and-documentation-links/consequences:
+  en: 7ece5f922bef09a5
+  zh: b636e03647001b43
+/agent-note-the-desktop-help-menu-carries-contact-qr-and-documentation-links/references:
+  en: f6df6a5684d7cbb9
+  zh: 36c7d9685fe0b6a6

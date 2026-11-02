@@ -12,7 +12,11 @@ import { ipcMain } from 'electron'
 import { randomUUID } from 'node:crypto'
 import type { HostConnectionHandle } from '@deepseek-ai/dsh-client-connection'
 import type { TypertGateway } from '@deepseek-ai/dsh-api-gateway/types'
+import type { PeerScope } from '@deepseek-ai/dsh-typert-protocol'
 import { LOOPBACK_AUTHORITY } from './loopback-authority.ts'
+
+/** Desktop streams are host-to-renderer pushes; the renderer never streams items up. */
+const NO_UPLINK: AsyncIterable<unknown> = (async function* () {})()
 
 /** Host services the IPC carrier dispatches through. */
 export interface TransportHostServices {
@@ -90,7 +94,8 @@ export async function dispatchTransportFetch(
     requestBodyMode: () => 'buffered',
     fetch: () => Promise.resolve(new Response('not found', { status: 404 })),
   }))
-  return handler.fetch(new Request(new URL(req.path, LOOPBACK_AUTHORITY), init))
+  // The in-process renderer carrier speaks for the shared browser peer.
+  return handler.fetch(new Request(new URL(req.path, LOOPBACK_AUTHORITY), init), connection.browserPeer)
 }
 
 /**
@@ -135,6 +140,7 @@ export function registerTransportIpc(
     endpoint: string
     payload: unknown
     gateway: TypertGateway
+    peer: PeerScope
     controller: AbortController
   }>()
 
@@ -154,7 +160,7 @@ export function registerTransportIpc(
     }
     void (async () => {
       try {
-        const items = await gateway.wireStream.open(endpoint, pending.payload, controller.signal)
+        const items = await gateway.wireStream.open(endpoint, pending.payload, NO_UPLINK, pending.peer, controller.signal)
         for await (const item of items) {
           if (sender.isDestroyed()) break
           // One object argument: the preload bridge forwards a single payload
@@ -176,6 +182,8 @@ export function registerTransportIpc(
     // pending until its replacement publishes instead of turning a normal
     // host reload into a renderer-side connection failure.
     const gateway = getHost().gateway ?? await waitForGateway()
+    const connection = getHost().connection
+    if (connection === undefined) throw new Error('desktop stream: host connection not ready')
     const streamId = randomUUID()
     const controller = new AbortController()
     streamAborts.set(streamId, controller)
@@ -184,6 +192,7 @@ export function registerTransportIpc(
       endpoint: opts.endpoint,
       payload: opts.payload,
       gateway,
+      peer: connection.browserPeer,
       controller,
     })
     return { streamId }

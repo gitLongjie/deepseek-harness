@@ -9,14 +9,13 @@ import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import {
-  DEFAULT_PROFILE_BUNDLES,
   initProfile,
-  PROFILE_TEMPLATES,
   readProfileManifest,
   reconcileProfileBundles,
   resolveBundleDir,
   type ProfileManifest,
 } from '@deepseek-ai/dsh-app-boot'
+import { DEFAULT_PROFILE_BUNDLES, PROFILE_TEMPLATES } from '@deepseek-ai/dsh-official-bundles'
 import type { MarketBundleId, MarketInstallOutcome, MarketInstalledPlugin, MarketOperationFailure, MarketUninstallOutcome } from '@deepseek-ai/dsh-market'
 
 /** Profile mutation and read options, resolved from the owning plugin's Config. */
@@ -40,7 +39,7 @@ export interface ProfileMutationOptions {
 export function ensureProfileDir(profileName: string, profileDir: string): void {
   if (existsSync(join(profileDir, 'package.json'))) return
   const template = PROFILE_TEMPLATES[profileName]
-  initProfile(profileDir, template?.bundles ?? DEFAULT_PROFILE_BUNDLES, template?.patchReload)
+  initProfile(profileDir, template?.bundles ?? DEFAULT_PROFILE_BUNDLES)
 }
 
 /**

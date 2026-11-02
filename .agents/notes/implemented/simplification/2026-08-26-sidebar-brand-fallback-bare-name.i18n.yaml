@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-26-sidebar-brand-fallback-bare-name.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/simplification/2026-08-26-sidebar-brand-fallback-bare-name.md
-2026-08-26-sidebar-brand-fallback-bare-name.md: 508f346c69566d7da2bc15803b8400f5cc6103aa
-2026-08-26-sidebar-brand-fallback-bare-name.zh.md: c06255cd0a56591a69b475b1e1d4e04b0dc282f2
+/agent-note-sidebar-brand-fallback-is-the-bare-product-name:
+  en: 0900694de50f4b9d
+  zh: 5938ba07ed80979d
+/agent-note-sidebar-brand-fallback-is-the-bare-product-name/problem:
+  en: f2fdd2b408cc2f70
+  zh: 7956519f11a13443
+/agent-note-sidebar-brand-fallback-is-the-bare-product-name/decision:
+  en: ad12ea5ed04b68cf
+  zh: 3a9eceb9f3c249f0
+/agent-note-sidebar-brand-fallback-is-the-bare-product-name/alternatives-considered:
+  en: b425827616582da3
+  zh: caa9a945bb136ff9
+/agent-note-sidebar-brand-fallback-is-the-bare-product-name/verification:
+  en: 6a7d25bee3edf9bc
+  zh: 297180e581d9064d
+/agent-note-sidebar-brand-fallback-is-the-bare-product-name/consequences:
+  en: 931af75ad7d656a4
+  zh: 4eca1ced9d0d791b

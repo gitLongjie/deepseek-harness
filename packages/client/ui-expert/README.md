@@ -67,7 +67,7 @@ Two slot registrations plus one navigation service: `ExpertNav` fills `sidebar.e
 <a id="further-exploration"></a>
 ## Further Exploration
 
-- [`dsh-agent-presets`](../../preset/agent-presets/README.md) — the `preset.yml` metadata fields expert cards are shaped after, and the preset surfaces the roster stays out of.
+- [`dsh-agent-presets`](../../preset/agent-preset-registry/README.md) — the `preset.yml` metadata fields expert cards are shaped after, and the preset surfaces the roster stays out of.
 - [`dsh-client-ui-agent-preset`](../ui-agent-preset/README.md) — the preset surfaces this package stages picks through.
 - [Slots subsystem](../../../docs/subsystems/slots.md) — the hole/occupant model this registration uses.
 

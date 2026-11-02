@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-13-composer-file-import.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-13-composer-file-import.md
-2026-09-13-composer-file-import.md: f3773f56588830f46eeabd37cc9a43899f9f9992
-2026-09-13-composer-file-import.zh.md: cab34da1eecc6aa47274f0a4d6c50373121cfa12
+/agent-note-composer-file-import-stages-workspace-mentions:
+  en: cb4a1f9484a11f1c
+  zh: f20790b66d2c9c64
+/agent-note-composer-file-import-stages-workspace-mentions/problem:
+  en: 3e2b22d6cb9efa6c
+  zh: bbc409d43c7ba4c8
+/agent-note-composer-file-import-stages-workspace-mentions/decision:
+  en: 53e4659e17d4b576
+  zh: 4f4eb1d640a4da77
+/agent-note-composer-file-import-stages-workspace-mentions/testing:
+  en: 83f967f13c7225f8
+  zh: 2951caf92efa6d87
+/agent-note-composer-file-import-stages-workspace-mentions/alternatives-considered:
+  en: ec025d5729ef1408
+  zh: 50f2f220eea06dbf
+/agent-note-composer-file-import-stages-workspace-mentions/consequences:
+  en: 8ff94f43179534ab
+  zh: 6fa62ed5535417a7

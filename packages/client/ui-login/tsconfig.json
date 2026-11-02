@@ -48,9 +48,6 @@
       "path": "../../llm/token-meter"
     },
     {
-      "path": "../../runtime-diagnostics/invariants"
-    },
-    {
       "path": "../../util/workspace-path"
     },
     {

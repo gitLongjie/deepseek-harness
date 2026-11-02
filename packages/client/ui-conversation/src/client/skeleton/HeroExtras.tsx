@@ -7,11 +7,11 @@ import { useState } from 'react'
 import {
   IconRefreshOutline14, IconSkillOutline16, IconSparkle16,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { ConversationSlotProps } from '../contract/slots.ts'
+import type { FactoryComponentPropsOf } from '@deepseek-ai/dsh-client-ui-slots'
 import css from './HeroExtras.module.css'
 
 /** The owner's locale seat type, passed down as a plain prop. */
-type HeroTranslate = ConversationSlotProps['t']
+type HeroTranslate = FactoryComponentPropsOf<'conversation.content'>['t']
 
 /** Starter suggestions in rotation order; three show per page. */
 const SUGGESTION_KEYS = [

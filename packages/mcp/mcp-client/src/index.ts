@@ -139,7 +139,7 @@ export const Config = z.union([
     maxInstructionBytes: z.number().step(1).min(1).default(DEFAULT_MAX_INSTRUCTION_BYTES),
     reconnect: Reconnect,
   }),
-]) as unknown as z<ConfigInput, Config>
+]) as z<ConfigInput, Config>
 
 // ---- Plugin apply ----
 
@@ -184,7 +184,6 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   const dispose = (): Promise<void> => stopping ??= connection.dispose()
   // Cordis announces unload before awaiting an unfinished apply(). Closing
   // the transport here releases startup requests that are still awaiting a reply.
-  // oxlint-disable-next-line typescript/no-misused-promises -- Cordis contains observer failures; the effect also awaits this promise.
   ctx.on('internal/plugin', (fiber) => {
     if (fiber !== ctx.fiber || fiber.uid !== null) return
     return dispose()

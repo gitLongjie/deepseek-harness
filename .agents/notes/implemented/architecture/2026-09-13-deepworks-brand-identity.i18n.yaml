@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-13-deepworks-brand-identity.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-13-deepworks-brand-identity.md
-2026-09-13-deepworks-brand-identity.md: 0310bd76a92ce24b26c4c41ac14926676fc4b0be
-2026-09-13-deepworks-brand-identity.zh.md: 530401c9ff37e078f999b8445602b071e483b32b
+/agent-note-the-miaowork-brand-identity-and-the-cloud-sea-mark:
+  en: d12975b2a7343fd8
+  zh: c2fdd2fd88052924
+/agent-note-the-miaowork-brand-identity-and-the-cloud-sea-mark/problem:
+  en: 90b762e0b8c3b23e
+  zh: 0eb0643d17278dcc
+/agent-note-the-miaowork-brand-identity-and-the-cloud-sea-mark/decision:
+  en: 99ad9506fa73c66e
+  zh: 398de4e496d1ae9b
+/agent-note-the-miaowork-brand-identity-and-the-cloud-sea-mark/alternatives-considered:
+  en: a1f26315c88ebab0
+  zh: 1bb22d412d144479
+/agent-note-the-miaowork-brand-identity-and-the-cloud-sea-mark/consequences:
+  en: abc574c93fef65a8
+  zh: abed63a408c949d3
+/agent-note-the-miaowork-brand-identity-and-the-cloud-sea-mark/verification:
+  en: d44ed50295b45a2a
+  zh: 057ae6b1c111fefe

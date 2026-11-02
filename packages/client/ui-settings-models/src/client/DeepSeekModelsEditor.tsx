@@ -5,12 +5,12 @@
  * override; reset removes that override instead of copying defaults into it.
  */
 
-import { useState } from 'react'
 import type { ReactNode } from 'react'
-import {
-  IconChevronDownOutline14, IconChevronRightOutline14, IconPlusOutline16, IconTrashOutline16,
-} from '@deepseek-ai/dsh-client-ui-primitives'
+import { AnimatedRows, IconPlusOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { en } from './locales.ts'
+import { ModelRow } from './ModelRow.tsx'
+import { useModelRows } from './useModelRows.ts'
+import type { CapacityField } from './useModelRows.ts'
 import styles from './ModelsSection.module.css'
 
 /** One catalog entry kept structurally open so hidden or future fields survive an edit. */
@@ -18,14 +18,6 @@ export type DeepSeekModelDraft = Record<string, unknown>
 
 /** The catalog fields this editor writes. */
 type CatalogField = 'id' | 'name' | 'contextWindow' | 'maxTokens' | 'inputModalities'
-
-/** The two token counts edited as K/M-suffixed text behind a row's disclosure. */
-type CapacityField = 'contextWindow' | 'maxTokens'
-
-/** Row index encoded in an editing-buffer key. */
-function rowOf(key: string): number {
-  return Number(key.slice(0, key.indexOf(':')))
-}
 
 /** Accepted capacity spellings: a decimal count with an optional K/M suffix. */
 const CAPACITY_PATTERN = /^(\d+(?:\.\d+)?)([km])?$/i
@@ -86,47 +78,6 @@ function validModelInputs(value: unknown): boolean {
     && value.includes('text')
     && value.every(item => MODEL_INPUTS.includes(item as typeof MODEL_INPUTS[number]))
     && new Set(value).size === value.length
-}
-
-/** Props for a model input-media declaration. */
-export interface ModelInputTypesProps {
-  /** Config key used by the adapter family. */
-  field: 'input' | 'inputModalities'
-  /** Current model entry. */
-  model: DeepSeekModelDraft
-  /** One-based model number used in accessible control names. */
-  number: number
-  /** Section copy. */
-  t: (key: keyof typeof en) => string
-  /** Disable the mutable image option. */
-  disabled: boolean
-  /** Save the selected media types to the row. */
-  onChange: (value: readonly ('text' | 'image')[]) => void
-}
-
-/** Render the text baseline and optional image input capability for one model. */
-export function ModelInputTypes(props: ModelInputTypesProps): ReactNode {
-  const current = props.model[props.field]
-  const supportsImage = Array.isArray(current) && current.includes('image')
-  return (
-    <fieldset className={styles['modelInputTypes']}>
-      <legend className={styles['modelFieldLabel']}>{props.t('modelInputTypes')}</legend>
-      <label className={styles['modelInputOption']}>
-        <input type="checkbox" checked disabled aria-label={`${props.t('inputText')} ${String(props.number)}`} />
-        {props.t('inputText')}
-      </label>
-      <label className={styles['modelInputOption']}>
-        <input
-          type="checkbox"
-          checked={supportsImage}
-          aria-label={`${props.t('modelInputImage')} ${String(props.number)}`}
-          disabled={props.disabled}
-          onChange={(event) => { props.onChange(event.target.checked ? ['text', 'image'] : ['text']) }}
-        />
-        {props.t('inputImage')}
-      </label>
-    </fieldset>
-  )
 }
 
 /** Convert a schema-validated catalog value into records without dropping hidden fields. */
@@ -201,24 +152,12 @@ export interface DeepSeekModelsEditorProps {
 
 /**
  * Render the direct DeepSeek adapter's model catalog: id and display name on
- * each row, capacities behind the row's own disclosure.
+ * each row, capacities and input types behind the row's own disclosure.
  * @param props - effective rows plus the array-level override actions.
  * @returns the catalog editor.
  */
 export function DeepSeekModelsEditor(props: DeepSeekModelsEditorProps): ReactNode {
-  // Capacities are edited as text, so a field's keystrokes are held here
-  // rather than re-derived from the parsed count on every change, which would
-  // rewrite `1000` to `1K` mid-word. Unreadable text is kept past blur so the
-  // save-time rejection names a row the user can still see — which is why
-  // this is one entry PER FIELD: a single active buffer would be displaced by
-  // editing any other field, and the abandoned one would fall back to
-  // rendering its stored NaN as the literal `NaN`.
-  //
-  // Keys carry the row index, so the two operations that move indexes maintain
-  // them: `remove` re-keys around the dropped row, and reset clears them all
-  // because the rows they annotated are gone.
-  const [editing, setEditing] = useState<ReadonlyMap<string, string>>(() => new Map())
-  const [expanded, setExpanded] = useState<ReadonlySet<number>>(() => new Set())
+  const rowState = useModelRows(props.models, props.onChange, props.disabled)
 
   const update = (index: number, key: CatalogField, value: unknown): void => {
     const next = props.models.map((model, at) => {
@@ -232,92 +171,44 @@ export function DeepSeekModelsEditor(props: DeepSeekModelsEditorProps): ReactNod
   }
 
   const remove = (index: number): void => {
-    setEditing((current) => {
-      const next = new Map<string, string>()
-      for (const [key, text] of current) {
-        const at = rowOf(key)
-        if (at === index) continue
-        // Only the row number moves; the field half of the key is untouched.
-        next.set(at > index ? key.replace(/^\d+/, String(at - 1)) : key, text)
-      }
-      return next
-    })
-    setExpanded((current) => {
-      const next = new Set<number>()
-      for (const at of current) {
-        if (at === index) continue
-        next.add(at > index ? at - 1 : at)
-      }
-      return next
-    })
+    rowState.forget(new Set([index]))
     props.onChange(props.models.filter((_model, at) => at !== index).map(model => ({ ...model })))
   }
 
   const reset = (): void => {
-    setEditing(new Map())
-    setExpanded(new Set())
+    rowState.reset()
     props.onReset()
-  }
-
-  const toggle = (index: number): void => {
-    setExpanded((current) => {
-      const next = new Set(current)
-      if (!next.delete(index)) next.add(index)
-      return next
-    })
   }
 
   /** The field's text: its live keystrokes, else the stored count spelled short. */
   const capacityText = (model: DeepSeekModelDraft, index: number, field: CapacityField): string => {
-    const typed = editing.get(`${String(index)}:${field}`)
+    const typed = rowState.rows[index]?.editing.get(field)
     if (typed !== undefined) return typed
     const value = model[field]
     return typeof value === 'number' ? formatCapacity(value) : ''
   }
 
   const settleCapacity = (index: number, field: CapacityField): void => {
-    const key = `${String(index)}:${field}`
-    const typed = editing.get(key)
+    const typed = rowState.rows[index]?.editing.get(field)
     if (typed === undefined) return
     // Unreadable text stays on screen: the save-time rejection names a row the
     // user can still see and correct.
     const parsed = parseCapacity(typed)
     if (parsed !== undefined && Number.isNaN(parsed)) return
-    setEditing((current) => {
-      const next = new Map(current)
-      next.delete(key)
-      return next
-    })
+    rowState.edit(index, field, undefined)
   }
 
-  /** One capacity field of one row, rendered inside the row's disclosure. */
-  const capacityField = (
-    model: DeepSeekModelDraft,
-    index: number,
-    field: CapacityField,
-    fallback: number | undefined,
-  ): ReactNode => (
-    <label className={styles['modelField']}>
-      <span className={styles['modelFieldLabel']}>{props.t(field === 'contextWindow' ? 'contextWindow' : 'maxTokens')}</span>
-      <input
-        className={styles['input']}
-        type="text"
-        inputMode="numeric"
-        value={capacityText(model, index, field)}
-        placeholder={fallback === undefined
-          ? props.t(field === 'contextWindow' ? 'contextWindowPlaceholder' : 'maxTokensPlaceholder')
-          : formatCapacity(fallback)}
-        aria-label={`${props.t(field === 'contextWindow' ? 'contextWindow' : 'maxTokens')} ${String(index + 1)}`}
-        disabled={props.disabled}
-        onChange={(event) => {
-          const text = event.target.value
-          setEditing(current => new Map(current).set(`${String(index)}:${field}`, text))
-          update(index, field, parseCapacity(text))
-        }}
-        onBlur={() => { settleCapacity(index, field) }}
-      />
-    </label>
-  )
+  const capacityInput = (model: DeepSeekModelDraft, index: number, field: CapacityField, fallback: number | undefined) => ({
+    value: capacityText(model, index, field),
+    placeholder: fallback === undefined
+      ? props.t(field === 'contextWindow' ? 'contextWindowPlaceholder' : 'maxTokensPlaceholder')
+      : formatCapacity(fallback),
+    onChange: (text: string) => {
+      rowState.edit(index, field, text)
+      update(index, field, parseCapacity(text))
+    },
+    onBlur: () => { settleCapacity(index, field) },
+  })
 
   return (
     <section className={styles['modelCatalog']} aria-label={props.t('models')}>
@@ -341,87 +232,39 @@ export function DeepSeekModelsEditor(props: DeepSeekModelsEditorProps): ReactNod
           )
           : null}
       </div>
-      {props.models.length === 0
-        ? <p className={styles['modelEmpty']}>{props.t('modelsEmpty')}</p>
-        : (
-          <div className={styles['modelList']}>
-            {props.models.map((model, index) => (
-              <div className={styles['modelEntry']} key={index}>
-                <div className={styles['modelRow']}>
-                  <input
-                    className={styles['input']}
-                    type="text"
-                    value={typeof model['id'] === 'string' ? model['id'] : ''}
-                    placeholder={props.t('modelId')}
-                    aria-label={`${props.t('modelId')} ${String(index + 1)}`}
-                    disabled={props.disabled}
-                    onChange={(event) => { update(index, 'id', event.target.value) }}
-                    onBlur={(event) => {
-                      // Settle a pasted id rather than trimming per keystroke,
-                      // which would stop the user typing an interior space.
-                      const trimmed = event.target.value.trim()
-                      if (trimmed !== event.target.value) update(index, 'id', trimmed)
-                    }}
-                  />
-                  <input
-                    className={styles['input']}
-                    type="text"
-                    value={typeof model['name'] === 'string' ? model['name'] : ''}
-                    placeholder={props.t('modelName')}
-                    aria-label={`${props.t('modelName')} ${String(index + 1)}`}
-                    disabled={props.disabled}
-                    onChange={(event) => {
-                      update(index, 'name', event.target.value === '' ? undefined : event.target.value)
-                    }}
-                  />
-                  <button
-                    type="button"
-                    className={styles['iconButton']}
-                    aria-label={`${props.t('modelAdvanced')} ${String(index + 1)}`}
-                    aria-expanded={expanded.has(index)}
-                    title={props.t('modelAdvanced')}
-                    onClick={() => { toggle(index) }}
-                  >
-                    {expanded.has(index) ? <IconChevronDownOutline14 /> : <IconChevronRightOutline14 />}
-                  </button>
-                  <button
-                    type="button"
-                    className={`${styles['iconButton']} ${styles['iconButtonDanger']}`}
-                    aria-label={`${props.t('removeModel')} ${String(index + 1)}`}
-                    title={props.t('removeModel')}
-                    disabled={props.disabled}
-                    onClick={() => { remove(index) }}
-                  >
-                    <IconTrashOutline16 size={14} />
-                  </button>
-                </div>
-                {expanded.has(index)
-                  ? (
-                    <div className={styles['modelAdvanced']}>
-                      {capacityField(model, index, 'contextWindow', props.defaultContextWindow)}
-                      {capacityField(model, index, 'maxTokens', props.defaultMaxTokens)}
-                      <ModelInputTypes
-                        field="inputModalities"
-                        model={model}
-                        number={index + 1}
-                        t={props.t}
-                        disabled={props.disabled}
-                        onChange={(value) => { update(index, 'inputModalities', [...value]) }}
-                      />
-                    </div>
-                  )
-                  : null}
-              </div>
-            ))}
-          </div>
-        )}
+      <AnimatedRows className={styles['modelList'] as string} rowKeys={rowState.rows.map(row => String(row.key))} ready resetKey="">
+        {props.models.length === 0 ? <p className={styles['modelEmpty']}>{props.t('modelsEmpty')}</p> : null}
+        {rowState.rows.map(({ model, key, expanded, order }, index) => (
+          <ModelRow
+            key={key}
+            rowKey={key}
+            order={order}
+            model={model}
+            position={index + 1}
+            inputField="inputModalities"
+            expanded={expanded}
+            disabled={props.disabled}
+            t={props.t}
+            contextWindow={capacityInput(model, index, 'contextWindow', props.defaultContextWindow)}
+            maxTokens={capacityInput(model, index, 'maxTokens', props.defaultMaxTokens)}
+            onFieldChange={(field, value) => { update(index, field, value) }}
+            onIdBlur={(value) => {
+              const trimmed = value.trim()
+              if (trimmed !== value) update(index, 'id', trimmed)
+            }}
+            onChange={(next) => { props.onChange(props.models.map((row, at) => at === index ? next : row)) }}
+            onToggle={() => { rowState.toggle(index) }}
+            onRemove={() => { remove(index) }}
+          />
+        ))}
+      </AnimatedRows>
       <button
         type="button"
         className={styles['addModelButton']}
         disabled={props.disabled}
         onClick={() => { props.onChange([...props.models.map(model => ({ ...model })), { id: '' }]) }}
       >
-        <IconPlusOutline16 size={14} />
+        <IconPlusOutlineRegular size={14} />
         {props.t('addModel')}
       </button>
     </section>

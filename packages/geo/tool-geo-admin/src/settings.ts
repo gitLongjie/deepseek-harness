@@ -16,7 +16,6 @@
  * @module @deepseek-ai/dsh-tool-geo-admin/settings
  */
 
-import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-settings'
 import z from '@deepseek-ai/schemastery'
 
@@ -69,29 +68,7 @@ declare module '@deepseek-ai/cordis' {
   }
 }
 
-/** Services the host settings entry requires. */
-export const inject = ['settings'] as const
-
-/**
- * Register the `geo-admin` settings namespace and publish its live view.
- * @param ctx - host plugin context.
- * @param config - composition-carried base section layered under user edits.
- */
-export function apply(ctx: Context, config: GeoAdminSettingsSection): void {
-  const scope = ctx.settings.register(GEO_ADMIN_SETTINGS_NAMESPACE, GeoAdminSettingsSchema, { base: config })
-  const watchers = new Set<(next: GeoAdminSettingsSection) => void>()
-  ctx.effect(
-    () => scope.watch((next) => { for (const watch of watchers) watch(next) }),
-    'geo-admin/settings: section fan-out',
-  )
-  ctx.effect(
-    () => ctx.provide('geoAdminSettings', {
-      get: () => scope.get(),
-      watch: (callback: (next: GeoAdminSettingsSection) => void) => {
-        watchers.add(callback)
-        return () => { watchers.delete(callback) }
-      },
-    } satisfies GeoAdminSettingsView),
-    'geo-admin/settings: live view',
-  )
-}
+// FIXME(host-settings): the `ctx.settings.register` host entry this module used
+// to export was removed by the upstream settings-service rework; the namespace
+// registration and its `geoAdminSettings` live view need re-porting onto the
+// new mechanism. Until then the tools read only their composition config.

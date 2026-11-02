@@ -1,6 +1,25 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write business-entry/README.md
-README.md: b3ab607e80a72cfc9a32f9e2d649c596a9d78af1
-README.zh.md: ab8e034bf5a5448c069e2db671bf41bce24df785
+/xmanrui-dsh-business-entry:
+  en: 5bed23be3ea6575b
+  zh: 967776da6c681e2d
+/xmanrui-dsh-business-entry/task-launch:
+  en: 03fa5fb2d5fc4f5d
+  zh: 5fccaf8da33c0196
+/xmanrui-dsh-business-entry/install:
+  en: 9dd717b588f5bcc7
+  zh: e4442d78d40f844e
+/xmanrui-dsh-business-entry/build:
+  en: b7ee305a8bcb7bf5
+  zh: 43d5cbe0ec823f40
+/xmanrui-dsh-business-entry/test:
+  en: d66cc5e79f568cab
+  zh: d197d5d4b8a471bd
+/xmanrui-dsh-business-entry/toggle:
+  en: 28361c660b96fd28
+  zh: bdd3f2f827be62cf
+/xmanrui-dsh-business-entry/file-layout:
+  en: 5b4a4230b2e857bb
+  zh: e8fcab1a669bcfcc

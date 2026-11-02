@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-02-renderer-long-transcript-stall.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-02-renderer-long-transcript-stall.md
-2026-09-02-renderer-long-transcript-stall.md: e6e686ff25bfd60804ca9659f180d27f8ae19346
-2026-09-02-renderer-long-transcript-stall.zh.md: 6a7f4641c172342e25a91d2a3e9a2122fbd4bf75
+/agent-note-defer-off-screen-long-transcript-rendering:
+  en: 8d5c7e47593d89f7
+  zh: 1bce319a5c1b27ff
+/agent-note-defer-off-screen-long-transcript-rendering/problem:
+  en: 9d7c2c0bb7d45a2b
+  zh: adc85fdbb3732582
+/agent-note-defer-off-screen-long-transcript-rendering/decision:
+  en: c1701608ed9fedaa
+  zh: 86da88c6e6da4c37
+/agent-note-defer-off-screen-long-transcript-rendering/consequences:
+  en: 49f8c0ee39c3f957
+  zh: 293b0eed41d9dc41
+/agent-note-defer-off-screen-long-transcript-rendering/alternatives-considered:
+  en: d8c233448ebdcde2
+  zh: 53fc6bf47d735671

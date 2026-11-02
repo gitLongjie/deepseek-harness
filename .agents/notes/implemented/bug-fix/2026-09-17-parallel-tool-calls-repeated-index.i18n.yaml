@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-17-parallel-tool-calls-repeated-index.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-17-parallel-tool-calls-repeated-index.md
-2026-09-17-parallel-tool-calls-repeated-index.md: 3a21bcf59bd834a801fd0647627bdcd9b2838ef7
-2026-09-17-parallel-tool-calls-repeated-index.zh.md: cc21652c48069cb4fac4308eb12365075761f694
+/agent-note-split-parallel-tool-calls-a-gateway-packs-under-one-repeated-chat-completions-index:
+  en: 12efad7a792d4b93
+  zh: 316276d852fd7836
+/agent-note-split-parallel-tool-calls-a-gateway-packs-under-one-repeated-chat-completions-index/problem:
+  en: 534808b4f58e5641
+  zh: 09591657b0a794d6
+/agent-note-split-parallel-tool-calls-a-gateway-packs-under-one-repeated-chat-completions-index/decision:
+  en: 5d08c7573ff9246e
+  zh: 78a41585f7f128c8
+/agent-note-split-parallel-tool-calls-a-gateway-packs-under-one-repeated-chat-completions-index/alternatives-considered:
+  en: 0e0751fd9b2f7a0e
+  zh: a55ca2a58e54ca77
+/agent-note-split-parallel-tool-calls-a-gateway-packs-under-one-repeated-chat-completions-index/consequences:
+  en: 699ba3a254dfd8a9
+  zh: abda408767575400

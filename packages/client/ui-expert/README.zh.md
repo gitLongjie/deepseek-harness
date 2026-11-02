@@ -67,7 +67,7 @@ Web bundle 默认挂载本插件；移除该行即可关闭此界面。侧边栏
 <a id="further-exploration"></a>
 ## 延伸阅读
 
-- [`dsh-agent-presets`](../../preset/agent-presets/README.zh.md)——专家卡片所参照的 `preset.yml` 元数据字段，以及该名单被排除在外的 preset 界面。
+- [`dsh-agent-presets`](../../preset/agent-preset-registry/README.zh.md)——专家卡片所参照的 `preset.yml` 元数据字段，以及该名单被排除在外的 preset 界面。
 - [`dsh-client-ui-agent-preset`](../ui-agent-preset/README.zh.md)——本包借以暂存选择的 preset 界面。
 - [Slots subsystem](../../../docs/subsystems/slots.zh.md)——本注册使用的洞/占用者模型。
 

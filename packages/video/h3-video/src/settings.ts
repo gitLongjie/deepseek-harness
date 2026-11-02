@@ -14,7 +14,6 @@
  * @module @deepseek-ai/dsh-h3-video/settings
  */
 
-import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-settings'
 import z from '@deepseek-ai/schemastery'
 
@@ -120,29 +119,7 @@ declare module '@deepseek-ai/cordis' {
   }
 }
 
-/** Services the host settings entry requires. */
-export const inject = ['settings'] as const
-
-/**
- * Register the `h3-video` settings namespace and publish its live view.
- * @param ctx - host plugin context.
- * @param config - composition-carried base section layered under user edits.
- */
-export function apply(ctx: Context, config: H3VideoSettingsSection): void {
-  const scope = ctx.settings.register(H3_VIDEO_SETTINGS_NAMESPACE, H3VideoSettingsSchema, { base: config })
-  const watchers = new Set<(next: H3VideoSettingsSection) => void>()
-  ctx.effect(
-    () => scope.watch((next) => { for (const watch of watchers) watch(next) }),
-    'h3-video/settings: section fan-out',
-  )
-  ctx.effect(
-    () => ctx.provide('h3VideoSettings', {
-      get: () => scope.get(),
-      watch: (callback: (next: H3VideoSettingsSection) => void) => {
-        watchers.add(callback)
-        return () => { watchers.delete(callback) }
-      },
-    } satisfies H3VideoSettingsView),
-    'h3-video/settings: live view',
-  )
-}
+// FIXME(host-settings): the `ctx.settings.register` host entry this module used
+// to export was removed by the upstream settings-service rework; the namespace
+// registration and its `h3VideoSettings` live view need re-porting onto the new
+// mechanism. Until then the service reads only its composition configuration.

@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-10-16-business-entry-task-launch.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-10-16-business-entry-task-launch.md
-2026-10-16-business-entry-task-launch.md: b7840ed064e460489dfac3ab40a7b652c8cac187
-2026-10-16-business-entry-task-launch.zh.md: 388d8181711c94b30e53b00c1a340f0a8ac158fc
+/agent-note-business-entry-task-launch:
+  en: ad1ff0f5504af2c8
+  zh: 9ddd6a622b905514
+/agent-note-business-entry-task-launch/problem:
+  en: 0e5a1df40ef2bbfb
+  zh: 5aad96dda85b55ab
+/agent-note-business-entry-task-launch/decision:
+  en: fa86124e73ea930b
+  zh: a1606a3cf83f0d43
+/agent-note-business-entry-task-launch/alternatives-considered:
+  en: bc406fa28c81bd55
+  zh: 3eb15c13dc17fa00
+/agent-note-business-entry-task-launch/consequences:
+  en: 81196e4512bcb173
+  zh: 83b07cc3d18ce89f

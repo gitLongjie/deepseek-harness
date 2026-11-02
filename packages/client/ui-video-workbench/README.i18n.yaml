@@ -1,6 +1,40 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/client/ui-video-workbench/README.md
-README.md: d8cbeb6f9f4acc00d3d70754d15a9cb8f16c01d6
-README.zh.md: 321bcdebb563127981039e7bd2a06e1c5379a833
+/:
+  en: 187f81abf63b1550
+  zh: 0e1454ed2e539b9a
+/deepseek-ai-dsh-client-ui-video-workbench:
+  en: 0f6cc9493da6b6cf
+  zh: e9e301012c827411
+/deepseek-ai-dsh-client-ui-video-workbench/summary:
+  en: 4b5c328bf321a97c
+  zh: f33660b97a40c987
+/deepseek-ai-dsh-client-ui-video-workbench/table-of-contents:
+  en: d81e996345d208f1
+  zh: 62a62d20c6c14f51
+/deepseek-ai-dsh-client-ui-video-workbench/understand-the-implementation:
+  en: 298f333aec4395a0
+  zh: 45569e03bc4eca3d
+/deepseek-ai-dsh-client-ui-video-workbench/model-experience:
+  en: 215e7ba838619b7b
+  zh: 215e7ba838619b7b
+/deepseek-ai-dsh-client-ui-video-workbench/model-experience/model-facing-contract:
+  en: fa56266b2731f7ba
+  zh: fa56266b2731f7ba
+/deepseek-ai-dsh-client-ui-video-workbench/model-experience/model-facing-contract/what-the-model-sees:
+  en: af37de92c9d838e4
+  zh: 2c4afb209dd2c10d
+/deepseek-ai-dsh-client-ui-video-workbench/model-experience/model-facing-contract/token-effect:
+  en: 88493c167a204fed
+  zh: cd2df6d618ddb450
+/deepseek-ai-dsh-client-ui-video-workbench/model-experience/model-facing-contract/kv-cache-effect:
+  en: 44a4813bba6fdc42
+  zh: 14ded335e5a0ab16
+/deepseek-ai-dsh-client-ui-video-workbench/known-limitations-and-deferred-work:
+  en: 8846304c90a4bffb
+  zh: 2845e734b1105bbb
+/deepseek-ai-dsh-client-ui-video-workbench/known-limitations-and-deferred-work/dev-note:
+  en: a0440f1217368252
+  zh: a412fc5178c86d79

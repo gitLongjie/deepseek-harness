@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-15-expert-market-reads-the-roster-only.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/simplification/2026-09-15-expert-market-reads-the-roster-only.md
-2026-09-15-expert-market-reads-the-roster-only.md: 7f158e9fe52aa5ca724f408c65c11d08bd137c22
-2026-09-15-expert-market-reads-the-roster-only.zh.md: e03545255d1fc18dd54f4299b45d1d524034bab1
+/agent-note-expert-market-reads-the-deployment-roster-only:
+  en: f041f558f8c3e8d7
+  zh: 87b70eeb3a6c1ee9
+/agent-note-expert-market-reads-the-deployment-roster-only/problem:
+  en: 21e4af06c8198606
+  zh: 0362782ae39de3eb
+/agent-note-expert-market-reads-the-deployment-roster-only/decision:
+  en: 01b3ec61290de843
+  zh: 6bf6b7c686ee1fdb
+/agent-note-expert-market-reads-the-deployment-roster-only/alternatives-considered:
+  en: 9a36c3d5db927eef
+  zh: c3169faca87d30b6
+/agent-note-expert-market-reads-the-deployment-roster-only/verification:
+  en: 410bbaea8119308d
+  zh: 3a58926c70351a66
+/agent-note-expert-market-reads-the-deployment-roster-only/consequences:
+  en: 9a2ae8e2426955b2
+  zh: dc2d15f76c3e3c73

@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-10-06-video-workbench.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-10-06-video-workbench.md
-2026-10-06-video-workbench.md: bbfd0004ec652f4522c9a577c17f8f8fb49f633a
-2026-10-06-video-workbench.zh.md: 9f39a19332c04c658288d11608bfda28a6346989
+/agent-note-the-video-workbench-lands-first-oh-story-dsh-pattern:
+  en: 261d832e03803e3a
+  zh: 73efbef6ad9ed02f
+/agent-note-the-video-workbench-lands-first-oh-story-dsh-pattern/problem:
+  en: cec5ac7fa5148db2
+  zh: 89ebdda81066596e
+/agent-note-the-video-workbench-lands-first-oh-story-dsh-pattern/decision:
+  en: 6fe9ac17a93f8795
+  zh: 8a04af7b5d8e457f
+/agent-note-the-video-workbench-lands-first-oh-story-dsh-pattern/alternatives-considered:
+  en: 8a0d9dc4da27d3c5
+  zh: 5d99d3e9b293ccb4
+/agent-note-the-video-workbench-lands-first-oh-story-dsh-pattern/consequences:
+  en: 2b5d1cd51566d2b6
+  zh: df5098f7f89040c6
+/agent-note-the-video-workbench-lands-first-oh-story-dsh-pattern/references:
+  en: 1906fe23001fec1c
+  zh: 27cfb772f3cef89c

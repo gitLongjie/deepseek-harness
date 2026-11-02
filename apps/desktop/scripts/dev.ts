@@ -1,17 +1,16 @@
-/**
- * Development launcher: builds the web dist (relative base), compiles the main
- * process and render transport, copies the web dist, then launches Electron on
- * the compiled main. The host runs from source via the compiled main's tsx-free
- * imports against the built workspace libs.
- */
-import { spawn, spawnSync } from 'node:child_process'
-import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+/** Build and launch the unpackaged Electron shell against the current workspace. */
+
+import { spawn, execFileSync } from 'node:child_process'
+import { existsSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
-import { fileURLToPath } from 'node:url'
-import { dirname, resolve, basename } from 'node:path'
-import { Data, NtExecutable, NtExecutableResource, Resource } from 'resedit'
-import { readDesktopOemConfig, syncDesktopOemIcons } from './desktop-oem-config.mjs'
-import { discoverLibraryDirs, discoverPluginDirs } from '../../../scripts/dev-web.ts'
+import { join, resolve } from 'node:path'
+import { parseArgs } from 'node:util'
+import { DESKTOP_HOST_PROTOCOL_VERSION } from '../src/host-protocol.ts'
+import type { DesktopRelease } from '../src/release.ts'
+import { developmentRuntimeDirectory, resolveDesktopBuildTarget } from './desktop-build-paths.mjs'
+import { prepareDevelopmentProject } from './development-project.ts'
+import { prepareDevelopmentApp } from './development-app.ts'
+import { preparePrimaryRuntime } from './prepare-primary-runtime.ts'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 const repoRoot = resolve(root, '../..')
@@ -63,27 +62,77 @@ function refreshLocalBusinessEntryPlugin(): void {
   copyFileSync(resolve(source, 'package.json'), resolve(patchTarget, 'package.json'))
 }
 
-// The web dist must use a relative asset base so the app scheme can serve it;
-// build directly into apps/desktop/web to keep apps/web/dist (the served build)
-// untouched.
-// --emptyOutDir: the outDir is outside the web app's root, so vite would keep
-// old hashed chunks otherwise; stale assets linger and confuse diagnosis.
-refreshLocalImPlugin()
-refreshLocalBusinessEntryPlugin()
-// The Client-face tsdown bundles every plugin from its tsc emit under
-// lib/types, not its sources, so the emit must be refreshed for all client
-// packages before bundling: a stale emit ships the previous logic with no
-// error — an edit just never appears in the app.
-run('pnpm', [
-  'exec',
-  'tsc',
-  '-b',
-  ...discoverPluginDirs(repoRoot),
-  ...discoverLibraryDirs(repoRoot),
-], { cwd: repoRoot })
-run('pnpm', ['exec', 'tsdown', '--env.DSH_BUILD_FACE', 'client'], { cwd: repoRoot })
-run('pnpm', ['--filter', '@deepseek-ai/dsh-web-frontend', 'exec', 'vite', 'build', '--outDir', resolve(root, 'web'), '--emptyOutDir'], {
-  env: { ...process.env, DSH_DESKTOP_BUILD: '1' },
+async function launchElectron(): Promise<void> {
+  const require = createRequire(import.meta.url)
+  const electron: unknown = require('electron')
+  if (typeof electron !== 'string') throw new Error('desktop development: electron executable is unavailable')
+  const mainPort = debugPort('DSH_DESKTOP_MAIN_INSPECT_PORT', 9229)
+  const rendererPort = debugPort('DSH_DESKTOP_RENDERER_DEBUG_PORT', 9222)
+  const hostPort = debugPort('DSH_DESKTOP_HOST_INSPECT_PORT', 9230)
+  const home = resolve(process.env.DSH_HOME ?? join(DEVELOPMENT_ROOT, 'home'))
+  const userData = resolve(process.env.DSH_DESKTOP_USER_DATA_DIR ?? join(DEVELOPMENT_ROOT, 'electron-user-data'))
+  const environment: NodeJS.ProcessEnv = {
+    ...process.env,
+    DSH_HOME: home,
+    DSH_DESKTOP_PRIMARY_RUNTIME_DIR: process.env.DSH_DESKTOP_PRIMARY_RUNTIME_DIR ?? developmentRuntimeDirectory(),
+    DSH_DESKTOP_HOST_INSPECT_PORT: String(hostPort),
+    DSH_DESKTOP_OPEN_DEVTOOLS: process.env.DSH_DESKTOP_OPEN_DEVTOOLS ?? '1',
+    ELECTRON_ENABLE_LOGGING: process.env.ELECTRON_ENABLE_LOGGING ?? '1',
+  }
+  console.log(`desktop development: DSH_HOME=${home}`)
+  console.log(`desktop development: userData=${userData}`)
+  console.log(`desktop development: inspectors main=${String(mainPort)}, renderer=${String(rendererPort)}, host=${String(hostPort)}`)
+  if (process.platform === 'darwin') {
+    const executable = prepareDevelopmentApp({ electron, appRoot: APP_ROOT, directory: DEVELOPMENT_ROOT, home, userData,
+      mainPort, rendererPort, hostPort, openDevtools: environment.DSH_DESKTOP_OPEN_DEVTOOLS! })
+    await run(executable, [], APP_ROOT, environment)
+    return
+  }
+  await run(electron, [
+    `--inspect=127.0.0.1:${String(mainPort)}`,
+    `--remote-debugging-port=${String(rendererPort)}`,
+    `--user-data-dir=${userData}`,
+    APP_ROOT,
+  ], APP_ROOT, environment)
+}
+
+async function main(): Promise<void> {
+  const { values } = parseArgs({ options: { 'skip-build': { type: 'boolean', default: false } } })
+  if (!values['skip-build']) {
+    await runPackageScript('build:artifacts', REPOSITORY_ROOT)
+    await runPackageScript('build', APP_ROOT)
+  }
+  for (const path of [
+    join(APP_ROOT, 'lib', 'main.js'),
+    join(REPOSITORY_ROOT, 'apps', 'desktop-host', 'lib', 'index.js'),
+  ]) {
+    if (!existsSync(path)) throw new Error(`desktop development: missing built artifact ${path}`)
+  }
+  const version = packageVersion(join(APP_ROOT, 'package.json'), 'desktop package')
+  const pnpmVersion = packageVersion(join(APP_ROOT, 'node_modules', 'pnpm', 'package.json'), 'pnpm package')
+  const release: DesktopRelease = {
+    schemaVersion: 1,
+    version,
+    hostProtocolVersion: DESKTOP_HOST_PROTOCOL_VERSION,
+    nodeVersion: execFileSync(createRequire(import.meta.url)('electron') as string, ['-p', 'process.versions.node'],
+      { encoding: 'utf8', env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' } }).trim(),
+    pnpmVersion,
+  }
+  prepareDevelopmentProject({
+    projectDir: join(DEVELOPMENT_ROOT, 'project'),
+    cliDir: join(REPOSITORY_ROOT, 'apps', 'cli'),
+    hostDir: join(REPOSITORY_ROOT, 'apps', 'desktop-host'),
+    dependencyDir: join(REPOSITORY_ROOT, 'node_modules', '.pnpm', 'node_modules'),
+    release,
+    target: resolveDesktopBuildTarget(),
+  })
+  await preparePrimaryRuntime()
+  await launchElectron()
+}
+
+await main().catch((error: unknown) => {
+  console.error(error instanceof Error ? error.message : error)
+  process.exitCode = 1
 })
 syncDesktopOemIcons(repoRoot, root)
 run('pnpm', ['build:main'], { cwd: root })

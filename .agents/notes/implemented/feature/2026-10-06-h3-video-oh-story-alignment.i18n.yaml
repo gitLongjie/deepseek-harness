@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-10-06-h3-video-oh-story-alignment.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-10-06-h3-video-oh-story-alignment.md
-2026-10-06-h3-video-oh-story-alignment.md: 35a75d9739d62d22ab5cf2d2f0cc7baffb67ed09
-2026-10-06-h3-video-oh-story-alignment.zh.md: 445752c3a46540bf3c4a9e4b5ba15882cd424522
+/agent-note-aligning-the-h3-video-practice-with-oh-story-dsh:
+  en: bba8fda4a2082ad9
+  zh: b119dd3d00c504fc
+/agent-note-aligning-the-h3-video-practice-with-oh-story-dsh/problem:
+  en: 403a2e2bc880a378
+  zh: fa4deccf3c0a28c3
+/agent-note-aligning-the-h3-video-practice-with-oh-story-dsh/decision:
+  en: aa96b13622a633f4
+  zh: 25cb250b8acd6c3a
+/agent-note-aligning-the-h3-video-practice-with-oh-story-dsh/alternatives-considered:
+  en: 5ef30764f3ca4f64
+  zh: c9338858cfc45686
+/agent-note-aligning-the-h3-video-practice-with-oh-story-dsh/consequences:
+  en: db7ae2e6929003b3
+  zh: 7cb038fda8524781
+/agent-note-aligning-the-h3-video-practice-with-oh-story-dsh/references:
+  en: 2464c144cb0f11bf
+  zh: 869aa81d24dd53a6

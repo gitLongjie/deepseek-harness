@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-29-desktop-presets-realm-engine-row.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-29-desktop-presets-realm-engine-row.md
-2026-09-29-desktop-presets-realm-engine-row.md: 3bc430903e6c46126ac6e64bee0b0a5e74688e9b
-2026-09-29-desktop-presets-realm-engine-row.zh.md: 245e16b32dea2ee454d81df2cf935763459addfc
+/agent-note-desktop-preset-compositions-provide-their-realm-isolated-workflow-engine:
+  en: 388240028c3dd5f7
+  zh: 3f548c1deec2e87e
+/agent-note-desktop-preset-compositions-provide-their-realm-isolated-workflow-engine/problem:
+  en: ecc15033491368d3
+  zh: 9a90bf6e1f69e029
+/agent-note-desktop-preset-compositions-provide-their-realm-isolated-workflow-engine/decision:
+  en: 309ff0eb9de35040
+  zh: 9b14b1e28b7af1d4
+/agent-note-desktop-preset-compositions-provide-their-realm-isolated-workflow-engine/alternatives-considered:
+  en: 2f9fbc8c7fded714
+  zh: e20ce1bf615089fd
+/agent-note-desktop-preset-compositions-provide-their-realm-isolated-workflow-engine/consequences:
+  en: 3860ba7c640b5418
+  zh: 7b7bd7e3d533f69a

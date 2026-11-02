@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-18-desktop-userdata-ascii-id.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-18-desktop-userdata-ascii-id.md
-2026-09-18-desktop-userdata-ascii-id.md: 0176bfd5048324a3418cbccc02e31f086edd2672
-2026-09-18-desktop-userdata-ascii-id.zh.md: 6b617079d0fb07cc7173de8ffdadfede3de984d4
+/agent-note-the-desktop-userdata-directory-stays-on-the-ascii-exe-id:
+  en: 1fd4c8a42dc7f1cf
+  zh: e0c43fb54856d0b5
+/agent-note-the-desktop-userdata-directory-stays-on-the-ascii-exe-id/problem:
+  en: c20b4f2cbb36b1ef
+  zh: 8a08c1120ce4fbce
+/agent-note-the-desktop-userdata-directory-stays-on-the-ascii-exe-id/decision:
+  en: ceedbdc6d64a9426
+  zh: 33e5787325f278eb
+/agent-note-the-desktop-userdata-directory-stays-on-the-ascii-exe-id/alternatives-considered:
+  en: 1de35f31e052b018
+  zh: 3a70aec381fc39d2
+/agent-note-the-desktop-userdata-directory-stays-on-the-ascii-exe-id/consequences:
+  en: f32523f0f5f1828e
+  zh: b318c288e17b8a08
+/agent-note-the-desktop-userdata-directory-stays-on-the-ascii-exe-id/verification:
+  en: 424cd53398797de1
+  zh: e02b37ce726218d5

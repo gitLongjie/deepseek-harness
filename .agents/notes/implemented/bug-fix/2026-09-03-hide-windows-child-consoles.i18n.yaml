@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-03-hide-windows-child-consoles.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-03-hide-windows-child-consoles.md
-2026-09-03-hide-windows-child-consoles.md: 54552efe6601517c69f6edbeca719eff4daf198f
-2026-09-03-hide-windows-child-consoles.zh.md: 07733c86d2acab74acbecf12047b1f4df088b56b
+/agent-note-hide-windows-child-consoles:
+  en: 575ab98ce72f04ad
+  zh: 4fe7824dee197278
+/agent-note-hide-windows-child-consoles/problem:
+  en: e1f9d3a5e4b47258
+  zh: 6c6fbe77b7846624
+/agent-note-hide-windows-child-consoles/decision:
+  en: 1381651b5c6f4e8c
+  zh: 46105c15b956a928
+/agent-note-hide-windows-child-consoles/alternatives-considered:
+  en: 8ad0d8fc8bb078c3
+  zh: 194700878217264a
+/agent-note-hide-windows-child-consoles/consequences:
+  en: 57afda891390b600
+  zh: 6b7971d7276f62fe

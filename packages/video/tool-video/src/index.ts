@@ -1146,7 +1146,7 @@ function chainJobHooks(
         const status = await ctx.h3Video.poll(target, ref, controller.signal)
         if (status.state !== 'succeeded') {
           chunks.push(`[failed] ${segment.id}: ${status.state}`)
-          return { status: 'failed', detail: `${segment.id} ${status.state}`, output: chunks.join('\n') }
+          return { status: 'failed', detail: `${segment.id} ${status.state}`, result: chunks.join('\n') }
         }
         const canonical = canonicalSegmentFile(outputDir, plan.id, segment.id)
         await mkdir(dirname(canonical), { recursive: true })
@@ -1166,14 +1166,14 @@ function chainJobHooks(
       } catch (error: unknown) {
         if (controller.signal.aborted) {
           chunks.push(`[killed] ${segment.id}`)
-          return { status: 'killed', detail: 'cancelled', output: chunks.join('\n') }
+          return { status: 'killed', detail: 'cancelled', result: chunks.join('\n') }
         }
         const message = error instanceof Error ? error.message : String(error)
         chunks.push(`[failed] ${segment.id}: ${message}`)
-        return { status: 'failed', detail: message, output: chunks.join('\n') }
+        return { status: 'failed', detail: message, result: chunks.join('\n') }
       }
     }
-    return { status: 'completed', detail: `${segments.length} chained shot(s)`, output: chunks.join('\n') }
+    return { status: 'completed', detail: `${segments.length} chained shot(s)`, result: chunks.join('\n') }
   })()
   return {
     cancel: () => { controller.abort() },
@@ -1379,22 +1379,22 @@ function renderJobHooks(
           await copyFile(status.localFile, canonical)
         }
         chunks.push(`[succeeded] ${segment.id} -> ${canonical}`)
-        return { status: 'completed', detail: segment.id, output: chunks.join('\n') }
+        return { status: 'completed', detail: segment.id, result: chunks.join('\n') }
       }
       if (status.state === 'failed') {
         chunks.push(`[failed] ${segment.id}: ${status.reason}`)
-        return { status: 'failed', detail: status.reason, output: chunks.join('\n') }
+        return { status: 'failed', detail: status.reason, result: chunks.join('\n') }
       }
       chunks.push(`[failed] ${segment.id}: poll returned non-terminal state ${status.state}`)
-      return { status: 'failed', detail: `unexpected poll state ${status.state}`, output: chunks.join('\n') }
+      return { status: 'failed', detail: `unexpected poll state ${status.state}`, result: chunks.join('\n') }
     } catch (error: unknown) {
       if (controller.signal.aborted) {
         chunks.push(`[killed] ${segment.id}`)
-        return { status: 'killed', detail: 'cancelled', output: chunks.join('\n') }
+        return { status: 'killed', detail: 'cancelled', result: chunks.join('\n') }
       }
       const message = error instanceof Error ? error.message : String(error)
       chunks.push(`[failed] ${segment.id}: ${message}`)
-      return { status: 'failed', detail: message, output: chunks.join('\n') }
+      return { status: 'failed', detail: message, result: chunks.join('\n') }
     }
   })()
   return {
@@ -1955,7 +1955,7 @@ export function apply(ctx: Context): void {
           const jobId = ctx.jobs.start({
             kind: 'h3-video',
             label: `render ${plan.id}/multi-shot`,
-            owner: agent,
+            owner: agent.id,
             outputLimitBytes: 4000,
             run: () => renderJobHooks(ctx, plan.id, combined, target, ref),
           })
@@ -1990,7 +1990,7 @@ export function apply(ctx: Context): void {
           const jobId = ctx.jobs.start({
             kind: 'h3-video',
             label: `render ${plan.id}/chain`,
-            owner: agent,
+            owner: agent.id,
             outputLimitBytes: 8000,
             run: () => chainJobHooks(ctx, plan, selected, args.backend),
           })
@@ -2024,7 +2024,7 @@ export function apply(ctx: Context): void {
             const jobId = ctx.jobs.start({
               kind: 'h3-video',
               label: `render ${plan.id}/${segment.id}`,
-              owner: agent,
+              owner: agent.id,
               outputLimitBytes: 4000,
               run: () => renderJobHooks(ctx, plan.id, segment, target, ref),
             })

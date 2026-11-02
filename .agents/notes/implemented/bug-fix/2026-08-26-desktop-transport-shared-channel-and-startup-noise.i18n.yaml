@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-26-desktop-transport-shared-channel-and-startup-noise.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-26-desktop-transport-shared-channel-and-startup-noise.md
-2026-08-26-desktop-transport-shared-channel-and-startup-noise.md: 7966a627ff96ed1992a5b878240ac9c913e3a8ea
-2026-08-26-desktop-transport-shared-channel-and-startup-noise.zh.md: a487b8fe680808258e1d69c0b4a2354876debdeb
+/agent-note-desktop-ipc-dispatch-through-the-connection-shared-channel:
+  en: 98b36cd47162e4a4
+  zh: 8134bcee527fb0dd
+/agent-note-desktop-ipc-dispatch-through-the-connection-shared-channel/problem:
+  en: 6ec01a5a29071b50
+  zh: 88c82a3cd631f40a
+/agent-note-desktop-ipc-dispatch-through-the-connection-shared-channel/decision:
+  en: ae00712be6941d4e
+  zh: 9b4ee2799c326671
+/agent-note-desktop-ipc-dispatch-through-the-connection-shared-channel/alternatives-considered:
+  en: c327d116a540289c
+  zh: 7d50d9ef025fcb1e
+/agent-note-desktop-ipc-dispatch-through-the-connection-shared-channel/verification:
+  en: edcfc78b59af7b98
+  zh: 24989f67b3d924d5
+/agent-note-desktop-ipc-dispatch-through-the-connection-shared-channel/consequences:
+  en: 02fdc98462a071f0
+  zh: 86bd2d45053acd0c

@@ -126,7 +126,7 @@ Read these pages when the package-level contract is not enough.
 
 - [h3-video package](../h3-video/README.md) — the `ctx.h3Video` service seam behind these tools.
 - [Generated tool catalog](../../../docs/tool-catalog.md) — every tool schema the model receives.
-- [Generic long-running tool runtime Agent Note](../../../.agents/notes/implemented/architecture/2026-06-20-generic-long-running-tool-runtime.md) — the background-job producer contract.
+- [Generic long-running tool runtime Agent Note](../../../.agents/notes/archived/architecture/2026-06-20-generic-long-running-tool-runtime.md) — the background-job producer contract.
 
 -----
 

@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-10-16-desktop-ipc-stream-foreign-frames.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-10-16-desktop-ipc-stream-foreign-frames.md
-2026-10-16-desktop-ipc-stream-foreign-frames.md: ddbc2e0a60ac986c481642b48fb90b9a6c449c11
-2026-10-16-desktop-ipc-stream-foreign-frames.zh.md: fcd92f2c162f91e4fed2cf3f4a8216bdb945d288
+/agent-note-the-desktop-ipc-carrier-keeps-another-stream-s-frames-out-of-a-session-journal:
+  en: df3f54fe7d7af3ca
+  zh: 3ba88fe566ea3816
+/agent-note-the-desktop-ipc-carrier-keeps-another-stream-s-frames-out-of-a-session-journal/problem:
+  en: 2251aa2df8e8e105
+  zh: f089eff869b46422
+/agent-note-the-desktop-ipc-carrier-keeps-another-stream-s-frames-out-of-a-session-journal/decision:
+  en: 1ff7c097a643293f
+  zh: aaa64b4b436d7dfb
+/agent-note-the-desktop-ipc-carrier-keeps-another-stream-s-frames-out-of-a-session-journal/alternatives-considered:
+  en: 8a9506043f017946
+  zh: 463f8b05343a55d1
+/agent-note-the-desktop-ipc-carrier-keeps-another-stream-s-frames-out-of-a-session-journal/consequences:
+  en: b002b411ac44f24e
+  zh: 59c3ba2d8c84a81c

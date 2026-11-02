@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-08-26-desktop-window-title-pinned.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-26-desktop-window-title-pinned.md
-2026-08-26-desktop-window-title-pinned.md: 6e43a38430156a287f9d26b19258adfe3c024d5e
-2026-08-26-desktop-window-title-pinned.zh.md: cdc5fd32cd1c9b8c4b99d3ba57578fa82da67920
+/agent-note-desktop-window-title-pinned-to-the-bare-product-name:
+  en: 40cd4c6b38c2ec7b
+  zh: ea8ebdfc94807dc8
+/agent-note-desktop-window-title-pinned-to-the-bare-product-name/problem:
+  en: f1427d7b5eb16d93
+  zh: 4a9f36406b499fb7
+/agent-note-desktop-window-title-pinned-to-the-bare-product-name/decision:
+  en: 95238d7ff0bcd3b0
+  zh: f139bf977b563b3c
+/agent-note-desktop-window-title-pinned-to-the-bare-product-name/alternatives-considered:
+  en: 4783a39ecd3c6bfc
+  zh: ac5d39a3a4d170b9
+/agent-note-desktop-window-title-pinned-to-the-bare-product-name/verification:
+  en: 076a6cf84f8182e8
+  zh: f2f6d2f513d199bf
+/agent-note-desktop-window-title-pinned-to-the-bare-product-name/consequences:
+  en: fdccf8df9ec32930
+  zh: 67435d1db1685b39

@@ -1,6 +1,19 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-10-03-h3-video-user-settings.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-10-03-h3-video-user-settings.md
-2026-10-03-h3-video-user-settings.md: ad03639510c9a84a602903398e7eb2037a9ca657
-2026-10-03-h3-video-user-settings.zh.md: 0d4df39fe29b56f16aabd66725a5c7893cd06189
+/agent-note-user-editable-h3-video-settings-over-the-composition-layer:
+  en: b8a18efa01b17e0b
+  zh: b047fc7b9cc794a9
+/agent-note-user-editable-h3-video-settings-over-the-composition-layer/problem:
+  en: b445a4af01515b33
+  zh: ee20271583382eac
+/agent-note-user-editable-h3-video-settings-over-the-composition-layer/decision:
+  en: 82fc0c48ecf6266b
+  zh: dde6067aa99be3e7
+/agent-note-user-editable-h3-video-settings-over-the-composition-layer/alternatives-considered:
+  en: f41c0613fdf0566b
+  zh: 4e64677098f3ace8
+/agent-note-user-editable-h3-video-settings-over-the-composition-layer/consequences:
+  en: b596238adbd0e0db
+  zh: 8ab8222e10c7aa7f

@@ -1,15 +1,15 @@
 ---
-description: "schedule 组地图：会话本地提醒与应用级定时任务，供浏览本组的用户与维护者阅读。"
+description: "schedule 包组：Host 拥有的计划任务、定时提醒与任务管理。"
 kind: "package-group"
 ---
 
-# schedule/ — 提醒与定时任务
+# schedule/ — Host 拥有的计划任务
 
 [English](README.md) | 中文
 
 ## 概述
 
-schedule 组承载两类基于时间的自动化。`schedule` 包让 agent（智能体）为当前会话创建、列出和取消提醒：延迟后、绝对时间或固定间隔触发，到期时作为普通消息进入该会话；提醒在重启后依然存在，但不会离开会话，也不会发送电子邮件、短信或推送通知。`schedule-work` 包是"定时工作"页面背后的应用级能力：用户自己编写的任务按日历或固定频率规则打开自己的会话，支持暂停、有效期截止与运行记录。可选的浏览器包显示提醒目录并管理定时任务。
+创建投递到已有 Session 或新 Session 的 RFC 5545 重复任务，并在 Host 重启后保留它们。无需打开目标 Session，即可查看活动、已暂停和已结束的任务。Agent（智能体）使用 Schedule 工具、用户使用侧栏自动化任务页面创建、修改、暂停、恢复和删除任务；自动化任务页面还可以立即运行任务。到期任务作为普通 follow-up 消息进入其目标 Session，而不是电子邮件、短信或推送通知。`schedule-work` 包是"定时工作"页面背后的应用级能力：用户自己编写的任务按日历或固定频率规则打开自己的会话，支持暂停、有效期截止与运行记录。
 
 ## 目录
 
@@ -22,20 +22,23 @@ schedule 组承载两类基于时间的自动化。`schedule` 包让 agent（智
 <a id="packages"></a>
 ## 包
 
-| 包 | 职责 | ctx 键 |
-|---|---|---|
-| [`schedule/`](schedule/README.zh.md) | 会话本地提醒：安排、列出并取消活动记录；发布供 header 目录与列表行标识读取的可选只读 projection；把到期提醒作为会话消息交付 | —（工具只注册在精确的 agent scope 中） |
-| [`schedule-work/`](schedule-work/README.zh.md) | 应用级定时任务：按日历或固定频率规则触发到自己的会话中，携带运行记录与 `scheduleWork` Remote 命名空间 | `scheduleWorkGateway` |
+选择此包进行持久的计划任务管理。
+
+| 包 | 职责 |
+|---|---|
+| [`schedule/`](schedule/README.zh.md) | Host 拥有的任务持久化、调度、投递目标、查询与显式删除 |
+| [`tool-schedule/`](tool-schedule/README.zh.md) | 基于宿主 `ctx.schedule` 服务的 preset 级 `schedule_create`、`schedule_list`、`schedule_view` 和 `schedule_edit` 工具 |
+| [`schedule-work/`](schedule-work/README.zh.md) | 应用级定时任务：按日历或固定频率规则触发到自己的会话中，携带运行记录与 `scheduleWork` Remote 命名空间（ctx 键 `scheduleWorkGateway`） |
 
 -----
 
 <a id="related-documentation"></a>
 ## 相关文档
 
-- [仅限会话内的 Schedule 子系统](../../docs/subsystems/schedule.zh.md)——持久记录、转换、视图与交付约定。
-- [生成的工具目录](../../docs/tool-catalog.zh.md#deepseek-aidsh-schedule)——模型接收的 `schedule_create`／`schedule_list`／`schedule_delete` schema。
-- [Schedule 用户指南](../../docs/user/guide/schedule.zh.md)——挂载本包的官方配置路径。
-- [Web Schedule 目录](../client/ui-schedule/README.zh.md)——活动记录的可选只读浏览器呈现。
+- [Schedule 子系统](../../docs/subsystems/schedule.zh.md)——任务记录、重复规则、投递目标、最近一次回执与投递约定。
+- [生成的工具目录](../../docs/tool-catalog.zh.md#deepseek-aidsh-tool-schedule)——挂载 preset 所贡献的 `schedule_create`／`schedule_list`／`schedule_view`／`schedule_edit` schema。
+- [Schedule 用户指南](../../docs/user/guide/schedule.zh.md)——创建、查看、执行、修改和删除计划任务。
+- [自动化任务页面](../client/ui-schedule/README.zh.md)——在浏览器中管理宿主所有任务的侧栏页面。
 - [定时工作页面](../client/ui-schedule-work/README.zh.md)——应用级任务的侧边栏入口、任务目录、编辑器与运行记录。
 
 -----

@@ -1,6 +1,22 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for 2026-09-06-market-local-install-anchor-config.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-06-market-local-install-anchor-config.md
-2026-09-06-market-local-install-anchor-config.md: 310b4c0f6b27cfd206068f256ab9327f7aa92cfc
-2026-09-06-market-local-install-anchor-config.zh.md: d3372d478b1aaf86dcbbdc54ccb9a24bfc1f4b1e
+/agent-note-market-local-resolves-its-install-anchor-through-config-in-packaged-hosts:
+  en: 7044ab54ce927e21
+  zh: b6c8dd476b98c2f4
+/agent-note-market-local-resolves-its-install-anchor-through-config-in-packaged-hosts/problem:
+  en: 1567bc10d1b5b2ce
+  zh: 9001b29e21ba57b6
+/agent-note-market-local-resolves-its-install-anchor-through-config-in-packaged-hosts/decision:
+  en: f2d2795df255ba8c
+  zh: e4bdd5c6131d8b1f
+/agent-note-market-local-resolves-its-install-anchor-through-config-in-packaged-hosts/alternatives-considered:
+  en: 748514cd6dc05287
+  zh: c84548e35a3f205b
+/agent-note-market-local-resolves-its-install-anchor-through-config-in-packaged-hosts/verification:
+  en: c3ed2ce2d741ad8f
+  zh: 9e37140174fb8d29
+/agent-note-market-local-resolves-its-install-anchor-through-config-in-packaged-hosts/consequences:
+  en: c532b7bed1949590
+  zh: 2439e1641401c8e1

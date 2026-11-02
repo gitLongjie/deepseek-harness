@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-09-27-ui-login-stores-only-declared-capacities.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-27-ui-login-stores-only-declared-capacities.md
+/agent-note-the-login-catalog-stores-only-the-capacities-the-gateway-declares:
+  en: 23aabb049ab464ca
+  zh: bc7d92974e493418
+/agent-note-the-login-catalog-stores-only-the-capacities-the-gateway-declares/problem:
+  en: 9d10d9fa7ed80f41
+  zh: 9f69abeed6169bf8
+/agent-note-the-login-catalog-stores-only-the-capacities-the-gateway-declares/decision:
+  en: e8bc91e66ca07950
+  zh: 6ca7b9b0133a5d8c
+/agent-note-the-login-catalog-stores-only-the-capacities-the-gateway-declares/alternatives-considered:
+  en: 7f46f84ed58ff7ef
+  zh: dbe4147890044c76
+/agent-note-the-login-catalog-stores-only-the-capacities-the-gateway-declares/consequences:
+  en: d5cecb651ee8ecd1
+  zh: 4efe5b9ba551e009
+/agent-note-the-login-catalog-stores-only-the-capacities-the-gateway-declares/testing:
+  en: 0c965816a39433fa
+  zh: 7dea10bd62f9bf1f

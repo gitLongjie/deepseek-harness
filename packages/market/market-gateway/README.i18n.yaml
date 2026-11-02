@@ -1,6 +1,43 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/market/market-gateway/README.md
-README.md: 9c31eb5fa65ed44ba50c5e7a1413adb8be5ba41d
-README.zh.md: a0b50b01b6e69bbdf138da10171ded9fcc543bd5
+/:
+  en: 84c9c44fe010af1a
+  zh: 812814bb58db1302
+/deepseek-ai-dsh-market-gateway:
+  en: 0a5b737f710c1eae
+  zh: 37cd01d25f4ff350
+/deepseek-ai-dsh-market-gateway/summary:
+  en: ae0a19b97995828b
+  zh: 5531319a15859f06
+/deepseek-ai-dsh-market-gateway/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 9f0a46ca555d0bb9
+/deepseek-ai-dsh-market-gateway/use-this-package:
+  en: 6219b9b5a5720ad1
+  zh: 32f7d3a08a90331a
+/deepseek-ai-dsh-market-gateway/use-this-package/minimal-configuration:
+  en: ac8faab37137887c
+  zh: 8e3cd5e36d92e490
+/deepseek-ai-dsh-market-gateway/use-this-package/what-can-go-wrong:
+  en: f755f7d03d24a59a
+  zh: cbe0f7369a5c4a9e
+/deepseek-ai-dsh-market-gateway/understand-the-implementation:
+  en: 1d4a3adeb61ec0a8
+  zh: 58126631309a9906
+/deepseek-ai-dsh-market-gateway/further-exploration:
+  en: 4b7ce7e16ba8cda3
+  zh: dc139421ead95987
+/deepseek-ai-dsh-market-gateway/model-experience:
+  en: 1571b22d72798a2e
+  zh: 0745c255dfce89ae
+/deepseek-ai-dsh-market-gateway/model-experience/kv-cache-effect:
+  en: ac5eab643fb85a0b
+  zh: a386b90f81bc328f
+/deepseek-ai-dsh-market-gateway/known-limitations-and-deferred-work:
+  en: 9656006a55d075e9
+  zh: 0ff9c23a20915249
+/deepseek-ai-dsh-market-gateway/known-limitations-and-deferred-work/dev-note:
+  en: e67f633dc6fe7773
+  zh: 4c879960b94cc733
