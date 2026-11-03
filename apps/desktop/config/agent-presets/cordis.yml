@@ -1,0 +1,17 @@
+# Explicit declarations; each include preserves its expert's local skill paths.
+- id: expert-geo-optimizer
+  name: '@deepseek-ai/cordis-plugin-include'
+  config:
+    path: ./geo-optimizer/preset.yml
+- id: expert-article-publisher
+  name: '@deepseek-ai/cordis-plugin-include'
+  config:
+    path: ./article-publisher/preset.yml
+- id: expert-geo-admin
+  name: '@deepseek-ai/cordis-plugin-include'
+  config:
+    path: ./geo-admin/preset.yml
+- id: expert-h3-video-director
+  name: '@deepseek-ai/cordis-plugin-include'
+  config:
+    path: ./h3-video-director/preset.yml

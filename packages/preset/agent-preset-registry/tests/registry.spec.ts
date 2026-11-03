@@ -8,12 +8,29 @@ import Loader from '@deepseek-ai/cordis-plugin-loader'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import AgentPresets from '../src/index.ts'
 import type { Context } from '@deepseek-ai/cordis'
+import Preset from '../../agent-preset/src/index.ts'
+import { isExpertPreset } from '../src/display.ts'
 
 const contexts: Context[] = []
 afterEach(async () => { for (const ctx of contexts.splice(0)) await ctx.fiber.dispose() })
 async function setup() { const ctx = await harness(); contexts.push(ctx); return ctx }
 
 describe('declarative preset revisions', () => {
+  it('publishes expert card metadata through the declaration schema and remote roster', async () => {
+    const ctx = await setup()
+    ctx.loader.builtins.preset = Preset
+    const metadata = {
+      name: 'Consultant', description: 'Brand visibility', category: 'marketing',
+      tags: ['GEO'], quickPrompts: ['Review my brand'], icon: '🔍',
+      subtitle: 'Studio', badge: 'Official', avatar: 'https://example.com/expert.svg',
+    }
+    await ctx.loader.create({ name: 'cordis:preset', config: { id: 'expert', ...metadata, plugins: [] } })
+    await declare(ctx, contribution('standard'))
+    const { presets } = await ctx.agentPresets.remoteExportList()
+    expect(presets.find(row => row.id === 'expert')).toEqual({ id: 'expert', isDefault: false, ...metadata })
+    expect(presets.filter(isExpertPreset).map(row => row.id)).toEqual(['expert'])
+  })
+
   it('eagerly scopes tool and prompt registrations and shares one revision across Agents', async () => {
     const ctx = await setup()
     await declare(ctx, contribution('standard'))

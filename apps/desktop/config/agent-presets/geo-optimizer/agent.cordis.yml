@@ -4,8 +4,8 @@
 # row is the expert's soul (identity plus methodology), the preset-local
 # `skills/` directory is its toolbox, and `preset.yml` publishes the
 # expert-card metadata (category, tags, quickPrompts, icon) that pickers group
-# and filter by. Everything below reuses the shipped preset machinery —
-# discovery, standing mounts, authoring copies — so an expert adds nothing
+# and filter by. The declaration includes this composition into its preset
+# scope, so an expert adds nothing
 # model-facing beyond what a preset already records in the session log.
 
 # The persona shadows the deployment default for this expert's sessions.

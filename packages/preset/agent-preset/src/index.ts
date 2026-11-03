@@ -18,6 +18,13 @@ export default class AgentPreset {
     name: z.string(),
     description: z.string(),
     order: z.number(),
+    category: z.string(),
+    tags: z.array(z.string()),
+    quickPrompts: z.array(z.string()),
+    icon: z.string(),
+    subtitle: z.string(),
+    badge: z.string(),
+    avatar: z.string(),
     // Cordis owns individual plugin schemas; the registry validates entry structure.
     plugins: z.array(z.any()).required(),
   }) as z<Config>

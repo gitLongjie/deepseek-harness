@@ -44,6 +44,10 @@ Define an Agent’s child plugins in ordinary Cordis YAML. Declare several prese
 | `name` | unset | Display name |
 | `description` | unset | Display description |
 | `order` | unset | Roster order |
+| `category`, `tags`, `quickPrompts` | unset | Expert category, search tags and suggested first messages |
+| `icon`, `subtitle`, `badge`, `avatar` | unset | Expert card glyph, attribution, curator badge and image URL or data URI |
+
+The registry publishes these display fields to clients. A category, a nonempty tag list or a nonempty prompt list identifies an expert; ordinary presets remain session modes.
 
 The declaration row’s `id` addresses Loader edits; `config.id` is the preset identity saved by sessions. Child entry IDs may be omitted and assigned by Loader.
 

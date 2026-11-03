@@ -44,6 +44,10 @@ kind: "package-reference"
 | `name` | 未设置 | 展示名称 |
 | `description` | 未设置 | 展示说明 |
 | `order` | 未设置 | 列表排序 |
+| `category`, `tags`, `quickPrompts` | 未设置 | 专家分类、搜索标签与建议的首条消息 |
+| `icon`, `subtitle`, `badge`, `avatar` | 未设置 | 专家卡片图标、署名、认证标记与图片 URL 或 data URI |
+
+注册表向客户端发布这些展示字段。设置分类、非空标签列表或非空提示列表即可标记专家；普通 preset 仍作为会话模式展示。
 
 声明行的 `id` 是 Loader 编辑地址；`config.id` 是会话保存的 preset 标识符。子插件可省略行 ID，由 Loader 分配。
 

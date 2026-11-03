@@ -31,6 +31,8 @@ Desktop runs the Harness workspace in a native application. This reference cover
 
 ## Application overview
 
+Desktop loads its four shipped experts through [declarative preset includes](config/agent-presets/cordis.yml). Each expert's `preset.yml` declares its card metadata and includes its `agent.cordis.yml`; relative skill paths resolve beside that expert's composition. The registry does not scan this directory.
+
 Electron caches the last confirmed UI language in `userData/desktop/locale-cache` so startup recovery dialogs can use it before Host settings are available. Missing, invalid, or unreadable caches fall back to the system language; cache write failures do not block startup. A successful Host startup or a UI language change refreshes the cache. Until then, a changed system language may differ from the cached language.
 
 Desktop analytics follows the [product collection policy](../../packages/client/product-analytics/README.md), including its live application setting. Web usage is excluded. Update installation waits for its local analytics intake before locking API admission and stopping the Host. Intake has a one-second deadline; failure does not prevent installation, and collector delivery is not awaited.

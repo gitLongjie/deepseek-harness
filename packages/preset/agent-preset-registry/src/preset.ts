@@ -1,12 +1,9 @@
 import type { Volatile } from '@deepseek-ai/cordis'
+import type { AgentPresetRow } from './types.ts'
 /** Public preset roster and selection configuration. */
 /** One declared preset and its current activation failure, if any. */
-export interface AgentPreset {
-  readonly id: string
-  readonly name?: string
-  readonly description?: string
+export interface AgentPreset extends Omit<AgentPresetRow, 'isDefault'> {
   readonly order?: number
-  readonly broken?: string
 }
 
 /** Registry selection policy. */

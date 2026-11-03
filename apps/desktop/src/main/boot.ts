@@ -37,8 +37,8 @@ const INSTALL_ANCHOR = fileURLToPath(new URL('../../package.json', import.meta.u
 /** The desktop overlay patch, beside this app (source and built layouts share the apps/desktop directory). */
 const DESKTOP_PATCH = fileURLToPath(new URL('../../cordis.patch.yml', import.meta.url))
 
-/** Shipped agent-preset root: beside this app's own config, in both layouts. */
-const SHIPPED_PRESET_ROOT = fileURLToPath(new URL('../../config/agent-presets/', import.meta.url))
+/** Declarative expert roster beside this app's config in source and packaged layouts. */
+const SHIPPED_PRESETS = new URL('../../config/agent-presets/cordis.yml', import.meta.url).href
 
 /** Root config filename inside a profile directory. */
 const PROFILE_ROOT_FILENAME = 'cordis.yml'
@@ -389,17 +389,11 @@ export async function runDesktopBoot(options: DesktopBootOptions): Promise<Deskt
     if (typeof row.id === 'string') rows.set(row.id, row)
   }
   const overlays: PatchOptions[] = [...loadOverlayPatches(NAME, DESKTOP_PATCH)]
-  // The SHIPPED root is the part of the roster only this app can resolve; the
-  // writable root stays `dsh-agent-presets`' own (`includeUserRoot`).
-  if (rows.has('agent-presets')) {
-    overlays.push({
-      id: 'agent-presets',
-      config: {
-        ...(rows.get('agent-presets')?.config ?? {}) as Record<string, unknown>,
-        roots: [{ path: SHIPPED_PRESET_ROOT, trust: 'system' }],
-      },
-    })
-  }
+  overlays.push({ insert: [{
+    id: 'desktop-experts',
+    name: '@deepseek-ai/cordis-plugin-include',
+    config: { path: SHIPPED_PRESETS },
+  }] })
   // A patch's config replaces the row's config wholesale, so the market anchor
   // rides on the row's own composed config.
   const marketAnchorPatch = resolveMarketAnchorPatch(rows.has('market-local'), INSTALL_ANCHOR)
