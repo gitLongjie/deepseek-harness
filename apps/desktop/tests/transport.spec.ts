@@ -7,6 +7,7 @@ vi.mock('electron', () => ({
 
 import { ipcMain } from 'electron'
 import type { HostConnectionHandle } from '@deepseek-ai/dsh-client-connection'
+import { createIpcFetch } from '../src/render/transport.ts'
 import { dispatchTransportFetch, registerTransportIpc } from '../src/main/ipc/transport.ts'
 
 /** The never-settled host: no Connection yet. */
@@ -199,5 +200,29 @@ describe('registerTransportIpc stream handshake', () => {
     } finally {
       await remove()
     }
+  })
+})
+
+describe('createIpcFetch', () => {
+  it('resolves the document-relative RPC route against the document base', async () => {
+    vi.stubGlobal('document', { baseURI: 'dshapp://localhost/index.html' })
+    const seen: { path: string }[] = []
+    const ipc = {
+      platform: 'win32',
+      invoke: async (_channel: string, payload: { path: string }) => {
+        seen.push(payload)
+        return { status: 200, body: [] as number[] }
+      },
+      send: () => {},
+      on: () => () => {},
+    }
+    const send = createIpcFetch(ipc)
+    // The gateway RPC caller hands over the document-relative route the web
+    // app's fetch would resolve itself; an unparsed relative URL here was the
+    // upstream-merge regression that failed every desktop gateway call.
+    const response = await send('api/dynamicCordisRunner/inventory', { method: 'POST' })
+    expect(response.status).toBe(200)
+    expect(seen[0]?.path).toBe('/api/dynamicCordisRunner/inventory')
+    vi.unstubAllGlobals()
   })
 })

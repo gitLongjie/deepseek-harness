@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-login",
-  "description": "Account login gate plugin: a branded full-page sign-in takeover when the build carries an auth endpoint, plus the sidebar sign-out action",
+  "description": "Account login gate plugin: a branded full-page sign-in takeover when the build carries an auth endpoint, plus the sidebar account launcher",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -27,7 +27,7 @@
         "@deepseek-ai/dsh-api-remotes",
         "@deepseek-ai/dsh-client-ui-primitives",
         "@deepseek-ai/dsh-client-ui-layout",
-        "@deepseek-ai/dsh-client-ui-sidebar"
+        "@deepseek-ai/dsh-client-ui-settings"
       ],
       "platform": "web"
     }
@@ -44,7 +44,7 @@
     "@deepseek-ai/dsh-client-locale": "workspace:^",
     "@deepseek-ai/dsh-client-store": "workspace:^",
     "@deepseek-ai/dsh-client-ui-layout": "workspace:^",
-    "@deepseek-ai/dsh-client-ui-sidebar": "workspace:^"
+    "@deepseek-ai/dsh-client-ui-settings": "workspace:^"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
@@ -55,7 +55,7 @@
     "@deepseek-ai/dsh-client-test-runtime": "workspace:^",
     "@deepseek-ai/dsh-client-ui-layout": "workspace:^",
     "@deepseek-ai/dsh-client-ui-primitives": "workspace:^",
-    "@deepseek-ai/dsh-client-ui-sidebar": "workspace:^",
+    "@deepseek-ai/dsh-client-ui-settings": "workspace:^",
     "@deepseek-ai/dsh-client-ui-slots": "workspace:^",
     "@types/react": "~18.3.1",
     "react": "^18.2.0"

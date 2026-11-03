@@ -62,7 +62,7 @@ const ASSET_SCHEMA = {
     description: { type: 'string' },
     prompt: {
       type: 'string',
-      description: 'Agent-authored canonical visual identity block. For characters, include observable age impression, body, face, hair, makeup, gaze, mouth/expression, clothing, shoes, accessories, posture, and negative constraints; the user does not need to write this prompt.',
+      description: 'Agent-authored canonical visual identity block. For characters, include observable age impression, body, face, hair, makeup, gaze, mouth/expression, clothing, shoes, accessories, posture, and negative constraints; the user does not need to write this prompt. For scenes, record fixed doors/windows, connected passages, furnishings, light sources, spatial directions, and travel routes; derive every camera view from this same layout.',
     },
     reference: { type: 'string' },
     referenceLayout: { type: 'string', enum: ['four-column'] },
@@ -603,7 +603,9 @@ function buildCharacterReferencePrompt(asset: PlanAsset, style: string | undefin
  */
 function buildStillPrompt(asset: PlanAsset, style: string | undefined): string {
   if (asset.kind === 'scene') {
-    return `固定机位广角镜头，清晰的建立镜头，${assetBlock(asset)}，画面中没有任何人物，空场景，电影质感${styleSuffix(style)}`
+    return `固定机位广角镜头，清晰的建立镜头，${assetBlock(asset)}，画面中没有任何人物，空场景。`
+      + '单张透视场景主图，不是四宫格、拼贴或平面图；遵循固定空间布局，保持门窗、通道、主要陈设与光源的位置关系，保留可通行的动作路线。'
+      + `电影质感${styleSuffix(style)}`
   }
   return `道具参考图，${assetBlock(asset)}，纯白背景，柔和均匀的光线，电影质感${styleSuffix(style)}`
 }
@@ -945,8 +947,10 @@ function buildMultiShotRequest(plan: VideoPlan, outputDir: string): SegmentReque
  */
 const STORYBOARD_WORKFLOW_GUIDANCE = [
   '先做剧本分析，再做分镜：把用户需求归纳为故事目标、角色与身份锚点、地点/时间、道具归属、镜头风格和声音要求。不要直接从一句话跳到 render。',
-  '为不超过 15 秒的短片先写节拍表：10 秒以内优先两个约 5 秒的连续镜头并合并为一次 multi_shot；需要完整 15 秒时优先三个约 5 秒镜头并合并为一次 multi_shot，不擅自压成 12 秒。镜头数和分配以用户要求为准，总时长必须等于请求时长；8 秒可拆为 4+4 秒，不能为了凑两个 5 秒镜头扩为 10 秒。每个节拍只推进一个可见事件。',
+  '时长不决定镜头数量：用户未要求切镜且动作可连续拍摄时，优先一个完整 15 秒长镜头（或用户指定时长），不要机械拆成 3×5 秒或 2×5 秒。节拍是动作顺序，不等于切镜；一个长镜头可以连续完成多个动作节拍。确需换机位时按剧情分配不等长镜头，并在 ≤15 秒内合并为一次 multi_shot 请求。保留用户明确指定的时长和镜头数；8 秒保持 8 秒，15 秒保持 15 秒，不擅自压缩或扩长。',
   '把每个节拍转换为可执行分镜：写清机位、开场状态、一个动作事件、收尾状态、空间路径、人物朝向、左右手和道具归属，并加入环境声/动作音。抽象结果（例如“到了走廊”）必须拆成出口、跨门槛、沿路径移动、到达。',
+  '场景先定空间再定机位：由导演自动把固定门窗、通道连接、主要陈设、光源、空间方向和行走路线写入场景 asset.prompt。涉及出入门或跨区域移动时先展示文字/示意布局，标出机位和路线，再生成一张无人物场景主图；不默认生成四面图。各机位必须从同一布局派生，在 camera 写清摄影机位置、朝向和视野，在 start_state/end_state 写清人物位置与移动方向，不能独立重设计场景。',
+  '只为实际换向的分镜补机位预览：用 video_keyframes 显式选择 segment_ids；无人镜头自动使用所选场景主图作参考，有角色时优先使用角色图，场景布局由文字约束，当前图片接口一次只用一个参考源。multi_shot 后续预览不会逐张约束视频，只有第一镜开场图参与整片条件；严禁把布局图或多宫格作为视频首帧。需要每镜图片约束时选 per_segment，并保留实际尾帧衔接。渲染前核对门窗、通道、机位轴线、人物朝向及出口到入口的完整路线，冲突先修分镜或预览。',
   '分镜审查门禁：后一镜 start_state 必须复用前一镜 end_state 的可观察事实；continue 不得用 cut 省略路程；同一地点的连续动作不得重置人物、道具或光线。发现状态不一致时先修改 video_plan，不得带病 render。',
   '只在分镜和开场图通过审查后渲染。渲染完成后检查实际时长、镜头跳跃、动作重复、人物/道具变化和声音连续性，再交付成片。',
 ].join('\n')
@@ -1015,7 +1019,7 @@ async function importLibraryAssets(outputDir: string, references: readonly strin
 
 /**
  * Merge library imports with the assets this call authored, keyed by name — the name a storyboard
- * references; an authored asset replaces the imported record of the same name.
+ * references; authored fields update the imported record of the same name.
  * @param imported - assets attached from the project library.
  * @param authored - assets written in this call.
  * @returns the merged asset list.
@@ -1023,7 +1027,7 @@ async function importLibraryAssets(outputDir: string, references: readonly strin
 function mergeAssetsByName(imported: readonly PlanAsset[], authored: readonly PlanAsset[]): PlanAsset[] {
   const byName = new Map<string, PlanAsset>()
   for (const asset of imported) byName.set(asset.name, asset)
-  for (const asset of authored) byName.set(asset.name, asset)
+  for (const asset of authored) byName.set(asset.name, mergeAsset(byName.get(asset.name), asset))
   return [...byName.values()]
 }
 
@@ -1040,12 +1044,27 @@ function mergePlanAssets(prior: readonly PlanAsset[], authored: readonly PlanAss
   const order = prior.map(asset => asset.id)
   for (const asset of authored) {
     if (!byId.has(asset.id)) order.push(asset.id)
-    byId.set(asset.id, asset)
+    byId.set(asset.id, mergeAsset(byId.get(asset.id), asset))
   }
   return order.flatMap((id) => {
     const asset = byId.get(id)
     return asset === undefined ? [] : [asset]
   })
+}
+
+/**
+ * Preserve omitted asset fields; image layout and legacy sheets belong to their original reference.
+ * @param prior - existing asset, if any.
+ * @param authored - supplied asset fields.
+ * @returns the updated asset without inherited metadata for a replacement image or different kind.
+ */
+function mergeAsset(prior: PlanAsset | undefined, authored: PlanAsset): PlanAsset {
+  if (prior === undefined || prior.kind !== authored.kind) return authored
+  if (authored.reference !== undefined && authored.reference !== prior.reference) {
+    const { referenceLayout: _layout, sheet: _sheet, ...retained } = prior
+    return { ...retained, ...authored }
+  }
+  return { ...prior, ...authored }
 }
 
 /** Run one ffmpeg invocation with a bounded buffer. */
@@ -1418,7 +1437,7 @@ export function apply(ctx: Context): void {
 
   ctx.tools.register(defineTool({
     name: 'video_plan',
-    description: 'Structure the current conversation request into a versioned storyboard plan and persist it. For stories up to 10 seconds, prefer two roughly 5-second shots in one multi_shot request; for stories up to 15 seconds, prefer three roughly 5-second shots in one request. Use per_segment only when real tail-frame chaining, independent closing frames, different materials, or different routing is required. The agent must first analyze the screenplay into short observable beats, then write one executable event and a concrete start/end state for every shot; a continuous route must include exit, threshold crossing, travel direction, entry, and arrival. Before calling this tool, the agent must analyze each character from the story and any supplied reference image, then write an observable identity anchor in the asset prompt: age impression, build, face shape, hair, makeup, gaze, mouth/expression, wardrobe, shoes, accessories, posture, and explicit negative constraints. The agent owns this prompt writing; the user only describes the story and characters. This tool validates and stores the plan. Pass an existing plan_id to revise it.',
+    description: 'Structure the current conversation request into a versioned storyboard plan and persist it. Duration does not determine shot count. Prefer one continuous shot for the requested duration when no cuts are requested and the action permits it; a 15-second story can be one 15-second segment. Action beats do not require cuts. Use multiple shots only when the story or user requires them, with story-driven durations in one multi_shot request of at most 15 seconds. Use per_segment only when real tail-frame chaining, independent closing frames, different materials, or different routing is required. The agent must first analyze the screenplay into short observable beats, then write an executable action sequence and concrete start/end states for every shot; a continuous route must include exit, threshold crossing, travel direction, entry, and arrival. Before calling this tool, the agent must analyze each character from the story and any supplied reference image, then write an observable identity anchor in the asset prompt: age impression, build, face shape, hair, makeup, gaze, mouth/expression, wardrobe, shoes, accessories, posture, and explicit negative constraints. The agent owns this prompt writing; the user only describes the story and characters. This tool validates and stores the plan. Pass an existing plan_id to revise it.',
     parameters: {
       goal: { type: 'string', required: true, description: 'One-line goal the plan serves.' },
       plan_id: { type: 'string', description: 'Existing plan id to revise; omit to create a new plan.' },
@@ -1601,7 +1620,7 @@ export function apply(ctx: Context): void {
 
   ctx.tools.register(defineTool({
     name: 'video_keyframes',
-    description: 'Generate stills using the configured image provider. multi_shot defaults to one opening frame showing the first shot start_state before its event; explicitly selected later stills are storyboard previews and do not condition the video. per_segment defaults to all shots. A named or explicitly selected character supplies one full-body reference image; local generation requires a reference-image workflow. Present the images for confirmation before rendering.',
+    description: 'Generate stills using the configured image provider. multi_shot defaults to one opening frame showing the first shot start_state before its event; explicitly selected later stills are storyboard previews and do not condition the video. per_segment defaults to all shots. A named or explicitly selected character supplies one full-body reference image; local generation requires a reference-image workflow. Uncast shots use the first selected scene master as the single image reference; character shots prioritize character identity and describe scene layout in text. Use asset_ids to select the intended scene. Layout diagrams and collages are review material, never video first frames. Present the images for confirmation before rendering.',
     parameters: {
       plan_id: { type: 'string', required: true, description: 'Plan id from video_plan.' },
       segment_ids: { type: 'array', items: { type: 'string' }, description: 'Shot ids to draw; defaults to the opening shot for multi_shot, or every shot for per_segment.' },
@@ -1613,7 +1632,7 @@ export function apply(ctx: Context): void {
       identity: {
         type: 'string',
         enum: ['auto', 'text', 'portrait'],
-        description: 'How the still is conditioned on the cast. "auto" (default) keeps the face, clothing, shoes, and body proportions when the shot names a character the plan carries an image for, by editing that full-body reference into the scene; open shots draw from text alone. "text" forces text-to-image; "portrait" forces the reference edit even when no character is named.',
+        description: 'How the still is conditioned on the cast. "auto" (default) keeps the face, clothing, shoes, and body proportions when the shot names a character the plan carries an image for, by editing that full-body reference into the scene; uncast shots use the first selected scene reference to derive the requested viewpoint; without one they draw from text alone. "text" forces text-to-image; "portrait" forces the reference edit even when no character is named.',
       },
     },
     output: imageOutput(KEYFRAME_VALUE_SCHEMA, keyframeContent),
@@ -1645,22 +1664,27 @@ export function apply(ctx: Context): void {
         const subject = assets.find(asset => asset.kind === 'character')
         const keepFace = args.identity === 'portrait'
           || (args.identity !== 'text' && subject !== undefined)
+        const scene = args.identity !== 'text' && !keepFace
+          ? assets.find(asset => asset.kind === 'scene') : undefined
         try {
           if (closing && !segment.endState?.trim()) {
             throw new Error(`segment ${segment.id}: end_state is required for a closing target`)
           }
+          const sceneGuidance = scene === undefined ? ''
+            : '\n根据场景主参考图生成指定机位的单张透视画面，遵循同一固定布局；门窗、通道、陈设、光源不能随换向移动，不新增人物。不是平面图、多宫格或拼贴。'
           const generated = await ctx.h3Video.keyframe({
             prompt: closing
-              ? `${segmentPrompt({ ...segment, prompt: segment.endState ?? segment.prompt }, plan, assets, keepFace)}\nDraw one scene still at this shot's end_state. The design reference is not the scene: show one person, no columns or collage.`
+              ? `${segmentPrompt({ ...segment, prompt: segment.endState ?? segment.prompt }, plan, assets, keepFace)}\nDraw one scene still at this shot's end_state. No columns or collage.${sceneGuidance}`
               : plan.mode === 'multi_shot'
-                ? `${segmentPrompt({ ...segment, prompt: segment.startState ?? segment.prompt }, plan, assets, keepFace)}\nDraw one still at this shot's starting state, before its event begins. No montage, timeline, or event outcome. Render one scene, not character design columns.`
-                : segmentPrompt(segment, plan, assets, keepFace),
+                ? `${segmentPrompt({ ...segment, prompt: segment.startState ?? segment.prompt }, plan, assets, keepFace)}\nDraw one still at this shot's starting state, before its event begins. No montage, timeline, or event outcome. Render one scene, not character design columns.${sceneGuidance}`
+                : segmentPrompt(segment, plan, assets, keepFace) + sceneGuidance,
             ratio: keyframeRatio(segment.ratio),
             ...(seed !== undefined ? { seed } : {}),
             // The reference edit redraws the whole frame around the approved identity, so the still
             // keeps the character and the shot's own scene.
             ...(keepFace && subject !== undefined
-              ? { subjectReference: await characterSubjectImage(subject, outputDir, exec.signal) } : {}),
+              ? { subjectReference: await characterSubjectImage(subject, outputDir, exec.signal) }
+              : scene !== undefined ? { subjectReference: scene.reference } : {}),
           }, exec.signal)
           const base = imageArtifactBase(keyframesDir(outputDir), plan.id, closing ? `${segment.id}-closing` : segment.id)
           const target = `${base}${extname(generated)}`
@@ -1775,10 +1799,10 @@ export function apply(ctx: Context): void {
 
   ctx.tools.register(defineTool({
     name: 'video_asset_images',
-    description: 'Generate the anchor images for plan assets that need them. The agent analyzes the story and reference material before this call and stores the resulting character identity prompt in asset.prompt; the user does not hand-write image prompts. A character gets exactly one 16:9 four-column design image: front, side, and back full-body views (head to shoes visible), plus a face close-up. Single-subject keyframes use a crop of its front column, never a second generated identity. Scenes get a reusable establishing shot without people; props get a neutral reference image. Images are saved under outputDir/assets and recorded on the plan; pass regenerate with a new seed to try another take. No separate turnaround file is generated; the four views share one image.',
+    description: 'Generate the anchor images for plan assets that need them. The agent analyzes the story and reference material before this call and stores the resulting character identity prompt in asset.prompt; the user does not hand-write image prompts. A character gets exactly one 16:9 four-column design image: front, side, and back full-body views (head to shoes visible), plus a face close-up. Single-subject keyframes use a crop of its front column, never a second generated identity. Scenes get a reusable establishing shot without people; props get a neutral reference image. Existing character portraits without a four-column design are upgraded using the portrait as identity reference. Images are saved under outputDir/assets and recorded on the plan; pass regenerate with a new seed to try another take. No separate turnaround file is generated; the four views share one image.',
     parameters: {
       plan_id: { type: 'string', required: true, description: 'Plan id from video_plan.' },
-      asset_ids: { type: 'array', items: { type: 'string' }, description: 'Asset ids to generate; defaults to every asset without a reference.' },
+      asset_ids: { type: 'array', items: { type: 'string' }, description: 'Asset ids to generate; defaults to missing references and characters without a four-column design. Existing character portraits condition their replacement design.' },
       regenerate: {
         type: 'boolean',
         description: 'Regenerate the selected assets even when they already carry a reference image, replacing it on the plan.',
@@ -1796,9 +1820,8 @@ export function apply(ctx: Context): void {
       const assetIds = args.asset_ids
       const scoped = assetIds === undefined ? allAssets : allAssets.filter(asset => assetIds.includes(asset.id))
       const regenerate = args.regenerate === true
-      // One reference image per asset. `sheet` remains a legacy read field; new calls never
-      // generate or preserve it on a character that is explicitly regenerated.
       const needsWork = (asset: PlanAsset): boolean => regenerate || asset.reference === undefined
+        || (asset.kind === 'character' && asset.referenceLayout !== 'four-column')
       const selected = scoped.filter(needsWork)
       const results: Array<{
         assetId: string
@@ -1813,28 +1836,29 @@ export function apply(ctx: Context): void {
       }> = []
       const assets: PlanAsset[] = [...allAssets]
       // One draw path for the run: the same plan seed and the same cancellation signal.
-      const drawImage = (prompt: string, ratio: '16:9' | '1:1'): Promise<string> =>
-        ctx.h3Video.keyframe({ prompt, ratio, ...(args.seed !== undefined ? { seed: args.seed } : {}) }, exec.signal)
+      const drawImage = (prompt: string, ratio: '16:9' | '1:1', subjectReference?: string): Promise<string> =>
+        ctx.h3Video.keyframe({
+          prompt, ratio,
+          ...(subjectReference !== undefined ? { subjectReference } : {}),
+          ...(args.seed !== undefined ? { seed: args.seed } : {}),
+        }, exec.signal)
       for (const asset of selected) {
         let reference = asset.reference
         let attachment: ImageAttachmentRef | undefined
         let failure: string | undefined
         try {
-          const existing = asset.reference
-          const redraw = regenerate || existing === undefined
-          reference = redraw
-            ? await commitAssetImage(
-              await drawImage(
-                asset.kind === 'character'
-                  ? buildCharacterReferencePrompt(asset, prior.style)
-                  : buildStillPrompt(asset, prior.style),
-                asset.kind === 'prop' ? '1:1' : '16:9',
-              ),
-              outputDir,
-              prior.id,
-              asset.id,
-            )
-            : existing
+          reference = await commitAssetImage(
+            await drawImage(
+              asset.kind === 'character'
+                ? buildCharacterReferencePrompt(asset, prior.style)
+                : buildStillPrompt(asset, prior.style),
+              asset.kind === 'prop' ? '1:1' : '16:9',
+              asset.kind === 'character' && asset.referenceLayout !== 'four-column' ? asset.reference : undefined,
+            ),
+            outputDir,
+            prior.id,
+            asset.id,
+          )
           attachment = await saveImageAttachment(ctx, reference)
         } catch (error: unknown) {
           failure = errorText(error)
@@ -1851,15 +1875,15 @@ export function apply(ctx: Context): void {
         })
         const index = assets.findIndex(candidate => candidate.id === asset.id)
         const current = index !== -1 ? assets[index] : undefined
-        if (current !== undefined && reference !== current.reference) {
+        if (current !== undefined && failure === undefined) {
           const copied = copyAsset(current)
-          const nextAsset = asset.kind === 'character' && regenerate
+          const nextAsset = asset.kind === 'character'
             ? (({ sheet: _legacySheet, ...withoutLegacySheet }) => withoutLegacySheet)(copied)
             : copied
           assets[index] = {
             ...nextAsset,
             ...(reference !== undefined ? { reference } : {}),
-            ...(asset.kind === 'character' && failure === undefined ? { referenceLayout: 'four-column' as const } : {}),
+            ...(asset.kind === 'character' ? { referenceLayout: 'four-column' as const } : {}),
           }
         }
       }
@@ -2157,8 +2181,8 @@ export function apply(ctx: Context): void {
           text: '用户请求生成视频：' + text + '\n\n'
             + '请按 H3 视频生成流程执行：'
             + STORYBOARD_WORKFLOW_GUIDANCE + '\n'
-            + '1) ≤15 秒短片优先 mode=multi_shot，一次生成完整故事；10 秒以内默认两个约 5 秒镜头，15 秒以内默认三个约 5 秒镜头，并把它们合并为一次 H3 任务；只有需要真实尾帧链、独立 closing frame、不同素材或不同路由时才用 per_segment。默认一位主角、一个地点、连续时间，每镜一个可见事件。用 video_plan 保存素材 id 与分镜，每镜含 prompt、asset_ids、start_state、event、end_state、duration_seconds、resolution、ratio、backend，第二镜起声明 continuity。逐镜审查上一镜 end_state 与下一镜 start_state，避免重复动作、道具换手和无解释跳时空；程序只校验字段与素材引用，不判断剧情语义；'
-            + '2) 先由导演智能体自动分析剧情和已有参考图中的角色身份：把年龄感、职业与生活状态、体型、脸型、发型、妆感、眼神、嘴角/表情、服装、鞋子、配饰和姿态改写为可观察的 asset.prompt，并根据该角色的剧情要求写明负面约束，禁止与设定相反的年龄感、脸型、表情、服装或比例；不要把某个角色的冷感或疲惫套给所有角色。角色提示词由智能体编写，用户只需描述剧情和人物，无需手写提示词；已有参考图要继承稳定身份特征，只补足全身构图并修正与剧情冲突的表现。记录或生成角色/场景/道具素材，展示分镜与成本。用 video_keyframes 默认只生成开场图，画第一镜 start_state、事件尚未发生；展示并确认画面。后续镜头图片仅是分镜预览，不会分别约束整片。用户提供开场图时放在第一镜 references 的 first_frame；生成角色图后逐项检查年龄、脸型、眼神、表情、服装、鞋子和全身完整性，不符合就用 regenerate 重抽；'
+            + '1) ≤15 秒短片优先 mode=multi_shot，一次生成完整故事；不按时长固定拆镜，15 秒可用一个连续长镜头；确需切镜时按剧情分配时长，仍合并为一次 H3 任务；只有需要真实尾帧链、独立 closing frame、不同素材或不同路由时才用 per_segment。默认一位主角、一个地点、连续时间，长镜头内按顺序推进动作。用 video_plan 保存素材 id 与分镜，每镜含 prompt、asset_ids、start_state、event、end_state、duration_seconds、resolution、ratio、backend，第二镜起声明 continuity。逐镜审查上一镜 end_state 与下一镜 start_state，避免重复动作、道具换手和无解释跳时空；程序只校验字段与素材引用，不判断剧情语义；'
+            + '2) 先由导演智能体自动分析剧情和已有参考图中的角色身份：把年龄感、职业与生活状态、体型、脸型、发型、妆感、眼神、嘴角/表情、服装、鞋子、配饰和姿态改写为可观察的 asset.prompt，并根据该角色的剧情要求写明负面约束，禁止与设定相反的年龄感、脸型、表情、服装或比例；不要把某个角色的冷感或疲惫套给所有角色。角色提示词由智能体编写，用户只需描述剧情和人物，无需手写提示词；已有参考图要继承稳定身份特征，只补足全身构图并修正与剧情冲突的表现。复用素材库角色时也要调用 video_asset_images 补全未标记 four-column 的旧单视图；不能因已有 reference 就跳过。记录或生成角色/场景/道具素材，展示分镜与成本。用 video_keyframes 默认只生成开场图，画第一镜 start_state、事件尚未发生；展示并确认画面。后续镜头图片仅是分镜预览，不会分别约束整片。用户提供开场图时放在第一镜 references 的 first_frame；生成角色图后逐项检查年龄、脸型、眼神、表情、服装、鞋子和全身完整性，不符合就用 regenerate 重抽；'
             + '3) 确认分镜与开场图后用 video_render 渲染整片，不传 segment_ids 或 chain。multi_shot 统一后端/分辨率/比例，不能附加后续镜头参考素材；确需逐镜材料或独立路由才用 per_segment。用 job_output 等待完成；配置了云 GPU 时可先用 video_gpu action=up 确认实例就绪；'
             + '4) 全部成功后 video_assemble 拼接成片，最后用 present 交付。\n'
             + 'H3 音画同生（视频与音频同一次生成），写分镜 prompt 时要声明声音层：'

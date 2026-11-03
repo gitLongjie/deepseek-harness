@@ -41,6 +41,7 @@ import type { AgentPresetSeatInjected } from './AgentPresetSeat.tsx'
 import { AgentPresetSection } from './AgentPresetSection.tsx'
 import type { AgentPresetSectionInjected } from './AgentPresetSection.tsx'
 import { AgentPresetSeatController, type AgentPresetStage } from './seat-store.ts'
+import type {} from './navigation.ts'
 import { AgentPresetSectionController } from './section-store.ts'
 import { en, ja, es, fr, de, ru, pt, zh, type AgentPresetSettingsKey } from './locales.ts'
 import { AGENT_PRESET_SETTINGS_NS, AgentPresetSettingsController } from './settings-store.ts'
@@ -78,6 +79,24 @@ export function apply(ctx: ClientContext): void {
   const codingToolsDisabled = (): boolean => active && toolsSettings.getSnapshot().value?.enabled === false
   const controller = new AgentPresetSettingsController(ctx)
   const staged: AgentPresetStage = { id: undefined, introduce: false }
+  // Cross-surface staging (expert hiring writes from the market page, the seat
+  // flow consumes it on the next new session): a routed pick lands in the same
+  // staged object the seat controllers read.
+  ctx.effect(() => {
+    let stage: ((id: string) => void) | undefined
+    ctx.provide('uiAgentPreset', {
+      stageNextSessionPreset: (id: string): boolean => {
+        if (stage === undefined) return false
+        stage(id)
+        return true
+      },
+    })
+    stage = (id) => {
+      staged.id = id
+      staged.introduce = false
+    }
+    return () => { stage = undefined }
+  }, 'ui-agent-preset: staging service')
   const seats = new WeakMapWithValues<SessionBinding, AgentPresetSeatController>()
   const boundSeatDisposers = new Set<() => Promise<void>>()
   ctx.effect(() => async () => {

@@ -68,6 +68,8 @@ The existing semantic `DraftSnapshot` retains quote text and clipboard-coordinat
 <a id="shell-and-standard-props"></a>
 ## Shell and standard props
 
+The main Conversation content renders the expert or knowledge browser while its navigation state is open, replacing the transcript and composer. Closing the browser restores the Session's draft. These root-scoped page slots belong to the `conversation.content` Factory; embedded conversations keep their Session content while a main browser page is open.
+
 Below 768px, Web view tabs align with the header's 20px left inset. Desktop and wider Web windows retain the additional 8px tab inset.
 
 The shared image slot props keep display choices separate from durable references: `thumbnail` requests a contained attachment-list thumbnail, while `compact` requests a cropped gallery tile. An optional per-image `label` supplies the accessible display name; loading and cache identity still use the original attachment reference. `MessageImagesContentInput` adds optional complete `MessageImageLabels` for the root-scoped `conversation.images.content` Factory. Message, tool, and Factory inputs carry the view's authorized `loadImage` callback explicitly; loading and URL caching remain with the resource owner. [ui-attachment](../ui-attachment/README.md) provides this Factory and owns rendering and the lightbox.

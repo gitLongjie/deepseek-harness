@@ -8,7 +8,7 @@
 
 import { ipcMain } from 'electron'
 import type { ClientModuleRegistry } from '@deepseek-ai/dsh-client-modules'
-import { LOOPBACK_AUTHORITY } from './loopback-authority.ts'
+import { pluginBundleRequestUrl } from './loopback-authority.ts'
 
 /**
  * Register the loadBundle IPC handler.
@@ -33,16 +33,17 @@ export function registerBundleIpc(
       finish('miss (host not settled)')
       return undefined
     }
-    // Combo URLs (`/plugins/??a/client.js,b/client.js&rev=...`) resolve through
-    // the registry's bundle table verbatim, exactly like the web plugin's
-    // `/plugins` HTTP route.
-    if (!req.url.startsWith('/plugins/')) {
+    // Combo URLs (`plugins/??a/client.js,b/client.js&rev=...`, with or without
+    // the leading slash) resolve through the registry's bundle table verbatim,
+    // exactly like the web plugin's `/plugins` HTTP route.
+    const bundleUrl = pluginBundleRequestUrl(req.url)
+    if (bundleUrl === undefined) {
       finish('miss (not a /plugins URL)')
       return undefined
     }
-    // The registry reads the resource off the request URL, which arrives
-    // root-relative because the entry URLs are.
-    const response = await modules.fetchBundle(new Request(new URL(req.url, LOOPBACK_AUTHORITY)))
+    // The registry reads the resource off the request URL. Document-relative
+    // rows omit the leading slash; the loopback URL restores it.
+    const response = await modules.fetchBundle(new Request(bundleUrl))
     if (response.status !== 200) {
       finish(`miss (status ${response.status})`)
       return undefined

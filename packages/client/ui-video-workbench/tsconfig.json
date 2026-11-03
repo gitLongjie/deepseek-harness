@@ -2,20 +2,27 @@
   "extends": "../../../tsconfig.base.client.json",
   "compilerOptions": {
     "rootDir": "src",
-    "outDir": "lib/types"
+    "outDir": "lib/types",
+    "composite": true
   },
   "include": [
     "src"
   ],
   "references": [
-    { "path": "../../api/session-controller/tsconfig.client.json" },
-    { "path": "../../core/session" },
-    { "path": "../../video/video-workbench" },
+    {
+      "path": "../../api/session-controller/tsconfig.client.json"
+    },
+    {
+      "path": "../../core/session"
+    },
+    {
+      "path": "../../video/video-workbench"
+    },
     {
       "path": "../../../vendor/cordis"
     },
     {
-      "path": "../locale"
+      "path": "../locale/tsconfig.client.json"
     },
     {
       "path": "../ui-layout"

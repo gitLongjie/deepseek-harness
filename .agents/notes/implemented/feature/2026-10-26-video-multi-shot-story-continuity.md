@@ -10,7 +10,7 @@ The video tools accepted a multi-shot plan, but the renderer previously spread t
 
 ## Decision
 
-The director prefers two shots in one request for a 10-second story and three for a 15-second story, preserving the requested total duration and explicit shot count. Shot timing belongs to the shared timeline; an individual shot does not require a separate render task. Independent frame targets and routing remain reasons to use `per_segment`.
+The director preserves requested duration and shot count, preferring a continuous shot when no cuts are requested and the action permits it. A 15-second story can use one 15-second segment; action beats do not imply cuts. Necessary camera changes use story-driven shot durations in one request. Shot timing belongs to the shared timeline; an individual shot does not require a separate render task. Independent frame targets and routing remain reasons to use `per_segment`.
 
 `multi_shot` sends one H3 request for a complete story of at most 15 seconds. Each shot records its starting state, one observable event, ending state, continuity relation, and explicit asset ids. The plan validator requires these fields for multi-shot stories with more than one shot, checks asset ids, and rejects mixed backends, mixed canvas settings, later-shot references, partial selection, and chaining because those inputs cannot be represented by the one request.
 
@@ -29,3 +29,9 @@ The local image provider fails when a subject reference is supplied without a co
 ## Consequences
 
 Short stories have a single request-level timeline and a visible opening-frame approval point. The planner must write more structured state, and the program cannot determine whether two prose states are semantically equal; the director review remains responsible for that check. Existing legacy plans with incomplete multi-shot state must be revised or rendered as `per_segment`. A real visual generation still needs provider execution and review; passing the structural checks does not prove visual identity.
+
+Existing character portraits without `referenceLayout: four-column` are incomplete inputs to `video_asset_images`, even when `reference` is present. The tool uses the portrait as identity conditioning and replaces it with one four-column design; completed designs and scene/prop references remain reusable. Failed generation keeps the previous reference record. This prevents library reuse from silently bypassing the four-view requirement without requiring a second character-image format.
+
+Scene consistency uses one canonical layout in the existing asset `prompt` and camera positions in existing shot fields, avoiding independent per-view scene definitions. The director reviews routes before rendering and requests only needed viewpoint previews. Uncast keyframes edit the first selected scene master; cast keyframes retain character conditioning because the image API has one reference source. Text-only generation remains explicit through `identity: text`. Diagram and collage images are review aids, never opening-frame inputs. The renderer still cannot verify spatial semantics or use later multi-shot previews as separate conditioning.
+
+Asset revisions preserve omitted fields, including image references, when the asset id and kind remain the same. Library imports use the same field merge before authored overrides. Replacing the reference clears inherited layout and legacy-sheet metadata unless supplied for the new image; changing asset kind replaces the record. This keeps storyboard edits from detaching generated materials while preventing a replacement portrait from inheriting a four-column declaration.

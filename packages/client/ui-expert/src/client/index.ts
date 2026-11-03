@@ -68,7 +68,10 @@ function recordOf(preset: AgentPresetRow): ExpertRecord {
   return {
     id: preset.id,
     name: preset.name ?? preset.id,
-    trust: preset.trust,
+    // The roster row no longer carries a system/user trust bit, and the
+    // preset remote no longer exposes deletion. Keep the card on the shipped
+    // side so the remove control stays hidden.
+    trust: 'system',
     ...(preset.subtitle !== undefined ? { subtitle: preset.subtitle } : {}),
     ...(preset.avatar !== undefined && preset.avatar !== '' ? { avatar: preset.avatar } : {}),
     ...(preset.description !== undefined ? { description: preset.description } : {}),
@@ -137,12 +140,10 @@ export function apply(ctx: Context): void {
       uiWorkspace.startSession()
       return undefined
     },
-    remove: async (id: string) => {
-      const result = await ctx.remote.agentPresets.deletePreset(id)
-      // The refusal is the Host's own words — a shipped expert, or a directory
-      // outside the writable root — and it names which. Passing it through
-      // untranslated is the policy for wire errors.
-      return result.ok ? undefined : result.error.message
+    remove: async (_id: string) => {
+      // The preset remote no longer exposes deletion. The card hides this
+      // action while every row is treated as shipped.
+      return undefined
     },
   })
 

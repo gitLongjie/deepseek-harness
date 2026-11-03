@@ -21,6 +21,7 @@ import { AccountPlatformHost } from '../src/client/AccountPlatformHost.tsx'
 import type { AccountPlatformHostInjected } from '../src/client/AccountPlatformHost.tsx'
 import { AccountQuotaNotice } from '../src/client/AccountQuotaNotice.tsx'
 import type { AccountQuotaNoticeInjected } from '../src/client/AccountQuotaNotice.tsx'
+import { AccountMenu } from '../src/client/AccountMenu.tsx'
 
 const it = createClientTest({ roster: webApp })
 const withoutAccountAccess = createClientTest({ roster: webApp }, { access: action => action !== 'account/watch' })
@@ -41,8 +42,10 @@ function bonus(orderId: string, message = 'Awarded 5.00'): AccountBonusBatch {
   }
 }
 function operations(c: TestClient): AccountSectionInjected {
-  const injected: object = c.ctx.slots.entries('settings.launcher')[0]!.inject!()
-  return injected as AccountSectionInjected
+  // The composition also carries the login plugin's shadowing launcher row
+  // (lower priority, carrying its own inject face); pick this plugin's entry.
+  const entry = c.ctx.slots.entries('settings.launcher').find(item => item.component === AccountMenu)
+  return entry!.inject!() as AccountSectionInjected
 }
 /** The account take-over registered into the Chat-owned frame-wide quota notice chain. */
 function quotaNoticeEntry(c: TestClient) {
@@ -69,7 +72,7 @@ it('registers account sign-in in a plain browser without the Desktop-only surfac
   for (const reload of [false, true]) {
     if (reload) await c.reload(SELF)
     await c.mock.streams.opened('account/watch', reload ? 2 : 1)
-    expect(c.ctx.slots.entries('settings.launcher')).toHaveLength(1)
+    expect(c.ctx.slots.entries('settings.launcher').some(entry => entry.component === AccountMenu)).toBe(true)
     expect(c.ctx.slots.entries('settings.models.sign-in')).toHaveLength(1)
     expect(quotaNoticeEntry(c)).toBeDefined()
     expect(platformHostEntry(c)).toBeUndefined()
@@ -81,7 +84,9 @@ it('registers account sign-in in a plain browser without the Desktop-only surfac
 withoutAccountAccess('opens no account stream and registers no account surface while the current Peer may not watch the account', async ({ start }) => {
   const c = await start()
   expect(c.mock.streams.end('account/watch')).toBe(0)
-  expect(c.ctx.slots.entries('settings.launcher')).toHaveLength(0)
+  // The login plugin's own launcher row may occupy the seat; this plugin's
+  // launcher must not.
+  expect(c.ctx.slots.entries('settings.launcher').some(entry => entry.component === AccountMenu)).toBe(false)
   expect(quotaNoticeEntry(c)).toBeUndefined()
   expect(c.ctx.slots.entries('settings.models.sign-in')).toHaveLength(0)
   expect(c.ctx.slots.entries('settings.section').some(entry => entry.options.id === 'account')).toBe(false)
@@ -160,7 +165,7 @@ it('shares account actions across seats, publishes dialog ownership, and opens c
   expect(signedOutAgain.searchParams.has('prefill_uid')).toBe(false)
   expect(signedOutAgain.searchParams.get('hide_uid')).toBe('1')
   await c.unload(SELF)
-  expect(c.ctx.slots.entries('settings.launcher')).toHaveLength(0)
+  expect(c.ctx.slots.entries('settings.launcher').some(entry => entry.component === AccountMenu)).toBe(false)
 }, 60_000)
 
 it('prefills the native device description from the Desktop bridge on every click', async ({ start }) => {

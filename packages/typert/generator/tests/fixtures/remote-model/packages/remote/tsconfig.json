@@ -5,10 +5,15 @@
     "outDir": "lib/types",
     "noEmit": false,
     "declaration": true,
-    "emitDeclarationOnly": true
+    "emitDeclarationOnly": true,
+    "composite": true
   },
-  "include": ["src"],
+  "include": [
+    "src"
+  ],
   "references": [
-    { "path": "../domain" }
+    {
+      "path": "../domain"
+    }
   ]
 }

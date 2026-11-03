@@ -2,7 +2,8 @@
   "extends": "../../../tsconfig.base.client.json",
   "compilerOptions": {
     "rootDir": "src",
-    "outDir": "lib/types"
+    "outDir": "lib/types",
+    "composite": true
   },
   "include": [
     "src"
@@ -57,7 +58,7 @@
       "path": "../../settings/settings"
     },
     {
-      "path": "../locale"
+      "path": "../locale/tsconfig.client.json"
     },
     {
       "path": "../store"
@@ -66,7 +67,7 @@
       "path": "../ui-approval"
     },
     {
-      "path": "../ui-conversation"
+      "path": "../ui-conversation/tsconfig.client.json"
     },
     {
       "path": "../ui-layout"
@@ -81,7 +82,7 @@
       "path": "../ui-session"
     },
     {
-      "path": "../ui-settings"
+      "path": "../ui-settings/tsconfig.client.json"
     },
     {
       "path": "../ui-slots"

@@ -16,6 +16,7 @@ import { InputHub } from '../src/client/input/hub.ts'
 import { apply, inject, type EmptyWorkspaceOwnerProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
+import { apply as applyExpert, inject as injectExpert } from '../../ui-expert/src/client/index.ts'
 
 // jsdom implements no Range geometry (Lexical's scroll-into-view measures the
 // caret with one once the surface is genuinely contenteditable).
@@ -80,7 +81,7 @@ function WorkspaceProbe({ open }: EmptyWorkspaceOwnerProps) {
   )
 }
 
-async function bench(opts?: { blank?: boolean }) {
+async function bench(opts?: { blank?: boolean; expert?: boolean }) {
   const runtime = await SlotTestRuntime.create()
   const openSession = provideWorkspaceNavigation(runtime)
   runtime.ctx.provide('configForms', { developerTools: { enabled: createSnapshotStore(true) }, get: () => stubConfigForm().scope } as never)
@@ -100,11 +101,40 @@ async function bench(opts?: { blank?: boolean }) {
   })
   openSession(SID)
   await runtime.root.declare(LAYOUT_CHILDREN, AppRoot)
+  if (opts?.expert === true) {
+    runtime.remote.provideNamespaces({ agentPresets: {
+      list: async () => ({ ok: true, value: { presets: [
+        { id: 'writer', name: '写作专家', category: '写作' },
+      ] } }),
+    } })
+    runtime.ctx.provide('uiAgentPreset', { stageNextSessionPreset: () => true } as never)
+    runtime.ctx.provide('layout', {
+      selectPanel: () => {}, onPanelSelection: () => () => {},
+    } as never)
+    await runtime.mount({ inject: [...injectExpert], apply: applyExpert })
+  }
   await runtime.mount({ inject: [...inject], apply })
   return runtime
 }
 
 describe('resident composer', () => {
+  it('renders the registered expert browser through the main content Factory and restores the Session', async () => {
+    const runtime = await bench({ expert: true })
+    try {
+      const view = runtime.renderRoot()
+      expect(view.getByRole('textbox')).toBeTruthy()
+      await act(async () => { runtime.ctx.uiExpert.openPage() })
+      expect(await view.findByRole('heading', { name: '专家', exact: true })).toBeTruthy()
+      expect(await view.findByRole('heading', { name: '写作专家', exact: true })).toBeTruthy()
+      expect(view.queryByRole('textbox', { name: /发消息/u })).toBeNull()
+      await act(async () => { runtime.ctx.uiExpert.closePage() })
+      expect(view.queryByRole('heading', { name: '专家', exact: true })).toBeNull()
+      expect(view.getByRole('textbox')).toBeTruthy()
+    } finally {
+      await runtime.dispose()
+    }
+  })
+
   it('renders the locked view state while no session exists at all', async () => {
     const runtime = await SlotTestRuntime.create()
     provideWorkspaceNavigation(runtime)

@@ -1,10 +1,9 @@
 /** Unit tests for the desktop boot helpers. */
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { resolveInstallationModuleLinks } from '@deepseek-ai/dsh-app-boot'
 import { ensureRootPluginLinks, healsSharedModuleFallback, resolveMarketAnchorPatch, resolveOptionalBundlePatch, resolveTelemetryPatch } from '../src/main/boot.ts'
 
 describe('resolveTelemetryPatch', () => {
@@ -105,19 +104,53 @@ describe('ensureRootPluginLinks', () => {
     writeFileSync(join(profilesAi, 'dsh-profile-only', 'package.json'), '{}')
 
     const installAnchor = fileURLToPath(new URL('../package.json', import.meta.url))
-    const closure = resolveInstallationModuleLinks(installAnchor)
-    ensureRootPluginLinks({ rootAi, profilesAi, installAnchor })
+    const subagentDir = fileURLToPath(new URL('../../../packages/subagent/subagent', import.meta.url))
+    const dirs = { rootAi, profilesAi, installAnchor, profilesModules: join(mkdtempSync(join(tmpdir(), 'dsh-desktop-farm-')), 'absent') }
+    ensureRootPluginLinks(dirs)
 
     const subagentLink = join(rootAi, 'dsh-subagent')
-    expect(realpathSync.native(subagentLink))
-      .toBe(realpathSync.native(closure.get('@deepseek-ai/dsh-subagent')!))
+    expect(realpathSync.native(subagentLink)).toBe(realpathSync.native(subagentDir))
     expect(readlinkSync(join(rootAi, 'dsh-profile-only'))).toBe(join(profilesAi, 'dsh-profile-only'))
 
     // Idempotent: a second pass keeps every link it wrote.
-    ensureRootPluginLinks({ rootAi, profilesAi, installAnchor })
-    expect(realpathSync.native(subagentLink))
-      .toBe(realpathSync.native(closure.get('@deepseek-ai/dsh-subagent')!))
+    ensureRootPluginLinks(dirs)
+    expect(realpathSync.native(subagentLink)).toBe(realpathSync.native(subagentDir))
     expect(existsSync(join(rootAi, 'dsh-profile-only'))).toBe(true)
+  })
+
+  it('mirrors the web profile farm\'s third-party plugin packages at their own node_modules locations', () => {
+    const rootAi = join(mkdtempSync(join(tmpdir(), 'dsh-desktop-links-')), '@deepseek-ai')
+    mkdirSync(rootAi, { recursive: true })
+    const rootModules = dirname(rootAi)
+    const farm = mkdtempSync(join(tmpdir(), 'dsh-desktop-farm-'))
+    // A qualifying package: its manifest declares dsh.bundle.
+    const plugin = join(farm, 'dsh-wechat')
+    mkdirSync(plugin, { recursive: true })
+    writeFileSync(join(plugin, 'package.json'), JSON.stringify({ name: 'dsh-wechat', dsh: { bundle: { patch: './cordis.patch.yml' } } }))
+    const scoped = join(farm, '@xmanrui', 'dsh-im')
+    mkdirSync(scoped, { recursive: true })
+    writeFileSync(join(scoped, 'package.json'), JSON.stringify({ name: '@xmanrui/dsh-im', dsh: { bundle: {} } }))
+    // A farm library without dsh.bundle stays out, as does the @deepseek-ai
+    // scope (the profilesAi mirror owns it).
+    const plain = join(farm, 'plain-lib')
+    mkdirSync(plain, { recursive: true })
+    writeFileSync(join(plain, 'package.json'), JSON.stringify({ name: 'plain-lib' }))
+    const ownScoped = join(farm, '@deepseek-ai', 'dsh-elsewhere')
+    mkdirSync(ownScoped, { recursive: true })
+    writeFileSync(join(ownScoped, 'package.json'), JSON.stringify({ name: '@deepseek-ai/dsh-elsewhere', dsh: { bundle: {} } }))
+
+    const installAnchor = fileURLToPath(new URL('../package.json', import.meta.url))
+    const dirs = { rootAi, profilesAi: join(mkdtempSync(join(tmpdir(), 'dsh-desktop-shared-')), 'absent'), installAnchor, profilesModules: farm, rootModules }
+    ensureRootPluginLinks(dirs)
+
+    expect(realpathSync.native(join(rootModules, 'dsh-wechat'))).toBe(realpathSync.native(plugin))
+    expect(realpathSync.native(join(rootModules, '@xmanrui', 'dsh-im'))).toBe(realpathSync.native(scoped))
+    expect(existsSync(join(rootModules, 'plain-lib'))).toBe(false)
+    expect(existsSync(join(rootModules, '@deepseek-ai', 'dsh-elsewhere'))).toBe(false)
+
+    // Idempotent: a second pass keeps every link it wrote.
+    ensureRootPluginLinks(dirs)
+    expect(realpathSync.native(join(rootModules, 'dsh-wechat'))).toBe(realpathSync.native(plugin))
   })
 })
 

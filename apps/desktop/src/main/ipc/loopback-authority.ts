@@ -10,3 +10,16 @@
 
 /** Origin of the synthetic authority; no listener is implied. */
 export const LOOPBACK_AUTHORITY = 'http://127.0.0.1'
+
+/**
+ * Absolute loopback URL for one client-bundle route.
+ * Index rows are document-relative (`plugins/...`); the app scheme and IPC
+ * also pass root-relative (`/plugins/...`).
+ * @param src - a bundle route from an injection row or a loadBundle request.
+ * @returns the loopback URL, or `undefined` when `src` is not a plugin route.
+ */
+export function pluginBundleRequestUrl(src: string): string | undefined {
+  const route = src.startsWith('/plugins/') ? src : src.startsWith('plugins/') ? `/${src}` : undefined
+  if (route === undefined) return undefined
+  return new URL(route, LOOPBACK_AUTHORITY).href
+}

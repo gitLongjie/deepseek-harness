@@ -1,5 +1,5 @@
 ---
-description: "Sign-in plugin for the dsh web client: a full-page login takeover and a signed-in account row wired to the deployment's account server through the OEM config."
+description: "Sign-in plugin for the dsh web client: a full-page login takeover and a signed-in account launcher wired to the deployment's account server through the OEM config."
 kind: "package-reference"
 ---
 
@@ -13,10 +13,10 @@ This package registers the account sign-in flow against the deployment's account
 
 ## Table of Contents
 
-Two occupants install through declaration-aware `slots.inject()` calls, so activation order relative to ui-layout and ui-sidebar does not matter and teardown withdraws both:
+Two occupants install through declaration-aware `slots.inject()` calls, so activation order relative to ui-layout and ui-settings does not matter and teardown withdraws both:
 
 - `shell.overlay` — a full-page sign-in takeover (brand mark, username/password form with a show-password toggle, server messages shown verbatim). The backdrop re-enables pointer events because the overlay layer is click-through by design, and it respects a desktop shell's published top inset so the window title bar remains available. While the boot-time session restore is in flight it renders only the backdrop; it renders nothing once a session is signed in.
-- `sidebar.footer.action` — the signed-in account row: avatar (or its initial fallback), display name in wide mode, and a dropdown with the sign-out action.
+- `settings.launcher` — the signed-in account launcher, registered at `priority: -1` so it shadows the upstream `AccountMenu` in a composition carrying both: avatar (or its initial fallback) and the display name in wide mode open a dropdown with the sign-out action, and a gear beside them opens the settings panel through the seat's `openSettings`.
 
 A successful sign-in (wire contract: `POST {username, password}` → `{success, message?, data: {display_name?, avatar?, api_key}}`) keeps the session in memory and stores the typed pair, the issued key, and the profile in `localStorage`, then writes `DEEPAGENS_API_KEY` through the existing `credentials.set` wire method — the same writable layer the Models settings page uses, under the gateway route's own reference. `DEEPSEEK_API_KEY` is deliberately untouched: it belongs to the DeepSeek route, and a launch-time sign-in that wrote it replaced the key a user stored there. The gateway endpoint needs no credential entry because the catalog sync writes it into the route's `llm-deepagens` settings section. A rejected write aborts the sign-in loudly. Sign-out unsets `DEEPAGENS_API_KEY` and drops the stored record, leaving every other stored credential in place.
 

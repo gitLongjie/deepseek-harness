@@ -18,13 +18,13 @@ function NoConversationWidthControls() {
 /**
  * Render the shared Conversation body and its occurrence-selected local Components.
  * @param props - Factory input, standard Session sources, and Conversation seats.
- * @returns the Conversation view, Composer, and optional width controls.
+ * @returns the main browser page when open, otherwise the Conversation and Composer.
  */
 export function ConversationContent(props: ConversationContentProps) {
   const {
     sessionId, phase, hero, useSession, useSessions, useSessionStatus,
     useWorkspaces, useInput, useComposerBlock, renderSlot, renderSlotChain,
-    selectWorkspace, t, useFactorySlot, inputActions,
+    selectWorkspace, t, useFactorySlot, inputActions, useExpertView, useKnowledgeView,
   } = props
   const session = useSession(snapshot => snapshot)
   const Views = useFactorySlot('views', ConversationSessionView)
@@ -33,9 +33,8 @@ export function ConversationContent(props: ConversationContentProps) {
   const pendingInteraction = useSessionStatus(snapshot =>
     sessionId === undefined ? undefined : snapshot.get(sessionId)?.pendingInteraction)
 
-  // FIXME(oem-pages): the knowledge/expert browser page mounts (ui-knowledge-base
-  // and ui-expert) were dropped in the upstream conversation rework together
-  // with their slots; re-port the factory-provided page hooks with them.
+  const expertOpen = useExpertView(view => view.open)
+  const knowledgeOpen = useKnowledgeView(view => view.open)
   const inputState = useInput(s => s)
   const cwd = useSessions(s => sessionId === undefined ? undefined : s.byId[sessionId]?.cwd)
   const workspaces = useWorkspaces(s => s)
@@ -87,6 +86,16 @@ export function ConversationContent(props: ConversationContentProps) {
       setPendingWorkspaceId(undefined)
     }
   }, [pendingWorkspaceId, sessionWorkspace?.workspaceId, workspaces.phase, pendingWorkspace])
+
+  if (props.variant === 'main' && (expertOpen || knowledgeOpen)) {
+    return (
+      <div className={css.body} data-conversation-content="">
+        {expertOpen
+          ? renderSlot('conversation.expert.browser', {})
+          : renderSlot('conversation.knowledge.browser', {})}
+      </div>
+    )
+  }
 
   const zone: InputZone | undefined =
     session === undefined || inputState === undefined ? undefined : { session, input: inputState }

@@ -38,10 +38,26 @@ export type ReaderEndpointClass = Extract<ViewerEndpointClass, `reader-${string}
  */
 export const VIEWER_ENDPOINT_CLASSES = {
   // ── reader-global-read ─────────────────────────────────────────────────────────────
+  'knowledgeBase/describe': 'reader-global-read', // the knowledge-base card reads the WeKnora endpoint descriptor
+  'knowledgeBase/list': 'reader-global-read', // the knowledge-base card lists configured bases
+  'knowledgeBase/listDocuments': 'reader-global-read', // the knowledge-base browser lists a base's documents
+  'knowledgeBase/readDocument': 'reader-global-read', // the knowledge-base browser reads one document
+  'market/browse': 'reader-global-read', // the OEM market panel reads the plugin catalog
+  'market/entryDetail': 'reader-global-read', // the OEM market panel reads one entry's detail page
+  'market/installability': 'reader-global-read', // the OEM market panel checks an entry's installability
+  'market/installed': 'reader-global-read', // the OEM market panel lists installed entries
+  'market/listSources': 'reader-global-read', // the OEM market panel lists configured sources
+  'market/selectedSource': 'reader-global-read', // the OEM market panel reads the selected source
   'llm/listConfigurableProviders': 'reader-global-read', // the page reads the configurable provider catalog
   'llm/listProviders': 'reader-global-read', // the page lists providers
   'session/canOpenWorkspacePath': 'reader-global-read', // the page asks whether a path can be opened
   'session/modelCatalog': 'reader-global-read', // the page reads the model catalog
+  'fileReferences/import': 'reader-session-read', // the OEM schedule-work panel and file-reference intake for a visible Session
+  'scheduleWork/create': 'reader-session-read', // the OEM schedule-work panel and file-reference intake for a visible Session
+  'scheduleWork/list': 'reader-session-read', // the OEM schedule-work panel and file-reference intake for a visible Session
+  'scheduleWork/listRuns': 'reader-session-read', // the OEM schedule-work panel and file-reference intake for a visible Session
+  'scheduleWork/update': 'reader-session-read', // the OEM schedule-work panel and file-reference intake for a visible Session
+  'scheduleWork/removeTasks': 'reader-session-read', // the OEM schedule-work panel and file-reference intake for a visible Session
 
   // ── reader-session-read ─────────────────────────────────────────────────────────────
   'commands/list': 'reader-session-read', // the page lists slash commands for a visible Session (also granted globally)
@@ -227,6 +243,11 @@ export const VIEWER_ENDPOINT_CLASSES = {
   'subagents/prompt': 'owner-only', // owner subagents
 
   // Owner share management stays on the owner's own page; a `share-viewer` Peer is refused first.
+  'market/addSource': 'owner-only', // the OEM market panel registers a plugin source
+  'market/installEntry': 'owner-only', // the OEM market panel manages installs and sources
+  'market/uninstall': 'owner-only', // the OEM market panel manages installs and sources
+  'market/selectSource': 'owner-only', // the OEM market panel manages installs and sources
+  'market/removeSource': 'owner-only', // the OEM market panel manages installs and sources
   'liveshareShares/audit': 'owner-only',
   'liveshareShares/capabilities': 'owner-only',
   'liveshareShares/create': 'owner-only',

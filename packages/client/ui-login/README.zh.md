@@ -1,5 +1,5 @@
 ---
-description: "dsh Web 客户端的登录插件：整页登录接管与已登录账号行，通过 OEM 配置对接部署的账号服务器。"
+description: "dsh Web 客户端的登录插件：整页登录接管与已登录账号启动器，通过 OEM 配置对接部署的账号服务器。"
 kind: "package-reference"
 ---
 
@@ -13,10 +13,10 @@ kind: "package-reference"
 
 ## 目录
 
-两个占位通过声明感知的 `slots.inject()` 安装，因此与 ui-layout、ui-sidebar 的激活顺序无关，卸载时一并撤出：
+两个占位通过声明感知的 `slots.inject()` 安装，因此与 ui-layout、ui-settings 的激活顺序无关，卸载时一并撤出：
 
 - `shell.overlay` —— 整页登录接管（品牌标、用户名/密码表单含密码显隐切换、服务器消息原文展示）。遮罩自行恢复指针事件，因为 overlay 层本身设计为点击穿透；遮罩还遵守桌面壳层发布的顶部保留区，使窗口标题栏保持可用。启动会话恢复进行中时只渲染遮罩；已登录时不渲染任何内容。
-- `sidebar.footer.action` —— 已登录账号行：头像（缺失时以首字母回退）、宽栏模式显示昵称，下拉菜单提供退出登录。
+- `settings.launcher` —— 已登录账号启动器，以 `priority: -1` 注册，因此在同时载入两者的组合中遮蔽上游的 `AccountMenu`：头像（缺失时以首字母回退）与宽栏模式下的昵称点击后打开含退出登录的下拉菜单，旁的齿轮按钮通过该占位的 `openSettings` 打开设置面板。
 
 登录成功（线上契约：`POST {username, password}` → `{success, message?, data: {display_name?, avatar?, api_key}}`）后，会话保存在内存中，键入的账号密码对、签发的密钥与资料存入 `localStorage`，并通过既有的 `credentials.set` 线上方法把网关密钥写入 `DEEPAGENS_API_KEY`——与模型设置页使用的同一可写层，但使用网关路由自己的引用。`DEEPSEEK_API_KEY` 刻意不动：它属于 DeepSeek 路由，而每次启动的重登录若写入它，就会覆盖用户在该处保存的密钥。网关端点不需要凭据条目，因为目录同步会把地址写进该路由的 `llm-deepagens` 设置段。写入被拒绝时登录响亮中止。退出登录只取消 `DEEPAGENS_API_KEY` 并清除存储的登录记录，其余已存凭据保持不动。
 

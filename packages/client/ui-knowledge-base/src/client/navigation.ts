@@ -7,7 +7,7 @@
  * and the global panels always win the conversation area.
  */
 import { Context, Service } from '@deepseek-ai/cordis'
-import type { ISessions } from '@deepseek-ai/dsh-api-session-controller/client'
+import type { ISessions, SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { ILayout } from '@deepseek-ai/dsh-client-ui-layout/client'
 import { defineStore, type StoreInstance } from '@deepseek-ai/dsh-client-store'
 import type { KnowledgeBaseRow } from './contract/slots.ts'
@@ -129,9 +129,9 @@ export class UiKnowledgeService extends Service implements UiKnowledge {
    * @returns the subscription disposer.
    */
   private watchSessionNavigation(): () => void {
-    let last = this.sessions.list.getSnapshot().current
+    let last = mainViewSessionId(this.sessions.list.getSnapshot())
     const dispose = this.sessions.list.subscribe(() => {
-      const current = this.sessions.list.getSnapshot().current
+      const current = mainViewSessionId(this.sessions.list.getSnapshot())
       if (current === last) return
       last = current
       this.closePage()
@@ -150,4 +150,9 @@ export class UiKnowledgeService extends Service implements UiKnowledge {
       if (panelId !== null) this.closePage()
     })
   }
+}
+
+/** Session the workspace is showing: the list row retained by the main view. */
+function mainViewSessionId(state: SessionListState): string | undefined {
+  return state.ids.find(id => (state.byId[id]?.retainedBy.mainView ?? 0) > 0)
 }

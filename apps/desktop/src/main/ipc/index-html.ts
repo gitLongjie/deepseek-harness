@@ -16,16 +16,24 @@ import { fileURLToPath } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
 import type { ClientModuleRegistry } from '@deepseek-ai/dsh-client-modules'
 import { renderIndexInjections, type IndexInjection } from '@deepseek-ai/dsh-host-webserver'
-import { LOOPBACK_AUTHORITY } from './loopback-authority.ts'
+import { pluginBundleRequestUrl } from './loopback-authority.ts'
 
 /** The built render-transport IIFE, inlined ahead of the module-system queue. */
 const TRANSPORT_IIFE_PATH = fileURLToPath(new URL('../../render-transport.js', import.meta.url))
 const CLIENT_MODULES_ID = '@deepseek-ai/dsh-client-modules'
 const CLIENT_MODULES_BOOTSTRAP_PATH = createRequire(import.meta.url).resolve(`${CLIENT_MODULES_ID}/client`)
 
-/** `</script` closes the element early when inlined; `\/` keeps the string equal. */
+/**
+ * Neutralize the two sequences that desynchronize an inline script's HTML
+ * parsing: `</script` closes the element early (`\/` keeps the JS string
+ * equal), and `<!--` opens the script's comment-like state so later markup
+ * shifts into the document body as text. `\u0021` equals `!` inside strings,
+ * templates, and regexes (u-flag included), so both rewrites preserve the JS.
+ */
 function escapeInlineScript(text: string): string {
-  return text.replace(/<\/script/gi, '<\\/script')
+  return text
+    .replace(/<\/script/gi, '<\\/script')
+    .replace(/<!--/g, '<\\u0021--')
 }
 
 /**
@@ -39,9 +47,11 @@ function stripSourceMappingUrl(text: string): string {
   return text.replace(/\n?\/\/# sourceMappingURL=\S+[ \t]*\r?\n?$/, '')
 }
 
-/** Resolve one `/plugins` script-src URL — single or combo — to its bundle bytes. */
+/** Resolve one plugin script URL — root-relative, document-relative, single, or combo — to its bundle bytes. */
 async function readPluginBundle(modules: ClientModuleRegistry, src: string): Promise<string> {
-  const response = await modules.fetchBundle(new Request(new URL(src, LOOPBACK_AUTHORITY)))
+  const url = pluginBundleRequestUrl(src)
+  if (url === undefined) throw new Error(`desktop: not a plugin bundle route ${JSON.stringify(src)}`)
+  const response = await modules.fetchBundle(new Request(url))
   if (response.status !== 200) {
     throw new Error(`desktop: no served client bundle for ${JSON.stringify(src)}`)
   }
@@ -69,15 +79,22 @@ export async function renderDesktopIndex(
   clientModulesBootstrapPath: string = CLIENT_MODULES_BOOTSTRAP_PATH,
   writeLog?: (line: string) => void,
 ): Promise<string> {
-  const server = ctx.get('webServer') as { collectIndexInjections(): IndexInjection[] } | undefined
+  const server = ctx.get('webServer') as {
+    collectIndexInjections(peer: object): IndexInjection[]
+  } | undefined
   if (server === undefined) {
     throw new Error('desktop: no webServer service to collect index injections')
+  }
+  const connection = ctx.get('connection') as { readonly browserPeer: object } | undefined
+  const peer = connection?.browserPeer
+  if (peer === undefined) {
+    throw new Error('desktop: no browser peer to collect index injections')
   }
   const modules = ctx.get('clientModules')
   if (modules === undefined) {
     throw new Error('desktop: no clientModules service to resolve bundle bytes')
   }
-  const table = server.collectIndexInjections()
+  const table = server.collectIndexInjections(peer)
   const preloadRows = table.filter(row => row.kind === 'script-preload').length
   writeLog?.(
     `desktop: index table: ${table.length} rows (${String(preloadRows)} application preloads, `
@@ -90,7 +107,7 @@ export async function renderDesktopIndex(
     )
   }
   const inline = table.map(async (row): Promise<IndexInjection> => {
-    if (row.kind === 'script-preload' && row.src.startsWith('/plugins/')) {
+    if (row.kind === 'script-preload' && pluginBundleRequestUrl(row.src) !== undefined) {
       // Desktop does not use the browser's HTTP cache for client bundles: the
       // renderer loads them through IPC. Execute application batches inline so
       // their factories enter the module-loader queue before AppWebEntry runs.
@@ -98,7 +115,7 @@ export async function renderDesktopIndex(
       return { kind: 'script', placement: 'head', text: escapeInlineScript(stripSourceMappingUrl(text)) }
     }
     if (row.kind !== 'script-src') return row
-    const text = row.src.startsWith('/plugins/')
+    const text = pluginBundleRequestUrl(row.src) !== undefined
       ? await readPluginBundle(modules, row.src)
       : readFileSync(join(webDistDir, row.src), 'utf8')
     return { kind: 'script', placement: row.placement, text: escapeInlineScript(stripSourceMappingUrl(text)) }

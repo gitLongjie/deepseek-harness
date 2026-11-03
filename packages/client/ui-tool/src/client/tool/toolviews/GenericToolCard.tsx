@@ -28,7 +28,7 @@ const VARIANT_ICONS: Record<ToolRowVariant, ReactNode> = {
 }
 
 /** Card props: the owner payload, the gallery dispatcher, and the locale seat (plain prop). */
-export interface GenericToolCardProps extends ToolCallOwnerProps {
+export type GenericToolCardProps = ToolCallOwnerProps & {
   t: ToolTreeProps['t']
   /** Bind the recorded file to the original Session. */
   getFileTriggerProps: (path: string) => ContextMenuTriggerProps

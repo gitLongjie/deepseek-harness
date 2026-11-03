@@ -417,6 +417,23 @@ describe('dsh-tool-video', () => {
     expect(planned.isError).toBe(true)
   })
 
+  it('renders a continuous fifteen-second shot without splitting it', async () => {
+    const { ctx, h3Video } = await setup()
+    const agent = agentWithSession()
+    const planned = await callTool(ctx, 'video_plan', {
+      ...PLAN_ARGS, mode: 'multi_shot',
+      segments: [{ ...PLAN_ARGS.segments[0], duration_seconds: 15,
+        references: [{ type: 'image', source: 'C:/opening.png', role: 'first_frame' }] }],
+    }, agent)
+    if (planned.isError) throw new Error('expected plan success')
+    const plan = planned.value as { id: string; segments: unknown[] }
+    expect(plan.segments).toHaveLength(1)
+    const rendered = await callTool(ctx, 'video_render', { plan_id: plan.id }, agent)
+    expect(rendered.isError).toBe(false)
+    expect(h3Video.requests).toHaveLength(1)
+    expect(h3Video.requests[0]?.durationSeconds).toBe(15)
+  })
+
   it('multi_shot renders the whole storyboard as ONE coherent task', async () => {
     const { ctx, h3Video, outputDir } = await setup()
     const agent = agentWithSession()
@@ -882,6 +899,29 @@ describe('dsh-tool-video', () => {
     expect(references).toEqual(['C:/Users/demo/summit.png'])
   })
 
+  it('derives an empty scene viewpoint from the selected master and allows text-only previews', async () => {
+    const { ctx, h3Video } = await setup()
+    const agent = agentWithSession()
+    const planned = await callTool(ctx, 'video_plan', {
+      ...PLAN_ARGS,
+      assets: [
+        { id: 'office', name: '办公室', kind: 'scene', prompt: '玻璃门在北墙，通道向东延伸', reference: 'C:/office.png' },
+        { id: 'lift', name: '电梯', kind: 'scene', reference: 'C:/lift.png' },
+      ],
+      segments: [{ ...PLAN_ARGS.segments[0], id: 's1', asset_ids: ['office'], prompt: '办公室空镜', camera: '南墙朝北' }],
+    }, agent)
+    if (planned.isError) throw new Error('expected plan success')
+    const planId = (planned.value as { id: string }).id
+    await callTool(ctx, 'video_keyframes', { plan_id: planId }, agent)
+    expect(h3Video.keyframeRequests[0]?.subjectReference).toBe('C:/office.png')
+    expect(h3Video.keyframeRequests[0]?.prompt).toContain('玻璃门在北墙，通道向东延伸')
+    expect(h3Video.keyframeRequests[0]?.prompt).toContain('南墙朝北')
+    expect(h3Video.keyframeRequests[0]?.prompt).toContain('不新增人物')
+    expect(h3Video.keyframeRequests[0]?.prompt).not.toContain('保持参考图中人物的脸')
+    await callTool(ctx, 'video_keyframes', { plan_id: planId, identity: 'text' }, agent)
+    expect(h3Video.keyframeRequests[1]?.subjectReference).toBeUndefined()
+  })
+
   it('conditions generated keyframes on the character the shot names, with the plan style and seed', async () => {
     const { ctx, h3Video } = await setup()
     const agent = agentWithSession()
@@ -913,6 +953,30 @@ describe('dsh-tool-video', () => {
     h3Video.keyframeRequests.length = 0
     await callTool(ctx, 'video_keyframes', { plan_id: plan.id, identity: 'text' }, agent)
     expect(h3Video.keyframeRequests[0]?.subjectReference).toBeUndefined()
+  })
+
+  it('preserves asset images across plan and asset revisions and clears old layout on replacement', async () => {
+    const { ctx, h3Video } = await setup()
+    const agent = agentWithSession()
+    const original = { id: 'hero', name: '林晓', kind: 'character', reference: 'C:/hero.png', referenceLayout: 'four-column' }
+    const created = await callTool(ctx, 'video_plan', { ...PLAN_ARGS, assets: [original] }, agent)
+    if (created.isError) throw new Error('expected plan success')
+    const planId = (created.value as { id: string }).id
+    const update = { id: 'hero', name: '林晓', kind: 'character', prompt: '灰开衫，黑短靴' }
+    const revised = await callTool(ctx, 'video_plan', { ...PLAN_ARGS, plan_id: planId, assets: [update] }, agent)
+    expect((revised.value as { assets: unknown[] }).assets).toContainEqual(expect.objectContaining({ ...update, reference: original.reference, referenceLayout: 'four-column' }))
+    const recorded = await callTool(ctx, 'video_assets', { plan_id: planId, assets: [{ ...update, description: '疲惫克制' }] }, agent)
+    expect((recorded.value as { assets: unknown[] }).assets).toContainEqual(expect.objectContaining({ reference: original.reference, referenceLayout: 'four-column' }))
+    const imported = await callTool(ctx, 'video_plan', {
+      ...PLAN_ARGS, library_assets: ['林晓'], assets: [{ ...update, description: '素材库导入后更新' }],
+    }, agent)
+    expect((imported.value as { assets: unknown[] }).assets).toContainEqual(expect.objectContaining({
+      reference: original.reference, referenceLayout: 'four-column', description: '素材库导入后更新',
+    }))
+    const replaced = await callTool(ctx, 'video_assets', { plan_id: planId, assets: [{ ...update, reference: 'C:/new-portrait.png' }] }, agent)
+    expect((replaced.value as { assets: Array<{ referenceLayout?: string }> }).assets[0]?.referenceLayout).toBeUndefined()
+    await callTool(ctx, 'video_asset_images', { plan_id: planId }, agent)
+    expect(h3Video.keyframeRequests[0]?.subjectReference).toBe('C:/new-portrait.png')
   })
 
   it('keeps the plan seed across revisions and honors an explicit one', async () => {
@@ -986,6 +1050,32 @@ describe('dsh-tool-video', () => {
     expect(rereadAsset?.reference).toBe(replacement?.image)
     expect(rereadAsset?.sheet).toBeUndefined()
   })
+  it('upgrades a legacy portrait using its identity and reuses the resulting four-column image', async () => {
+    const { ctx, outputDir, h3Video } = await setup()
+    const agent = agentWithSession()
+    const planned = await callTool(ctx, 'video_plan', {
+      ...PLAN_ARGS,
+      assets: [
+        { id: 'hero', name: '林晓', kind: 'character', reference: 'C:/old-portrait.png' },
+        { id: 'room', name: '办公室', kind: 'scene', reference: 'C:/office.png' },
+      ],
+    }, agent)
+    if (planned.isError) throw new Error('expected plan success')
+    const planId = (planned.value as { id: string }).id
+    const generated = await callTool(ctx, 'video_asset_images', { plan_id: planId }, agent)
+    expect(generated.isError).toBe(false)
+    expect(h3Video.keyframeRequests).toHaveLength(1)
+    expect(h3Video.keyframeRequests[0]).toMatchObject({ subjectReference: 'C:/old-portrait.png', ratio: '16:9' })
+    expect(h3Video.keyframeRequests[0]?.prompt).toContain('PANEL 3 BACK FULL BODY')
+    const plan = JSON.parse(readFileSync(join(outputDir, 'plans', `${planId}.json`), 'utf8')) as { assets: Array<{ referenceLayout?: string }> }
+    expect(plan.assets[0]?.referenceLayout).toBe('four-column')
+    const again = await callTool(ctx, 'video_asset_images', { plan_id: planId }, agent)
+    expect((again.value as { assets: Array<{ state: string }> }).assets.map(asset => asset.state)).toEqual(['skipped', 'skipped'])
+    expect(h3Video.keyframeRequests).toHaveLength(1)
+    const library = await callTool(ctx, 'video_library', {}, agent)
+    expect((library.value as { assets: unknown[] }).assets).toContainEqual(expect.objectContaining({ name: '林晓', referenceLayout: 'four-column' }))
+  })
+
   it('generates a people-free establishing shot and a neutral prop reference, with no sheet', async () => {
     const { ctx, h3Video } = await setup()
     const agent = agentWithSession()
@@ -1006,6 +1096,7 @@ describe('dsh-tool-video', () => {
     // A set is a wide establishing shot with nobody in it; a prop is a neutral square reference.
     expect(h3Video.keyframeRequests[0]?.ratio).toBe('16:9')
     expect(h3Video.keyframeRequests[0]?.prompt).toContain('画面中没有任何人物')
+    expect(h3Video.keyframeRequests[0]?.prompt).toContain('不是四宫格')
     expect(h3Video.keyframeRequests[0]?.prompt).toContain('冷灰色调')
     expect(h3Video.keyframeRequests[1]?.ratio).toBe('1:1')
     expect(h3Video.keyframeRequests[1]?.prompt).toContain('道具参考图')
@@ -1032,7 +1123,7 @@ describe('dsh-tool-video', () => {
     expect(result).toMatchObject({ state: 'failed', error: 'image host down' })
   })
 
-  it('keeps legacy character anchors when regeneration fails', async () => {
+  it('keeps legacy character anchors when their four-view upgrade fails', async () => {
     const { ctx, outputDir, h3Video } = await setup()
     const agent = agentWithSession()
     const planned = await callTool(ctx, 'video_plan', {
@@ -1047,7 +1138,7 @@ describe('dsh-tool-video', () => {
     writeFileSync(planFile, JSON.stringify(plan))
     h3Video.keyframe = async () => { throw new Error('image provider unavailable') }
 
-    const generated = await callTool(ctx, 'video_asset_images', { plan_id: planId, regenerate: true }, agent)
+    const generated = await callTool(ctx, 'video_asset_images', { plan_id: planId }, agent)
     if (generated.isError) throw new Error('expected per-asset failure')
     expect((generated.value as { assets: Array<{ state: string }> }).assets[0]?.state).toBe('failed')
     const failed = JSON.parse(readFileSync(planFile, 'utf8')) as { assets: [Record<string, unknown>] }

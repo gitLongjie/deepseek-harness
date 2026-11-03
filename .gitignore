@@ -72,3 +72,9 @@ packages/*/*/src/*.d.ts.map
 
 # Generated company-signed CUA release record.
 /packages/experimental/cua-macos/cua-helper.json
+
+# Emitted declarations beside sources (same misbuild shape as the *.js rule
+# above): a declaration under src/ but outside its root is compiler output,
+# never authored — the authored ones live at the src/ root and stay visible.
+packages/*/*/src/**/*.d.ts
+!packages/*/*/src/*.d.ts

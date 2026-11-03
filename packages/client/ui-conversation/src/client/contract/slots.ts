@@ -286,10 +286,10 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
     'conversation.hero.agentPreset': { kind: 'single'; scope: 'session-maybe'; owner: HeroAgentPresetOwnerProps }
     /** Compact options right-aligned in the New Session row after the workspace and preset controls; rendered only with a Session. */
     'conversation.hero.options': { kind: 'list'; scope: 'session' }
-    // FIXME(oem-pages): the knowledge/expert browser slots (ui-knowledge-base
-    // and ui-expert page mounts replacing the session content while open) were
-    // dropped in the upstream conversation rework; re-port them together with
-    // their factory-provided page hooks.
+    /** The knowledge page, replacing the session content while open. */
+    'conversation.knowledge.browser': { kind: 'single'; scope: 'root' }
+    /** The expert page, replacing the session content while open. */
+    'conversation.expert.browser': { kind: 'single'; scope: 'root' }
     /** Full-width entries above the composer card. */
     'conversation.input.dock': { kind: 'list'; scope: 'session'; owner: InputZone }
     /** Floating entries rendered inside the resident composer card. */
@@ -336,6 +336,8 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
         'conversation.hero.workspace': { kind: 'single'; scope: 'root' }
         'conversation.hero.agentPreset': { kind: 'single'; scope: 'session-maybe' }
         'conversation.hero.options': { kind: 'list'; scope: 'session' }
+        'conversation.knowledge.browser': { kind: 'single'; scope: 'root' }
+        'conversation.expert.browser': { kind: 'single'; scope: 'root' }
       }
       inject: ConversationInjected
       locale: 'conversation'

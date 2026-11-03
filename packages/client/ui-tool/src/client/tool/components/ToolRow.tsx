@@ -151,6 +151,7 @@ export const ToolRow = memo(function ToolRow({
   read,
   image,
   renderImages,
+  renderSlot,
   loadImage,
   search,
   web,
@@ -316,11 +317,13 @@ export const ToolRow = memo(function ToolRow({
                   <div className={css.imageBody}>
                     {renderImages !== undefined && loadImage !== undefined
                       ? renderImages(imageBody.images, loadImage)
-                      : renderSlot !== undefined && renderSlot('tool.call.images', {
-                        images: imageBody.images,
-                        loadImage,
-                        align: 'start',
-                      })}
+                      : renderSlot !== undefined && loadImage !== undefined
+                        ? renderSlot('tool.call.images', {
+                          images: imageBody.images,
+                          loadImage,
+                          align: 'start',
+                        })
+                        : undefined}
                     <div className={css.imageMeta}>
                       <div>{imageBody.path}</div>
                       {imageBody.images.map(({ attachment }, index) => (

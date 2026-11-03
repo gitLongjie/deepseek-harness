@@ -56,7 +56,10 @@ async function ipcFetch(ipc: IpcBridge, input: URL, init: RequestInit): Promise<
 
 /** A fetch-shaped IPC caller for the generic RPC channels (Typert gateway). */
 export function createIpcFetch(ipc: IpcBridge): (input: string | URL, init: RequestInit) => Promise<Response> {
-  return (input, init) => ipcFetch(ipc, new URL(input), init)
+  // The RPC caller hands over a document-relative route; the app scheme is a
+  // registered standard scheme, so the document base resolves it the same way
+  // the web app's real fetch would.
+  return (input, init) => ipcFetch(ipc, new URL(input, document.baseURI), init)
 }
 
 type StreamFrame = { streamId: string; kind: 'item'; item: unknown } | { streamId: string; kind: 'end' }

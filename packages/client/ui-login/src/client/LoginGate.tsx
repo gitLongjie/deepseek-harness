@@ -74,7 +74,7 @@ export function LoginGate({ controller, brandIcon, t }: LoginGateProps): ReactNo
           <span className={css.passwordWrap}>
             <Input
               id={passwordId}
-              className={css.passwordInput}
+              {...(css.passwordInput !== undefined ? { className: css.passwordInput } : {})}
               type={showPassword ? 'text' : 'password'}
               autoComplete="current-password"
               value={password}

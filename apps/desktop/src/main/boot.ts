@@ -8,8 +8,8 @@
  * @module @deepseek-ai/dsh-desktop/boot
  */
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, readlinkSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
-import { basename, dirname, join } from 'node:path'
+import { existsSync, mkdirSync, readdirSync, readFileSync, readlinkSync, realpathSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
+import { dirname, isAbsolute, join } from 'node:path'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { FiberState, type Context } from '@deepseek-ai/cordis'
@@ -80,19 +80,155 @@ export interface RootPluginLinkDirs {
   rootAi?: string
   /** The installation anchor whose plugin closure the direct links follow. */
   installAnchor?: string
+  /** The active profile's farm `node_modules` carrying third-party plugin packages. */
+  profilesModules?: string
+  /** The repository-root `node_modules` the third-party links land in. */
+  rootModules?: string
+}
+
+/**
+ * Physical directories of the third-party plugin packages a profile farm
+ * carries, keyed by package name (`@xmanrui/dsh-im`). A package qualifies when
+ * its manifest declares a `dsh.bundle`; libraries in the same farm stay out.
+ * @param modulesDir - the profile's farm `node_modules` directory.
+ * @returns package name to its physical directory.
+ */
+function profilePluginPackages(modulesDir: string): Map<string, string> {
+  const dirs = new Map<string, string>()
+  if (!existsSync(modulesDir)) return dirs
+  const qualify = (packageDir: string, name: string): void => {
+    let manifest: { dsh?: { bundle?: unknown } }
+    try {
+      manifest = JSON.parse(readFileSync(join(packageDir, 'package.json'), 'utf8')) as typeof manifest
+    } catch {
+      // An unreadable manifest is not a plugin package.
+      return
+    }
+    if (manifest.dsh?.bundle === undefined) return
+    try {
+      dirs.set(name, realpathSync.native(packageDir))
+    } catch {
+      dirs.set(name, packageDir)
+    }
+  }
+  for (const entry of readdirSync(modulesDir, { withFileTypes: true })) {
+    if (entry.name.startsWith('.') || entry.name === '@deepseek-ai') continue
+    if (entry.name.startsWith('@')) {
+      const scopeDir = join(modulesDir, entry.name)
+      if (!existsSync(scopeDir)) continue
+      for (const scoped of readdirSync(scopeDir, { withFileTypes: true })) {
+        if (scoped.name.startsWith('.')) continue
+        qualify(join(scopeDir, scoped.name), `${entry.name}/${scoped.name}`)
+      }
+      continue
+    }
+    if (!entry.isDirectory() && !entry.isSymbolicLink()) continue
+    qualify(join(modulesDir, entry.name), entry.name)
+  }
+  return dirs
+}
+
+/** Counters {@link ensureLink} reports through. */
+interface LinkCounts {
+  created: number
+  updated: number
+}
+
+/** Point `link` at `target`, replacing an existing link whose target differs; a non-link entry stays. */
+function ensureLink(link: string, target: string, counts: LinkCounts): void {
+  let current: string | undefined
+  try {
+    current = readlinkSync(link)
+  } catch {
+    // Missing link — nothing to compare or replace.
+  }
+  if (current !== undefined && sameLinkTarget(link, current, target)) return
+  if (current !== undefined) {
+    try {
+      unlinkSync(link)
+    } catch {
+      // A non-link entry (pnpm-owned or foreign) is not ours to replace.
+      return
+    }
+  }
+  try {
+    symlinkSync(target, link, 'junction')
+    if (current === undefined) counts.created += 1
+    else counts.updated += 1
+  } catch {
+    // A racing link or permission denial is not fatal; a later launch retries.
+  }
+}
+
+/**
+ * Physical directories of this checkout's `@deepseek-ai` packages, keyed by
+ * the unscoped directory name (`dsh-subagent`).
+ * @param repoRoot - repository root that contains `packages/` and `vendor/`.
+ * @returns unscoped package name to its physical directory.
+ */
+function workspaceScopePackages(repoRoot: string): Map<string, string> {
+  const scope = '@deepseek-ai/'
+  const dirs = new Map<string, string>()
+  const add = (dir: string): void => {
+    const manifestPath = join(dir, 'package.json')
+    if (!existsSync(manifestPath)) return
+    let name = ''
+    try {
+      name = (JSON.parse(readFileSync(manifestPath, 'utf8')) as { name?: string }).name ?? ''
+    } catch {
+      // An unreadable manifest is not a link target.
+      return
+    }
+    if (!name.startsWith(scope)) return
+    const unscoped = name.slice(scope.length)
+    if (unscoped.length === 0 || unscoped.includes('/')) return
+    try {
+      dirs.set(unscoped, realpathSync.native(dir))
+    } catch {
+      dirs.set(unscoped, dir)
+    }
+  }
+  for (const group of ['packages', 'vendor']) {
+    const groupDir = join(repoRoot, group)
+    if (!existsSync(groupDir)) continue
+    for (const outer of readdirSync(groupDir, { withFileTypes: true })) {
+      if (!outer.isDirectory() || outer.name === 'node_modules') continue
+      const outerDir = join(groupDir, outer.name)
+      if (existsSync(join(outerDir, 'package.json'))) {
+        add(outerDir)
+        continue
+      }
+      for (const inner of readdirSync(outerDir, { withFileTypes: true })) {
+        if (!inner.isDirectory() || inner.name === 'node_modules') continue
+        add(join(outerDir, inner.name))
+      }
+    }
+  }
+  return dirs
+}
+
+/** Whether an existing link already names the same directory as `target`. */
+function sameLinkTarget(link: string, current: string, target: string): boolean {
+  if (current === target) return true
+  const currentPath = isAbsolute(current) ? current : join(dirname(link), current)
+  try {
+    return realpathSync.native(currentPath) === realpathSync.native(target)
+  } catch {
+    return false
+  }
 }
 
 /**
  * Link the loader-visible plugin packages into the repository root node_modules.
- * In the open (non-packaged) runtime the vendored Loader's plain bare import
- * resolves from vendor/loader, whose lookup walks up to the repository root —
- * not the profile baseUrl — so every dsh-owned link points directly at the
- * running installation's resolved package directory and is rewritten when its
- * target differs: the shared fallback directory is rewritten by whichever dsh
- * installation healed last, and a mirror link would follow whatever foreign
- * plugin generation it currently holds. Names outside the installation closure
- * keep that mirror for profile-scope plugins. Junctions avoid Windows symlink
- * privileges. Best-effort: the packaged runtime needs none of this.
+ * The branded dev executable resolves bare imports from `apps/desktop`, which
+ * walks up to this directory. Each `@deepseek-ai` package in the checkout is
+ * linked at its own directory. A name that exists only in the shared profiles
+ * farm stays mirrored there for profile-scope plugins, and every third-party
+ * plugin package the web profile farm carries (`dsh.bundle` manifest) is
+ * linked at its own node_modules location — scoped names included — because
+ * the dev exe's bare import walk cannot reach the farm. A link whose target
+ * differs is rewritten. Junctions avoid Windows symlink privileges.
+ * Best-effort: a closed `app.asar` runtime does not call this.
  * @param dirs - directory overrides for tests.
  */
 export function ensureRootPluginLinks(dirs: RootPluginLinkDirs = {}): void {
@@ -100,51 +236,28 @@ export function ensureRootPluginLinks(dirs: RootPluginLinkDirs = {}): void {
     const profilesAi = dirs.profilesAi ?? join(resolveDshHome(), 'profiles', 'node_modules', '@deepseek-ai')
     // dist/main → repository root is four hops (main → dist → desktop → apps → root).
     const rootAi = dirs.rootAi ?? fileURLToPath(new URL('../../../../node_modules/@deepseek-ai', import.meta.url))
+    const installAnchor = dirs.installAnchor ?? INSTALL_ANCHOR
+    // The desktop boots the web profile, so its farm is where third-party
+    // plugin packages live; the branded dev exe cannot resolve them otherwise.
+    const profilesModules = dirs.profilesModules ?? join(resolveDshHome(), 'profiles', 'web', 'node_modules')
+    const rootModules = dirs.rootModules ?? dirname(rootAi)
     mkdirSync(rootAi, { recursive: true })
-    // rootAi is one package scope directory; only that scope's closure entries
-    // belong here, named without the scope prefix. Other closure packages
-    // resolve beside their dependents and stay out of this mirror. The
-    // installation-closure enumeration (upstream-removed
-    // resolveInstallationModuleLinks) is disabled; the mirror tracks the
-    // shared profiles farm only.
-    // FIXME(host-module-fallback): re-port the closure enumeration onto the
-    // upstream profile-resolution service.
-    const scope = `${basename(rootAi)}/`
-    const targets = new Map<string, string>()
+    const counts: LinkCounts = { created: 0, updated: 0 }
+    const targets = workspaceScopePackages(join(dirname(installAnchor), '..', '..'))
     if (existsSync(profilesAi)) {
       for (const entry of readdirSync(profilesAi, { withFileTypes: true })) {
-        if (!entry.name.startsWith(scope)) continue
-        targets.set(entry.name.slice(scope.length), join(profilesAi, entry.name))
+        if (targets.has(entry.name)) continue
+        if (!entry.isDirectory() && !entry.isSymbolicLink()) continue
+        targets.set(entry.name, join(profilesAi, entry.name))
       }
     }
-    let created = 0
-    let updated = 0
-    for (const [name, target] of targets) {
-      const link = join(rootAi, name)
-      let current: string | undefined
-      try {
-        current = readlinkSync(link)
-      } catch {
-        // Missing link — nothing to compare or replace.
-      }
-      if (current === target) continue
-      if (current !== undefined) {
-        try {
-          unlinkSync(link)
-        } catch {
-          // A non-link entry (pnpm-owned or foreign) is not ours to replace.
-          continue
-        }
-      }
-      try {
-        symlinkSync(target, link, 'junction')
-        if (current === undefined) created += 1
-        else updated += 1
-      } catch {
-        // A racing link or permission denial is not fatal; a later launch retries.
-      }
+    for (const [name, target] of targets) ensureLink(join(rootAi, name), target, counts)
+    for (const [name, target] of profilePluginPackages(profilesModules)) {
+      const link = join(rootModules, name)
+      mkdirSync(dirname(link), { recursive: true })
+      ensureLink(link, target, counts)
     }
-    console.error(`desktop: root plugin links ensured (${created} created, ${updated} updated)`)
+    console.error(`desktop: root plugin links ensured (${String(counts.created)} created, ${String(counts.updated)} updated)`)
   } catch (error) {
     console.error(`desktop: root plugin links failed: ${error instanceof Error ? error.message : String(error)}`)
   }

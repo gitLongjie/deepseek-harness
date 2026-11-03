@@ -1,0 +1,29 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "types": ["node"],
+    "tsBuildInfoFile": "dist/tsconfig.main.tsbuildinfo"
+  },
+  "include": [
+    "src/main",
+    "src/preload"
+  ],
+  "references": [
+    { "path": "../../vendor/cordis" },
+    { "path": "../../vendor/loader" },
+    { "path": "../../vendor/include" },
+    { "path": "../../packages/boot/app-boot" },
+    { "path": "../../packages/boot/cmdline" },
+    { "path": "../../packages/util/home-paths" },
+    { "path": "../../packages/util/launch-environment" },
+    { "path": "../../packages/api/gateway/tsconfig.host.json" },
+    { "path": "../../packages/host/webserver" },
+    { "path": "../../packages/client/connection/tsconfig.host.json" },
+    { "path": "../../packages/client/modules" },
+    { "path": "../../packages/core/session" },
+    { "path": "../../packages/typert/protocol" },
+    { "path": "../../packages/fs/tool-fs-search" }
+  ]
+}

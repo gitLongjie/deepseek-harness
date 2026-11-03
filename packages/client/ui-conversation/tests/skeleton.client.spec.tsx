@@ -148,6 +148,8 @@ function mount(
     entryActions?: boolean
     /** Isolate header capability checks from the composer's required layout observers. */
     headerOnly?: boolean
+    page?: 'expert' | 'knowledge'
+    variant?: 'main' | 'embedded'
   } = {},
 ) {
   const sessionId = 'sessionId' in options ? options.sessionId : SID
@@ -176,6 +178,8 @@ function mount(
     phase: 'ready', projectionsBySession: {},
   })
   const workspaces = createSnapshotStore<WorkspaceSnapshot>(workspaceState(workspaceRows))
+  const expertView = createSnapshotStore({ open: options.page === 'expert' })
+  const knowledgeView = createSnapshotStore({ open: options.page === 'knowledge' })
   const session = createSnapshotStore<SessionSnapshot>(snapshot)
   const useSession = bindSnapshotSelector(session)
   const conversation = createSnapshotStore<ConversationSnapshot>(EMPTY_CONVERSATION_SNAPSHOT)
@@ -362,6 +366,8 @@ function mount(
       ...allowAllAccess,
       useProjection: (() => undefined),
       useComposerBlock: select => select(options.composerBlock),
+      useExpertView: bindSnapshotSelector(expertView),
+      useKnowledgeView: bindSnapshotSelector(knowledgeView),
       useInput,
       inputActions,
       renderSlot,
@@ -375,7 +381,7 @@ function mount(
     )) as ConversationContentProps['useFactorySlot']
     return (
       <FactoryViewsTestContext.Provider value={common}>
-        <ConversationContent {...({ ...common, ...runtimeProps, ...input, useFactorySlot })} />
+        <ConversationContent {...({ ...common, ...runtimeProps, ...input, variant: options.variant ?? input.variant, useFactorySlot })} />
       </FactoryViewsTestContext.Provider>
     )
   }) as ConversationSlotProps['renderFactorySlot']
@@ -400,6 +406,7 @@ function mount(
   const view = render(<ConversationMainPanel {...props} />)
   return {
     view, store, wiring, sink, retargetWorkspace, session, conversation, slotCalls, lineageOwners, seatOwners, open,
+    expertView, knowledgeView,
     pickerOwner: () => pickerOwner,
     setPinned,
     actionsOwner: () => {
@@ -429,6 +436,30 @@ describe('Hero chrome', () => {
 })
 
 describe('ConversationRoot resident composer', () => {
+  it.each(['expert', 'knowledge'] as const)('opens the %s page and restores the conversation when closed', (page) => {
+    const b = mount(sessionSnapshotOf())
+    const source = page === 'expert' ? b.expertView : b.knowledgeView
+    expect(b.view.getByRole('textbox')).toBeTruthy()
+    act(() => { source.set({ open: true }) })
+    expect(b.view.getByTestId(`view-conversation.${page}.browser`)).toBeTruthy()
+    expect(b.view.queryByRole('textbox')).toBeNull()
+    act(() => { source.set({ open: false }) })
+    expect(b.view.queryByTestId(`view-conversation.${page}.browser`)).toBeNull()
+    expect(b.view.getByRole('textbox').textContent).toContain('ordinary draft')
+  })
+
+  it('opens the expert page before a Session is selected', () => {
+    const b = mount(sessionSnapshotOf(), [], undefined, { sessionId: undefined, page: 'expert' })
+    expect(b.view.getByTestId('view-conversation.expert.browser')).toBeTruthy()
+    expect(b.view.queryByRole('textbox')).toBeNull()
+  })
+
+  it('keeps embedded conversations visible while the main expert page is open', () => {
+    const b = mount(sessionSnapshotOf(), undefined, undefined, { variant: 'embedded', page: 'expert' })
+    expect(b.view.queryByTestId('view-conversation.expert.browser')).toBeNull()
+    expect(b.view.getByRole('textbox')).toBeTruthy()
+  })
+
   it('keeps global header navigation without selecting a Session', () => {
     const b = mount(sessionSnapshotOf(), [], undefined, { sessionId: undefined })
     expect(b.view.container.querySelector('header')).not.toBeNull()
@@ -644,7 +675,7 @@ describe('ConversationRoot resident composer', () => {
     // blank the column for the history round-trip.
     const root = b.view.container.querySelector('[data-phase]')
     expect(root?.getAttribute('data-phase')).toBe('hero')
-    expect(b.view.getByText(/探索未至之境/u)).toBeTruthy()
+    expect(b.view.getByText('探索未至之境', { exact: true })).toBeTruthy()
     expect(b.view.getByRole('textbox')).toBeTruthy()
   })
 

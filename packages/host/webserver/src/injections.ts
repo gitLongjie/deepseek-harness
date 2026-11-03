@@ -102,18 +102,28 @@ export function renderIndexInjections(html: string, rows: readonly IndexInjectio
     else body += rendered.markup
   }
   body += READY_MARKUP
+  // Both anchors resolve against the RAW document, and the later offset is
+  // spliced first: injecting the head rows first would put bundle markup
+  // ahead of the real body tag, and injected bundles legitimately contain
+  // literal `<body>` inside string templates (DOMPurify's xhtml wrapper), so
+  // a second scan of the mutated document would splice the body rows into
+  // the middle of a bundle string.
+  const headOpen = html.match(/<head(?:\s[^>]*)?>/i)
+  const bodyOpen = html.match(/<body(?:\s[^>]*)?>/i)
+  const insertionPoint = (open: RegExpMatchArray | null): number | undefined =>
+    open?.index === undefined || open[0] === undefined ? undefined : open.index + open[0].length
   let out = html
-  if (head !== '') {
-    const open = /<head(?:\s[^>]*)?>/i.exec(out)
-    // Headless fixture pages may lack <head>; prepending keeps the rows ahead
-    // of every document script.
-    out = open === null ? `${head}${out}` : splice(out, open.index + open[0].length, head)
-  }
   if (body !== '') {
-    const open = /<body(?:\s[^>]*)?>/i.exec(out)
     // Body-less fragments receive the rows at the end, where the HTML parser
     // has already synthesized a body.
-    out = open === null ? `${out}${body}` : splice(out, open.index + open[0].length, body)
+    const at = insertionPoint(bodyOpen)
+    out = at === undefined ? `${out}${body}` : splice(out, at, body)
+  }
+  if (head !== '') {
+    // Headless fixture pages may lack <head>; prepending keeps the rows ahead
+    // of every document script.
+    const at = insertionPoint(headOpen)
+    out = at === undefined ? `${head}${out}` : splice(out, at, head)
   }
   return out
 }

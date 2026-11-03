@@ -52,7 +52,7 @@ function declare(slots: SlotRegistry): () => void {
     name: 'root',
     children: {
       'shell.overlay': { kind: 'list', scope: 'root' },
-      'sidebar.footer.action': { kind: 'list', scope: 'root' },
+      'settings.launcher': { kind: 'single', scope: 'root' },
     },
   } as never, () => null)
 }
@@ -68,7 +68,7 @@ describe('ui-login apply', () => {
     declare(subject.slots)
     await subject.ctx.plugin({ inject: [...inject], apply }).await()
     expect(subject.slots.entries('shell.overlay')).toHaveLength(0)
-    expect(subject.slots.entries('sidebar.footer.action')).toHaveLength(0)
+    expect(subject.slots.entries('settings.launcher')).toHaveLength(0)
   })
 
   it('falls back to the deployment default endpoint without an override', async () => {
@@ -76,13 +76,13 @@ describe('ui-login apply', () => {
     const subject = await bench()
     declare(subject.slots)
     await subject.ctx.plugin({ inject: [...inject], apply }).await()
-    const face = (subject.slots.entries('sidebar.footer.action')[0]!
+    const face = (subject.slots.entries('settings.launcher')[0]!
       .inject as unknown as () => import('../src/client/SidebarAccount.tsx').SidebarAccountInjected)()
     expect(face.controller.baseUrl()).toBe('https://claw.deepagens.com')
     vi.unstubAllEnvs()
   })
 
-  it('registers the gate and the account row with a bound locale seat', async () => {
+  it('registers the gate and the account launcher with a bound locale seat', async () => {
     vi.stubEnv('DSH_CLIENT_LOGIN_URL', 'https://claw.deepagens.com/api/claw/login')
     vi.stubEnv('DSH_CLIENT_BRAND_ICON', '/brand/oem-login.svg')
     vi.stubEnv('DSH_CLIENT_LOGIN_TAGLINE_ZH', '配置的登录副标题')
@@ -94,13 +94,14 @@ describe('ui-login apply', () => {
     expect(overlay).toHaveLength(1)
     expect(overlay[0]!.component).toBe(LoginGate)
     expect(overlay[0]!.options).toMatchObject({ id: 'login-gate' })
-    const foot = subject.slots.entries('sidebar.footer.action')
+    const foot = subject.slots.entries('settings.launcher')
     expect(foot).toHaveLength(1)
     expect(foot[0]!.component).toBe(SidebarAccount)
-    expect(foot[0]!.options).toMatchObject({ id: 'login-account' })
+    expect(foot[0]!.options).toMatchObject({ priority: -1 })
     const injected = foot[0]!.inject as unknown as () => import('../src/client/SidebarAccount.tsx').SidebarAccountInjected
     const face = injected()
     expect(face.t('logout')).toBe('退出登录')
+    expect(face.t('menuSettings')).toBe('设置')
     expect(face.t('submit')).toBe('登录')
     expect(typeof face.controller.login).toBe('function')
     expect(face.controller.baseUrl()).toBe('https://claw.deepagens.com')
@@ -115,7 +116,7 @@ describe('ui-login apply', () => {
     const subject = await bench()
     declare(subject.slots)
     await subject.ctx.plugin({ inject: [...inject], apply }).await()
-    const face = (subject.slots.entries('sidebar.footer.action')[0]!
+    const face = (subject.slots.entries('settings.launcher')[0]!
       .inject as unknown as () => import('../src/client/SidebarAccount.tsx').SidebarAccountInjected)()
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
       success: true,
@@ -141,13 +142,13 @@ describe('ui-login apply', () => {
     const fiber = subject.ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
     expect(subject.slots.entries('shell.overlay')).toHaveLength(0)
-    expect(subject.slots.entries('sidebar.footer.action')).toHaveLength(0)
+    expect(subject.slots.entries('settings.launcher')).toHaveLength(0)
     declare(subject.slots)
     await Promise.resolve()
     expect(subject.slots.entries('shell.overlay')).toHaveLength(1)
-    expect(subject.slots.entries('sidebar.footer.action')).toHaveLength(1)
+    expect(subject.slots.entries('settings.launcher')).toHaveLength(1)
     await fiber.dispose()
     expect(subject.slots.entries('shell.overlay')).toHaveLength(0)
-    expect(subject.slots.entries('sidebar.footer.action')).toHaveLength(0)
+    expect(subject.slots.entries('settings.launcher')).toHaveLength(0)
   })
 })

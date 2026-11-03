@@ -133,7 +133,9 @@ function scheduleUpdateRecheck(): void {
  * @param t - locale-bound copy resolver (desktop/locales.ts).
  * @param win - the main window whose renderer hosts the update badge.
  * @param updateUrl - generic electron-updater feed base URL, or undefined for
- * deployments that must not check for updates.
+ * deployments that must not check for updates. The development launcher's
+ * `DSH_DESKTOP_DEV` flag unwires the feed as well, because the branded dev exe
+ * indistinguishably reports itself packaged.
  * @param log - durable desktop diagnostic sink.
  * @param prepare - bounded application cleanup before installer launch.
  */
@@ -152,8 +154,12 @@ export function initUpdater(
   checkInFlight = false
   lastStatus = undefined
   prepareInstall = prepare
-  feedConfigured = updateUrl !== undefined
-  if (updateUrl === undefined) return
+  // The branded dev executable reports `app.isPackaged` like the installed
+  // build; the dev launcher's flag is what separates the two. Development
+  // never wires the feed: the check would 404 on channel metadata the feed
+  // does not publish, once per launch and re-check tick.
+  feedConfigured = updateUrl !== undefined && process.env.DSH_DESKTOP_DEV !== '1'
+  if (!feedConfigured) return
   autoUpdater.setFeedURL({
     provider: 'generic',
     url: updateUrl,

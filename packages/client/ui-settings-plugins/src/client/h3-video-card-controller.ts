@@ -14,7 +14,7 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis'
 // Type-only: pulls the ctx.remote merge into this program.
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
-import type { SettingsScope, SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
+import type { ConfigForm, ConfigFormSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { CardForm, numberField, textField, type CardActions, type CardFieldSpec, type CardFieldState, type CardShell } from './card-form.ts'
 
 /**
@@ -185,7 +185,7 @@ export class H3CardController {
    *   references the section names.
    */
   constructor(
-    private readonly scope: SettingsScope<H3VideoSettings>,
+    private readonly scope: ConfigForm<H3VideoSettings>,
     fields: readonly CardFieldSpec[],
     private readonly ctx?: ClientContext,
   ) {
@@ -313,7 +313,7 @@ export class H3CardController {
  * @param snapshot - the current scope snapshot.
  * @returns the reference to address.
  */
-function refOf(snapshot: SettingsScopeSnapshot<H3VideoSettings>): string {
+function refOf(snapshot: ConfigFormSnapshot<H3VideoSettings>): string {
   const declared = snapshot.value?.minimaxApiKeyRef
   return declared !== undefined && declared.length > 0 ? declared : DEFAULT_MINIMAX_API_KEY_REF
 }
@@ -323,7 +323,7 @@ function refOf(snapshot: SettingsScopeSnapshot<H3VideoSettings>): string {
  * @param snapshot - the current scope snapshot.
  * @returns the reference to address.
  */
-function gpuRefOf(snapshot: SettingsScopeSnapshot<H3VideoSettings>): string {
+function gpuRefOf(snapshot: ConfigFormSnapshot<H3VideoSettings>): string {
   const declared = snapshot.value?.gpuApiTokenRef
   return declared !== undefined && declared.length > 0 ? declared : DEFAULT_GPU_API_TOKEN_REF
 }

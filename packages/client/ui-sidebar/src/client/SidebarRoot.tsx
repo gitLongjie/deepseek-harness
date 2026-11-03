@@ -444,7 +444,7 @@ export function SidebarRoot({
         <Toast key={copiedToast} tone="success" text={t('version.copied')} onDone={() => { setCopiedToast(null) }} />
       )}
 
-      {/* Footer actions stack above Settings in both sidebar widths. */}
+      {/* Wide: footer actions on their own row above the settings trigger row. */}
       <div className={css.footArea}>
         <div className={css.footerActions}>
           {renderSlot('sidebar.footer.action', { wide })}

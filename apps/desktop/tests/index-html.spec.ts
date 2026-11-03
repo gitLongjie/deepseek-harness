@@ -14,6 +14,9 @@ function makeCtx(rows: IndexInjection[], bundlePath?: string, bundled: string[] 
       if (service === 'webServer') {
         return { collectIndexInjections: () => rows }
       }
+      if (service === 'connection') {
+        return { browserPeer: { principal: { kind: 'owner' } } }
+      }
       if (service === 'clientModules') {
         return {
           // The registry parses the request URL and serves the advertised
@@ -24,9 +27,9 @@ function makeCtx(rows: IndexInjection[], bundlePath?: string, bundled: string[] 
             return bundlePath === undefined
               ? new Response(null, { status: 404 })
               : new Response(readFileSync(bundlePath), {
-                  status: 200,
-                  headers: { 'content-type': 'text/javascript; charset=utf-8' },
-                })
+                status: 200,
+                headers: { 'content-type': 'text/javascript; charset=utf-8' },
+              })
           },
         }
       }
@@ -65,6 +68,27 @@ describe('renderDesktopIndex', () => {
     // The registry parses the request URL, and the file:// document has no base
     // to resolve the table's root-relative src against.
     expect(bundled).toEqual(['http://127.0.0.1/plugins/@deepseek-ai/dsh-client-modules/client.js?rev=abc'])
+  })
+
+  it('inlines document-relative combo plugin routes', async () => {
+    const dir = makeWebDist()
+    const bundleFile = join(dir, 'client.js')
+    writeFileSync(bundleFile, 'window.__ModuleLoader__.load({ id: "pkg", factory() {} })')
+    const iifeFile = join(dir, 'render-transport.js')
+    writeFileSync(iifeFile, 'window.__DSH_TRANSPORT__ = {}')
+    const src = 'plugins/??@deepseek-ai/dsh-client-modules/client.js&rev=abc'
+    const rows: IndexInjection[] = [
+      { kind: 'script-preload', src },
+      { kind: 'script-src', placement: 'head', src },
+    ]
+    const bundled: string[] = []
+    const html = await renderDesktopIndex(makeCtx(rows, bundleFile, bundled), dir, iifeFile)
+    expect(html).toContain('__ModuleLoader__.load')
+    expect(html).not.toContain(src)
+    expect(bundled).toEqual([
+      'http://127.0.0.1/plugins/??@deepseek-ai/dsh-client-modules/client.js&rev=abc',
+      'http://127.0.0.1/plugins/??@deepseek-ai/dsh-client-modules/client.js&rev=abc',
+    ])
   })
 
   it('escapes </script sequences inside inlined bundle bytes', async () => {

@@ -49,7 +49,7 @@ kind: "package-reference"
 
 ### 模型能做什么
 
-- **`video_plan(goal, segments, mode?, assets?, library_assets?, style?, seed?, allow_remote?)`**——保存和修订分镜。导演应先把剧本拆成可观察节拍，并在调用工具前审查每一镜的状态交接。10 秒以内优先把两个约 5 秒镜头放入一次 `multi_shot`；只有需要真实尾帧链、独立收尾帧、不同素材或不同路由时才用 `per_segment`。`mode` 默认 `multi_shot`：≤15 秒故事在一次 H3 任务中生成，统一后端、分辨率和比例。超过一镜时每镜必须记录 `start_state`、`event`、`end_state`，第二镜起填写 `continuity`；`asset_ids` 明确选择素材，空列表表示不使用素材。只接受第一镜的一张 image/first_frame，后续参考图和独立路由需改用 `per_segment`。省略 seed 时按计划派生；它仅帮助支持种子的服务重现采样，不能锁定角色或剧情。
+- **`video_plan(goal, segments, mode?, assets?, library_assets?, style?, seed?, allow_remote?)`**——保存和修订分镜。导演应先把剧本拆成可观察节拍，并在调用工具前审查每一镜的状态交接。不按时长固定拆镜：连续 15 秒可以只有一个 15 秒镜头，必要切镜按剧情分配时长并放入一次 `multi_shot`；只有需要真实尾帧链、独立收尾帧、不同素材或不同路由时才用 `per_segment`。`mode` 默认 `multi_shot`：≤15 秒故事在一次 H3 任务中生成，统一后端、分辨率和比例。超过一镜时每镜必须记录 `start_state`、`event`、`end_state`，第二镜起填写 `continuity`；`asset_ids` 明确选择素材，空列表表示不使用素材。只接受第一镜的一张 image/first_frame，后续参考图和独立路由需改用 `per_segment`。省略 seed 时按计划派生；它仅帮助支持种子的服务重现采样，不能锁定角色或剧情。
 - **`video_assets(plan_id, assets, style?)`**——记录可复用锚点和用户提供的参考图。规范 `prompt` 块由导演智能体根据剧情和参考图自动编写，用户不需要手写绘图提示词。素材引用必须是绝对本地路径或 http(s) URL。记录同时进入项目素材库，后续剧集可复用相同设定。
 - **`video_asset_images(plan_id, asset_ids?, regenerate?, seed?)`**——为角色生成一张 16:9 四栏设定图，依次包含正面全身、左侧面全身、背面全身和面部特写；前三栏从头到鞋完整入画，四栏必须是同一个人。单人关键帧会裁出正面栏作为临时条件图，不会重新生成第二套角色。场景生成无人物建立图，道具生成中性参考图；`regenerate` 替换选中图片。
 - **`video_keyframes(plan_id, segment_ids?, frame?, seed?)`**——在视频之前生成静帧。`multi_shot` 默认只生成第一镜的开场图，表现 `start_state` 且事件尚未发生；`per_segment` 使用 `frame="closing"` 时按所选镜头的 `end_state` 生成目标收尾图，确认后把路径作为该镜 `last_frame` 参考再渲染。目标图只约束目的地，不能冒充前一镜实际尾帧。展示图片供用户确认。本地图片工作流在收到主体参考时必须显式支持图生图。
@@ -163,3 +163,9 @@ kind: "package-reference"
 工具测试驱动真实工具注册表，`jobs` 与 `h3Video` 为桩、`Session` 为真实实现；`video_render` 的任务 producer 通过桩的 `start` 捕获被验证。`h3-video` 任务类在 `src/types.ts` 中声明，使 `JobKind` 联合保持可合并扩展。
 
 </details>
+
+调用 `video_asset_images` 时，未标记 `referenceLayout: four-column` 的已有角色图也会补全：旧图用作身份参考，生成一张包含正面、侧面、背面全身与面部特写的四栏设定图。已有四栏图及场景、道具参考图继续复用；补全失败时保留旧参考记录。
+
+场景固定布局保存在场景素材的 `prompt` 中，包含门窗、通道连接、陈设、光源、方向及行走路线。导演在跨门或跨区域移动时先展示文字或示意布局，再生成一张无人透视主图；分镜 `camera` 记录位置、朝向和视野，起止状态记录人物在路线上的位置。仅对必要换向显式选择 `video_keyframes segment_ids` 生成预览。无人预览以选中素材中的第一张场景主图作参考；人物预览优先锁角色，场景布局通过文字约束。图片接口一次只接受一个参考源，无法保证同时锁定视觉身份与空间几何。`multi_shot` 后续预览不逐镜约束视频；首帧必须是单张透视画面，不能使用布局图或拼贴。
+
+同 id、同类型素材的修订保留未提交字段，包括图片引用。显式换图会清除继承的布局与旧设定图元数据；改变类型会替换记录。素材库导入后的字段更新遵循相同规则。

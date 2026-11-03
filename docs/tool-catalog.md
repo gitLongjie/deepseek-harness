@@ -2289,7 +2289,7 @@ Source: [`packages/video/tool-video/src/index.ts`](../packages/video/tool-video/
 
 ### `video_asset_images`
 
-Generate the anchor images for plan assets that need them. The agent analyzes the story and reference material before this call and stores the resulting character identity prompt in asset.prompt; the user does not hand-write image prompts. A character gets exactly one 16:9 four-column design image: front, side, and back full-body views (head to shoes visible), plus a face close-up. Single-subject keyframes use a crop of its front column, never a second generated identity. Scenes get a reusable establishing shot without people; props get a neutral reference image. Images are saved under outputDir/assets and recorded on the plan; pass regenerate with a new seed to try another take. No separate turnaround file is generated; the four views share one image.
+Generate the anchor images for plan assets that need them. The agent analyzes the story and reference material before this call and stores the resulting character identity prompt in asset.prompt; the user does not hand-write image prompts. A character gets exactly one 16:9 four-column design image: front, side, and back full-body views (head to shoes visible), plus a face close-up. Single-subject keyframes use a crop of its front column, never a second generated identity. Scenes get a reusable establishing shot without people; props get a neutral reference image. Existing character portraits without a four-column design are upgraded using the portrait as identity reference. Images are saved under outputDir/assets and recorded on the plan; pass regenerate with a new seed to try another take. No separate turnaround file is generated; the four views share one image.
 
 ```json
 {
@@ -2301,7 +2301,7 @@ Generate the anchor images for plan assets that need them. The agent analyzes th
     },
     "asset_ids": {
       "type": "array",
-      "description": "Asset ids to generate; defaults to every asset without a reference.",
+      "description": "Asset ids to generate; defaults to missing references and characters without a four-column design. Existing character portraits condition their replacement design.",
       "items": {
         "type": "string"
       }
@@ -2361,7 +2361,7 @@ Record reusable asset anchors on an existing plan. The agent must first analyze 
           },
           "prompt": {
             "type": "string",
-            "description": "Agent-authored canonical visual identity block. For characters, include observable age impression, body, face, hair, makeup, gaze, mouth/expression, clothing, shoes, accessories, posture, and negative constraints; the user does not need to write this prompt."
+            "description": "Agent-authored canonical visual identity block. For characters, include observable age impression, body, face, hair, makeup, gaze, mouth/expression, clothing, shoes, accessories, posture, and negative constraints; the user does not need to write this prompt. For scenes, record fixed doors/windows, connected passages, furnishings, light sources, spatial directions, and travel routes; derive every camera view from this same layout."
           },
           "reference": {
             "type": "string"
@@ -2425,7 +2425,7 @@ Source: [`packages/video/tool-video/src/index.ts`](../packages/video/tool-video/
 
 ### `video_keyframes`
 
-Generate stills using the configured image provider. multi_shot defaults to one opening frame showing the first shot start_state before its event; explicitly selected later stills are storyboard previews and do not condition the video. per_segment defaults to all shots. A named or explicitly selected character supplies one full-body reference image; local generation requires a reference-image workflow. Present the images for confirmation before rendering.
+Generate stills using the configured image provider. multi_shot defaults to one opening frame showing the first shot start_state before its event; explicitly selected later stills are storyboard previews and do not condition the video. per_segment defaults to all shots. A named or explicitly selected character supplies one full-body reference image; local generation requires a reference-image workflow. Uncast shots use the first selected scene master as the single image reference; character shots prioritize character identity and describe scene layout in text. Use asset_ids to select the intended scene. Layout diagrams and collages are review material, never video first frames. Present the images for confirmation before rendering.
 
 ```json
 {
@@ -2456,7 +2456,7 @@ Generate stills using the configured image provider. multi_shot defaults to one 
     },
     "identity": {
       "type": "string",
-      "description": "How the still is conditioned on the cast. \"auto\" (default) keeps the face, clothing, shoes, and body proportions when the shot names a character the plan carries an image for, by editing that full-body reference into the scene; open shots draw from text alone. \"text\" forces text-to-image; \"portrait\" forces the reference edit even when no character is named.",
+      "description": "How the still is conditioned on the cast. \"auto\" (default) keeps the face, clothing, shoes, and body proportions when the shot names a character the plan carries an image for, by editing that full-body reference into the scene; uncast shots use the first selected scene reference to derive the requested viewpoint; without one they draw from text alone. \"text\" forces text-to-image; \"portrait\" forces the reference edit even when no character is named.",
       "enum": [
         "auto",
         "text",
@@ -2487,7 +2487,7 @@ Source: [`packages/video/tool-video/src/index.ts`](../packages/video/tool-video/
 
 ### `video_plan`
 
-Structure the current conversation request into a versioned storyboard plan and persist it. For stories up to 10 seconds, prefer two roughly 5-second shots in one multi_shot request; for stories up to 15 seconds, prefer three roughly 5-second shots in one request. Use per_segment only when real tail-frame chaining, independent closing frames, different materials, or different routing is required. The agent must first analyze the screenplay into short observable beats, then write one executable event and a concrete start/end state for every shot; a continuous route must include exit, threshold crossing, travel direction, entry, and arrival. Before calling this tool, the agent must analyze each character from the story and any supplied reference image, then write an observable identity anchor in the asset prompt: age impression, build, face shape, hair, makeup, gaze, mouth/expression, wardrobe, shoes, accessories, posture, and explicit negative constraints. The agent owns this prompt writing; the user only describes the story and characters. This tool validates and stores the plan. Pass an existing plan_id to revise it.
+Structure the current conversation request into a versioned storyboard plan and persist it. Duration does not determine shot count. Prefer one continuous shot for the requested duration when no cuts are requested and the action permits it; a 15-second story can be one 15-second segment. Action beats do not require cuts. Use multiple shots only when the story or user requires them, with story-driven durations in one multi_shot request of at most 15 seconds. Use per_segment only when real tail-frame chaining, independent closing frames, different materials, or different routing is required. The agent must first analyze the screenplay into short observable beats, then write an executable action sequence and concrete start/end states for every shot; a continuous route must include exit, threshold crossing, travel direction, entry, and arrival. Before calling this tool, the agent must analyze each character from the story and any supplied reference image, then write an observable identity anchor in the asset prompt: age impression, build, face shape, hair, makeup, gaze, mouth/expression, wardrobe, shoes, accessories, posture, and explicit negative constraints. The agent owns this prompt writing; the user only describes the story and characters. This tool validates and stores the plan. Pass an existing plan_id to revise it.
 
 ```json
 {
@@ -2535,7 +2535,7 @@ Structure the current conversation request into a versioned storyboard plan and 
           },
           "prompt": {
             "type": "string",
-            "description": "Agent-authored canonical visual identity block. For characters, include observable age impression, body, face, hair, makeup, gaze, mouth/expression, clothing, shoes, accessories, posture, and negative constraints; the user does not need to write this prompt."
+            "description": "Agent-authored canonical visual identity block. For characters, include observable age impression, body, face, hair, makeup, gaze, mouth/expression, clothing, shoes, accessories, posture, and negative constraints; the user does not need to write this prompt. For scenes, record fixed doors/windows, connected passages, furnishings, light sources, spatial directions, and travel routes; derive every camera view from this same layout."
           },
           "reference": {
             "type": "string"

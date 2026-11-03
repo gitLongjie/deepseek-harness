@@ -2,20 +2,45 @@
   "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
     "rootDir": "src",
-    "outDir": "lib/types"
+    "outDir": "lib/types",
+    "composite": true
   },
-  "include": ["src"],
+  "include": [
+    "src"
+  ],
   "references": [
-    { "path": "../../../vendor/cosmokit" },
-    { "path": "../../../vendor/schemastery" },
-    { "path": "../../../vendor/cordis" },
-    { "path": "../../attachment/attachment" },
-    { "path": "../../core/agent" },
-    { "path": "../../core/session" },
-    { "path": "../../core/tools" },
-    { "path": "../../interaction/commands" },
-    { "path": "../../jobs/jobs" },
-    { "path": "../../llm/llm" },
-    { "path": "../h3-video" }
+    {
+      "path": "../../../vendor/cosmokit"
+    },
+    {
+      "path": "../../../vendor/schemastery"
+    },
+    {
+      "path": "../../../vendor/cordis"
+    },
+    {
+      "path": "../../attachment/attachment"
+    },
+    {
+      "path": "../../core/agent"
+    },
+    {
+      "path": "../../core/session"
+    },
+    {
+      "path": "../../core/tools"
+    },
+    {
+      "path": "../../interaction/commands"
+    },
+    {
+      "path": "../../jobs/jobs"
+    },
+    {
+      "path": "../../llm/llm"
+    },
+    {
+      "path": "../h3-video"
+    }
   ]
 }

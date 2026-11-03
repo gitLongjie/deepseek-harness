@@ -2295,7 +2295,7 @@ subagent_oar 工具在为外部提供方配置的别名之间选择。本目录�
 
 ### `video_asset_images`
 
-为需要锚点图的计划素材生成图片。导演智能体会先从剧情和参考素材分析角色，并把身份提示词写入 asset.prompt；用户不需要手写绘图提示词。角色只生成一张 16:9 四栏设定图（正面、侧面、背面全身和面部特写），头顶到鞋底完整可见，关键帧使用它来保持面孔、服装、鞋子、表情和身体比例。场景得到无人物、可复用的建立图；道具得到中性参考图。图片保存在 outputDir/assets 下并记录到计划上；传入 regenerate 与新 seed 可以再要一个方案。
+为需要锚点图的计划素材生成图片。导演智能体会先从剧情和参考素材分析角色，并把身份提示词写入 asset.prompt；用户不需要手写绘图提示词。角色只生成一张 16:9 四栏设定图（正面、侧面、背面全身和面部特写），头顶到鞋底完整可见，关键帧使用它来保持面孔、服装、鞋子、表情和身体比例。场景得到无人物、可复用的建立图；道具得到中性参考图。已有角色图未标记 four-column 时，以旧图锁定身份补全四栏设定图。图片保存在 outputDir/assets 下并记录到计划上；传入 regenerate 与新 seed 可以再要一个方案。
 
 ```json
 {
@@ -2307,7 +2307,7 @@ subagent_oar 工具在为外部提供方配置的别名之间选择。本目录�
     },
     "asset_ids": {
       "type": "array",
-      "description": "Asset ids to generate; defaults to every asset without a reference.",
+      "description": "Asset ids to generate; defaults to missing references and characters without a four-column design. Existing character portraits condition their replacement design.",
       "items": {
         "type": "string"
       }
@@ -2367,7 +2367,7 @@ subagent_oar 工具在为外部提供方配置的别名之间选择。本目录�
           },
           "prompt": {
             "type": "string",
-            "description": "Agent-authored canonical visual identity block. For characters, include observable age impression, body, face, hair, makeup, gaze, mouth/expression, clothing, shoes, accessories, posture, and negative constraints; the user does not need to write this prompt."
+            "description": "Agent-authored canonical visual identity block. For characters, include observable age impression, body, face, hair, makeup, gaze, mouth/expression, clothing, shoes, accessories, posture, and negative constraints; the user does not need to write this prompt. For scenes, record fixed doors/windows, connected passages, furnishings, light sources, spatial directions, and travel routes; derive every camera view from this same layout."
           },
           "reference": {
             "type": "string"
@@ -2433,6 +2433,8 @@ subagent_oar 工具在为外部提供方配置的别名之间选择。本目录�
 
 使用配置的图片 provider 生成静帧。multi_shot 默认只生成表现第一镜 start_state、事件尚未发生的开场图；显式选择的后续静帧仅是分镜预览，不约束视频。per_segment 默认生成全部镜头。点名或显式选择的角色提供一张全身参考图；本地生成需要图生图工作流。渲染前展示图片供用户确认。
 
+无人机位预览使用选中素材中的第一张场景主图作为单一参考；有角色时优先锁人物，空间布局通过文字约束。用 asset_ids 选择场景，布局图和拼贴仅作审查材料，不能作为视频首帧。
+
 ```json
 {
   "type": "object",
@@ -2462,7 +2464,7 @@ subagent_oar 工具在为外部提供方配置的别名之间选择。本目录�
     },
     "identity": {
       "type": "string",
-      "description": "How the still is conditioned on the cast. \"auto\" (default) keeps the face, clothing, shoes, and body proportions when the shot names a character the plan carries an image for, by editing that full-body reference into the scene; open shots draw from text alone. \"text\" forces text-to-image; \"portrait\" forces the reference edit even when no character is named.",
+      "description": "How the still is conditioned on the cast. \"auto\" (default) keeps the face, clothing, shoes, and body proportions when the shot names a character the plan carries an image for, by editing that full-body reference into the scene; uncast shots use the first selected scene reference to derive the requested viewpoint; without one they draw from text alone. \"text\" forces text-to-image; \"portrait\" forces the reference edit even when no character is named.",
       "enum": [
         "auto",
         "text",
@@ -2541,7 +2543,7 @@ subagent_oar 工具在为外部提供方配置的别名之间选择。本目录�
           },
           "prompt": {
             "type": "string",
-            "description": "Agent-authored canonical visual identity block. For characters, include observable age impression, body, face, hair, makeup, gaze, mouth/expression, clothing, shoes, accessories, posture, and negative constraints; the user does not need to write this prompt."
+            "description": "Agent-authored canonical visual identity block. For characters, include observable age impression, body, face, hair, makeup, gaze, mouth/expression, clothing, shoes, accessories, posture, and negative constraints; the user does not need to write this prompt. For scenes, record fixed doors/windows, connected passages, furnishings, light sources, spatial directions, and travel routes; derive every camera view from this same layout."
           },
           "reference": {
             "type": "string"

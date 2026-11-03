@@ -812,6 +812,9 @@ importers:
       electron-builder:
         specifier: ^26.17.0
         version: 26.17.0(electron-builder-squirrel-windows@26.17.0)(supports-color@9.4.0)
+      esbuild:
+        specifier: ^0.28.2
+        version: 0.28.2
       extract-zip:
         specifier: ^2.0.1
         version: 2.0.1(supports-color@9.4.0)
@@ -830,6 +833,9 @@ importers:
       react-dom:
         specifier: ^18.2.0
         version: 18.3.1(react@18.3.1)
+      resedit:
+        specifier: ^3.1.0
+        version: 3.1.0
       sharp:
         specifier: 0.35.5
         version: 0.35.5(@types/node@22.20.1)
@@ -4980,9 +4986,9 @@ importers:
       '@deepseek-ai/dsh-client-ui-primitives':
         specifier: workspace:^
         version: link:../ui-primitives
-      '@deepseek-ai/dsh-client-ui-sidebar':
+      '@deepseek-ai/dsh-client-ui-settings':
         specifier: workspace:^
-        version: link:../ui-sidebar
+        version: link:../ui-settings
       '@deepseek-ai/dsh-client-ui-slots':
         specifier: workspace:^
         version: link:../ui-slots
@@ -25821,6 +25827,10 @@ packages:
     resolution: {integrity: sha512-eRWB5LBz7PpDu4PUlwT0PhnQfTQJlDDdPa35urV4Osrm0t0AqQFGn+UIkU3klZvwJ8KPO3VbBFsXquA6p6kqZw==}
     engines: {node: '>=12', npm: '>=6'}
 
+  pe-library@2.0.1:
+    resolution: {integrity: sha512-/qjYFqNSlq59B5DI36am++5/3gMgh02QnzpYigrwrW6s+QpU0mHf09/iA4wjTu21UUxodyV7ZCetV5MiDhaN/A==}
+    engines: {node: '>=20'}
+
   pend@1.2.0:
     resolution: {integrity: sha512-F3asv42UuXchdzt+xXqfW1OGlVBe+mxa2mqI0pg5yAHZPvFmY3Y6drSf/GQ1A86WgWEN9Kzh/WrgKa6iGcHXLg==}
 
@@ -26160,6 +26170,10 @@ packages:
   resedit@1.7.2:
     resolution: {integrity: sha512-vHjcY2MlAITJhC0eRD/Vv8Vlgmu9Sd3LX9zZvtGzU5ZImdTN3+d6e/4mnTyV8vEbyf1sgNIrWxhWlrys52OkEA==}
     engines: {node: '>=12', npm: '>=6'}
+
+  resedit@3.1.0:
+    resolution: {integrity: sha512-i6CN8E6FzTpzsGq/oUnm2GTWhddpZEbnAE+zeNwqTppucTK7xd178q1xWEMrFb+nLnCh+geDqZ4QwhFN8VEgVQ==}
+    engines: {node: '>=20'}
 
   resolve-alpn@1.2.1:
     resolution: {integrity: sha512-0a1F4l73/ZFZOakJnQ3FvkJ2+gSTQWz/r2KE5OdDY0TxPm5h4GkqkWWfM47T7HsbnOtcJVEF4epCVy6u7Q3K+g==}
@@ -30745,7 +30759,7 @@ snapshots:
       '@babel/types': 7.29.7
       '@roberts_lando/vfs': 0.3.3
       '@yao-pkg/pkg-fetch': 3.6.4
-      esbuild: 0.28.1
+      esbuild: 0.28.2
       into-stream: 9.1.0
       multistream: 4.1.0
       picocolors: 1.1.1
@@ -34193,6 +34207,8 @@ snapshots:
 
   pe-library@0.4.1: {}
 
+  pe-library@2.0.1: {}
+
   pend@1.2.0: {}
 
   perfect-debounce@1.0.0: {}
@@ -34533,6 +34549,10 @@ snapshots:
   resedit@1.7.2:
     dependencies:
       pe-library: 0.4.1
+
+  resedit@3.1.0:
+    dependencies:
+      pe-library: 2.0.1
 
   resolve-alpn@1.2.1: {}
 
@@ -35489,7 +35509,7 @@ snapshots:
 
   vite@6.4.3(@types/node@22.20.1)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.13)(yaml@2.9.0):
     dependencies:
-      esbuild: 0.25.12
+      esbuild: 0.25.9
       fdir: 6.5.0(picomatch@4.0.4)
       picomatch: 4.0.4
       postcss: 8.5.28
