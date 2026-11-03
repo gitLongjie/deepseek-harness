@@ -122,7 +122,7 @@ export interface SidebarPanelActionEntry {
 
 /** Owner share of the panel list's More menu rows. */
 export interface SidebarPanelActionsOwnerProps {
-  /** Customizable panels in registration order; Plugins is never listed. */
+  /** Customizable panels in registration order. */
   readonly entries: readonly SidebarPanelActionEntry[]
   /**
    * Open a panel without changing its pin state.

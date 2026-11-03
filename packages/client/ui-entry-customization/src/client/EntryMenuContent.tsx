@@ -35,7 +35,7 @@ type EntryMenuContentProps = PropsRuntime<'sidebar.panellist.actions'>
 export function EntryMenuContent({
   entries, onOpen, region, onDismiss, usePluginNavigation, browsePlugins, createPlugin, t,
 }: EntryMenuContentProps) {
-  const moreEntries = region === 'conversation' ? entries : []
+  const moreEntries = region === 'conversation' ? entries : region === 'sidebar' ? entries.filter(entry => !entry.pinned) : []
   const browsable = usePluginNavigation(present => present)
   return <>
     {moreEntries.map(entry => <MenuItemButton key={entry.id} current={entry.active === true}

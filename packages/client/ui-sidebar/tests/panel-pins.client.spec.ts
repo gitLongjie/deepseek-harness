@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-/** Sidebar launcher pins stay in memory per panel id and ignore the fixed Plugins panel. */
+/** Sidebar launcher pins stay in memory per panel id and keep secondary panels in More by default. */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createPanelPins } from '../src/client/panel-pins.ts'
 
@@ -12,20 +12,20 @@ describe('sidebar panel pins', () => {
     const listener = vi.fn()
     pins.unpinned.subscribe(listener)
     const initial = pins.unpinned.getSnapshot()
-    expect(initial).toEqual([])
+    expect(initial).toEqual(['plugins', 'schedule-work'])
     expect(pins.unpinned.getSnapshot()).toBe(initial)
     pins.setPinned('notes', false)
     pins.setPinned('tasks', false)
-    expect(pins.unpinned.getSnapshot()).toEqual(['notes', 'tasks'])
+    expect(pins.unpinned.getSnapshot()).toEqual(['plugins', 'schedule-work', 'notes', 'tasks'])
     expect(localStorage.getItem(KEY)).toBeNull()
     expect(listener).toHaveBeenCalledTimes(2)
-    expect(createPanelPins().unpinned.getSnapshot()).toEqual([])
+    expect(createPanelPins().unpinned.getSnapshot()).toEqual(['plugins', 'schedule-work'])
     pins.setPinned('notes', true)
-    expect(pins.unpinned.getSnapshot()).toEqual(['tasks'])
+    expect(pins.unpinned.getSnapshot()).toEqual(['plugins', 'schedule-work', 'tasks'])
     expect(localStorage.getItem(KEY)).toBeNull()
   })
 
-  it('ignores Plugins and repeated choices without republishing', () => {
+  it('ignores repeated choices without republishing', () => {
     const pins = createPanelPins()
     pins.setPinned('notes', false)
     const snapshot = pins.unpinned.getSnapshot()
@@ -42,16 +42,16 @@ describe('sidebar panel pins', () => {
     const pins = createPanelPins()
     pins.setPinned('removed-plugin', false)
     pins.setPinned('notes', false)
-    expect(pins.unpinned.getSnapshot()).toEqual(['removed-plugin', 'notes'])
+    expect(pins.unpinned.getSnapshot()).toEqual(['plugins', 'schedule-work', 'removed-plugin', 'notes'])
   })
 
   it('ignores a legacy stored list instead of restoring it', () => {
     localStorage.setItem(KEY, JSON.stringify({ unpinned: ['notes'] }))
     const pins = createPanelPins()
     const snapshot = pins.unpinned.getSnapshot()
-    expect(snapshot).toEqual([])
+    expect(snapshot).toEqual(['plugins', 'schedule-work'])
     expect(pins.unpinned.getSnapshot()).toBe(snapshot)
     pins.setPinned('notes', false)
-    expect(pins.unpinned.getSnapshot()).toEqual(['notes'])
+    expect(pins.unpinned.getSnapshot()).toEqual(['plugins', 'schedule-work', 'notes'])
   })
 })

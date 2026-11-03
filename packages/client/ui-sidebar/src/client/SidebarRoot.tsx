@@ -27,7 +27,6 @@ import type { InjectFace, PropsRenderSlots, PropsRuntime } from '@deepseek-ai/ds
 import type {
   SidebarPanelActionsOwnerProps, SidebarPanelMetadata, SidebarRootComponentProps, SidebarRootInjected, SidebarSectionOwnerProps,
 } from './contract/slots.ts'
-import { FIXED_PANEL_ID } from './panel-pins.ts'
 import css from './SidebarRoot.module.css'
 
 /** Wide-content unmount delay; matches the 150ms wide-content fade-out. */
@@ -385,7 +384,7 @@ export function SidebarRoot({
 
       {panels.length > 0 && (
         <nav className={css.panelList} aria-label={t('panels.label')}>
-          {panels.filter(({ id }) => id === FIXED_PANEL_ID || !unpinned.includes(id)).map(({ id, label }) => (
+          {panels.filter(({ id }) => !unpinned.includes(id)).map(({ id, label }) => (
             <PanelRow
               key={id}
               id={id}
@@ -397,12 +396,15 @@ export function SidebarRoot({
               renderSlot={renderSlot}
             />
           ))}
+          {renderSlot('sidebar.experts', {
+            wide,
+            expandSidebar: () => { if (collapsed) toggleSidebar() },
+          })}
           {hasEntryActions && (
             <PanelMoreMenu
               wide={wide}
               label={t('panels.more')}
-              entries={panels.filter(({ id }) => id !== FIXED_PANEL_ID)
-                .map(({ id, label }) => ({ id, label, pinned: !unpinned.includes(id), active: id === activePanelId }))}
+              entries={panels.map(({ id, label }) => ({ id, label, pinned: !unpinned.includes(id), active: id === activePanelId }))}
               onOpen={(id) => {
                 const entry = officialEntry(id)
                 if (entry !== undefined) trackEntryClick({ menu_name: entry, position: 'sidebar_more' })
@@ -417,16 +419,17 @@ export function SidebarRoot({
         </nav>
       )}
 
+      {panels.length === 0 && renderSlot('sidebar.experts', {
+        wide,
+        expandSidebar: () => { if (collapsed) toggleSidebar() },
+      })}
+
       {/* The browsing region fills the column between the controls and the
           foot in both states; its rail icon column rides the same slot. The
-          experts section renders above the business-entry section, which
-          renders above the workspace browser; an unoccupied slot contributes
+          business-entry section renders above the workspace browser; an unoccupied slot contributes
           no DOM. */}
       <div className={css.regionArea}>
-        {renderSlot('sidebar.experts', {
-          wide,
-          expandSidebar: () => { if (collapsed) toggleSidebar() },
-        })}
+
         {renderSlot('sidebar.business', {
           wide,
           expandSidebar: () => { if (collapsed) toggleSidebar() },

@@ -538,8 +538,7 @@
   margin-bottom: 8px;
 }
 
-/* Panel entries use a 3px paint inset, the New Session bar's 12px radius,
-   the session rows' hover/selected fill, and the primary ink. */
+/* Panel entries use the shared sidebar row geometry and selected fill. */
 .panelRow {
   display: flex;
   align-items: center;

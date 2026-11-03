@@ -346,7 +346,7 @@ describe('sidebar launcher pins', () => {
     expect(within(navigation).getAllByRole('button').map(row => row.textContent)).toEqual(['Beta panel', 'Alpha panel'])
     await mountPanel(runtime, { id: PLUGINS, heading: 'Plugins content', label: 'Plugins', order: 0 })
     await waitFor(() => {
-      expect(within(navigation).getAllByRole('button').map(row => row.textContent)).toEqual(['Plugins', 'Beta panel', 'Alpha panel'])
+      expect(within(navigation).getAllByRole('button').map(row => row.textContent)).toEqual(['Beta panel', 'Alpha panel'])
     })
     expect(runtime.slots.entries('main').map(entry => entry.options.key)).toEqual(['conversation', ALPHA, BETA, PLUGINS])
   })
@@ -383,7 +383,7 @@ describe('sidebar launcher pins', () => {
     expect(more.getAttribute('aria-expanded')).toBe('true')
     const menu = within(view.getByRole('menu'))
     expect(menu.getAllByRole('menuitem').map(row => row.textContent))
-      .toEqual(['Open Beta panel', 'Unpin Beta panel', 'Open Alpha panel', 'Unpin Alpha panel', 'Dismiss'])
+      .toEqual(['Open Plugins', 'Pin Plugins', 'Open Beta panel', 'Unpin Beta panel', 'Open Alpha panel', 'Unpin Alpha panel', 'Dismiss'])
 
     fireEvent.click(menu.getByRole('menuitem', { name: 'Unpin Alpha panel' }))
     expect(localStorage.getItem(PINS_KEY)).toBeNull()
@@ -441,6 +441,9 @@ describe('sidebar entry click analytics', () => {
     await mountPanels(b.runtime, b.locale)
     await mountPanel(b.runtime, { id: PLUGINS, heading: 'Plugins content', label: 'Plugins', order: 0 })
     const schedules = await mountPanel(b.runtime, { id: SCHEDULES, heading: 'Automation content', label: 'Automation', order: 5 })
+    const injected = b.runtime.slots.entries('sidebar')[0]!.inject!() as import('../src/client/contract/slots.ts').SidebarRootInjected
+    injected.setPinned(PLUGINS, true)
+    injected.setPinned(SCHEDULES, true)
     const navigation = await b.view.findByRole('navigation', { name: 'Global panels' })
     await within(navigation).findByRole('button', { name: 'Automation' })
     return { ...b, track, schedules, navigation }
