@@ -176,7 +176,10 @@ describe('SidebarAccount', () => {
   it('renders the avatar and name when signed in wide', async () => {
     const controller = new LoginStore('https://claw.deepagens.com/api', inertAdapter, dummyApi)
     await signIn(controller)
-    const { container } = render(<SidebarAccount wide openSettings={() => {}} controller={controller} t={t} />)
+    const { container } = render(<SidebarAccount
+      wide openSettings={() => {}} settingsOpen={false} openOnboarding={() => {}}
+      controller={controller} t={t}
+    />)
     expect(screen.getByText('杰哥')).toBeDefined()
     expect(container.querySelector('img')?.getAttribute('src')).toBe('https://claw.deepagens.com/a.png')
   })
@@ -184,7 +187,10 @@ describe('SidebarAccount', () => {
   it('falls back to the initial and hides the name in rail mode', async () => {
     const controller = new LoginStore('https://claw.deepagens.com/api', inertAdapter, dummyApi)
     await signIn(controller, { api_key: 'sk-1' })
-    const { container } = render(<SidebarAccount wide={false} openSettings={() => {}} controller={controller} t={t} />)
+    const { container } = render(<SidebarAccount
+      wide={false} openSettings={() => {}} settingsOpen={false} openOnboarding={() => {}}
+      controller={controller} t={t}
+    />)
     expect(screen.queryByText('jiege')).toBeNull()
     expect(container.querySelector('img')).toBeNull()
     expect(screen.getByText('J')).toBeDefined()
@@ -192,7 +198,10 @@ describe('SidebarAccount', () => {
 
   it('renders nothing while signed out', () => {
     const controller = new LoginStore('https://claw.deepagens.com/api', inertAdapter, dummyApi)
-    const { container } = render(<SidebarAccount wide openSettings={() => {}} controller={controller} t={t} />)
+    const { container } = render(<SidebarAccount
+      wide openSettings={() => {}} settingsOpen={false} openOnboarding={() => {}}
+      controller={controller} t={t}
+    />)
     expect(container.childElementCount).toBe(0)
   })
 
@@ -200,7 +209,7 @@ describe('SidebarAccount', () => {
     const controller = new LoginStore('https://claw.deepagens.com/api', inertAdapter, dummyApi)
     const openSettings = vi.fn()
     await signIn(controller)
-    render(<SidebarAccount wide openSettings={openSettings} controller={controller} t={t} />)
+    render(<SidebarAccount wide openSettings={openSettings} settingsOpen={false} openOnboarding={() => {}} controller={controller} t={t} />)
     // The gear opens the panel directly; the profile menu carries no settings entry.
     fireEvent.click(screen.getByRole('button', { name: '设置' }))
     expect(openSettings).toHaveBeenCalledOnce()
@@ -213,14 +222,17 @@ describe('SidebarAccount', () => {
   it('renders no gear in rail mode', async () => {
     const controller = new LoginStore('https://claw.deepagens.com/api', inertAdapter, dummyApi)
     await signIn(controller, { api_key: 'sk-1' })
-    render(<SidebarAccount wide={false} openSettings={() => {}} controller={controller} t={t} />)
+    render(<SidebarAccount
+      wide={false} openSettings={() => {}} settingsOpen={false} openOnboarding={() => {}}
+      controller={controller} t={t}
+    />)
     expect(screen.queryByRole('button', { name: '设置' })).toBeNull()
   })
 
   it('closes the popped-open menu across a sign-out → sign-in cycle', async () => {
     const controller = new LoginStore('https://claw.deepagens.com/api', inertAdapter, dummyApi)
     await signIn(controller)
-    render(<SidebarAccount wide openSettings={() => {}} controller={controller} t={t} />)
+    render(<SidebarAccount wide openSettings={() => {}} settingsOpen={false} openOnboarding={() => {}} controller={controller} t={t} />)
     fireEvent.click(screen.getByRole('button', { name: '杰哥' }))
     expect(screen.getByRole('menu')).toBeDefined()
     fireEvent.click(screen.getByRole('menuitem', { name: '退出登录' }))

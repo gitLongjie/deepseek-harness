@@ -56,7 +56,7 @@ function updateActionHandler(): IpcHandler {
 }
 
 describe('desktop updater status and actions', () => {
-  const send = vi.fn()
+  const send = vi.fn<(channel: string, payload?: unknown) => void>()
   const win = {
     isDestroyed: () => false,
     webContents: { send },
@@ -291,7 +291,7 @@ describe('desktop updater status and actions', () => {
 })
 
 describe('desktop updater without an update feed', () => {
-  const send = vi.fn()
+  const send = vi.fn<(channel: string, payload?: unknown) => void>()
   const win = {
     isDestroyed: () => false,
     webContents: { send },

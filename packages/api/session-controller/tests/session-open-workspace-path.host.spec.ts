@@ -168,7 +168,7 @@ it('dispatches the directory action to the file-manager handoff instead of the d
   const ctx = await context()
   const openPath = vi.fn(async (_path: string, _signal: AbortSignal) => {})
   const openDirectory = vi.fn(async (_path: string, _signal: AbortSignal) => {})
-  const controller = createSessionTestController(ctx, {
+  const controller = await createSessionTestController(ctx, {
     defaultModelSelection: () => ({ provider: 'p', model: 'm' }), cwd: '/default', openPath, openDirectory,
   })
   try {

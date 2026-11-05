@@ -19,8 +19,10 @@ it('loads all four desktop experts with their card metadata and preset-local com
   ctx.loader.builtins.include = Include
   ctx.loader.builtins.preset = Preset
   const skillRoots: string[] = []
+  const internal = ctx.loader.internal
+  if (internal === undefined) throw new Error('Loader module importer is unavailable')
   // Exercise declarations and includes without starting external tool providers.
-  vi.spyOn(ctx.loader.internal, 'import').mockImplementation(async (name) => {
+  vi.spyOn(internal, 'import').mockImplementation(async (name: string) => {
     if (name === '@deepseek-ai/dsh-agent-preset') return { default: Preset }
     if (name === '@deepseek-ai/cordis-plugin-include') return { default: Include }
     if (name === '@deepseek-ai/dsh-skill-filesystem') return {

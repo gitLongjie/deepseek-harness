@@ -129,14 +129,20 @@ function h3VideoStub(
 }
 
 let callCounter = 0
-function callTool(ctx: Context, name: string, args: unknown, agent: Agent & { session: Session }) {
-  return ctx.tools.execute({
+async function callTool(ctx: Context, name: string, args: unknown, agent: Agent & { session: Session }) {
+  const batch = await ctx.tools.execute({
     signal: SIGNAL,
-    callId: ToolCallId(`call-${++callCounter}`),
-    name,
-    arguments: args,
+    calls: [{
+      type: 'tool-call',
+      id: ToolCallId(`call-${++callCounter}`),
+      name,
+      arguments: JSON.stringify(args ?? {}),
+    }],
     agent,
   })
+  const result = batch.results[0]?.result
+  if (result === undefined) throw new Error(`${name} produced no result`)
+  return result
 }
 
 /** The settled content blocks of one tool call, for asserting what the model and UI receive. */

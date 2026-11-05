@@ -230,7 +230,7 @@ describe('the provider hand-off', () => {
       runnerFailureRules: RUNNER_FAILURE,
     }))
     const spawn = vi.spyOn(ctx.subprocess, 'spawn')
-    const result = await bash.run(bash.resolve({ command: 'true', env: { SPEC_ENTRY: 'spec' } }))
+    const result = await run(bash, bash.resolve({ command: 'true', env: { SPEC_ENTRY: 'spec' } }))
     expect(result.stdout.text).toContain('RUNNER-MODE:node:spec')
     expect(spawn.mock.calls[0]?.[0].env).toMatchObject({ FAKE_RUNNER_MODE: 'node', SPEC_ENTRY: 'spec' })
   })

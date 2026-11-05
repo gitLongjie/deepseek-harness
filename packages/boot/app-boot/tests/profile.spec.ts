@@ -935,13 +935,14 @@ describe('reconcileProfileBundles', () => {
     const dir = join(tmp(), 'profile')
     stageReconcileProfile(
       dir,
-      { custom: true, dsh: { profile: { bundles: [], patchReload: 'startup' } } },
+      { custom: true, description: 'kept', dsh: { manifestVersion: 1, profile: { bundles: [] } } },
       { 'plugin-a': { bundle: true } },
     )
     reconcileProfileBundles('t', { dependencies: {} }, dir, anchorFor(dir), () => {})
     const manifest = readProfileManifest('t', dir) as ProfileManifest & { custom?: unknown }
     expect(manifest.custom).toBe(true)
-    expect(manifest.dsh?.profile?.patchReload).toBe('startup')
+    expect(manifest.description).toBe('kept')
+    expect(manifest.dsh?.manifestVersion).toBe(1)
     expect(manifest.dsh?.profile?.bundles).toEqual(['plugin-a'])
   })
 })

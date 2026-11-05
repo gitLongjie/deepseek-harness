@@ -165,6 +165,7 @@ describe('ModelsSettingsStore', () => {
   it('describes native variables without exposing secret values and respects the 64-reference limit', async () => {
     const providers = Array.from({ length: 65 }, (_, index) => ({
       provider: `fixture-${index}`, displayName: 'fixture', settingsNs: 'llm-pi-ai', settingsPath: ['providers', `fixture-${index}`], active: false,
+      editorFamily: 'pi-ai',
       nativeAuth: { env: [`NATIVE_${index}`], oauth: false },
     }))
     const { ctx, mirror, seenRefs } = api({ providers: () => Promise.resolve(ok({ providers })) })

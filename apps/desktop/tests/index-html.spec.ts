@@ -113,7 +113,7 @@ describe('renderDesktopIndex', () => {
     writeFileSync(bundleFile, 'window.__ModuleLoader__.load({ id: "pkg", factory() {} })\n//# sourceMappingURL=client.js.map')
     const iifeFile = join(dir, 'render-transport.js')
     writeFileSync(iifeFile, 'window.__DSH_TRANSPORT__ = {}\n//# sourceMappingURL=render-transport.js.map')
-    const html = await renderDesktopIndex(makeCtx([], dir, iifeFile), dir, iifeFile, bundleFile)
+    const html = await renderDesktopIndex(makeCtx([]), dir, iifeFile, bundleFile)
     // A relative map URL inside an inlined script resolves against the document,
     // where the map is not served: the renderer logs a 500 for it.
     expect(html).not.toContain('sourceMappingURL')

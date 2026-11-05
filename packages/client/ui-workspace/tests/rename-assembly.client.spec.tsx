@@ -43,6 +43,7 @@ async function createRuntime(): Promise<SlotTestRuntime> {
   runtime.releaseWorkspaceSource()
   // The rename flow never picks a directory or opens one; the namespaces only
   // have to be there for ui-workspace's inject to settle.
+  const directoryPicker = {}
   runtime.remote.provideNamespaces({
     directoryPicker,
     session: { openWorkspacePath: vi.fn(async () => ({ ok: true as const, value: { opened: true } })) },

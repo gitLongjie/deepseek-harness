@@ -397,11 +397,11 @@ describe.skipIf(!pwshAvailable())('SandboxPwshExecutor', () => {
     // The fake runner exits after logging: the assertions pin the DIRECT
     // spawn's environment, which is the entry the provider's env rides on.
     const { executor } = await setup(runnerEnv)
-    const result = await executor.run(executor.resolve({ command: 'echo env-check', sandboxPolicy: RO }))
+    const result = await run(executor, executor.resolve({ command: 'echo env-check', sandboxPolicy: RO }))
     expect(result.exitCode).toBe(0)
     expect(result.stdout.text).toContain('RUNNER-MODE:node')
 
-    const background = await executor.start(executor.resolve({ command: 'echo bg-env-check', sandboxPolicy: RO }))
+    const background = await start(executor, executor.resolve({ command: 'echo bg-env-check', sandboxPolicy: RO }))
     await background.done
     expect(background.readOutput().delta).toContain('RUNNER-MODE:node')
   }, 30_000)

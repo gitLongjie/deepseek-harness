@@ -342,7 +342,7 @@ describe('UiWorkspaceService', () => {
 
   it('stands the conversation-area browser pages down when a Session opens, including the current one', () => {
     const current = sid('current')
-    const b = bench({ sessions: sessionState([summary('current')], current) })
+    const b = bench({ sessions: sessionState([summary('current')], 'ready') })
     const closeExpert = vi.fn()
     const closeKnowledge = vi.fn()
     b.ctx.provide('uiExpert', { closePage: closeExpert } as never)
@@ -522,7 +522,7 @@ describe('UiWorkspaceService', () => {
     const b = bench()
     const blank = sid('member-blank')
     b.workspaces.list.set(workspaceState([workspace('alpha', [blank]), workspace('beta')]))
-    b.sessions.list.set(sessionState([summary('member-blank', { blank: true, cwd: '/w/alpha' })], blank))
+    b.sessions.list.set(sessionState([summary('member-blank', { blank: true, cwd: '/w/alpha' })], 'ready'))
     const steps: SessionId[] = []
     const unbind = b.uiWorkspace.bindPlaceholderAdoption((sessionId) => { steps.push(sessionId) })
 
@@ -541,7 +541,7 @@ describe('UiWorkspaceService', () => {
     const b = bench()
     const blank = sid('member-blank')
     b.workspaces.list.set(workspaceState([workspace('alpha', [blank])]))
-    b.sessions.list.set(sessionState([summary('member-blank', { blank: true, cwd: '/w/alpha' })], blank))
+    b.sessions.list.set(sessionState([summary('member-blank', { blank: true, cwd: '/w/alpha' })], 'ready'))
     b.uiWorkspace.bindPlaceholderAdoption(() => Promise.reject(new Error('roster unavailable')))
 
     // The step is housekeeping on a Session the flow is about to open: a

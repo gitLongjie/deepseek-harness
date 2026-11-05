@@ -189,8 +189,9 @@ function expectCode(code: SessionQueryErrorCode): Error {
   return expect.objectContaining({ code }) as Error
 }
 
-function rejectUnknown<T>(_reason: unknown): Promise<T> {
+function rejectUnknown<T>(reason: unknown): Promise<T> {
   // Exercise containment for an implementation that violates the Error rejection convention.
+  return Promise.reject(reason)
 }
 
 const cancellableSessionListings = [

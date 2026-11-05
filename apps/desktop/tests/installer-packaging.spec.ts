@@ -1,4 +1,5 @@
 import { readInstallerLocales } from '../scripts/installer-locales.mjs'
+import type { ElectronBuilderFileCopy } from '../electron-builder.config.mjs'
 import { tmpdir } from 'node:os'
 import { readFileSync } from 'node:fs'
 import { Arch, Platform } from 'electron-builder'
@@ -121,7 +122,7 @@ describe('installer preparation preserves application dependencies', () => {
       DSH_DESKTOP_MACOS_TEAM_ID: 'TEAMID1234',
       APPLE_KEYCHAIN_PROFILE: 'installer-test',
     }, 'darwin', 'arm64')
-    const packaged = new Set(config.files.filter((entry): entry is string => typeof entry === 'string'))
+    const packaged = new Set(config.files.filter((entry: string | ElectronBuilderFileCopy): entry is string => typeof entry === 'string'))
     for (const name of referenced) expect(packaged.has(`lib/${name}`)).toBe(true)
   })
 })

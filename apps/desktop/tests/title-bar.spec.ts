@@ -17,8 +17,14 @@ beforeEach(() => {
 })
 
 /** The preload-bridge mock installTitleBar consumes; the platform picks the chrome. */
-function ipcMock(platform: string): { platform: string; send: ReturnType<typeof vi.fn> } {
-  return { platform, send: vi.fn() }
+function ipcMock(platform: string): { platform: string; send: ReturnType<typeof vi.fn<(channel: string, payload?: unknown) => void>> } {
+  return { platform, send: vi.fn<(channel: string, payload?: unknown) => void>() }
+}
+
+function buttonAt(buttons: readonly HTMLButtonElement[], index: number): HTMLButtonElement {
+  const button = buttons[index]
+  if (button === undefined) throw new Error(`missing title-bar button ${index}`)
+  return button
 }
 
 function installedBar(platform: string): HTMLElement {
@@ -104,9 +110,9 @@ describe('desktop title bar', () => {
     const ipc = ipcMock('win32')
     installTitleBar(document, ipc, './favicon.ico')
     const buttons = [...document.querySelectorAll<HTMLButtonElement>('#dsh-desktop-titlebar .dsh-titlebar-controls button')]
-    buttons[0].click()
-    buttons[1].click()
-    buttons[2].click()
+    buttonAt(buttons, 0).click()
+    buttonAt(buttons, 1).click()
+    buttonAt(buttons, 2).click()
     expect(ipc.send).toHaveBeenNthCalledWith(1, WINDOW_CHANNELS.minimize)
     expect(ipc.send).toHaveBeenNthCalledWith(2, WINDOW_CHANNELS.toggleMaximize)
     expect(ipc.send).toHaveBeenNthCalledWith(3, WINDOW_CHANNELS.close)
@@ -116,8 +122,8 @@ describe('desktop title bar', () => {
     const ipc = ipcMock('win32')
     installTitleBar(document, ipc, './favicon.ico')
     const buttons = [...document.querySelectorAll<HTMLButtonElement>('.dsh-titlebar-menu-btn')]
-    buttons[0].click()
-    buttons[3].click()
+    buttonAt(buttons, 0).click()
+    buttonAt(buttons, 3).click()
     // jsdom rects are zero-sized at 0,0, so the anchor sits 4px below origin.
     expect(ipc.send).toHaveBeenNthCalledWith(1, MENU_POPUP_CHANNEL, { id: 'edit', x: 0, y: 4 })
     expect(ipc.send).toHaveBeenNthCalledWith(2, MENU_POPUP_CHANNEL, { id: 'help', x: 0, y: 4 })

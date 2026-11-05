@@ -12,7 +12,7 @@
  * @module @deepseek-ai/dsh-desktop/updater
  */
 
-import { app, BrowserWindow, dialog, ipcMain } from 'electron'
+import { app, dialog, ipcMain } from 'electron'
 // electron-updater's `autoUpdater` export is a getter, which the ESM-CJS
 // named-export interop (cjs-module-lexer) cannot see; read it off the module
 // object through the default import instead.
@@ -54,8 +54,16 @@ let checkInFlight = false
 /** Badge status most recently published to the renderer; drives re-check skipping. */
 let lastStatus: UpdateStatus | undefined
 
+/** Window fields the updater reads when it publishes badge status. */
+interface UpdateStatusWindow {
+  isDestroyed(): boolean
+  readonly webContents: {
+    send(channel: string, payload?: unknown): void
+  }
+}
+
 /** Window currently receiving updater status events. */
-let updateWindow: BrowserWindow | undefined
+let updateWindow: UpdateStatusWindow | undefined
 
 /** Durable desktop logger supplied by the main process. */
 let reportUpdateError: ((line: string) => void) | undefined
@@ -141,7 +149,7 @@ function scheduleUpdateRecheck(): void {
  */
 export function initUpdater(
   t: (key: DesktopTextKey) => string,
-  win: BrowserWindow,
+  win: UpdateStatusWindow,
   updateUrl: string | undefined,
   log?: (line: string) => void,
   prepare: () => Promise<void> = async () => {},

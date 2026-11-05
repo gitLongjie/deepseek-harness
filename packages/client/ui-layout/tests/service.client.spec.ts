@@ -60,7 +60,7 @@ describe('LayoutController', () => {
   })
 
   it('reports every committed selection to panel listeners, and a disposer removes its listener', () => {
-    const service = new LayoutController(fakePanels(), () => true)
+    const service = new LayoutController(fakePanels(), () => true, createSnapshotStore({ activePanelId: null }))
     const listener = vi.fn()
     const dispose = service.onPanelSelection(listener)
 
@@ -76,7 +76,7 @@ describe('LayoutController', () => {
 
   it('does not report a rejected selection, and disposal clears the listeners', () => {
     const present = new Set(['panel-a'])
-    const service = new LayoutController(fakePanels(), id => present.has(id))
+    const service = new LayoutController(fakePanels(), id => present.has(id), createSnapshotStore({ activePanelId: null }))
     const listener = vi.fn()
     service.onPanelSelection(listener)
 

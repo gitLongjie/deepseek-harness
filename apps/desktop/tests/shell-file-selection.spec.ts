@@ -11,6 +11,7 @@ import type { PlatformPackager } from 'app-builder-lib/out/platformPackager.js'
 import type { ResolvedFileSet } from 'app-builder-lib/out/util/appFileCopier.js'
 import { WinPackager } from 'app-builder-lib/out/winPackager.js'
 import { expect, it, onTestFinished, vi } from 'vitest'
+import type { ElectronBuilderFileCopy } from '../electron-builder.config.mjs'
 import { createElectronBuilderConfig } from '../scripts/electron-builder-config.mjs'
 
 const require = createRequire(import.meta.url)
@@ -72,7 +73,7 @@ it.each([
     DOWNLOAD_TEST_RELEASE_ID: '0123456789abcdef0123456789abcdef',
   }, platform, arch)
   const config: Configuration = {
-    files: desktopConfig.files.map(file => typeof file === 'string' ? file : { ...file, filter: [...file.filter] }),
+    files: desktopConfig.files.map((file: string | ElectronBuilderFileCopy) => typeof file === 'string' ? file : { ...file, filter: [...file.filter] }),
   }
   const info = new Packager({ projectDir: appDir })
   onTestFinished(() => info.tempDirManager.cleanup())

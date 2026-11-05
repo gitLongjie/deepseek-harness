@@ -294,7 +294,7 @@ describe('connection node half', () => {
           payload: { args: {} },
         }),
       },
-    ))
+    ), connection.browserPeer)
 
     const response = await dispatchOne()
     expect(response.status).toBe(200)

@@ -175,6 +175,7 @@ async function agent(ctx: Context): Promise<Agent> {
   const session = Session.create(id)
   const value: Agent = {
     id, options: {}, session, inbox: unsupportedInbox(),
+    model: { current: () => undefined, select() {} },
     status: 'idle', ctx: scope.ctx,
     followup: () => {}, steer: () => {}, inject: () => {}, send: () => {}, cancel() {},
     runMaintenance: task => task(new AbortController().signal),
@@ -191,13 +192,21 @@ async function agent(ctx: Context): Promise<Agent> {
  * @returns an invoker taking a tool name and its arguments.
  */
 function toolCall(ctx: Context, owner: Agent) {
-  return (name: string, args: unknown) => ctx.tools.execute({
-    signal: new AbortController().signal,
-    callId: ToolCallId(name),
-    name,
-    arguments: args,
-    agent: owner,
-  })
+  return async (name: string, args: unknown) => {
+    const batch = await ctx.tools.execute({
+      signal: new AbortController().signal,
+      calls: [{
+        type: 'tool-call',
+        id: ToolCallId(name),
+        name,
+        arguments: JSON.stringify(args ?? {}),
+      }],
+      agent: owner,
+    })
+    const result = batch.results[0]?.result
+    if (result === undefined) throw new Error(`${name} produced no result`)
+    return result
+  }
 }
 
 async function boot(): Promise<Context> {
@@ -337,7 +346,7 @@ describe('tool-video real Loader composition through cordis.yml', () => {
     if (rendered.isError) throw new Error('expected render success')
     const submission = (rendered.value as { submissions: Array<{ jobId?: string }> }).submissions[0]
     expect(submission?.jobId).toBeDefined()
-    expect((await ctx.jobs.wait(JobId(submission!.jobId!), 8_000, owner)).status).toBe('completed')
+    expect((await ctx.jobs.wait(JobId(submission!.jobId!), 8_000, owner.id)).status).toBe('completed')
     expect(submittedGraphs).toHaveLength(1)
     const graph = submittedGraphs[0]!
     expect(graph['1']?.inputs.prompt).toContain('[0s-4s] Shot 1')
@@ -350,6 +359,7 @@ describe('tool-video real Loader composition through cordis.yml', () => {
     expect(graph['1']?.inputs.ref_images).toBeUndefined()
     const listing = await ctx.connection.createSharedFetchHandler('/api').fetch(
       new Request('http://127.0.0.1/api/video-workbench/projects'),
+      ctx.connection.browserPeer,
     )
     const summary = await listing.json() as Workbench.WorkbenchSummary
     expect(summary.projects[0]?.segments[0]?.shots[1]).toMatchObject({
@@ -389,12 +399,15 @@ describe('tool-video real Loader composition through cordis.yml', () => {
       const media = JSON.parse(stdout) as { format: { duration: string } }
       expect(Number(media.format.duration)).toBeCloseTo(result.durationSeconds, 1)
       const handler = ctx.connection.createSharedFetchHandler('/api')
-      const listing = await handler.fetch(new Request('http://127.0.0.1/api/video-workbench/projects'))
+      const listing = await handler.fetch(
+        new Request('http://127.0.0.1/api/video-workbench/projects'),
+        ctx.connection.browserPeer,
+      )
       const summary = await listing.json() as Workbench.WorkbenchSummary
       expect(summary.projects[0]?.final).toBe(result.outputFile)
       const response = await handler.fetch(new Request(
         `http://127.0.0.1/api/video-workbench/file?path=final%2F${planId}.mp4`,
-      ))
+      ), ctx.connection.browserPeer)
       expect(response.status).toBe(200)
       expect((await response.arrayBuffer()).byteLength).toBeGreaterThan(0)
     },
@@ -418,13 +431,16 @@ describe('tool-video real Loader composition through cordis.yml', () => {
     expect(jobId).toBeDefined()
     const id = JobId(jobId!)
 
-    const snapshot = await ctx.jobs.wait(id, 8_000, owner)
+    const snapshot = await ctx.jobs.wait(id, 8_000, owner.id)
     expect(snapshot.status).toBe('completed')
-    const read = ctx.jobs.read(id, owner)
-    expect(read.text).toContain('[succeeded] s1')
-    expect(read.text).toContain('vp-1-s1.mp4')
+    const read = ctx.jobs.read(id, owner.id)
+    const text = read.result
+    if (text === undefined) throw new Error('settled job read has no result')
+    expect(text).toContain('[succeeded] s1')
+    expect(text).toContain('vp-1-s1.mp4')
     const listing = await ctx.connection.createSharedFetchHandler('/api').fetch(
       new Request('http://127.0.0.1/api/video-workbench/projects'),
+      ctx.connection.browserPeer,
     )
     expect(listing.status).toBe(200)
     const summary = await listing.json() as Workbench.WorkbenchSummary
@@ -438,6 +454,7 @@ describe('tool-video real Loader composition through cordis.yml', () => {
     const relative = file!.slice(summary.outputDir.length + 1).replaceAll('\\', '/')
     const media = await ctx.connection.createSharedFetchHandler('/api').fetch(
       new Request(`http://127.0.0.1/api/video-workbench/file?path=${encodeURIComponent(relative)}`),
+      ctx.connection.browserPeer,
     )
     expect(media.status).toBe(200)
     expect((await media.arrayBuffer()).byteLength).toBeGreaterThan(0)
@@ -462,7 +479,7 @@ describe('tool-video real Loader composition through cordis.yml', () => {
     if (rendered.isError) throw new Error('expected render success')
     const jobId = (rendered.value as { submissions: Array<{ jobId?: string }> }).submissions[0]?.jobId
     expect(jobId).toBeDefined()
-    expect((await ctx.jobs.wait(JobId(String(jobId)), 8_000, owner)).status).toBe('completed')
+    expect((await ctx.jobs.wait(JobId(String(jobId)), 8_000, owner.id)).status).toBe('completed')
     // The running instance is reused for the render: no second create.
     expect(autoDL.created).toBe(1)
 

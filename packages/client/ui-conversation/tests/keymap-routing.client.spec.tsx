@@ -87,7 +87,7 @@ describe('keymap keydown routing', () => {
     const submit = vi.fn()
     const arbitrate = vi.fn(() => 'pass' as const)
     onTestFinished(registerComposerKeymap(editor, {
-      arbitrate, space: () => false, dismissPopup: () => {}, canSubmit: () => true,
+      arbitrate, space: () => false, dismissPopup: () => {}, stop: () => false, canSubmit: () => true,
       submit, intakeFiles: () => {}, pasteText: () => {},
     }))
     editor.update(() => {

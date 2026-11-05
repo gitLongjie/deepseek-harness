@@ -11,6 +11,7 @@ function fakeIpc({ deferOpen = false }: { deferOpen?: boolean } = {}) {
     for (const listener of listeners.get(channel) ?? []) listener(data)
   }
   return {
+    platform: 'win32',
     invoke: (channel: string, payload?: unknown) => {
       if (channel !== 'dsh:stream:open') throw new Error(`unexpected invoke ${channel}`)
       void payload

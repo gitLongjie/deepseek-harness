@@ -182,8 +182,9 @@ describe('registerTransportIpc stream handshake', () => {
         open: async (): Promise<AsyncIterable<unknown>> => (async function* () {})(),
       },
     } as never
-    let currentGateway: typeof gateway | undefined
-    let publishGateway: ((gateway: typeof gateway) => void) | undefined
+    type PublishedGateway = typeof gateway
+    let currentGateway: PublishedGateway | undefined
+    let publishGateway: ((next: PublishedGateway) => void) | undefined
     const remove = registerTransportIpc(
       () => ({ gateway: currentGateway, connection: undefined }),
       () => new Promise((resolve) => { publishGateway = resolve }),

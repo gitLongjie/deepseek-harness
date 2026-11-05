@@ -328,7 +328,7 @@ describe('the new-session chip controller', () => {
   })
 
   it('shows the first preset when the roster marks none default', async () => {
-    const controller = chip([{ id: 'minimal', isDefault: false }], undefined)
+    const controller = chip([{ id: 'minimal', isDefault: false, trust: 'user' }], undefined)
 
     await controller.load()
 
@@ -414,8 +414,8 @@ describe('the new-session chip controller', () => {
   it('replaces the default display when an existing blank session arrives after roster load', async () => {
     const state: { current?: SeatSession } = {}
     const controller = chip([
-      { id: 'standard', isDefault: false },
-      { id: 'minimal', isDefault: true },
+      { id: 'standard', isDefault: false, trust: 'user' },
+      { id: 'minimal', isDefault: true, trust: 'user' },
     ], () => state.current)
     await controller.load()
     expect(controller.store.getSnapshot().current).toBe('minimal')

@@ -41,7 +41,7 @@ const state = vi.hoisted(() => ({
   fromWebContents: vi.fn(),
   getAllWindows: vi.fn(() => [] as Array<Record<string, unknown>>),
   getFocusedWindow: vi.fn(() => null as Record<string, unknown> | null),
-  openExternal: vi.fn(async () => {}),
+  openExternal: vi.fn<(url: string) => Promise<void>>(async () => {}),
   showContactQr: vi.fn(async () => {}),
   updatesEnabled: true,
 }))
@@ -163,7 +163,7 @@ describe('application menu template', () => {
     for (const item of items) {
       item.click?.({}, undefined)
     }
-    const urls = state.openExternal.mock.calls.map(call => call[0] as string)
+    const urls = state.openExternal.mock.calls.map(call => call[0])
     expect(new Set(urls)).toEqual(new Set([
       HELP_DOCS_URL,
       'https://github.com/gitLongjie/deepseek-harness',

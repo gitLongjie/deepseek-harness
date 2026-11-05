@@ -105,15 +105,14 @@ describe('ExpertBrowser', () => {
   })
 
   it('narrows and clears the category filter through the chip bar', async () => {
+    const experts: readonly ExpertRecord[] = [
+      ...ROWS,
+      { id: 'plain', name: '通用助手', trust: 'system', category: 'general' },
+      { id: 'director', name: '导演', trust: 'system', category: 'content' },
+      { id: 'writer', name: '写作者', trust: 'system', category: '写作' },
+    ]
     mount({
-      load: vi.fn(async () => ({
-        experts: [
-          ...ROWS,
-          { id: 'plain', name: '通用助手', trust: 'system', category: 'general' },
-          { id: 'director', name: '导演', trust: 'system', category: 'content' },
-          { id: 'writer', name: '写作者', trust: 'system', category: '写作' },
-        ],
-      })),
+      load: vi.fn(async () => ({ experts })),
     })
     await waitFor(() => {
       expect(screen.getByText('GEO 优化专家')).toBeTruthy()

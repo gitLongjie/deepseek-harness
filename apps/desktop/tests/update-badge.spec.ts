@@ -2,15 +2,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { installUpdateBadge, UPDATE_ACTION_CHANNEL, UPDATE_STATUS_CHANNEL } from '../src/render/update-badge.ts'
 
+type IpcSend = (channel: string, payload?: unknown) => void
+type IpcListen = (channel: string, listener: (payload: unknown) => void) => () => void
+
 /** A preload-like bridge capturing `on` listeners and `send` calls. */
 function makeIpc(): {
-  ipc: { send: ReturnType<typeof vi.fn>; on: ReturnType<typeof vi.fn> }
+  ipc: { send: ReturnType<typeof vi.fn<IpcSend>>; on: ReturnType<typeof vi.fn<IpcListen>> }
   listeners: Map<string, (payload: unknown) => void>
 } {
   const listeners = new Map<string, (payload: unknown) => void>()
   const ipc = {
-    send: vi.fn(),
-    on: vi.fn((channel: string, listener: (payload: unknown) => void) => {
+    send: vi.fn<IpcSend>(),
+    on: vi.fn<IpcListen>((channel, listener) => {
       listeners.set(channel, listener)
       return () => { listeners.delete(channel) }
     }),

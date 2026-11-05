@@ -10,13 +10,15 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+type PluginToggleHandler = (event: unknown, ...args: unknown[]) => unknown
+
 const state = vi.hoisted(() => ({
-  handlers: new Map<string, (...args: never[]) => unknown>(),
+  handlers: new Map<string, PluginToggleHandler>(),
 }))
 
 vi.mock('electron', () => ({
   ipcMain: {
-    handle: (channel: string, handler: (...args: never[]) => unknown) => {
+    handle: (channel: string, handler: PluginToggleHandler) => {
       state.handlers.set(channel, handler)
     },
     removeHandler: (channel: string) => {

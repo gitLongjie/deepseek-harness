@@ -245,7 +245,7 @@ describe('imageCardModel', () => {
         { type: 'image', attachment: sampleImage },
       ],
     } as never))
-    expect(model?.label).toBe('character 马锅头 → /out/assets/vp-1-char-1.jpg')
+    expect(model?.path).toBe('character 马锅头 → /out/assets/vp-1-char-1.jpg')
     // Without an envelope either, there is nothing to label the picture with.
     expect(imageCardModel(settled({
       call: { name: 'video_asset_images', argsRaw: '{}' },
@@ -283,7 +283,7 @@ describe('imageCardModel', () => {
     // generated material is visible in the conversation instead of only named by a
     // path; the label comes from the envelope that tool wrote.
     const other = imageCardModel(settled({ call: { name: 'video_keyframes', argsRaw: '{"plan_id":"vp-1"}' } }))
-    expect(other?.label).toBe('shots/card.png')
+    expect(other?.path).toBe('shots/card.png')
     expect(other?.images).toEqual([{ attachment: sampleImage }])
     // read_image keeps its own contract: a blank path argument declines.
     expect(imageCardModel(settled({ call: { name: 'read_image', argsRaw: '{"file_path":"  "}' } }))).toBeNull()

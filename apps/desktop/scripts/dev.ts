@@ -27,7 +27,7 @@ const electronEnvironment = {
   DSH_DESKTOP_DEV: '1',
 }
 
-function run(cmd: string, cmdArgs: readonly string[], opts: { cwd?: string } = {}): void {
+function run(cmd: string, cmdArgs: readonly string[], opts: { cwd?: string; env?: NodeJS.ProcessEnv } = {}): void {
   const windows = process.platform === 'win32'
   const executable = windows ? process.env.ComSpec ?? 'cmd.exe' : cmd
   const args = windows

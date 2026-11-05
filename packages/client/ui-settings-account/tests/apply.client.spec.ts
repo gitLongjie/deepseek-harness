@@ -10,6 +10,7 @@ import type {
 import type { QuotaNoticeOwnerProps } from '@deepseek-ai/dsh-client-ui-chat/client'
 import type { ThemeRuntime } from '@deepseek-ai/dsh-client-ui-theme/client'
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
+import type {} from '../../ui-settings-models/src/client/slot-contract.ts'
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import { Config as OnboardingConfig } from '../src/index.ts'
 import { ChatSettingsSchema as ChatConfig } from '../../ui-chat/src/chat-settings.ts'
@@ -41,11 +42,36 @@ function bonus(orderId: string, message = 'Awarded 5.00'): AccountBonusBatch {
     }],
   }
 }
+function isAccountSectionInjected(value: object): value is AccountSectionInjected {
+  if (!('hooks' in value) || !('avatarFailed' in value) || !('refreshAccount' in value)
+    || !('contactUs' in value) || !('showLogin' in value) || !('setOnboarding' in value)
+    || !('bonusNoticeShown' in value) || !('bonusNoticeDismissed' in value)
+    || !('start' in value) || !('cancel' in value) || !('hasRunningAccountTasks' in value)
+    || !('signOut' in value)) return false
+  const hooks = value.hooks
+  return typeof value.avatarFailed === 'function'
+    && typeof value.refreshAccount === 'function'
+    && typeof value.contactUs === 'function'
+    && typeof value.showLogin === 'function'
+    && typeof value.setOnboarding === 'function'
+    && typeof value.bonusNoticeShown === 'function'
+    && typeof value.bonusNoticeDismissed === 'function'
+    && typeof value.start === 'function'
+    && typeof value.cancel === 'function'
+    && typeof value.hasRunningAccountTasks === 'function'
+    && typeof value.signOut === 'function'
+    && typeof hooks === 'object'
+    && hooks !== null
+    && 'account' in hooks
+    && 'theme' in hooks
+}
 function operations(c: TestClient): AccountSectionInjected {
   // The composition also carries the login plugin's shadowing launcher row
   // (lower priority, carrying its own inject face); pick this plugin's entry.
   const entry = c.ctx.slots.entries('settings.launcher').find(item => item.component === AccountMenu)
-  return entry!.inject!() as AccountSectionInjected
+  const injected = entry!.inject!()
+  if (!isAccountSectionInjected(injected)) throw new Error('account settings launcher did not inject AccountSectionInjected')
+  return injected
 }
 /** The account take-over registered into the Chat-owned frame-wide quota notice chain. */
 function quotaNoticeEntry(c: TestClient) {

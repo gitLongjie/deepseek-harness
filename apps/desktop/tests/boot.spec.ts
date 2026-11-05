@@ -20,7 +20,12 @@ describe('createDesktopProfileContext', () => {
       name: 'web',
       dir: 'C:/profiles/web',
       patchPath: 'C:/profiles/web/cordis.patch.yml',
-      layers: [{ packageName: '@deepseek-ai/dsh-base' }],
+      layers: [{
+        packageName: '@deepseek-ai/dsh-base',
+        packageDir: 'C:/profiles/web/node_modules/@deepseek-ai/dsh-base',
+        patchPaths: ['C:/profiles/web/node_modules/@deepseek-ai/dsh-base/cordis.patch.yml'],
+        patches: [],
+      }],
       patches: [],
       skippedBundles: [],
     }
