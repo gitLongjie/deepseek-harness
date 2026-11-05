@@ -10,9 +10,6 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis'
 // Type-only: pulls the ctx.remote merge into this program.
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
-// The expert marker both this package's mode surfaces and the expert market
-// filter by; the display fold is the shared inline-safe home.
-import { isExpertPreset } from '@deepseek-ai/dsh-agent-preset-registry/display'
 import type { AgentPresetRoster } from '@deepseek-ai/dsh-agent-preset-registry/types'
 import { isBuiltInPreset } from './locales.ts'
 
@@ -130,20 +127,18 @@ export function presetDisplayEntries(presets: readonly RosterPreset[]): AgentPre
 }
 
 /**
- * The roster entries a mode surface offers: healthy presets that publish no
- * expert-card metadata.
- *
- * The chip exists to choose the NEXT session's composition, and a broken
- * preset cannot compose one — offering it would defer the discovery of that
- * fact to a failed session start; an expert-marked preset is the market's
- * inventory, so offering it as a mode would present one thing as two nouns.
- * The management section renders the non-expert roster (broken rows
- * included) from its own store instead.
+ * The roster entries a mode surface offers: every healthy preset, this
+ * deployment's shipped experts included. Upstream keeps expert-marked rows out
+ * of the menu so a preset presents once, over the expert market alone; this
+ * deployment wants the experts picked from the same menu as the modes, and the
+ * market stays as the card browser over the same rows. A broken preset cannot
+ * compose a session, so offering it would only defer the discovery of that
+ * fact to a failed session start.
  * @param presets - the roster the host answered with.
  * @returns one option per selectable preset, in roster order.
  */
 export function presetOptions(presets: readonly RosterPreset[]): AgentPresetOption[] {
-  return presets.filter(preset => preset.broken === undefined && !isExpertPreset(preset)).map(asOption)
+  return presetDisplayEntries(presets)
 }
 
 /** Agent-preset roster snapshot for the display surfaces. */
@@ -192,8 +187,6 @@ export class AgentPresetSettingsController {
     this.set({
       status: 'ready',
       error: null,
-      // Display, not selection: the label names a session already running an
-      // expert, so expert-marked rows stay nameable here.
       options: presetDisplayEntries(presets),
     })
   }

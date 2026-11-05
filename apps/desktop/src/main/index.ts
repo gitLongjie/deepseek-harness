@@ -18,7 +18,7 @@ import type { TypertGateway } from '@deepseek-ai/dsh-api-gateway/types'
 import { runDesktopBoot } from './boot.ts'
 import { comfyuiLocalDir, deployBundledComfyUI } from './desktop/comfyui-bootstrap.ts'
 import type { ProcessShutdown } from './process-shutdown.ts'
-import { dispatchTransportFetch, registerTransportIpc, type TransportFetchRequest } from './ipc/transport.ts'
+import { dispatchTransportFetch, registerTransportIpc, transportRequestBytes, type TransportFetchRequest } from './ipc/transport.ts'
 import { registerBundleIpc } from './ipc/bundle.ts'
 import { registerPluginToggleIpc } from './ipc/plugin-toggle.ts'
 import { renderDesktopIndex } from './ipc/index-html.ts'
@@ -50,6 +50,7 @@ import {
   type PackagedResourceLabel,
 } from './desktop/packaged-resources.ts'
 import { runPackagedSmoke } from './desktop/packaged-smoke.ts'
+import { desktopWebDistDir, resolveDesktopPreloadPath } from './desktop-paths.ts'
 
 /** Absolute path of this desktop app's package.json (the OEM resolution anchor). */
 const INSTALL_ANCHOR = fileURLToPath(new URL('../../package.json', import.meta.url))
@@ -83,11 +84,8 @@ app.setPath('userData', join(app.getPath('appData'), 'miaoWorker'))
 const smokeUserData = process.env.DSH_PACKAGED_SMOKE_USER_DATA
 if (smokeUserData !== undefined && smokeUserData !== '') app.setPath('userData', smokeUserData)
 
-/** Directory of the built frontend dist, beside this compiled main in both layouts. */
-const WEB_DIST_DIR = fileURLToPath(new URL('../../web/', import.meta.url))
-
-/** Absolute path of the preload script. */
-const PRELOAD_PATH = fileURLToPath(new URL('../preload/index.js', import.meta.url))
+/** Directory of the built frontend dist under the desktop package root. */
+const WEB_DIST_DIR = desktopWebDistDir(import.meta.url)
 
 /** The settled host context and its shutdown controller, filled after boot. */
 const host: { ctx?: Context; shutdown?: ProcessShutdown } = {}
@@ -173,12 +171,17 @@ function log(line: string): void {
  * wedged boot or a stuck turn previously left no trace.
  */
 function mirrorConsoleToLog(): void {
+  // String(args) would render every structured diagnostic as "[object Object]".
+  const render = (value: unknown): string => {
+    if (typeof value === 'string') return value
+    try { return JSON.stringify(value) ?? String(value) } catch { return String(value) }
+  }
   for (const method of ['error', 'warn'] as const) {
     const original = console[method].bind(console)
     console[method] = (...args: readonly unknown[]): void => {
       original(...args)
       try {
-        const text = args.map(String).join(' ')
+        const text = args.map(render).join(' ')
         const logPath = process.env.DSH_DESKTOP_LOG ?? join(app.getPath('userData'), 'desktop.log')
         appendFileSync(logPath, `${new Date().toISOString()} host ${method}: ${text}\n`)
       } catch {
@@ -227,6 +230,10 @@ async function main(): Promise<void> {
       INSTALL_ANCHOR,
       JSON.parse(readFileSync(join(app.getAppPath(), 'package.json'), 'utf8')) as DesktopHelpManifest,
     )
+    // The running release version backs every client-identity reader (the
+    // platform-view headers, product analytics `serviceVersion`) the way the
+    // official build's inlined value would; an explicit build value wins.
+    process.env.DSH_CLIENT_VERSION ??= app.getVersion()
     const environment = loadLayeredEnv('desktop')
     log(`desktop: booting (packaged=${String(app.isPackaged)}) execArgv=${JSON.stringify(process.execArgv)} node=${process.versions.node}`)
     const result = await runDesktopBoot({
@@ -316,7 +323,7 @@ async function main(): Promise<void> {
     })
     installApplicationMenu(shellT(currentLocale), helpDocsUrl)
     host.ctx?.on('session/event', (session, event) => {
-      notifyTurnCompletion(win, currentLocale, String(session.id), event)
+      notifyTurnCompletion(win, currentLocale, DESKTOP_PRODUCT_NAME, String(session.id), event)
     })
     win.webContents.on('preload-error', (_event, preloadPath, error) => {
       log(`desktop: preload error ${preloadPath}: ${error.message}`)
@@ -480,7 +487,7 @@ function createWindow(): BrowserWindow {
     ...resolveWindowChrome(process.platform),
     backgroundColor: '#ffffff',
     webPreferences: {
-      preload: PRELOAD_PATH,
+      preload: resolveDesktopPreloadPath(import.meta.url),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -630,9 +637,7 @@ function registerWebProtocol(writeLog: (line: string) => void): void {
       // protocol directly instead of the IPC fetch hook. API paths belong to
       // the in-process Host connection; they are never frontend files.
       if (pathname.startsWith('/api/')) {
-        const bodyBytes = request.method === 'GET' || request.method === 'HEAD'
-          ? undefined
-          : await request.arrayBuffer()
+        const body = await transportRequestBytes(request)
         const headers: Record<string, string> = {}
         request.headers.forEach((value, key) => { headers[key] = value })
         const req: TransportFetchRequest = {
@@ -640,7 +645,7 @@ function registerWebProtocol(writeLog: (line: string) => void): void {
           path: `${pathname}${url.search}`,
           method: request.method,
           headers,
-          ...(bodyBytes === undefined ? {} : { body: new TextDecoder().decode(bodyBytes) }),
+          ...(body === undefined ? {} : { body }),
         }
         const response = await dispatchTransportFetch(
           { connection: host.ctx?.get('connection'), gateway: host.ctx?.get('typertGateway') },

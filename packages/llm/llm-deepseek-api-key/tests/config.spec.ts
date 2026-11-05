@@ -1,25 +1,14 @@
-/** The API-key route follows the official listing only for the built-in catalog on the official endpoint. */
+/** The API-key route validates listing timing and does not select a listing. */
 import { expect, it } from 'vitest'
-import { resolveAdapterOptions as resolveProtocolOptions } from '@deepseek-ai/dsh-llm-deepseek'
 import { Config, plainOptions, resolveAdapterOptions } from '../src/config.ts'
 
-const LISTING = { url: 'https://api.deepseek.com/models', timeoutMs: 5_000, maxAgeMs: 600_000 }
-
-it('follows the official listing while the catalog is the built-in one', () => {
-  expect(resolveAdapterOptions({}).listing).toEqual(LISTING)
-  expect(resolveAdapterOptions(plainOptions(Config({}))).listing).toEqual(LISTING)
-  expect(resolveAdapterOptions({ models: [...resolveProtocolOptions({}).models] }).listing).toEqual(LISTING)
-  expect(resolveAdapterOptions({ baseURL: 'https://api.deepseek.com/anthropic/v1', modelsTimeoutMs: 7, modelsMaxAgeMs: 0 }).listing)
-    .toEqual({ url: 'https://api.deepseek.com/models', timeoutMs: 7, maxAgeMs: 0 })
-})
-
-it.each([
-  [{ models: [{ id: 'custom' }] }],
-  [{ models: [] }],
-  [{ baseURL: 'https://gateway.example/anthropic' }],
-  [{ baseURL: 'http://api.deepseek.com/anthropic' }],
-])('keeps its own catalog for %j', (options) => {
-  expect(resolveAdapterOptions(options)).not.toHaveProperty('listing')
+it('does not select a model listing', () => {
+  expect(resolveAdapterOptions({})).not.toHaveProperty('listing')
+  expect(resolveAdapterOptions(plainOptions(Config({})))).not.toHaveProperty('listing')
+  expect(resolveAdapterOptions({ models: [{ id: 'custom' }] })).not.toHaveProperty('listing')
+  expect(resolveAdapterOptions({ baseURL: 'https://api.deepseek.com/anthropic/v1', modelsTimeoutMs: 7, modelsMaxAgeMs: 0 }))
+    .not.toHaveProperty('listing')
+  expect(resolveAdapterOptions({ baseURL: 'https://gateway.example/anthropic' })).not.toHaveProperty('listing')
 })
 
 it.each([

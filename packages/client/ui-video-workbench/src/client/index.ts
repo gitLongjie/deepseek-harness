@@ -6,6 +6,7 @@
  * listing types are imported type-only from the host and erased from the browser artifact.
  */
 
+import { createStudioActions } from './studio-api.ts'
 import type { Context } from '@deepseek-ai/cordis'
 import { createElement } from 'react'
 // Type-only: pulls the locale plugin's Context merge (ctx.locale).
@@ -139,6 +140,21 @@ export function apply(ctx: Context): void {
   }
 
   const injected: VideoWorkbenchInjected = {
+    studio: {
+      ...createStudioActions(),
+      requestSkill: async (skill, id, revision) => {
+        const current = (ctx.sessions.list.getSnapshot() as { current?: SessionId }).current
+        if (current === undefined) throw new Error('No session is open')
+        const scoped = ctx.sessions.scope(current)
+        if (scoped === undefined) throw new Error('The open session is unavailable')
+        const conversation = scoped.get('conversation') as ComposerDraftFace | undefined
+        if (conversation === undefined) throw new Error('The open session has no composer')
+        const dictionary = ctx.locale.getSnapshot().active === 'en' ? en : zh
+        const prompt = dictionary.studioSkillRequest.replace('{skill}', skill).replace('{id}', id).replace('{revision}', String(revision))
+        conversation.input.for(scoped).setDraft(prompt)
+        ctx.layout.selectPanel(null)
+      },
+    },
     loadSummary: async () => {
       const response = await fetch(WORKBENCH_PROJECTS_PATH, { headers: { accept: 'application/json' } })
       if (!response.ok) throw new Error(`video workbench listing failed with HTTP ${response.status}`)

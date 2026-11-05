@@ -74,25 +74,23 @@ export function presetDisplayText(
 }
 
 /**
- * Whether a roster row publishes expert-card metadata, and this predicate owns
- * the rule in both directions: the expert market admits exactly these rows as
- * hireable cards, while the mode surfaces — the new-session chip and the
- * preset-management section — exclude them. The session-header label is
- * neither: it names a session already running an expert, so it resolves
- * names across the whole healthy roster.
+ * Whether a roster row publishes expert-card metadata. The expert market
+ * admits exactly these rows as hireable cards. The new-session chip offers
+ * every healthy preset, shipped experts included, so one row can appear in
+ * both places. The session-header label names a session already running any
+ * healthy preset.
  *
  * `category` is the committed marker, and it is no longer the only one. An
  * expert authored elsewhere — copied in, dropped into the user root, or
  * delivered as an installed package — arrives as a directory this deployment
  * never curated, so it carries whatever card fields its author published and
  * may well omit `category`. Reading only the committed marker would leave such
- * a row classified as a session MODE: absent from the market, and offered by
- * the chip as if it were a generic mode. So the card-content fields count too,
+ * a row classified as a generic preset: absent from the market, and offered by
+ * the chip without expert-card metadata. So the card-content fields count too,
  * because a row publishing retrieval tags or suggested first messages is
  * describing an expert card whatever it called itself. `description` is
- * deliberately NOT a marker — every mode preset publishes one — and neither is
- * a lone `icon`, which is a decoration a mode preset may reasonably add.
- * Shipped modes publish none of these, so the built-in set is unaffected.
+ * deliberately NOT a marker — every preset publishes one — and neither is
+ * a lone `icon`, which is a decoration a preset may reasonably add.
  * @param preset - the roster-row display fields; only the marker fields are read.
  * @returns whether the row is expert inventory rather than a session mode.
  */

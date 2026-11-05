@@ -292,11 +292,18 @@ function authHelpText(): string | null {
 }
 
 /** One recorded child-slot dispatch: seat name, owner share, kind options. */
-type RenderSlotCall = [name: string, owner: Record<string, unknown>, opts?: { entryKey?: string }]
+type RenderSlotCall = [
+  name: string,
+  owner: Record<string, unknown>,
+  opts?: { entryKey?: string; fallback?: React.ReactNode },
+]
 
-/** Child-slot dispatch stub: records every seat occurrence, renders nothing. */
+/** Child-slot dispatch stub: records every seat occurrence; sign-in uses its fallback like the renderer. */
 function stubRenderSlot() {
-  return vi.fn((..._call: RenderSlotCall) => null)
+  return vi.fn((name: string, _owner: Record<string, unknown>, opts?: RenderSlotCall[2]) => {
+    if (name === 'settings.models.sign-in' && opts?.fallback !== undefined) return opts.fallback
+    return null
+  })
 }
 
 /** The provider-card seat dispatches a stub recorded, as (route id, configured, keyConfigured, entryKey). */
@@ -370,6 +377,39 @@ describe('ModelsSection', () => {
     const row = within(edit.closest('li')!)
     expect(row.getByText(en.keyFallbackUnchecked)).toBeTruthy()
     expect(row.queryByText(en.keyFallbackMissing.replace('{hint}', 'OPENAI_API_KEY'))).toBeNull()
+  })
+
+  it('renders the gateway route as a settled card without an Edit action', async () => {
+    const scripted = scriptedFace()
+    scripted.face.llm.listConfigurableProviders.mockResolvedValue(remoteOk([
+      { provider: 'deepagens', displayName: 'DeepSeek 账号', settingsNs: 'llm-deepagens', settingsPath: [], active: true, editorFamily: 'deepseek' },
+      { provider: 'openai', displayName: 'openai', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'openai'], active: true, editorFamily: 'pi-ai' },
+    ]))
+    // The gateway credential is configured and its namespace resolves, so the
+    // route renders a settled row card rather than a first-run setup card.
+    scripted.face.settings.describe.mockResolvedValue(remoteOk({
+      writable: true, hasDocument: false, namespaces: [
+        ...wireNamespaces(),
+        {
+          ns: 'llm-deepagens',
+          schema: JSON.parse(JSON.stringify(DeepSeekConfig.toJSON())) as JsonValue,
+          value: { baseURL: 'https://gateway.example', defaultContextWindow: 1_000_000, maxTokens: 256_000, models: DEFAULT_DEEPSEEK_MODELS },
+          base: { defaultContextWindow: 1_000_000, maxTokens: 256_000, models: DEFAULT_DEEPSEEK_MODELS },
+          user: {},
+          autoGenerate: true, applies: 'live',
+          secrets: [],
+          revision: 0,
+        },
+      ],
+    }))
+    scripted.face.credentials.describe.mockImplementation((refs: string[]): Promise<RemoteResult<Record<string, CredentialInfo>>> =>
+      Promise.resolve(remoteOk(Object.fromEntries(refs.map(ref => [
+        ref, { configured: ref === 'OPENAI_API_KEY' || ref === 'DEEPAGENS_API_KEY', writable: true },
+      ])))))
+    await mountFace(scripted)
+    const card = screen.getByText('DeepSeek 账号').closest('li')!
+    expect(within(card).queryByRole('button')).toBeNull()
+    expect(screen.getByRole('button', { name: openaiCopy(en.editProvider) })).toBeTruthy()
   })
 
   it('waits for the current snapshot when a setup surface remounts during refresh', async () => {
@@ -676,6 +716,17 @@ describe('ModelsSection', () => {
   it('dispatches the provider-card seat inside the first-run setup card', async () => {
     const { renderSlot } = await mountFirstRun()
     expect(cardSeatCalls(renderSlot)).toContainEqual(['deepseek-official', true, false, 'llm-deepseek'])
+  })
+
+  it('offers account sign-in before the official DeepSeek API-key setup card', async () => {
+    const { renderSlot } = await mountFirstRun()
+    const signIn = renderSlot.mock.calls.find(call => call[0] === 'settings.models.sign-in')
+    expect(signIn).toBeDefined()
+    expect(signIn![1]).toMatchObject({
+      complete: expect.any(Function),
+      useApiKey: expect.any(Function),
+    })
+    expect(signIn![2]?.fallback).toBeTruthy()
   })
 
   it('dispatches the provider-card seat on the add-provider draft with its dormant row', async () => {

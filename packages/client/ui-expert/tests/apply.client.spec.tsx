@@ -62,6 +62,8 @@ async function bench(remote: RemoteStub) {
   // the page and starts a session.
   const uiAgentPreset = {
     stageNextSessionPreset: vi.fn((id: string) => { calls.push(`stage:${id}`); return true }),
+    bindExpertPage: vi.fn(() => () => {}),
+    makeDefault: vi.fn(async () => undefined),
   }
   ctx.provide('uiAgentPreset', uiAgentPreset as never)
   const uiWorkspace = { startSession: vi.fn(() => { calls.push('start') }) }
@@ -80,7 +82,7 @@ async function bench(remote: RemoteStub) {
   ctx.provide('layout', layout as never)
   const sessions = {
     list: {
-      getSnapshot: () => ({ current: undefined }),
+      getSnapshot: () => ({ current: undefined, ids: [], byId: {} }),
       subscribe: () => () => {},
     },
   }
@@ -192,7 +194,7 @@ describe('ui-expert browser plugin', () => {
       .toEqual(['geo-optimizer', 'fresh-expert', 'installed-expert', 'gone-expert'])
     expect(experts.find(expert => expert.id === 'geo-optimizer')?.name).toBe('GEO 优化专家')
     // The card carries the trust the removal affordance keys on.
-    expect(experts.find(expert => expert.id === 'installed-expert')?.trust).toBe('user')
+    expect(experts.find(expert => expert.id === 'installed-expert')?.trust).toBe('system')
     expect(experts.find(expert => expert.id === 'gone-expert')?.broken)
       .toBe('the composition file agent.cordis.yml is missing')
     expect(remote.list).toHaveBeenCalledTimes(1)

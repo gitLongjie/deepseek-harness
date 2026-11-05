@@ -34,6 +34,25 @@ function headersToRecord(headers?: HeadersInit): Record<string, string> | undefi
   return { ...headers }
 }
 
+/** One request body as the IPC carrier forwards it: RPC text or exact bytes. */
+type TransportBody = string | Uint8Array<ArrayBuffer>
+
+/**
+ * Encode one fetch body for the IPC carrier. JSON RPC bodies stay text and
+ * binary bodies cross as bytes, because decoding bytes as text replaces every
+ * invalid UTF-8 sequence — an uploaded image would reach the Host corrupted.
+ * @param body - the body a caller supplied.
+ * @returns the body as text or exact bytes, or undefined without a body.
+ */
+async function transportBody(body: BodyInit | null | undefined): Promise<TransportBody | undefined> {
+  if (body === null || body === undefined) return undefined
+  if (typeof body === 'string') return body
+  if (body instanceof Blob) return new Uint8Array(await body.arrayBuffer())
+  if (body instanceof Uint8Array) return new Uint8Array(body)
+  if (body instanceof ArrayBuffer) return new Uint8Array(body)
+  throw new TypeError('desktop transport: only text, byte, and Blob bodies cross the IPC carrier')
+}
+
 /** One unary fetch through the IPC bridge. */
 async function ipcFetch(ipc: IpcBridge, input: URL, init: RequestInit): Promise<Response> {
   const requestId = randomUUID()
@@ -46,7 +65,7 @@ async function ipcFetch(ipc: IpcBridge, input: URL, init: RequestInit): Promise<
     path: `${input.pathname}${input.search}`,
     method: init.method ?? 'GET',
     headers: headersToRecord(init.headers),
-    body: typeof init.body === 'string' ? init.body : undefined,
+    body: await transportBody(init.body),
   }) as { status: number; body: number[]; contentType?: string }
   return new Response(new Uint8Array(res.body), {
     status: res.status,

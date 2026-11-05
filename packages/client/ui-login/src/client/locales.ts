@@ -18,6 +18,14 @@ export const en = {
   networkUnreachable: 'The sign-in service is unreachable. Check the network and try again.',
   invalidResponse: 'The sign-in service returned an unrecognized response.',
   credentialWriteFailed: 'Sign-in succeeded, but storing the API key was rejected (a read-only environment variable may shadow it).',
+  accountNav: 'Account & balance',
+  signedInToGateway: 'Signed in to the gateway',
+  balance: 'Balance',
+  balanceLoading: 'Loading…',
+  balanceRetry: 'Reload',
+  more: 'More',
+  openConsole: 'Console',
+  topUp: 'Top up',
 } satisfies Record<string, string>
 
 /** The login namespace key union. */
@@ -38,4 +46,12 @@ export const zh = {
   networkUnreachable: '登录服务无法访问，请检查网络后重试。',
   invalidResponse: '登录服务返回了无法识别的响应。',
   credentialWriteFailed: '登录成功，但写入 API Key 被拒绝（可能有只读环境变量遮蔽了它）。',
+  accountNav: '账号与余额',
+  signedInToGateway: '已登录网关',
+  balance: '余额',
+  balanceLoading: '加载中…',
+  balanceRetry: '重新加载',
+  more: '更多',
+  openConsole: '控制台',
+  topUp: '充值',
 } satisfies Record<LoginKey, string>

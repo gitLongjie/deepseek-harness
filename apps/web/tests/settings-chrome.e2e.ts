@@ -151,7 +151,7 @@ describe('web e2e: settings modal and General preferences', () => {
     const presetSwitcher = dialog.getByRole('button', { name: '选择要查看的 Agent 预设' })
     await presetSwitcher.waitFor({ timeout: 10_000 })
     // The shipped default's zh display name comes from the zh dictionaries.
-    expect(await presetSwitcher.textContent()).toBe('标准模式（默认）')
+    expect(await presetSwitcher.textContent()).toBe('标准专家（默认）')
     const presetToggle = dialog.getByRole('button', { name: '会话插件', exact: true })
     expect(await presetToggle.getAttribute('aria-expanded')).toBe('true')
     expect(await dialog.locator('[data-plugin-scope="preset"] [data-plugin-entry]').count()).toBeGreaterThan(0)
@@ -957,7 +957,7 @@ describe('web e2e: settings modal and General preferences', () => {
       await dialog.getByRole('button', { name: 'Built-in plugins', exact: true }).click()
       const presetSwitcher = dialog.getByRole('button', { name: 'Choose the agent preset to inspect' })
       await presetSwitcher.waitFor({ timeout: 10_000 })
-      expect(await presetSwitcher.textContent()).toBe('Standard mode (default)')
+      expect(await presetSwitcher.textContent()).toBe('Standard expert (default)')
       // The plugin manager speaks the en dictionary too: its sidebar entry
       // and the unavailable notice a scaffold without a profile runtime shows.
       await enPage.keyboard.press('Escape')
@@ -992,7 +992,8 @@ describe('web e2e: settings modal and General preferences', () => {
       await dialog.waitFor({ timeout: 10_000 })
       await dialog.getByRole('button', { name: 'English' }).waitFor({ timeout: 10_000 })
       // A locale-owned nav label proves the dictionaries resolved to en.
-      await dialog.getByRole('button', { name: 'Agent presets' }).waitFor({ timeout: 10_000 })
+      await dialog.getByRole('button', { name: 'Models' }).waitFor({ timeout: 10_000 })
+      expect(await dialog.getByRole('button', { name: 'Agent presets' }).count()).toBe(0)
       // The markup already ships `en`, so this alone cannot prove the sync ran
       // — the zh scenario above is the discriminating half. Asserted here too
       // so a future change that resolves en but writes the wrong tag is caught.

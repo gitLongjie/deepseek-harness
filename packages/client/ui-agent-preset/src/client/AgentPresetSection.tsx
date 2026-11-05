@@ -6,6 +6,8 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ObservableSnapshot, SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+// Type-only: pulls the settings shell's SlotMap merge (the 'settings.section' entry).
+import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { AgentPresetSectionState } from './section-store.ts'
 import { isBuiltInPreset, presetDisplayText } from './locales.ts'
 import { requiresCodingTools } from './settings-store.ts'
@@ -57,7 +59,7 @@ function CardDescription({ text }: { text: string }): ReactNode {
   )
 }
 
-/** Render the roster with its default, mode help, composition viewer, and the guidance to Creator mode.
+/** Render the roster with its default, mode help, composition viewer, and the guidance to Creator expert.
  * @param props Settings actions, snapshot hooks and localized text.
  * @returns The preset settings section.
  */
@@ -80,7 +82,7 @@ export function AgentPresetSection({
   const viewed = state.view
   const viewedRow = viewed === null ? undefined : state.rows.find(row => row.id === viewed.id)
   const viewedTitle = viewed === null ? '' : viewedRow === undefined ? viewed.title : presetDisplayText(viewedRow, t).name
-  // Creator mode authors presets in conversation; it needs the flow to land a
+  // Creator expert authors presets in conversation; it needs the flow to land a
   // session in and the self-referential preset on the roster.
   const creator = startCreatorDraft !== undefined && state.rows.some(row => row.id === 'cordis') ? startCreatorDraft : undefined
   /* The custom group is where a preset of one's own appears, so its entry

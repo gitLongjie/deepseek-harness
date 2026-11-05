@@ -133,7 +133,7 @@ export function createElectronBuilderOemConfig(productName, updateUrl, options =
     // the configured OEM display name. The package `name` stays the ASCII
     // miaoWorker identity: electron-builder derives APP_FILENAME from it to
     // sanitize the install directory, and an ASCII name keeps that check stable
-    // while the display name is non-ASCII (喵工作台).
+    // while the display name may be non-ASCII.
     productName,
     extraMetadata: {
       name: 'miaoWorker',

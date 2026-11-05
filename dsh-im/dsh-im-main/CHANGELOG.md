@@ -11,6 +11,11 @@ This file records the notable changes in each dsh-im release. Its format follows
 - 更新窗口新增手工更新命令及一键复制，页面更新失败时可在相同 Harness / Desktop 环境中通过 npm 更新；复制受限时可选中文本手动复制，安装完成后仍需手动重启。
   Added a manual npm update command and copy button to the update dialog for use in the same Harness / Desktop environment when the in-page update fails. The command remains selectable if clipboard access fails, and installation still requires a manual restart.
 
+### Fixed / 修复
+
+- 消息处理失败报告不再把 Harness 已经给出的失败码吞成「暂时无法确定原因」：`ACCOUNT_QUOTA`、`IMAGE_OFFLOAD_REQUIRED`、`TOOL_ACTIVATION_FAILED` 分别归类为额度不足、模型配置不支持和工具不可用；仍未纳入分类的失败码会保留为该次失败的 reason，凭参考号排查时不再只剩 `INTERNAL_UNKNOWN`。
+  Message-failure reports no longer collapse a Harness failure code into "the cause could not be determined": `ACCOUNT_QUOTA`, `IMAGE_OFFLOAD_REQUIRED`, and `TOOL_ACTIVATION_FAILED` now classify as quota, model-configuration, and tool-unavailable failures, and a failure code dsh-im still cannot classify is kept as the recorded reason instead of leaving only `INTERNAL_UNKNOWN`.
+
 ## [3.1.1] - 2026-08-28
 
 ### Fixed / 修复

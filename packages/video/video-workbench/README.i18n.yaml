@@ -15,11 +15,11 @@
   en: cbfb676bb9a7a2de
   zh: e040c3118757a57f
 /deepseek-ai-dsh-video-workbench/use-this-package:
-  en: 822affa7949efb62
-  zh: b2f91e3e9925f908
+  en: 92d71e6572868e9d
+  zh: db2ec502f2092f5f
 /deepseek-ai-dsh-video-workbench/understand-the-implementation:
-  en: 5209b8d2401ea34e
-  zh: 3735e198090a4364
+  en: ccb768103e5e0bc0
+  zh: e2eb49eda6095673
 /deepseek-ai-dsh-video-workbench/model-experience:
   en: 215e7ba838619b7b
   zh: 215e7ba838619b7b
@@ -27,17 +27,17 @@
   en: fa56266b2731f7ba
   zh: fa56266b2731f7ba
 /deepseek-ai-dsh-video-workbench/model-experience/model-facing-contract/what-the-model-sees:
-  en: 1c084108693ce9fd
-  zh: d0fbd2e30caa1a12
+  en: ade95e52b3ce4fd3
+  zh: 2b105ef9c9b0c1f1
 /deepseek-ai-dsh-video-workbench/model-experience/model-facing-contract/token-effect:
-  en: 82021d3a0553b13c
-  zh: 4a93d82b029d17bf
+  en: 8bdadd10abd24e2a
+  zh: d93beb739fac93ee
 /deepseek-ai-dsh-video-workbench/model-experience/model-facing-contract/kv-cache-effect:
-  en: 44a4813bba6fdc42
-  zh: 14ded335e5a0ab16
+  en: 0e01cdd31f05a089
+  zh: 513400a4199c1f51
 /deepseek-ai-dsh-video-workbench/known-limitations-and-deferred-work:
   en: 1bb3d4151647df76
   zh: ad993c56f996cdcd
 /deepseek-ai-dsh-video-workbench/known-limitations-and-deferred-work/dev-note:
-  en: 91033b7a91836069
-  zh: 0f2d46b538dd6507
+  en: 5e7dcaeb0fe45067
+  zh: 4e07d91504fccfc1

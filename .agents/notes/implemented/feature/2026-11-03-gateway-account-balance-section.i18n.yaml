@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-11-03-gateway-account-balance-section.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-11-03-gateway-account-balance-section.md
+/agent-note-gateway-account-section-with-claw-balance-and-winner-based-nav-projection:
+  en: 591d0d4ec46ec4ba
+  zh: 0fdfb2d94341a9c9
+/agent-note-gateway-account-section-with-claw-balance-and-winner-based-nav-projection/problem:
+  en: 20c8d8badad46e2a
+  zh: 8821ca2c1402dd50
+/agent-note-gateway-account-section-with-claw-balance-and-winner-based-nav-projection/decision:
+  en: 1ceeb5bb7014fe08
+  zh: b1638b77c1425f88
+/agent-note-gateway-account-section-with-claw-balance-and-winner-based-nav-projection/alternatives-considered:
+  en: 3a131f270cdb3a24
+  zh: a824574b25de5655
+/agent-note-gateway-account-section-with-claw-balance-and-winner-based-nav-projection/verification:
+  en: fcb3948e96b1ed50
+  zh: 7f13c1f1bf41c085
+/agent-note-gateway-account-section-with-claw-balance-and-winner-based-nav-projection/consequences:
+  en: 9f19ea98b15502a2
+  zh: ee9b3dd634b85e8b

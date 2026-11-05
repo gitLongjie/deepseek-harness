@@ -2,18 +2,18 @@
 # section, a hash of its English and Chinese blocks outside code blocks and generated regions.
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-10-22-deepseek-official-model-listing.md
-/agent-note-the-official-deepseek-route-follows-the-official-model-listing-until-its-catalog-is-customized:
-  en: 20de6c2a1bc643b4
-  zh: 2fe21450cebf7f32
-/agent-note-the-official-deepseek-route-follows-the-official-model-listing-until-its-catalog-is-customized/problem:
+/agent-note-the-api-key-route-no-longer-follows-the-official-model-listing:
+  en: 2c7782bf72466112
+  zh: 5b296132274428a9
+/agent-note-the-api-key-route-no-longer-follows-the-official-model-listing/problem:
   en: 51a513e6134e6ad9
   zh: e0b19412c9b88e24
-/agent-note-the-official-deepseek-route-follows-the-official-model-listing-until-its-catalog-is-customized/decision:
-  en: ceb2f960085577c3
-  zh: 1bbc833b7cf24070
-/agent-note-the-official-deepseek-route-follows-the-official-model-listing-until-its-catalog-is-customized/alternatives-considered:
-  en: fa126e4f4e0790b4
-  zh: c4f6d266d1ba6753
-/agent-note-the-official-deepseek-route-follows-the-official-model-listing-until-its-catalog-is-customized/consequences:
-  en: 047e30a0f55acb24
-  zh: 804e15532d172157
+/agent-note-the-api-key-route-no-longer-follows-the-official-model-listing/decision:
+  en: 06d6383892d60f3c
+  zh: 9c93212ebfd74f3c
+/agent-note-the-api-key-route-no-longer-follows-the-official-model-listing/alternatives-considered:
+  en: 51303da646fd65b2
+  zh: 6b028b20327bf1e4
+/agent-note-the-api-key-route-no-longer-follows-the-official-model-listing/consequences:
+  en: 5bbe695ba5a51344
+  zh: 5430c5f98b39e8c1

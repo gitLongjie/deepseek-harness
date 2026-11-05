@@ -3,42 +3,16 @@
  * namespace, the credential store, and the registered schemas are the shipping
  * code; only the backend's HTTP answers are scripted.
  */
-import { mkdtempSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { rmSync } from 'node:fs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { Context } from '@deepseek-ai/cordis'
+import type { Context } from '@deepseek-ai/cordis'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
-import CredentialsLocal from '@deepseek-ai/dsh-credentials-local'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
-import { SettingsProvider } from '@deepseek-ai/dsh-settings'
-import type { SettingsNamespace } from '@deepseek-ai/dsh-settings'
-import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
-import ToolRuntime from '@deepseek-ai/dsh-tools'
-import * as toolPlugin from '../src/index.ts'
 import type { GeoArticle, GeoWebsite } from '../src/index.ts'
-import * as settingsPlugin from '../src/settings.ts'
 import { GEO_ADMIN_PASSWORD_REF } from '../src/settings.ts'
+import { profileFixture } from './profile-fixture.ts'
 
 const SIGNAL = new AbortController().signal
-
-/** One in-memory settings document, always writable. */
-class MemorySettings extends SettingsProvider {
-  doc: Record<string, unknown> = {}
-
-  get writable(): boolean {
-    return true
-  }
-
-  protected load(): Promise<Record<string, unknown>> {
-    return Promise.resolve(structuredClone(this.doc))
-  }
-
-  protected persist(ns: SettingsNamespace, section: Record<string, unknown>): Promise<void> {
-    this.doc = { ...this.doc, [ns]: structuredClone(section) }
-    return Promise.resolve()
-  }
-}
 
 /** Everything one test owns, torn down together. */
 interface Harness {
@@ -85,14 +59,7 @@ function answer(body: unknown, status = 200): Response {
 async function harness(
   options: { mountSettings?: boolean; baseUrl?: string; username?: string; password?: string } = {},
 ): Promise<Harness> {
-  const dir = mkdtempSync(join(tmpdir(), 'geo-admin-tools-'))
-  const ctx = new Context()
-  await ctx.plugin(MemorySettings)
-  await ctx.plugin(SystemPrompt)
-  await ctx.plugin(ToolRuntime)
-  await ctx.plugin(CredentialsLocal, { path: join(dir, '.credentials.yaml'), watch: false })
-  if (options.mountSettings ?? true) await ctx.plugin(settingsPlugin, {})
-  await ctx.plugin(toolPlugin, {})
+  const { ctx, dir } = await profileFixture(options.mountSettings ?? true)
   const harnessed: Harness = { ctx, dir, calls: [] }
   active = harnessed
   if ((options.mountSettings ?? true) && options.baseUrl !== undefined) {
@@ -114,12 +81,11 @@ let callSeq = 0
  * @returns the registry's result.
  */
 async function call(ctx: Context, name: string, args: unknown) {
-  return ctx.tools.execute({
+  const batch = await ctx.tools.execute({
     signal: SIGNAL,
-    callId: ToolCallId(`geo-call-${++callSeq}`),
-    name,
-    arguments: args,
+    calls: [{ type: 'tool-call', id: ToolCallId(`geo-call-${++callSeq}`), name, arguments: JSON.stringify(args) }],
   })
+  return batch.results[0]!.result
 }
 
 /**
@@ -132,6 +98,34 @@ function contentText(result: { content: { type: string; text?: string }[] }): st
 }
 
 describe('深度云海 tools', () => {
+  it('asks only for missing fields and saves configuration for the next call', async () => {
+    const { ctx } = await harness()
+    expect((await call(ctx, 'geo_configure', {})).value).toEqual({ missing: ['baseUrl', 'username', 'password'] })
+    expect((await call(ctx, 'geo_configure', { baseUrl: 'http://localhost:8001', username: 'editor' })).value)
+      .toEqual({ missing: ['password'] })
+    const saved = await call(ctx, 'geo_configure', { password: 'private-password' })
+    expect(saved.value).toEqual({ missing: [] })
+    expect(JSON.stringify(saved)).not.toContain('private-password')
+    backend({ access_token: 'tok', websites: [] }, { data: [] })
+    expect((await call(ctx, 'geo_sites_list', {})).isError).toBeFalsy()
+    expect(active?.calls[0]?.[1].body).toContain('editor')
+    expect(active?.calls[0]?.[1].body).toContain('private-password')
+  })
+
+  it.each([
+    { baseUrl: 'https://user:password@example.com' },
+    { baseUrl: 'file:///tmp/backend' },
+    { baseUrl: 'not a URL' },
+    { baseUrl: 'https://example.com/api' },
+    { username: '  ' },
+    { password: '  ' },
+  ])('rejects invalid configuration without saving any fields: %j', async (args) => {
+    const { ctx } = await harness()
+    expect((await call(ctx, 'geo_configure', args)).isError).toBe(true)
+    expect(ctx.geoAdminSettings.get()).toEqual({ baseUrl: undefined, username: undefined })
+    expect(await ctx.credentials.resolve(credentialRef(GEO_ADMIN_PASSWORD_REF))).toBeUndefined()
+  })
+
   it('registers every publishing and content tool', async () => {
     const { ctx } = await harness()
     expect(ctx.tools.schemas().map(schema => schema.name).sort())
@@ -141,6 +135,7 @@ describe('深度云海 tools', () => {
         'geo_article_publish',
         'geo_article_update',
         'geo_categories_list',
+        'geo_configure',
         'geo_news_list',
         'geo_report_generate',
         'geo_report_get',

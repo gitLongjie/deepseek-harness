@@ -29,7 +29,7 @@ Desktop product events use the optional [product analytics service](../product-a
 
 Saving credentials or a custom provider preserves the selected model. The user can select an available model from the composer.
 
-DeepSeek Account appears first and DeepSeek second in the provider list; third-party providers retain their directory order.
+The Deepagens gateway appears first in the provider list, followed by DeepSeek Account and DeepSeek; third-party providers retain their directory order.
 
 Open the Models page from the Settings navigation to see every configured provider as a row. A whole-section provider whose key is not configured anywhere renders as its open setup card instead, but only in the first-run posture and only until the user closes that card. Each card kind owns its own open state, so closing one never discards a draft in another.
 
@@ -77,7 +77,7 @@ After the versioned notice step completes, the DeepSeek step projects first-run 
 
 The section declares two seats for plugins distributed outside this repository, typed in [`src/client/slot-contract.ts`](src/client/slot-contract.ts) and exported from `./client`. `settings.models.provider-card` (keyed) renders inside every card that shows a directory row — a saved row's card, its first-run setup posture, and the add-provider draft — dispatched with `entryKey = settingsNs` and owner props carrying the row's `ConfigurableProviderView`, its configured state, and its confirmed api-key credential state, so one registration under an adapter family's namespace receives every card of that family, hand-declared routes included; the hand-declared draft card has no directory row yet and dispatches nothing until saved. `settings.models.footer` (list) renders after the rows and the add controls. A registrant activates through `ctx.slots.inject` with a type-only import of this package's `/client` entry; without registrants both seats render nothing.
 
-The Models page includes **DeepSeek Account** (`deepseek-account`, **DeepSeek 账号** in Chinese). The row shows a **Signed in** status and offers no editor: the account listing supplies its models, and [model overrides](../../llm/llm-deepseek-account/README.md#use-this-package) live in `cordis.patch.yml`. The account row is hidden when its available model catalog is empty, including before sign-in and after sign-out; it returns when account models become available.
+The Models page includes **DeepSeek Account** (`deepseek-account`, **DeepSeek 账号** in Chinese). The row shows a **Signed in** status and offers no editor: the account listing supplies its models, and [model overrides](../../llm/llm-deepseek-account/README.md#use-this-package) live in `cordis.patch.yml`. The account row is hidden when its available model catalog is empty, including before sign-in and after sign-out; it returns when account models become available. The Deepagens gateway row (`deepagens`) likewise offers no editor: sign-in re-points its endpoint and catalog, so the gateway owns the route's configuration.
 
 -----
 

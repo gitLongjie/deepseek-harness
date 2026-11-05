@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { LoginGate } from '../src/client/LoginGate.tsx'
 import { SidebarAccount } from '../src/client/SidebarAccount.tsx'
+import { GatewayAccountSection } from '../src/client/GatewayAccountSection.tsx'
 import { LoginStore, type LoginApi, type LoginCredentialAdapter } from '../src/client/login-store.ts'
 
 // Minimal API mock for the LoginStore constructor: discovery returns an empty
@@ -119,6 +120,55 @@ describe('LoginGate', () => {
     expect(screen.queryByRole('button', { name: '显示密码' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: '隐藏密码' }))
     expect(password.getAttribute('type')).toBe('password')
+  })
+})
+
+describe('GatewayAccountSection', () => {
+  /** Sign in against per-URL billing stubs: total and used quota configurable. */
+  async function signInWithBilling(controller: LoginStore, total: number, used: number, status = 200): Promise<void> {
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url === 'https://claw.deepagens.com/api') {
+        return Promise.resolve(new Response(
+          JSON.stringify({ success: true, data: { display_name: '杰哥', avatar: null, api_key: 'sk-1' } }),
+          { status: 200 },
+        ))
+      }
+      if (url.includes('billing/subscription')) {
+        return Promise.resolve(new Response(JSON.stringify({ hard_limit_usd: total }), { status }))
+      }
+      return Promise.resolve(new Response(JSON.stringify({ object: 'billing_usage', total_usage: used }), { status }))
+    }))
+    await act(async () => { await controller.login('jiege', 'pw') })
+  }
+
+  it('renders the gateway identity and the computed balance', async () => {
+    const controller = new LoginStore('https://claw.deepagens.com/api', inertAdapter, dummyApi)
+    await signInWithBilling(controller, 10, 2.5)
+    render(<GatewayAccountSection close={() => {}} controller={controller} t={t} />)
+    expect(screen.getByText('杰哥')).toBeDefined()
+    expect(screen.getByText('已登录网关')).toBeDefined()
+    await waitFor(() => { expect(screen.getByText('$7.50')).toBeDefined() })
+    expect(screen.getByText('余额')).toBeDefined()
+    expect(screen.getByRole('link', { name: '控制台' }).getAttribute('href')).toBe('https://claw.deepagens.com/console')
+    expect(screen.getByRole('link', { name: '充值' }).getAttribute('href')).toBe('https://claw.deepagens.com/console/topup')
+  })
+
+  it('renders nothing while signed out', () => {
+    const controller = new LoginStore('https://claw.deepagens.com/api', inertAdapter, dummyApi)
+    const { container } = render(<GatewayAccountSection close={() => {}} controller={controller} t={t} />)
+    expect(container.childElementCount).toBe(0)
+  })
+
+  it('offers a retry affordance after a failed read and recovers on click', async () => {
+    const controller = new LoginStore('https://claw.deepagens.com/api', inertAdapter, dummyApi)
+    await signInWithBilling(controller, 10, 2.5, 500)
+    render(<GatewayAccountSection close={() => {}} controller={controller} t={t} />)
+    await waitFor(() => { expect(screen.getByRole('button', { name: '重新加载' })).toBeDefined() })
+    // The retry path reads the same endpoints; the stub keeps answering 500,
+    // so the affordance stays and no number is invented.
+    fireEvent.click(screen.getByRole('button', { name: '重新加载' }))
+    await waitFor(() => { expect(screen.getByRole('button', { name: '重新加载' })).toBeDefined() })
+    expect(screen.queryByText('$7.50')).toBeNull()
   })
 })
 

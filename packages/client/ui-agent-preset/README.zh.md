@@ -1,5 +1,5 @@
 ---
-description: "在 Web 中选择 Agent preset 和新任务默认值，查看各模式的说明与声明的配置。创建与修改引导至创造模式。"
+description: "为下一次任务显示专家名称，并打开专家页设置新任务默认值。创建与修改引导至创造专家。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-在 Web 中选择 Agent preset 和新任务默认值，查看各模式的说明与声明的配置。创建与修改引导至创造模式。
+为下一次任务显示专家名称，并打开专家页设置新任务默认值。创建与修改引导至创造专家。
 
 ## 目录
 
@@ -25,17 +25,13 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用此包
 
-设置页显示内置与自定义卡片分组、默认项高亮和点击卡片选择；没有 preset 的分组不显示，但自定义分组会保留其创造入口。粗指针设备完整显示卡片描述；其他设备最多显示四行描述，悬停可查看全文。每张卡片都提供「查看配置」，以只读 YAML 打开该 preset 声明的插件列表，使用 Loader 自己的方言（含 `!!js` 条件）；加载失败的 preset 同样可读，因为其诊断信息正指向这份 YAML。Escape 只关闭查看器并将焦点还给卡片；离开设置页会清空查看器，迟到的读取结果不会重新打开它。本页不编辑任何内容：创造入口启动一个创造模式任务，以 bundle 形式创建或覆盖 preset；当 `cordis` preset 在列表中且存在会话流程时提供。
+新会话芯片显示下一次任务将使用的专家。点击它打开专家页。聘用一张卡片会以该预设开始对话。健康卡片上的「设为新任务默认」写入默认值，并应用到当前新任务界面的空白会话。设置里没有 Agent 预设分区。失效的专家仍留在页面上，不能聘用，也不能存成默认值。
 
-关闭通用设置中的代码工作工具后，新会话选择器和设置页列表提供标准、创造和自定义预设；开启后还提供 PTC 和极简模式。两种状态下均保留默认值选择和创造入口。选择健康定义作为默认值也会同步当前新任务页面的空白会话。Creator 入口开启一个使用 `cordis` preset 的新任务。
+关闭代码工作工具时，沿用现有 Developer tools 订阅清空尚未应用的选择。关闭状态被接受后，每个已认证浏览器都会把已保存的内置 PTC 或极简默认值回退为标准专家。已保存的标准、创造和自定义默认值保持不变。已有会话保留自己的预设；新会话使用当前默认值。重新开启代码工作工具不会恢复原来的默认值。标准专家缺失或损坏时，默认值保持不变。
 
-关闭代码工作工具时，沿用现有 Developer tools 订阅清空所有尚未应用的选择。关闭状态被接受后，每个已认证浏览器都会将已保存的内置 PTC 或极简默认值回退为标准模式。已保存的标准、创造和自定义默认值（包括有名称的 PTC 或极简覆盖项）保持不变。关闭后用户仍可重新选择可用预设。已有会话保留所选模式；新会话使用当前默认值。即使已有会话的模式不在菜单中，其标签仍会显示。重新开启代码工作工具不会恢复原默认值或已清除的选择。标准模式缺失或损坏时，默认值保持不变，并显示错误。
+插件页**添加插件**菜单中的**让 Agent 创建插件**进入创造专家。它不发送消息，并保留未发送的草稿。读取预设列表或创造专家不可用时，菜单项禁用并说明原因。Host 拒绝切换预设时，通过 Toast 显示原因。
 
-已知的内置预设提供只读的模式说明与使用示例对话框。极简模式指南介绍图片读取、自动历史压缩以及会话空闲时的 `/compact` 命令。各页签保留各自的滚动位置；关闭后焦点回到打开它的操作。帮助不会改变新任务默认值。默认徽标取代卡片的分组徽标，预设 id 显示在标题旁。指南文案与示例归本包所有。
-
-插件页**添加插件**箭头菜单中的**让 Agent 创建插件**进入与设置页相同的创造流程，不发送消息，并保留未发送的草稿。读取预设列表或创造模式不可用时，菜单项禁用并说明原因。Host 拒绝切换预设时，两处入口均通过 Toast 显示原因。
-
-进入创造模式会为接收该选择的空白 Session 选择 `cordis`，不改变新任务默认值或代码工作工具设置。尚未绑定工作区或空白 Session 时，选择等待绑定完成后应用。应用后，创造 Session 保留该预设；之后真正创建的新 Session 使用配置的默认值，例如标准模式。
+进入创造专家会为接收该选择的空白 Session 选择 `cordis`，不改变新任务默认值或代码工作工具设置。尚未绑定工作区或空白 Session 时，选择等待绑定完成后应用。应用后，创造 Session 保留该预设；之后真正创建的新 Session 使用配置的默认值，例如标准专家。
 
 在桌面端，模式选择器中的直接选择切换到另一个内置 preset 时，可选的[产品埋点](../product-analytics/README.zh.md)服务会收到 `agent_preset_switch`：未绑定 Session 的选择在暂存给下一个 Session 时计入，已绑定空白 Session 的选择在 Host 应用后计入。事件携带按 preset id 映射的来源与目标类别（`cordis` 记为 `creator`；`ptc`、`minimal`、`standard` 保持原 id；其他 id 记为 `other`），以及选择时已知的代码工作工具设置。选择自定义目标、被拒绝的选择、Host 最终落在其他 preset 的选择、默认值修改及其空白 Session 同步均不报告；来源模式或代码工作工具设置未知时做出的选择同样不报告。不采集自定义 preset 的 id 和名称。
 
@@ -45,13 +41,13 @@ kind: "package-reference"
 <details>
 <summary>实现细节 — 点击展开</summary>
 
-`agentPresets/list` 提供列表并标记当前默认值，`agentPresets/read` 为查看器提供一条声明的 YAML；默认值的修改写入 `agent-preset-registry` settings 命名空间。选择器、空白会话同步和只读会话标签使用记录的 preset 标识。连接重置和设置更新会刷新列表。
+`agentPresets/list` 提供列表并标记当前默认值。专家页把新任务默认值写入 `agent-preset-registry` settings 命名空间，并同步当前空白会话。芯片和只读会话标签使用记录的 preset 标识。连接重置和设置更新会刷新列表。
 
-`CreatePluginMenuItem` 使用共享的预设列表 store，向 `plugins.add.actions` 贡献菜单项。选择时先调用页面传入的 `onDismiss()`，再调用与设置页 `creatorDraft` 相同的 `startCreatorDraft` 回调。该回调通过 `AgentPresetSeatController` 暂存 `cordis`（主区空白 Session 列出其他 preset 时不暂存，因为导航会打开另一个空白 Session，原空白 Session 保持不变），再通过显式保留草稿并传入 `agentPreset: 'cordis'` 的 `uiWorkspace.startSession` 调用打开任务，由 Host 以创造模式组合被复用的空白 Session 或新 Session；没有目标工作区时，暂存选择在 Session 绑定可用时应用。暂存选择应用后即清除。代码工作工具开启或关闭时均使用同一个选择器和选择 store，`AgentPresetSeat` 通过共享的 `Toast` 组件显示拒绝原因。
+`CreatePluginMenuItem` 使用共享的预设列表 store，向 `plugins.add.actions` 贡献菜单项。选择时先调用页面传入的 `onDismiss()`，再调用 `startCreatorDraft`。该回调通过 `AgentPresetSeatController` 暂存 `cordis`（主区空白 Session 列出其他 preset 时不暂存，因为导航会打开另一个空白 Session，原空白 Session 保持不变），再通过显式保留草稿并传入 `agentPreset: 'cordis'` 的 `uiWorkspace.startSession` 调用打开任务，由 Host 以创造专家组合被复用的空白 Session 或新 Session；没有目标工作区时，暂存选择在 Session 绑定可用时应用。暂存选择应用后即清除。`AgentPresetSeat` 通过共享的 `Toast` 组件显示拒绝原因。
 
 `AgentPresetSeatController.select()` 与 `apply()` 返回本次尝试的结果：Host 提交暂存 preset 时为 `applied`；没有当前 Session 时为 `staged`；忙碌、没有暂存选择、Session 已开始或已使用该 preset，或 Host 最终落在其他 preset 时为 `unchanged`；Host 拒绝时为携带原始原因的 `refused`。选择器注入的 `select` 根据该结果报告 `agent_preset_switch`，并且只返回拒绝原因。
 
-工作区的空白会话就是它的「新会话」占位会话，并被多个流程共享：聘用会把专家组装进它，而下一个新会话流程又会接管同一个会话。`bindPlaceholderAdoption` 就是本包恢复「新建会话会解析出的那个组装」的地方——但只在本包自己的界面不可能选择过当前组装时才恢复，因此芯片或设置页选定的模式保持不动，而聘用专家的对话不会被带进下一个新会话；已暂存的选择会立即返回，因为把会话切换到它是 applier 的职责。名称解析读取整个健康名单而不是芯片自身的选项，因此运行专家标记预设的会话由该预设命名，而菜单仍然只提供模式。
+工作区的空白会话就是它的「新会话」占位会话，并被多个流程共享：聘用会把专家组装进它，而下一个新会话流程又会接管同一个会话。`bindPlaceholderAdoption` 就是本包恢复「新建会话会解析出的那个组装」的地方——但只在当前组装已经无法装配时才恢复。携带健康预设的占位会话会保持不动；已暂存的选择会立即返回，因为把会话切换到它是 applier 的职责。只有已经无法装配的组装（预设被删除或损坏）才回退到默认值。名称解析读取同一份健康名单，因此运行任何预设的会话都由该预设命名。
 
 </details>
 
@@ -75,7 +71,7 @@ kind: "package-reference"
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- Web 不创建也不编辑 preset：配置查看器是只读的；通过创造模式安装的 bundle 声明新 preset，或按行 id 覆盖内置 preset，覆盖会替换整个子插件列表。
+- Web 不创建也不编辑 preset：配置查看器是只读的；通过创造专家安装的 bundle 声明新 preset，或按行 id 覆盖内置 preset，覆盖会替换整个子插件列表。
 
 <a id="dev-note"></a>
 ### 开发备注

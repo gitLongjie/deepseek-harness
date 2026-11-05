@@ -1,5 +1,6 @@
 /** Credential-scoped listing cache: first-use waits, background refresh, retention, and disposal. */
 import { afterEach, expect, it, onTestFinished, vi } from 'vitest'
+import { LlmError } from '@deepseek-ai/dsh-llm'
 import { timeoutOf } from '@deepseek-ai/dsh-timeout'
 import { ModelListingCache } from '../src/listing-cache.ts'
 import type { ListingSettings } from '../src/listing-config.ts'
@@ -78,6 +79,24 @@ it('bounds the first wait by the request deadline and serves no listing after a 
   await expect(catalog.view()).resolves.toEqual({ authenticated: true, listing: undefined })
   expect(timeoutOf(loads[0]!.signal, LISTING_TIMEOUT)?.timeoutMs).toBe(5)
   expect(warn).toHaveBeenCalledExactlyOnceWith(expect.stringContaining('using the bundled catalog'))
+})
+
+it('names the stored credential when the endpoint rejects the listing request', async () => {
+  const { catalog, loads, warn, flush } = harness()
+  const waiting = catalog.view()
+  await flush()
+  loads[0]!.settle.reject(new LlmError('https://api.example/models answered HTTP 401', 'HTTP_401', { status: 401 }))
+  await expect(waiting).resolves.toEqual({ authenticated: true, listing: undefined })
+  expect(warn).toHaveBeenCalledExactlyOnceWith(expect.stringContaining('rejected the stored credential'))
+})
+
+it('reports a transport failure without a credential hint', async () => {
+  const { catalog, loads, warn, flush } = harness()
+  const waiting = catalog.view()
+  await flush()
+  loads[0]!.settle.reject(new LlmError('could not reach https://api.example/models', 'TRANSPORT'))
+  await expect(waiting).resolves.toEqual({ authenticated: true, listing: undefined })
+  expect(warn).toHaveBeenCalledExactlyOnceWith(expect.not.stringContaining('rejected the stored credential'))
 })
 
 it('abandons only the caller\'s wait when its signal aborts', async () => {

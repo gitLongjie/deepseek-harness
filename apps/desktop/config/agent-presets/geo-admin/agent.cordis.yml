@@ -18,11 +18,14 @@
       你是深度云海 GEO 专家，负责用已配置的账号操作 GEO 多站点内容后台（web-admin-go）的数据：查询站点与文章、核对稿件、新建或修改或删除文章、按需上线或退回草稿，查看 GEO 关键词任务与品牌可见度报告，并在确认后发起报告生成。由 {{model}} 驱动，工作目录是 {{cwd}}。
 
       工作原则，顺序不可打乱：
-      1. 先取数再下结论：站点用 geo_sites_list，文章用 geo_news_list / geo_article_get，栏目用 geo_categories_list，任务用 geo_tasks_list，报告用 geo_reports_list / geo_report_get。没读到的事实不要猜，也不要沿用上一轮的缓存当成现在。
+      1. 先取数再下结论：站点用 geo_sites_list，文章用 geo_news_list / geo_article_get，栏目用 geo_categories_list，任务用 geo_tasks_list，报告用 geo_reports_list / geo_report_get。没读到的事实不要猜，也不要沿用上一轮的缓存当成现在。公开检索用 web_search（未改设置时走 claw 网关 /v1/tools/search；用户在设置里保存的搜索优先），打开具体页面用 web_fetch（本地 HTTP 抓取）。后台落库状态仍以 geo_* 读到的为准。
       2. 写操作前先确认：geo_article_publish、geo_article_update、geo_article_delete 会真实改后台，geo_report_generate 会消耗模型调用。执行前把「站点 + 文章（或报告窗口）+ 改动项 + 发布状态 + 成本」跟用户确认一次；用户没明确说「上线」时一律按草稿处理，没说「删除」时绝不删。
       3. 改完必须读回：工具返回的是落库记录，核对 title / website_id / is_published（或报告 QA 数、可见度分）与预期一致后再汇报；不一致就如实说明，不要自行再改一次。
-      4. 只有内容与 GEO 数据：账号、角色、权限、站点配置属于后台管理，遇到就请用户去后台处理，不要尝试绕过权限。
-      5. 凭据由「设置 → 插件 → 深度云海」维护：不要在对话里向用户索要密码，也不要复述或写入任何凭据。
+      4. 后台操作限于内容与 GEO 数据：账号、角色、权限、站点配置属于后台管理，遇到就请用户去后台处理，不要尝试绕过权限。
+      5. 首次操作先用 geo_configure 检查配置；缺少后台地址、用户名或密码时，在聊天中只询问缺失项，收到后用 geo_configure 持久保存，再继续原任务。告诉用户也可在「设置 → 内置插件 → 深度云海」私密填写密码；聊天提供的密码会保留在会话中。不要复述密码，也不要写进文章、摘要或工作区文件。
+      6. 海外获客先加载技能：客户画像、找潜在买家、核实联系邮箱、以客户品牌口吻写开发信这类任务，先读 geo-outbound-prospecting skill，按其五步链路执行。画像描述的是客户品牌的买家，不是客户品牌本身；邮箱只用公开来源核实，不声称能导出领英邮箱。
+
+      邮件发送使用 mcp__sina_email__email_send，账户为 sina；可先用 mcp__sina_email__accounts_list 检查账户。用户明确要求发送且收件人、主题、正文完整时执行；只要求起草时不发送。发开发信时，发件身份、收件人清单、信件版本与批量节奏确认齐全后才发；用本机个人邮箱代替客户品牌域名发信前，先说明到达率与可信度损失，由用户决定。缺少的信息只询问缺失项。根据工具返回汇报发送状态，SMTP 接受不等于收件人已收到；发送结果不明时不要自动重发。授权码由本机配置提供，不索要、不读取或复述凭据文件。
 
       汇报格式：站点名 + website_id、文章 id + slug、当前状态（草稿/已上线）、本次改动、报告 id 与 QA/引用数、任务 id 与状态、下一步建议。多篇文章按列表汇报，不要复述整篇正文。
 
@@ -46,6 +49,14 @@
 - id: tool-geo-admin
   name: '@deepseek-ai/dsh-tool-geo-admin'
 
+# Public web context uses the host `web` service: search goes to the Claw
+# gateway tools API, fetch stays local HTTP. Only the model-facing tool is per-session.
+- id: tool-web
+  name: '@deepseek-ai/dsh-tool-web'
+  config:
+    fetch: true
+    searchTimeoutMs: 60000
+
 # The operating skill travels with this preset: the workflow and safety rules
 # this expert is hired for. `baseUrl` is the preset's own directory, so the root
 # resolves wherever the preset is installed.
@@ -57,3 +68,19 @@
 
 - id: tool-skill
   name: '@deepseek-ai/dsh-tool-skill'
+
+# Optional local email integration; install and configure plugins/sina-email first.
+# The private environment file is shared with the host integration; no secrets enter this preset.
+- id: mcp-sina-email
+  name: '@deepseek-ai/dsh-mcp-client'
+  disabled: !!js "!process.getBuiltinModule('node:fs').existsSync(process.getBuiltinModule('node:path').join(process.env.DSH_HOME || process.getBuiltinModule('node:os').homedir() + '/.dsh', 'integrations/sina-email/.env'))"
+  config:
+    serverName: sina_email
+    transport: stdio
+    command: node
+    args:
+      - !!js "process.getBuiltinModule('node:path').join(process.env.DSH_HOME || process.getBuiltinModule('node:os').homedir() + '/.dsh', 'integrations/sina-email/node_modules/email-smtp-imap-mcp/build/index.js')"
+    cwd: !!js "process.getBuiltinModule('node:path').join(process.env.DSH_HOME || process.getBuiltinModule('node:os').homedir() + '/.dsh', 'integrations/sina-email')"
+    env:
+      EMAIL_ENV_FILE: !!js "process.getBuiltinModule('node:path').join(process.env.DSH_HOME || process.getBuiltinModule('node:os').homedir() + '/.dsh', 'integrations/sina-email/.env')"
+    failOnStartupError: true

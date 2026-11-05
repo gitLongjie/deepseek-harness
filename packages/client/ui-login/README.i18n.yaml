@@ -3,8 +3,8 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/client/ui-login/README.md
 /:
-  en: 539a3246568830b6
-  zh: 8dac3a2850159e8e
+  en: c73e099d781f1d94
+  zh: 882a23cb50eab712
 /deepseek-ai-dsh-client-ui-login:
   en: bbac7714f9562be2
   zh: 4d4ba9fd5e66755a
@@ -12,8 +12,11 @@
   en: 6b65178f2e45feb7
   zh: 6f6e20080066d265
 /deepseek-ai-dsh-client-ui-login/table-of-contents:
-  en: 6dd05576f0c7a129
-  zh: f50978fffc16cd13
+  en: 97ce692186f5ed4c
+  zh: 1c302e4e6e77a362
+/deepseek-ai-dsh-client-ui-login/balance:
+  en: 8ee850cf7ee59169
+  zh: 854948109eb6dd1f
 /deepseek-ai-dsh-client-ui-login/model-experience:
   en: 257109f2439b89f8
   zh: 6369facad9c0b004
@@ -25,4 +28,4 @@
   zh: 7b86037d58414ab0
 /deepseek-ai-dsh-client-ui-login/known-limitations-and-deferred-work/dev-note:
   en: d774fa34f8bb868b
-  zh: 56da0453f3c9ec37
+  zh: 22404257912c4df5

@@ -34,6 +34,8 @@ function errorEvent(message: string): never {
   return { type: 'turn/end', seq: 1, time: 1, data: { turn: 1, reason: { kind: 'error', error: { message, code: 'SERVER' } } } } as never
 }
 
+const productName = '深度Work'
+
 function windowStub(focused = false): BrowserWindow {
   return {
     isDestroyed: () => false,
@@ -57,22 +59,22 @@ describe('desktop completion notification', () => {
   })
 
   it('notifies and beeps only when an answer ends while the window is inactive', () => {
-    notifyTurnCompletion(windowStub(), 'zh', 'session-1', event('completed'))
-    expect(notification).toHaveBeenCalledWith({ title: '喵工作台', body: '回答已完成' })
+    notifyTurnCompletion(windowStub(), 'zh', productName, 'session-1', event('completed'))
+    expect(notification).toHaveBeenCalledWith({ title: productName, body: '回答已完成' })
     expect(beep).toHaveBeenCalledOnce()
   })
 
   it('uses a system notification for a model response error', () => {
-    notifyTurnCompletion(windowStub(), 'zh', 'session-error', errorEvent('模型服务暂时不可用'))
-    expect(notification).toHaveBeenCalledWith({ title: '喵工作台', body: '模型回答失败：模型服务暂时不可用' })
+    notifyTurnCompletion(windowStub(), 'zh', productName, 'session-error', errorEvent('模型服务暂时不可用'))
+    expect(notification).toHaveBeenCalledWith({ title: productName, body: '模型回答失败：模型服务暂时不可用' })
     expect(beep).toHaveBeenCalledOnce()
   })
 
   it('stays silent for focused windows, aborted turns, and unsupported notifications', () => {
-    notifyTurnCompletion(windowStub(true), 'en', 'session-1', event('completed'))
-    notifyTurnCompletion(windowStub(), 'en', 'session-1', event('aborted'))
+    notifyTurnCompletion(windowStub(true), 'en', productName, 'session-1', event('completed'))
+    notifyTurnCompletion(windowStub(), 'en', productName, 'session-1', event('aborted'))
     isSupported.mockReturnValue(false)
-    notifyTurnCompletion(windowStub(), 'en', 'session-1', event('completed'))
+    notifyTurnCompletion(windowStub(), 'en', productName, 'session-1', event('completed'))
     expect(notification).not.toHaveBeenCalled()
     expect(beep).toHaveBeenCalledOnce()
   })
@@ -82,7 +84,7 @@ describe('desktop completion notification', () => {
     const win = windowStub()
     installNotificationActivation(() => win)
     expect(handleActivation).toHaveBeenCalledOnce()
-    notifyTurnCompletion(win, 'zh', 'session-1', event('completed'))
+    notifyTurnCompletion(win, 'zh', productName, 'session-1', event('completed'))
     expect(on).not.toHaveBeenCalled()
   })
 
@@ -100,7 +102,7 @@ describe('desktop completion notification', () => {
     stubPlatform('win32')
     const win = windowStub()
     installNotificationActivation(() => win)
-    notifyTurnCompletion(win, 'zh', 'session-42', event('completed'))
+    notifyTurnCompletion(win, 'zh', productName, 'session-42', event('completed'))
     const callback = handleActivation.mock.calls[0]?.[0] as (() => void) | undefined
     callback?.()
     expect(win.show).toHaveBeenCalledOnce()
@@ -168,7 +170,7 @@ describe('desktop completion notification', () => {
   it('focuses the window and opens the session through the instance click on macOS', () => {
     stubPlatform('darwin')
     const win = windowStub()
-    notifyTurnCompletion(win, 'zh', 'session-42', event('completed'))
+    notifyTurnCompletion(win, 'zh', productName, 'session-42', event('completed'))
     expect(on).toHaveBeenCalledWith('click', expect.any(Function))
     const callback = on.mock.calls[0]?.[1] as (() => void) | undefined
     callback?.()
@@ -180,7 +182,7 @@ describe('desktop completion notification', () => {
   it('uses the instance click path on Linux too', () => {
     stubPlatform('linux')
     const win = windowStub()
-    notifyTurnCompletion(win, 'zh', 'session-1', event('completed'))
+    notifyTurnCompletion(win, 'zh', productName, 'session-1', event('completed'))
     expect(on).toHaveBeenCalledWith('click', expect.any(Function))
     expect(handleActivation).not.toHaveBeenCalled()
   })
@@ -196,7 +198,7 @@ describe('desktop completion notification', () => {
       focus: vi.fn(),
       webContents: { send: vi.fn() },
     } as unknown as BrowserWindow
-    notifyTurnCompletion(win, 'zh', 'session-1', event('completed'))
+    notifyTurnCompletion(win, 'zh', productName, 'session-1', event('completed'))
     const callback = on.mock.calls[0]?.[1] as (() => void) | undefined
     callback?.()
     expect(win.show).not.toHaveBeenCalled()

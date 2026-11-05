@@ -1,4 +1,4 @@
-# Agent Note: DeepSeek 官方路由在目录未自定义时跟随官方模型列表
+# Agent Note: API key 路由不再跟随官方模型列表
 
 Status: implemented
 
@@ -10,13 +10,11 @@ Status: implemented
 
 ## 决策
 
-- [`llm-deepseek-api-key`](../../../../packages/llm/llm-deepseek-api-key/README.zh.md) 只在 Messages 的 origin 是 `https://api.deepseek.com`、且 `models` 等于内置目录时，跟随 `GET https://api.deepseek.com/models`，并用 `x-api-key` 携带 API key 鉴权。其他端点或目录不发列表请求。
-- 加载、刷新、兜底、合并与客户端版本门控沿用[账号路由](2026-09-24-deepseek-account-remote-model-catalog.zh.md)的规则：首次访问最多等待 `modelsTimeoutMs`，列表超过 `modelsMaxAgeMs` 后在下一次访问时后台刷新，失败时保留上一份成功的列表或使用内置目录，缓存只在内存中，以端点和 key 指纹为键。
-- 自定义的 `models` 列表整份优先：它替换目录，并停止列表请求。解析结果与内置目录不同的列表才算自定义，因为 schema 默认值会把缺省的 `models` 物化为内置列表，模型页也把这个默认值显示为继承的行。
-- 在自定义目录与列表之间切换时，一个 `loader/volatile-update` 监听器会让缓存失效，因此点恢复默认后，即使缓存的列表尚未过期，下一次访问也会重新加载。
-- 列表请求、缓存、目录解析和门控放在共享的 [Messages 传输包](../../../../packages/llm/llm-deepseek/README.zh.md)中，因为现在有两条路由使用它们；传输层的提供方钩子仍然只有 `connect` 和 `admit`。
+API key 路由不请求 `GET /models`。[这一撤回](../simplification/2026-11-04-api-key-route-skips-model-listing.zh.md)取代本记录原先写下的跟随行为。账号路由仍通过共享的 Messages 传输跟随 `GET /models`。
 
 ## 考虑过的替代方案
+
+这些替代方案当时让位于跟随列表。该跟随已经撤回；这里保留它们，作为当初如何划定跟随方式的记录。
 
 **在所有端点上跟随列表。** 发布 OpenAI 风格 `/models` 的网关返回的条目没有 `api_capabilities.anthropic_messages`，解码器会隐藏它们，路由就不提供任何模型。每个这样的网关还会多收到一个携带 key 的请求。
 
@@ -30,7 +28,6 @@ Status: implemented
 
 ## 影响
 
-- 使用官方端点的 API key 用户无需发版就能看到列出的模型，旧构建会像账号用户的构建一样隐藏或拒绝需要新版客户端的模型。
-- 自定义目录在恢复默认之前收不到之后列出的模型；与内置目录完全相同的 `models` 列表视为未自定义。比较的是当前版本的内置目录，所以保存的列表若等于旧版本的内置目录，内置目录变化后就算作自定义。
-- 跟随列表期间，模型页仍显示内置的行，因此只有列表提供的模型只出现在模型选择器里，在模型页编辑目录会丢掉它。
-- 官方端点上的第一次目录访问可能等待最多 `modelsTimeoutMs`，在该端点上启动路由的测试套件必须自己应答列表请求，才能不访问网络。
+- API key 用户得到的是配置的目录。服务端之后新增的模型，要等发版更新内置目录，或部署写入 `models`，才会到达。
+- 账号路由仍无需发版即可收到列出的模型。它的列表缓存、客户端版本门控和刷新仍在共享传输包中。
+- 在官方端点上启动账号路由的测试套件必须自己应答列表请求。API key 路由不发出该请求。

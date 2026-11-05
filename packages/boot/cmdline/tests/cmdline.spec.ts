@@ -16,7 +16,7 @@ import Loader from '@deepseek-ai/cordis-plugin-loader'
 import Include from '@deepseek-ai/cordis-plugin-include'
 import type { PatchOptions } from '@deepseek-ai/cordis-plugin-include'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { exitOnStdinEnd, internals, parseCmdline, provideCmdline, type AppReady } from '../src/index.ts'
+import { createAppReady, exitOnStdinEnd, internals, parseCmdline, provideCmdline, type AppReady } from '../src/index.ts'
 
 /** Every value one boot of the fixture tree observed. */
 interface Observed {
@@ -269,6 +269,36 @@ describe('provideCmdline', () => {
     expect(parseOnce()).toEqual({ port: 8080 })
     expect(parseOnce()).toEqual({ port: 8080 })
     expect(Object.isFrozen(ctx.cmdlineArgs?.get())).toBe(true)
+  })
+})
+
+describe('createAppReady', () => {
+  it('holds listeners until commit, then runs each once', () => {
+    const appReady = createAppReady()
+    const ran: string[] = []
+    appReady.service.onReady(() => { ran.push('first') })
+    expect(ran).toEqual([])
+    appReady.commit()
+    expect(ran).toEqual(['first'])
+    appReady.commit()
+    expect(ran).toEqual(['first'])
+  })
+
+  it('runs a listener immediately once startup is already committed', () => {
+    const appReady = createAppReady()
+    appReady.commit()
+    const ran: string[] = []
+    appReady.service.onReady(() => { ran.push('late') })
+    expect(ran).toEqual(['late'])
+  })
+
+  it('cancels a pending listener on disposal', () => {
+    const appReady = createAppReady()
+    const ran: string[] = []
+    const cancel = appReady.service.onReady(() => { ran.push('cancelled') })
+    cancel()
+    appReady.commit()
+    expect(ran).toEqual([])
   })
 })
 

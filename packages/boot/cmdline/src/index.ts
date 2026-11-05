@@ -101,6 +101,36 @@ export function provideCmdline(ctx: Context, host: CmdlineHost): void {
   if (host.profile !== undefined) ctx.provide('launcherProfile', { get: () => host.profile })
 }
 
+/**
+ * Create the launcher-owned successful-startup signal to pass as
+ * {@link CmdlineHost.ready}. The launcher commits it only after boot and host
+ * setup succeed, so profile-scoped work that subscribes through
+ * {@link AppReady.onReady} never runs for a failed startup.
+ * @returns the service to provide and the launcher's `commit` operation.
+ */
+export function createAppReady(): { service: AppReady; commit(): void } {
+  let ready = false
+  const listeners = new Set<() => void>()
+  return {
+    service: {
+      onReady(listener) {
+        if (ready) {
+          listener()
+          return () => {}
+        }
+        listeners.add(listener)
+        return () => { listeners.delete(listener) }
+      },
+    },
+    commit() {
+      if (ready) return
+      ready = true
+      for (const listener of [...listeners]) listener()
+      listeners.clear()
+    },
+  }
+}
+
 /** Process stdin operations used to bind a stdio application's lifetime. */
 export interface AppStdin {
   /** Whether EOF arrived before the application bound its listener. */

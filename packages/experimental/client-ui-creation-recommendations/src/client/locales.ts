@@ -2,7 +2,7 @@
 export const en = {
   heading: 'Personalized pages', location: 'Add to',
   creationInfo: 'How creation works and token usage',
-  creationMethod: 'Creator mode builds a new page you can remove at any time.',
+  creationMethod: 'Creator expert builds a new page you can remove at any time.',
   creationCost: 'Creation may take a while and use a large number of tokens.',
   creationBackground: 'Click Create to start in the background. You can keep chatting here.',
   initialContent: 'Starts with', expandContent: 'View all content', collapseContent: 'Collapse content',
@@ -45,7 +45,7 @@ export type RecommendationKey = keyof typeof en
 export const zh: Record<RecommendationKey, string> = {
   heading: '个性化页面', location: '添加到',
   creationInfo: '创建方式与 token 消耗',
-  creationMethod: '用创造模式制作新页面，可随时移除',
+  creationMethod: '用创造专家制作新页面，可随时移除',
   creationCost: '创建可能耗时较长，并消耗大量 token',
   creationBackground: '点击「创建」后在后台运行，你可以继续聊天',
   initialContent: '预填内容', expandContent: '展开内容', collapseContent: '收起内容',

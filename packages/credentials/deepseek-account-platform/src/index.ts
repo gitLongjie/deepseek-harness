@@ -377,7 +377,12 @@ export class PlatformAccount extends DeepSeekAccount {
     const parsed = grant.safeParse(record.payload)
     if (!parsed.success) throw new PlatformAuthError('storage')
     // A private origin override must never forward a grant issued by another environment.
-    if (parsed.data.issuer !== this.origin) throw new PlatformAuthError('protocol')
+    if (parsed.data.issuer !== this.origin) {
+      console.error('[deepseek-account] stored grant issuer does not match the configured platform origin', {
+        issuer: new URL(parsed.data.issuer).origin,
+      })
+      throw new PlatformAuthError('protocol')
+    }
     return parsed.data
   }
 

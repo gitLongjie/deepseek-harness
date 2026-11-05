@@ -45,6 +45,7 @@ function mount(overrides: Partial<ExpertBrowserProps> = {}) {
     load: vi.fn(async () => ({ experts: ROWS })),
     hire: vi.fn(),
     remove: vi.fn(async () => undefined),
+    makeDefault: vi.fn(async () => undefined),
     t,
     ...overrides,
   } as unknown as ExpertBrowserProps
@@ -53,6 +54,7 @@ function mount(overrides: Partial<ExpertBrowserProps> = {}) {
     props,
     hire: props.hire as ReturnType<typeof vi.fn>,
     remove: props.remove as ReturnType<typeof vi.fn>,
+    makeDefault: props.makeDefault as ReturnType<typeof vi.fn>,
     load: props.load as ReturnType<typeof vi.fn>,
   }
 }
@@ -103,12 +105,24 @@ describe('ExpertBrowser', () => {
   })
 
   it('narrows and clears the category filter through the chip bar', async () => {
-    mount()
+    mount({
+      load: vi.fn(async () => ({
+        experts: [
+          ...ROWS,
+          { id: 'plain', name: '通用助手', trust: 'system', category: 'general' },
+          { id: 'director', name: '导演', trust: 'system', category: 'content' },
+          { id: 'writer', name: '写作者', trust: 'system', category: '写作' },
+        ],
+      })),
+    })
     await waitFor(() => {
       expect(screen.getByText('GEO 优化专家')).toBeTruthy()
     })
 
-    fireEvent.click(screen.getByRole('button', { name: 'marketing' }))
+    expect(screen.getByRole('button', { name: '通用' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '内容' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '写作' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: '营销' }))
     expect(screen.getByText('GEO 优化专家')).toBeTruthy()
     expect(screen.queryByText('标准模式')).toBeNull()
 
@@ -235,6 +249,31 @@ describe('ExpertBrowser', () => {
     await waitFor(() => {
       expect(screen.getByText('市场暂无专家')).toBeTruthy()
     })
+  })
+
+  it('marks the new-task default and saves another expert as that default', async () => {
+    const b = mount({
+      load: vi.fn(async () => ({
+        experts: ROWS.map(row => ({ ...row, isDefault: row.id === 'standard' })),
+      })),
+    })
+    await waitFor(() => {
+      expect(screen.getByText('新任务默认')).toBeTruthy()
+    })
+    expect(screen.getAllByText('新任务默认')).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: '设为新任务默认: GEO 优化专家' }))
+    await waitFor(() => {
+      expect(b.makeDefault).toHaveBeenCalledWith('geo-optimizer')
+    })
+    expect(b.load).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps a broken expert from becoming the new-task default', async () => {
+    mount({ load: vi.fn(async () => ({ experts: BROKEN_ROW })) })
+    await waitFor(() => {
+      expect(screen.getByText('失效专家')).toBeTruthy()
+    })
+    expect(screen.queryByRole('button', { name: /设为新任务默认/ })).toBeNull()
   })
 
   it('renders the no-match state when the filter admits nothing', async () => {

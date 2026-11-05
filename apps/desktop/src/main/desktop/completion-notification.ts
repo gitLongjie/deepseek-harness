@@ -16,14 +16,13 @@ import { Notification, shell, type BrowserWindow } from 'electron'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import type { DesktopLocaleId } from './locales.ts'
 
-/** Native turn-end notification copy. */
+/** Native turn-end notification copy. The title is the desktop product name. */
 const COPY: Record<DesktopLocaleId, {
-  title: string
   completed: string
   error: (message: string) => string
 }> = {
-  zh: { title: '喵工作台', completed: '回答已完成', error: message => `模型回答失败：${message}` },
-  en: { title: '喵工作台', completed: 'Answer completed', error: message => `Model response failed: ${message}` },
+  zh: { completed: '回答已完成', error: message => `模型回答失败：${message}` },
+  en: { completed: 'Answer completed', error: message => `Model response failed: ${message}` },
 }
 
 /** Reasons that represent a response that should not alert the operator. */
@@ -85,6 +84,7 @@ export function installNotificationActivation(
  *
  * @param win - The desktop window receiving the session.
  * @param locale - Current desktop shell locale.
+ * @param productName - Desktop product name shown as the notification title.
  * @param sessionId - The session whose turn ended; stored for the activation handler.
  * @param event - Newly committed session event.
  * @returns nothing; native notification failures are intentionally isolated.
@@ -92,6 +92,7 @@ export function installNotificationActivation(
 export function notifyTurnCompletion(
   win: BrowserWindow,
   locale: DesktopLocaleId,
+  productName: string,
   sessionId: string,
   event: SessionEvent,
 ): void {
@@ -106,7 +107,7 @@ export function notifyTurnCompletion(
     : copy.completed
   try {
     if (Notification.isSupported()) {
-      const notification = new Notification({ title: copy.title, body })
+      const notification = new Notification({ title: productName, body })
       if (process.platform !== 'win32') {
         notification.on('click', () => revealSession(win, sessionId))
       }

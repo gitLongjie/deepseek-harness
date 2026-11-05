@@ -204,6 +204,18 @@
   color: var(--dsw-alias-label-secondary);
 }
 
+.defaultMark {
+  flex: none;
+  border-radius: 999px;
+  corner-shape: round;
+  padding: 0 6px;
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 500;
+  color: var(--dsw-alias-label-invert-primary, #fff);
+  background: var(--dsw-alias-state-business-primary);
+}
+
 .cardSubtitle {
   margin: 2px 0 0;
   font-size: 12px;
@@ -266,6 +278,7 @@
 .cardActions {
   margin-top: auto;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
 }
@@ -295,7 +308,8 @@
 
 .remove,
 .cancel,
-.removeConfirm {
+.removeConfirm,
+.makeDefault {
   flex: none;
   border: 0.5px solid var(--dsw-alias-border-secondary);
   border-radius: 8px;
@@ -310,8 +324,14 @@
 
 .remove:hover,
 .cancel:hover,
-.removeConfirm:hover {
+.removeConfirm:hover,
+.makeDefault:hover {
   opacity: 0.8;
+}
+
+.makeDefault:disabled {
+  cursor: default;
+  opacity: 0.6;
 }
 
 .removeConfirm {

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-client-ui-expert` is the expert center of the dsh web client: a sidebar entry row (between the knowledge and business regions) opens the page in the conversation area — the expert market presented as hireable expert cards, each carrying its avatar, attribution subtitle, curator badge, description, and tags, with text search over those texts, the category filter bar the record metadata feeds, per-card suggested prompts, and a hire action per card. Hiring stages the card's preset id for the NEXT session through the ui-agent-preset staging service and starts that session. The market's sole source is the experts the deployment ships — roster rows that publish card metadata, delivered by the market's install channel; mode presets publish no card metadata and never present here.
+`dsh-client-ui-expert` is the expert center of the dsh web client: a sidebar entry row (between the knowledge and business regions) opens the page in the conversation area — the expert market presented as hireable expert cards, each carrying its avatar, attribution subtitle, curator badge, description, and tags, with text search over those texts, the category filter bar the record metadata feeds, per-card suggested prompts, and a hire action per card. Hiring stages the card's preset id for the NEXT session through the ui-agent-preset staging service and starts that session. The market admits roster rows that publish card metadata. Shipped Standard, PTC, Minimal, and Creator presets publish `category: general`, so they appear here beside experts delivered by the install channel. A row with no card metadata stays out. Filter chips for the shipped category ids general, marketing, and content come from this package's dictionaries. Any other category id stays as authored text.
 
 ## Table of Contents
 
@@ -34,13 +34,13 @@ The web bundle mounts the plugin by default; remove the row to turn the surface 
 
 ### Minimal configuration
 
-No config of its own: the page renders the roster the deployment ships — presets that publish card metadata present as hireable experts, and the rest of the roster stays out.
+No config of its own: the page renders the roster the deployment ships — presets that publish card metadata present as hireable experts, and the rest of the roster stays out. The new-session chip opens this page. A healthy card can be hired into a new chat or saved as the new-task default; the default card shows that badge.
 
 ### What can go wrong
 
 The section registers into the shell-declared `sidebar.experts` hole and the page into ui-conversation's `conversation.expert.browser` hole; removing a declaration leaves the registration waiting and the surface absent, which is the documented behavior of an unoccupied slot. Hiring while no conversation flow is bound stages nothing: the staging service no-ops without a seat to land the pick on, and the page still starts the session on the deployment default.
 
-A roster row the host reported broken (its composition cannot mount) keeps its card on the page with the hire action disabled and the health verdict shown: the market is the only surface that advertises the expert, so the misconfiguration reports here instead of hiring into a silent failure.
+A roster row the host reported broken (its composition cannot mount) keeps its card on the page with hire and the new-task default disabled, and the health verdict shown: the market is the only surface that advertises the expert, so the misconfiguration reports here instead of hiring into a silent failure.
 
 -----
 
@@ -67,7 +67,7 @@ Two slot registrations plus one navigation service: `ExpertNav` fills `sidebar.e
 <a id="further-exploration"></a>
 ## Further Exploration
 
-- [`dsh-agent-presets`](../../preset/agent-preset-registry/README.md) — the `preset.yml` metadata fields expert cards are shaped after, and the preset surfaces the roster stays out of.
+- [`dsh-agent-presets`](../../preset/agent-preset-registry/README.md) — the `preset.yml` metadata fields expert cards are shaped after, and the preset surfaces that read the roster.
 - [`dsh-client-ui-agent-preset`](../ui-agent-preset/README.md) — the preset surfaces this package stages picks through.
 - [Slots subsystem](../../../docs/subsystems/slots.md) — the hole/occupant model this registration uses.
 

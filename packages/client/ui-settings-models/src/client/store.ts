@@ -42,7 +42,7 @@ export interface ProviderDirectoryEntry {
  * Join declared configurable providers with the currently registered routes.
  * @param registered - live provider routes in registration order.
  * @param directory - declared configurable providers in declaration order.
- * @returns account and official routes first, then other routes in their original order.
+ * @returns the gateway route first, then account and official routes, then other routes in their original order.
  */
 export function joinProviderDirectory(
   registered: readonly LlmProviderInfo[],
@@ -74,8 +74,8 @@ export function joinProviderDirectory(
     })
   }
   return rows.toSorted((left, right) =>
-    (left.provider === 'deepseek-account' ? 0 : left.provider === 'deepseek-official' ? 1 : 2)
-      - (right.provider === 'deepseek-account' ? 0 : right.provider === 'deepseek-official' ? 1 : 2))
+    (left.provider === 'deepagens' ? 0 : left.provider === 'deepseek-account' ? 1 : left.provider === 'deepseek-official' ? 2 : 3)
+      - (right.provider === 'deepagens' ? 0 : right.provider === 'deepseek-account' ? 1 : right.provider === 'deepseek-official' ? 2 : 3))
 }
 
 /** One provider row the page renders. */

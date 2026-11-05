@@ -1,6 +1,6 @@
 - banner:
   - navigation "Session hierarchy": "Using ONE run_code program: run"
-  - text: PTC mode
+  - text: PTC expert
   - button "More actions"
   - button "Open right sidebar"
   - tablist:

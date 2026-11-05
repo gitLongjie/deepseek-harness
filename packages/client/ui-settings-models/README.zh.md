@@ -29,7 +29,7 @@ kind: "package-reference"
 
 保存凭据或自定义提供方时保留已选模型。用户可在 composer 中选择可用模型。
 
-提供方列表中 DeepSeek 账号排第一，DeepSeek 排第二；第三方提供方保留目录中的相对顺序。
+提供方列表中 Deepagens 网关排第一，其后是 DeepSeek 账号与 DeepSeek；第三方提供方保留目录中的相对顺序。
 
 从设置导航打开 Models 页面，即可看到每个已配置的提供方都有一行。其配置键未在任何位置配置的整分节提供方会渲染为其展开的设置卡片而非一行，但仅限首次运行姿态，且仅持续到用户关闭该卡片为止。每一类卡片各自持有自己的展开状态，因此关掉其中一张绝不会丢弃另一张里的草稿。
 
@@ -77,7 +77,7 @@ pi-ai 容量字段为空时，上下文窗口显示 `1M`，最大输出 token �
 
 本分区为仓库外分发的插件声明两个席位，类型定义在 [`src/client/slot-contract.ts`](src/client/slot-contract.ts) 并从 `./client` 导出。`settings.models.provider-card`（keyed）渲染在每张展示目录行的卡片内部——已保存行的卡片、其首次运行 setup 形态、以及「添加提供商」草稿卡——以 `entryKey = settingsNs` 分发，owner props 携带该行的 `ConfigurableProviderView`、其 configured 状态与已确认的 api-key 凭据状态，因此以某适配器家族的 namespace 注册一次即可收到该家族的全部卡片，含手工声明的路由；手工声明的草稿卡尚无目录行，保存之前不分发。`settings.models.footer`（list）渲染在行列表与新增控件之后。注册方通过 `ctx.slots.inject` 激活，并以 type-only import 引入本包 `/client` 入口；没有注册方时两个席位均不渲染任何内容。
 
-Models 页面包含 **DeepSeek 账号**（`deepseek-account`，英文为 **DeepSeek Account**）。该行显示 **已登录** 状态，不提供编辑器：模型来自账号的模型列表，[模型覆盖](../../llm/llm-deepseek-account/README.zh.md#use-this-package)写在 `cordis.patch.yml` 中。账号可用模型目录为空时隐藏账号行，包括登录前和退登后；账号模型恢复可用时重新显示。
+Models 页面包含 **DeepSeek 账号**（`deepseek-account`，英文为 **DeepSeek Account**）。该行显示 **已登录** 状态，不提供编辑器：模型来自账号的模型列表，[模型覆盖](../../llm/llm-deepseek-account/README.zh.md#use-this-package)写在 `cordis.patch.yml` 中。账号可用模型目录为空时隐藏账号行，包括登录前和退登后；账号模型恢复可用时重新显示。Deepagens 网关行（`deepagens`）同样不提供编辑器：登录会重设其端点与目录，路由配置由网关持有。
 
 -----
 

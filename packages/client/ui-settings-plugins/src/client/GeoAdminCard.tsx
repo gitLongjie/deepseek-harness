@@ -13,7 +13,7 @@ import type {} from './slot-contract.ts'
 
 /** Props the renderer binds for the 深度云海 card. */
 export type GeoAdminCardProps =
-  PropsRuntime<'settings.plugin.item'>
+  PropsRuntime<'settings.plugins.tab'>
   & PropsLocale<'settings.plugins'>
   & InjectFace<GeoAdminCardFace>
 

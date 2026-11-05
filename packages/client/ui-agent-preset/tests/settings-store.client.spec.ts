@@ -127,7 +127,7 @@ describe('the agent-preset roster store', () => {
 
   it('carries the display metadata a preset published', async () => {
     const controller = derivedController(fakeApi([
-      { id: 'standard', isDefault: true, name: '标准模式', description: '完整的编码 agent。' },
+      { id: 'standard', isDefault: true, name: '标准专家', description: '完整的编码 agent。' },
     ] as never))
 
     await controller.load()
@@ -135,7 +135,7 @@ describe('the agent-preset roster store', () => {
     // Surfaces beyond this row read the same options; the id alone never said
     // what a preset does.
     expect(controller.store.getSnapshot().options).toEqual([
-      { id: 'standard', name: '标准模式', description: '完整的编码 agent。' },
+      { id: 'standard', name: '标准专家', description: '完整的编码 agent。' },
     ])
   })
 
@@ -155,12 +155,15 @@ describe('the agent-preset roster store', () => {
     ])
   })
 
-  it('presetOptions offers no expert-marked preset: the market owns those cards', () => {
+  it('presetOptions offers every healthy preset, experts included', () => {
     expect(presetOptions([
       { id: 'standard', trust: 'system', isDefault: true },
       { id: 'geo-optimizer', trust: 'system', isDefault: false, category: 'marketing' },
       { id: 'damaged', trust: 'user', isDefault: false, broken: 'not valid YAML', category: 'writing' },
-    ] as never)).toEqual([{ id: 'standard' }])
+    ] as never)).toEqual([
+      { id: 'standard' },
+      { id: 'geo-optimizer' },
+    ])
   })
 
   it('reports an empty roster as unavailable, not as an error', async () => {
@@ -334,7 +337,7 @@ describe('the new-session chip controller', () => {
     expect(controller.store.getSnapshot().current).toBe('minimal')
   })
 
-  it('skips an expert-marked default: the market hires those, the chip offers modes', async () => {
+  it('opens on an expert-marked default: the menu offers every healthy preset', async () => {
     const controller = chip([
       { id: 'geo-optimizer', trust: 'system', isDefault: true, category: 'marketing' },
       { id: 'standard', trust: 'system', isDefault: false },
@@ -343,11 +346,11 @@ describe('the new-session chip controller', () => {
     await controller.load()
 
     const state = controller.store.getSnapshot()
-    expect(state.options.map(option => option.id)).toEqual(['standard'])
-    expect(state.current).toBe('standard')
+    expect(state.options.map(option => option.id)).toEqual(['geo-optimizer', 'standard'])
+    expect(state.current).toBe('geo-optimizer')
   })
 
-  it('names the composition a chat runs, including one the menu cannot offer', async () => {
+  it('names the composition a chat runs, experts included', async () => {
     const controller = chip(ROSTER_EXPERT, {
       id: 's1' as SessionId,
       blank: true,
@@ -357,22 +360,21 @@ describe('the new-session chip controller', () => {
     await controller.load()
 
     const state = controller.store.getSnapshot()
-    // A hire composed this chat, and the market is where an expert is chosen:
-    // the menu still offers modes alone, while the chip names what the chat
-    // will actually run instead of showing the raw identifier.
-    expect(state.options.map(option => option.id)).toEqual(['standard'])
+    // The menu offers the expert like any mode, and the chip names what the
+    // chat will actually run instead of showing the raw identifier.
+    expect(state.options.map(option => option.id)).toEqual(['standard', 'geo-optimizer'])
     expect(state.currentPreset?.name).toBe('GEO 优化专家')
   })
 
   it('carries the display metadata into the menu rows', async () => {
     const controller = chip([
-      { id: 'standard', isDefault: true, name: '标准模式', description: '完整的编码 agent。' },
+      { id: 'standard', isDefault: true, name: '标准专家', description: '完整的编码 agent。' },
     ] as never, undefined)
 
     await controller.load()
 
     expect(controller.store.getSnapshot().options).toEqual([
-      { id: 'standard', name: '标准模式', description: '完整的编码 agent。' },
+      { id: 'standard', name: '标准专家', description: '完整的编码 agent。' },
     ])
   })
 
@@ -604,15 +606,26 @@ describe('the new-session chip controller', () => {
       }
     }
 
-    it('restores the composition a new Session gets', async () => {
+    it('keeps a placeholder the menu offers, expert included', async () => {
       const writes: Recorded[] = []
       const controller = chipOver(ROSTER_EXPERT, placeholder('geo-optimizer'), { writes })
 
       await controller.prepareNewSession('s1' as SessionId)
 
-      // A chat the user hired an expert into and never used is the NEXT new
-      // session's placeholder: adopting it must not start a chat under a
-      // composition nobody asked for this flow.
+      // The menu offers the hired expert like any mode, so the placeholder
+      // may carry exactly what its flow asked for; adopting it must not
+      // overrule that with the default.
+      expect(writes).toEqual([])
+    })
+
+    it('restores a placeholder composing a preset nothing offers any more', async () => {
+      const writes: Recorded[] = []
+      const controller = chipOver(ROSTER, placeholder('deleted-since'), { writes })
+
+      await controller.prepareNewSession('s1' as SessionId)
+
+      // Nothing can mount that composition, so the placeholder is composed
+      // like a fresh create: with the deployment default.
       expect(writes).toEqual([{ ns: 'select', ops: 'standard' }])
     })
 

@@ -21,7 +21,7 @@
     "release": "node scripts/deploy-app.mjs --publish always",
     "smoke": "node scripts/packaged-smoke.mjs",
     "test:update:local": "node scripts/test-local-update.mjs",
-    "bundle": "tsdown --config-loader native",
+    "bundle": "node scripts/build-render-transport.mjs && tsdown --config-loader native",
     "dev": "tsx scripts/dev.ts",
     "start": "tsx scripts/dev.ts --skip-build",
     "test:updates:local": "pnpm run build && node scripts/test-local-updater.mjs",
@@ -60,7 +60,8 @@
     "semver": "^7.8.5",
     "ws": "^8.21.3",
     "@deepseek-ai/dsh-api-gateway": "workspace:*",
-    "@deepseek-ai/cordis": "workspace:~"
+    "@deepseek-ai/cordis": "workspace:~",
+    "@deepseek-ai/dsh-video-workbench": "workspace:*"
   },
   "devDependencies": {
     "@deepseek-ai/dsh-app-boot": "workspace:*",

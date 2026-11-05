@@ -2,7 +2,7 @@
   - text: Personalized pages
   - button "How creation works and token usage" [expanded]
   - note:
-    - paragraph: Creator mode builds a new page you can remove at any time.
+    - paragraph: Creator expert builds a new page you can remove at any time.
     - paragraph:
       - strong: Creation may take a while and use a large number of tokens.
     - paragraph: Click Create to start in the background. You can keep chatting here.

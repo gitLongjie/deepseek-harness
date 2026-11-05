@@ -493,10 +493,12 @@ describe('routes', () => {
       '/api/video-workbench/file',
       '/api/video-workbench/project/delete',
       '/api/video-workbench/projects',
+      '/api/video-workbench/studio',
+      '/api/video-workbench/studio/export',
     ])
     for (const [path, route] of routes) {
       expect(route.requestBody).toBe('buffered')
-      expect(route.methods).toEqual(path.endsWith('/delete') ? ['POST'] : ['GET', 'HEAD'])
+      expect(route.methods).toEqual((path.endsWith('/delete') || path.endsWith('/export')) ? ['POST'] : path.endsWith('/studio') ? ['GET', 'POST'] : ['GET', 'HEAD'])
     }
   })
 

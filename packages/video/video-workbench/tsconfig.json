@@ -10,6 +10,9 @@
   ],
   "references": [
     {
+      "path": "../../util/brand"
+    },
+    {
       "path": "../../../vendor/cosmokit"
     },
     {
@@ -20,6 +23,9 @@
     },
     {
       "path": "../../util/home-paths"
+    },
+    {
+      "path": "../../core/tools"
     }
   ]
 }

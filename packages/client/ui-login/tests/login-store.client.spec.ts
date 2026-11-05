@@ -100,7 +100,7 @@ describe('LoginStore', () => {
 
   it('starts signed out before any sign-in or restore', () => {
     const store = new LoginStore(AUTH_URL, adapter(), dummyApi)
-    expect(store.store.getSnapshot()).toEqual({ restoring: false, session: null, busy: false, error: null })
+    expect(store.store.getSnapshot()).toEqual({ restoring: false, session: null, busy: false, error: null, balance: null })
   })
 
   it('signs in on a successful Claw response and hands the key to the credential layer', async () => {
@@ -200,19 +200,23 @@ describe('LoginStore restore', () => {
     const store = new LoginStore(AUTH_URL, adapter(), dummyApi)
     await expect(store.restore()).resolves.toBeUndefined()
     expect(fetchMock).not.toHaveBeenCalled()
-    expect(store.store.getSnapshot()).toEqual({ restoring: false, session: null, busy: false, error: null })
+    expect(store.store.getSnapshot()).toEqual({ restoring: false, session: null, busy: false, error: null, balance: null })
   })
 
   it('enters the app on a still-accepted key without creating a login session', async () => {
     storeRecord(storedRecord)
-    const fetchMock = vi.fn().mockResolvedValue(respond({ object: 'list', data: [] }))
+    const fetchMock = vi.fn((url: string) => Promise.resolve(url === MODELS_URL
+      ? respond({ object: 'list', data: [] })
+      : respond({ success: true, data: {} })))
     vi.stubGlobal('fetch', fetchMock)
     const credentials = adapter()
     const store = new LoginStore(AUTH_URL, credentials, dummyApi)
     await store.restore()
     // One read of the model list, and no POST to the login endpoint: the
-    // server charges a login session for that call alone.
-    expect(fetchMock).toHaveBeenCalledTimes(1)
+    // server charges a login session for that call alone. (The balance reads
+    // hit the billing endpoints, not this one.)
+    const modelReads = fetchMock.mock.calls.filter(([url]) => url === MODELS_URL)
+    expect(modelReads).toHaveLength(1)
     expect(fetchMock).toHaveBeenCalledWith(MODELS_URL, { headers: { authorization: 'Bearer sk-1' } })
     expect(credentials.calls.applied).toEqual([
       { account: '杰哥', avatar: 'https://claw.deepagens.com/avatar/1.png', apiKey: 'sk-1' },
@@ -266,12 +270,17 @@ describe('LoginStore restore', () => {
 
   it('replays a record written before key reuse', async () => {
     storeRecord({ username: 'jiege', password: 'pw' })
-    const fetchMock = vi.fn().mockResolvedValue(respond(okBody))
+    const fetchMock = vi.fn((url: string) => Promise.resolve(
+      url === AUTH_URL ? respond(okBody) : respond({ success: true, data: {} }),
+    ))
     vi.stubGlobal('fetch', fetchMock)
     const credentials = adapter()
     const store = new LoginStore(AUTH_URL, credentials, dummyApi)
     await store.restore()
-    expect(fetchMock).toHaveBeenCalledTimes(1)
+    // One POST to the login endpoint; the balance reads hit the billing
+    // endpoints instead of creating a second login session.
+    const authPosts = fetchMock.mock.calls.filter(([url]) => url === AUTH_URL)
+    expect(authPosts).toHaveLength(1)
     expect(fetchMock).toHaveBeenCalledWith(AUTH_URL, expect.objectContaining({ method: 'POST' }))
     expect(credentials.calls.applied).toHaveLength(1)
     expect(store.store.getSnapshot()).toMatchObject({ restoring: false, session: { account: '杰哥' } })
@@ -288,5 +297,117 @@ describe('LoginStore restore', () => {
     expect(store.store.getSnapshot()).toMatchObject({ restoring: false, session: null, error: '用户名或密码错误' })
     // The refused record stays stored: the next launch retries the silent sign-in.
     expect(readStoredLogin()).toMatchObject({ username: 'jiege', password: 'stale', apiKey: 'sk-old' })
+  })
+})
+
+describe('LoginStore balance', () => {
+  const SUBSCRIPTION_URL = 'https://claw.deepagens.com/v1/dashboard/billing/subscription'
+  const USAGE_URL_PREFIX = 'https://claw.deepagens.com/v1/dashboard/billing/usage?'
+
+  /**
+   * Fetch mock over the full wire surface: the login endpoint, the billing
+   * endpoints with configurable totals, and a refusal for anything else.
+   */
+  function stubGateway(billing: () => Response | Promise<Response> = () => respond({})): void {
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url === AUTH_URL) return Promise.resolve(respond(okBody))
+      if (url === SUBSCRIPTION_URL || url.startsWith(USAGE_URL_PREFIX)) return Promise.resolve(billing())
+      return Promise.resolve(respond({ error: 'unexpected call' }, 404))
+    }))
+  }
+
+  async function signIn(controller: LoginStore): Promise<void> {
+    await expect(controller.login('jiege', 'pw')).resolves.toBe(true)
+  }
+
+  it('reads total and used quota after a sign-in and reports the difference', async () => {
+    let usageUrl = ''
+    let usageInit: RequestInit | undefined
+    vi.stubGlobal('fetch', vi.fn((url: string, init?: RequestInit) => {
+      if (url === AUTH_URL) return Promise.resolve(respond(okBody))
+      if (url === SUBSCRIPTION_URL) return Promise.resolve(respond({ hard_limit_usd: 10 }))
+      if (url.startsWith(USAGE_URL_PREFIX)) {
+        usageUrl = url
+        usageInit = init
+        return Promise.resolve(respond({ object: 'billing_usage', total_usage: 2.5 }))
+      }
+      return Promise.resolve(respond({ error: 'unexpected call' }, 404))
+    }))
+    const store = new LoginStore(AUTH_URL, adapter(), dummyApi)
+    await signIn(store)
+    await vi.waitFor(() => { expect(store.store.getSnapshot().balance).toMatchObject({ status: 'ready', remainingUsd: 7.5 }) })
+    expect(usageInit).toEqual({ headers: { authorization: 'Bearer sk-1' } })
+    expect(usageUrl).toMatch(/start_date=2000-01-01&end_date=\d{4}-\d{2}-\d{2}/)
+  })
+
+  it('reports unavailable when a billing endpoint refuses and no value exists', async () => {
+    stubGateway(() => respond({ error: 'quota service down' }, 500))
+    const store = new LoginStore(AUTH_URL, adapter(), dummyApi)
+    await signIn(store)
+    await vi.waitFor(() => { expect(store.store.getSnapshot().balance).toEqual({ status: 'unavailable' }) })
+    expect(store.store.getSnapshot().session).not.toBeNull()
+  })
+
+  it('keeps the last good value when a re-read fails', async () => {
+    let failing = false
+    stubGateway(() => {
+      if (failing) return respond('gateway exploded', 500)
+      return respond({ hard_limit_usd: 10 })
+    })
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url === AUTH_URL) return Promise.resolve(respond(okBody))
+      if (url === SUBSCRIPTION_URL) return Promise.resolve(failing ? respond('gateway exploded', 500) : respond({ hard_limit_usd: 10 }))
+      if (url.startsWith(USAGE_URL_PREFIX)) return Promise.resolve(respond({ object: 'billing_usage', total_usage: 2.5 }))
+      return Promise.resolve(respond({ error: 'unexpected call' }, 404))
+    }))
+    const store = new LoginStore(AUTH_URL, adapter(), dummyApi)
+    await signIn(store)
+    await vi.waitFor(() => { expect(store.store.getSnapshot().balance).toMatchObject({ status: 'ready', remainingUsd: 7.5 }) })
+    failing = true
+    await store.refreshBalance()
+    expect(store.store.getSnapshot().balance).toMatchObject({ status: 'ready', remainingUsd: 7.5 })
+  })
+
+  it('drops an in-flight result when the session ends before the reads settle', async () => {
+    const pending: Array<(response: Response) => void> = []
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url === AUTH_URL) return Promise.resolve(respond(okBody))
+      return new Promise<Response>((resolveResponse) => { pending.push(resolveResponse) })
+    }))
+    const store = new LoginStore(AUTH_URL, adapter(), dummyApi)
+    await signIn(store)
+    expect(store.store.getSnapshot().balance).toEqual({ status: 'loading' })
+    store.logout()
+    expect(store.store.getSnapshot().balance).toBeNull()
+    for (const resolveResponse of pending) resolveResponse(respond({ hard_limit_usd: 99 }))
+    await Promise.resolve()
+    await Promise.resolve()
+    // The stale read belongs to the ended session and must not publish into it.
+    expect(store.store.getSnapshot().balance).toBeNull()
+    expect(store.store.getSnapshot().session).toBeNull()
+  })
+
+  it('resets the balance to null on logout', async () => {
+    stubGateway(() => respond({ hard_limit_usd: 10 }))
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url === AUTH_URL) return Promise.resolve(respond(okBody))
+      if (url === SUBSCRIPTION_URL) return Promise.resolve(respond({ hard_limit_usd: 10 }))
+      if (url.startsWith(USAGE_URL_PREFIX)) return Promise.resolve(respond({ object: 'billing_usage', total_usage: 0 }))
+      return Promise.resolve(respond({ error: 'unexpected call' }, 404))
+    }))
+    const store = new LoginStore(AUTH_URL, adapter(), dummyApi)
+    await signIn(store)
+    await vi.waitFor(() => { expect(store.store.getSnapshot().balance?.status).toBe('ready') })
+    store.logout()
+    expect(store.store.getSnapshot().balance).toBeNull()
+  })
+
+  it('skips the read while signed out', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    const store = new LoginStore(AUTH_URL, adapter(), dummyApi)
+    await store.refreshBalance()
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(store.store.getSnapshot().balance).toBeNull()
   })
 })

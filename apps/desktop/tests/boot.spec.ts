@@ -4,7 +4,36 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { ensureRootPluginLinks, healsSharedModuleFallback, resolveMarketAnchorPatch, resolveOptionalBundlePatch, resolveTelemetryPatch } from '../src/main/boot.ts'
+import {
+  createDesktopProfileContext,
+  ensureRootPluginLinks,
+  healsSharedModuleFallback,
+  resolveDevAnalyticsPatches,
+  resolveMarketAnchorPatch,
+  resolveOptionalBundlePatch,
+  resolveTelemetryPatch,
+} from '../src/main/boot.ts'
+
+describe('createDesktopProfileContext', () => {
+  it('names the desktop surface while retaining the loaded profile locations', () => {
+    const profile = {
+      name: 'web',
+      dir: 'C:/profiles/web',
+      patchPath: 'C:/profiles/web/cordis.patch.yml',
+      layers: [{ packageName: '@deepseek-ai/dsh-base' }],
+      patches: [],
+      skippedBundles: [],
+    }
+    const overlays = [{ id: 'webserver', config: { port: 0 } }]
+    expect(createDesktopProfileContext(profile, overlays)).toMatchObject({
+      name: 'desktop',
+      dir: profile.dir,
+      patchPath: profile.patchPath,
+      startedBundles: ['@deepseek-ai/dsh-base'],
+      overlays,
+    })
+  })
+})
 
 describe('resolveTelemetryPatch', () => {
   it('returns undefined when the switch is unset or the row is absent', () => {
@@ -17,6 +46,21 @@ describe('resolveTelemetryPatch', () => {
     expect(resolveTelemetryPatch('0', true)).toEqual({ id: 'session-telemetry-otel', disabled: true })
     expect(resolveTelemetryPatch('1', true)).toEqual({ id: 'session-telemetry-otel', disabled: true })
     expect(resolveTelemetryPatch('false', true)).toEqual({ id: 'session-telemetry-otel', disabled: true })
+  })
+})
+
+describe('resolveDevAnalyticsPatches', () => {
+  it('returns no patches outside the development switch', () => {
+    expect(resolveDevAnalyticsPatches(undefined)).toEqual([])
+    expect(resolveDevAnalyticsPatches('')).toEqual([])
+    expect(resolveDevAnalyticsPatches('0')).toEqual([])
+  })
+
+  it('disables both product analytics rows in development', () => {
+    expect(resolveDevAnalyticsPatches('1')).toEqual([
+      { id: 'desktop-product-telemetry', disabled: true },
+      { id: 'product-analytics', disabled: true },
+    ])
   })
 })
 

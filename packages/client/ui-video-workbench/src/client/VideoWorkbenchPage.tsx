@@ -10,6 +10,8 @@ import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots
 import { Button } from '@deepseek-ai/dsh-client-ui-primitives'
 import { NS } from './locales.ts'
 import { workbenchFileUrl } from './endpoints.ts'
+import { ScreenplayEditor } from './ScreenplayEditor.tsx'
+import type { StudioActions } from './studio-api.ts'
 import css from './VideoWorkbenchPage.module.css'
 
 /** Host listing types are erased from the browser artifact. */
@@ -29,6 +31,8 @@ import type {
  * member is flattened into the page props by the slot runtime.
  */
 export interface VideoWorkbenchInjected {
+  /** Authored work storage callbacks. */
+  studio?: StudioActions
   /** Fetch the current listing from the host route. */
   loadSummary: () => Promise<VideoWorkbenchSummary>
   /**
@@ -97,6 +101,11 @@ export type VideoWorkbenchPageProps =
 /** How often the listing refreshes itself while the page is open. */
 const REFRESH_INTERVAL_MS = 10_000
 
+/** Reveric-style studio surfaces exposed by the workbench. */
+type StudioView = 'overview' | 'screenplay' | 'canvas' | 'director' | 'editor' | 'graph' | 'skills'
+
+const STUDIO_VIEWS: readonly StudioView[] = ['overview', 'screenplay', 'canvas', 'director', 'editor', 'graph', 'skills']
+
 /**
  * The cast, sets, and props shelves, in the order a reader expects: who is in the film, where it
  * happens, what they handle. A plan records all three in one `assets` list, so the shelves are a
@@ -146,7 +155,7 @@ function shotAnchors(assets: readonly VideoWorkbenchAssetRow[], prompt: string):
 
 /** The video workbench page. */
 export function VideoWorkbenchPage({
-  loadSummary, requestRegeneration, requestAssetRegeneration, deleteProject, deleteAsset, t,
+  loadSummary, requestRegeneration, requestAssetRegeneration, deleteProject, deleteAsset, studio, t,
 }: VideoWorkbenchPageProps) {
   const [summary, setSummary] = useState<VideoWorkbenchSummary | null>(null)
   const [failed, setFailed] = useState(false)
@@ -156,6 +165,7 @@ export function VideoWorkbenchPage({
   /** The row awaiting its second click: deleting is destructive, so one click only arms it. */
   const [armed, setArmed] = useState<string | null>(null)
   const [removeError, setRemoveError] = useState<string | null>(null)
+  const [studioView, setStudioView] = useState<StudioView>('overview')
   const listingRequest = useRef(0)
 
   const refresh = useCallback(() => {
@@ -219,6 +229,24 @@ export function VideoWorkbenchPage({
         <h1 className={css.title}>{t('title')}</h1>
         <Button size="sm" onClick={refresh}>{t('refresh')}</Button>
       </header>
+      <nav className={css.studioNav} aria-label={t('studioNav')}>
+        {STUDIO_VIEWS.map(view => (
+          <button
+            key={view}
+            type="button"
+            className={view === studioView ? `${css.studioTab} ${css.studioTabActive}` : css.studioTab}
+            onClick={() => { setStudioView(view) }}
+          >
+            {t(`studio.${view}`)}
+          </button>
+        ))}
+      </nav>
+      {studio !== undefined && <div hidden={studioView === 'overview'}>
+        <ScreenplayEditor {...studio} media={projects.flatMap(project => [
+          ...project.segments.flatMap(segment => segment.file === undefined ? [] : [segment.file]),
+          ...(project.final === undefined ? [] : [project.final]),
+        ]).map(path => new URL(workbenchFileUrl(path, summary?.outputDir ?? ''), 'http://localhost').searchParams.get('path') ?? '')} mode={studioView === 'overview' ? 'screenplay' : studioView} t={t} />
+      </div>}
       {failed && <p className={css.error}>{t('loadFailed')}</p>}
       {summary !== null && summary.errors.length > 0 && (
         <p className={css.error}>{t('errors')}: {summary.errors.length}</p>
@@ -231,243 +259,292 @@ export function VideoWorkbenchPage({
         </div>
       )}
       {removeError !== null && <p className={css.error}>{removeError}</p>}
-      {summary !== null && projects.length > 0 && (
-        <div className={css.columns}>
-          <ul className={css.projectList} aria-label={t('title')}>
-            {projects.map(project => (
-              <li key={project.id} className={css.projectItem}>
-                <button
-                  type="button"
-                  className={project.id === selected?.id ? `${css.projectRow} ${css.projectActive}` : css.projectRow}
-                  onClick={() => { setSelectedId(project.id) }}
-                >
-                  <span className={css.projectId}>{project.id}</span>
-                  <span className={css.projectGoal}>{project.goal}</span>
-                  <span className={css.projectMeta}>
-                    {t(modeLabel(project.mode))}
-                    {' · '}
-                    {t('revision')} {project.revision}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  className={css.removeButton}
-                  aria-label={`${removeLabel(`project:${project.id}`)} ${project.id}`}
-                  onClick={() => {
-                    const key = `project:${project.id}`
-                    removeWithConfirm(key, () => deleteProject(project.id))
-                  }}
-                >
-                  {removeLabel(`project:${project.id}`)}
-                </button>
-              </li>
-            ))}
-          </ul>
-          {selected !== null && (
-            <section className={css.detail} aria-label={selected.id}>
-              <h2 className={css.detailGoal}>{selected.goal}</h2>
-              <p className={css.projectMeta}>
-                {selected.id}
-                {' · '}
-                {t(modeLabel(selected.mode))}
-                {' · '}
-                {t('revision')} {selected.revision}
-              </p>
-              {selected.assets.length === 0
-                ? <p className={css.hint}>{t('assetsEmpty')}</p>
-                : ASSET_SHELVES.map((shelf) => {
-                  const rows = selected.assets.filter(asset => asset.kind === shelf.kind)
-                  if (rows.length === 0) return null
-                  return (
-                    <Fragment key={shelf.kind}>
-                      <h3 className={css.sectionTitle}>{t(shelf.key)}</h3>
-                      <ul className={css.assetList}>
-                        {rows.map(asset => (
-                          <li key={asset.id} className={css.assetRow}>
-                            <div className={css.assetImages}>
-                              {asset.reference !== undefined && (
-                                <button
-                                  type="button"
-                                  className={css.assetThumb}
-                                  aria-label={`${t('assetPreview')} ${t(kindLabel(asset.kind))} ${asset.name}`}
-                                  onClick={() => {
-                                    openPreview(
-                                      workbenchFileUrl(asset.reference as string, summary.outputDir),
-                                      `${t(kindLabel(asset.kind))} ${asset.name}`,
-                                    )
-                                  }}
-                                >
-                                  <img
-                                    className={css.assetImage}
-                                    src={workbenchFileUrl(asset.reference, summary.outputDir)}
-                                    alt={`${t(kindLabel(asset.kind))} ${asset.name}`}
-                                  />
-                                </button>
-                              )}
-                              {asset.sheet !== undefined && (
-                                <button
-                                  type="button"
-                                  className={css.assetThumb}
-                                  aria-label={`${t('assetPreview')} ${t('assetSheet')} ${asset.name}`}
-                                  onClick={() => {
-                                    openPreview(
-                                      workbenchFileUrl(asset.sheet as string, summary.outputDir),
-                                      `${t('assetSheet')} ${asset.name}`,
-                                    )
-                                  }}
-                                >
-                                  <img
-                                    className={css.assetImage}
-                                    src={workbenchFileUrl(asset.sheet, summary.outputDir)}
-                                    alt={`${t('assetSheet')} ${asset.name}`}
-                                  />
-                                </button>
-                              )}
-                            </div>
-                            <div className={css.assetMeta}>
-                              <span className={css.assetName}>{asset.name}</span>
-                              {asset.prompt !== undefined
-                                ? <p className={css.assetPrompt}>{asset.prompt}</p>
-                                : asset.description !== undefined
-                                  ? <p className={css.assetPrompt}>{asset.description}</p>
-                                  : null}
-                              <span className={asset.saved ? css.assetSaved : css.assetUnsaved}>
-                                {asset.saved ? t('assetSaved') : t('assetUnsaved')}
-                              </span>
-                              <button
-                                type="button"
-                                className={css.removeButton}
-                                onClick={() => {
-                                  setHandoff(null)
-                                  void requestAssetRegeneration(selected.id, asset.id, asset.name, asset.kind)
-                                    .then(() => { setHandoff('sent') })
-                                    .catch(() => { setHandoff('failed') })
-                                }}
-                              >
-                                {t('assetRegenerate')}
-                              </button>
-                              <button
-                                type="button"
-                                className={css.removeButton}
-                                aria-label={`${removeLabel(`asset:${selected.id}:${asset.id}`)} ${asset.name}`}
-                                onClick={() => {
-                                  const key = `asset:${selected.id}:${asset.id}`
-                                  removeWithConfirm(key, () => deleteAsset(selected.id, asset.id))
-                                }}
-                              >
-                                {removeLabel(`asset:${selected.id}:${asset.id}`)}
-                              </button>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    </Fragment>
-                  )
-                })}
-              <h3 className={css.sectionTitle}>{t('segments')}</h3>
-              <ul className={css.segmentList}>
-                {selected.segments.map((segment) => {
-                  const shotLabel = `${t('segments')} ${segment.id}`
-                  const poster = segment.keyframe
-                  const anchors = shotAnchors(selected.assets, segment.prompt)
-                  return (
-                    <li key={segment.id} className={css.segmentRow}>
-                      {segment.file !== undefined
-                        ? (
-                          <video
-                            className={css.segmentVideo}
-                            src={workbenchFileUrl(segment.file, summary.outputDir)}
-                            poster={poster === undefined ? undefined : workbenchFileUrl(poster, summary.outputDir)}
-                            controls
-                            preload="metadata"
-                            aria-label={shotLabel}
-                          />
-                        )
-                        : poster === undefined
-                          ? <span className={css.keyframeEmpty} aria-hidden="true" />
-                          : (
-                            <button
-                              type="button"
-                              className={css.segmentThumb}
-                              aria-label={`${t('assetPreview')} ${shotLabel}`}
-                              onClick={() => {
-                                openPreview(workbenchFileUrl(poster, summary.outputDir), shotLabel)
-                              }}
-                            >
-                              <img
-                                className={css.keyframe}
-                                src={workbenchFileUrl(poster, summary.outputDir)}
-                                alt={`${t('keyframe')} ${segment.id}`}
-                              />
-                            </button>
-                          )}
-                      <span className={css.segmentMeta}>
-                        {segment.id}
-                        {' — '}
-                        {segment.rendered ? t('segmentRendered') : t('segmentPending')}
-                      </span>
-                      <ol className={css.shotDetails} aria-label={t('storyboard')}>
-                        {segment.shots.map(shot => (
-                          <li key={shot.id}>
-                            <span className={css.segmentMeta}>
-                              {shot.id}
-                              {shot.durationSeconds === undefined ? '' : ` · ${t('shotDuration').replace('{seconds}', String(shot.durationSeconds))}`}
-                              {[shot.resolution, shot.ratio].filter(Boolean).map(value => ` · ${value}`).join('')}
-                            </span>
-                            <p className={css.assetPrompt}>{shot.prompt}</p>
-                            {shot.camera !== undefined && <p className={css.segmentMeta}>{shot.camera}</p>}
-                          </li>
-                        ))}
-                      </ol>
-                      {anchors.length > 0 && (
-                        <span className={css.segmentMeta}>
-                          {t('segmentAnchors')}: {anchors.map(asset => asset.name).join('、')}
-                        </span>
-                      )}
-                      <button
-                        type="button"
-                        className={css.segmentRegenerate}
-                        onClick={() => {
-                          setHandoff(null)
-                          void requestRegeneration(
-                            selected.id,
-                            segment.id,
-                            segment.prompt,
-                            shotAnchors(selected.assets, segment.prompt),
-                            summary.outputDir,
-                          )
-                            .then(() => { setHandoff('sent') })
-                            .catch(() => { setHandoff('failed') })
-                        }}
-                      >
-                        {t(segment.id === 'all' ? 'storyboardRegenerate' : 'segmentRegenerate')}
-                      </button>
-                    </li>
-                  )
-                })}
-              </ul>
-              {handoff !== null && (
-                <p className={handoff === 'sent' ? css.hint : css.error}>
-                  {handoff === 'sent' ? t('segmentRegenerateHint') : t('segmentRegenerateFailed')}
-                </p>
+      {summary !== null && projects.length > 0 && (studio === undefined || studioView === 'overview') && (
+        <>
+          {studioView !== 'overview' && studioView !== 'screenplay' && studio === undefined && (
+            <section className={css.studioPanel} aria-label={t(`studio.${studioView}`)}>
+              <h2 className={css.studioTitle}>{t(`studio.${studioView}`)}</h2>
+              <p className={css.hint} role="status">{t('studioPreviewOnly')}</p>
+              {studioView === 'canvas' && (
+                <div className={css.studioGrid}>
+                  {selected?.segments.flatMap(segment => segment.shots).map(shot => (
+                    <article key={shot.id} className={css.studioCard}>
+                      <strong>{shot.id}</strong>
+                      <p>{shot.prompt}</p>
+                      <span>{shot.camera ?? t('cameraUnset')}</span>
+                    </article>
+                  ))}
+                </div>
               )}
-              <h3 className={css.sectionTitle}>{t('finalTitle')}</h3>
-              {selected.final !== undefined
-                ? (
-                  <video
-                    className={css.finalVideo}
-                    src={workbenchFileUrl(selected.final, summary.outputDir)}
-                    controls
-                    preload="metadata"
-                  />
-                )
-                : <p className={css.hint}>{t('finalMissing')}</p>}
-              {selected.final !== undefined && selected.finalBytes !== undefined && (
-                <p className={css.projectMeta}>{megabytes(selected.finalBytes)} {t('bytes.mb')}</p>
+              {studioView === 'director' && (
+                <div className={css.studioGrid}>
+                  <article className={css.studioCard}><strong>{t('directorSpace')}</strong><p>{t('directorSpaceHint')}</p></article>
+                  <article className={css.studioCard}><strong>{t('directorCamera')}</strong><p>{t('directorCameraHint')}</p></article>
+                  <article className={css.studioCard}><strong>{t('directorContinuity')}</strong><p>{t('directorContinuityHint')}</p></article>
+                </div>
+              )}
+              {studioView === 'editor' && (
+                <div className={css.studioGrid}>
+                  <article className={css.studioCard}><strong>{t('editorVideo')}</strong><p>{t('editorVideoHint')}</p></article>
+                  <article className={css.studioCard}><strong>{t('editorAudio')}</strong><p>{t('editorAudioHint')}</p></article>
+                  <article className={css.studioCard}><strong>{t('editorSubtitle')}</strong><p>{t('editorSubtitleHint')}</p></article>
+                </div>
+              )}
+              {studioView === 'graph' && (
+                <div className={css.graphPanel}>
+                  <p className={css.hint}>{t('graphHint')}</p>
+                  <div className={css.graphNodes}>
+                    {(selected?.assets ?? []).map(asset => <span key={asset.id} className={css.graphNode}>{asset.name}</span>)}
+                    {(selected?.segments ?? []).map(segment => <span key={segment.id} className={css.graphNode}>{segment.id}</span>)}
+                  </div>
+                </div>
+              )}
+              {studioView === 'skills' && (
+                <div className={css.studioGrid}>
+                  {(['characterConsistency', 'personaDesign', 'goldenThree', 'humanizeAi'] as const).map(skill => (
+                    <article key={skill} className={css.studioCard}><strong>{t(`skill.${skill}`)}</strong><p>{t(`skill.${skill}Hint`)}</p></article>
+                  ))}
+                </div>
               )}
             </section>
           )}
-        </div>
+          <div className={css.columns}>
+            <ul className={css.projectList} aria-label={t('title')}>
+              {projects.map(project => (
+                <li key={project.id} className={css.projectItem}>
+                  <button
+                    type="button"
+                    className={project.id === selected?.id ? `${css.projectRow} ${css.projectActive}` : css.projectRow}
+                    onClick={() => { setSelectedId(project.id) }}
+                  >
+                    <span className={css.projectId}>{project.id}</span>
+                    <span className={css.projectGoal}>{project.goal}</span>
+                    <span className={css.projectMeta}>
+                      {t(modeLabel(project.mode))}
+                      {' · '}
+                      {t('revision')} {project.revision}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className={css.removeButton}
+                    aria-label={`${removeLabel(`project:${project.id}`)} ${project.id}`}
+                    onClick={() => {
+                      const key = `project:${project.id}`
+                      removeWithConfirm(key, () => deleteProject(project.id))
+                    }}
+                  >
+                    {removeLabel(`project:${project.id}`)}
+                  </button>
+                </li>
+              ))}
+            </ul>
+            {selected !== null && (
+              <section className={css.detail} aria-label={selected.id}>
+                <h2 className={css.detailGoal}>{selected.goal}</h2>
+                <p className={css.projectMeta}>
+                  {selected.id}
+                  {' · '}
+                  {t(modeLabel(selected.mode))}
+                  {' · '}
+                  {t('revision')} {selected.revision}
+                </p>
+                {selected.assets.length === 0
+                  ? <p className={css.hint}>{t('assetsEmpty')}</p>
+                  : ASSET_SHELVES.map((shelf) => {
+                    const rows = selected.assets.filter(asset => asset.kind === shelf.kind)
+                    if (rows.length === 0) return null
+                    return (
+                      <Fragment key={shelf.kind}>
+                        <h3 className={css.sectionTitle}>{t(shelf.key)}</h3>
+                        <ul className={css.assetList}>
+                          {rows.map(asset => (
+                            <li key={asset.id} className={css.assetRow}>
+                              <div className={css.assetImages}>
+                                {asset.reference !== undefined && (
+                                  <button
+                                    type="button"
+                                    className={css.assetThumb}
+                                    aria-label={`${t('assetPreview')} ${t(kindLabel(asset.kind))} ${asset.name}`}
+                                    onClick={() => {
+                                      openPreview(
+                                        workbenchFileUrl(asset.reference as string, summary.outputDir),
+                                        `${t(kindLabel(asset.kind))} ${asset.name}`,
+                                      )
+                                    }}
+                                  >
+                                    <img
+                                      className={css.assetImage}
+                                      src={workbenchFileUrl(asset.reference, summary.outputDir)}
+                                      alt={`${t(kindLabel(asset.kind))} ${asset.name}`}
+                                    />
+                                  </button>
+                                )}
+                                {asset.sheet !== undefined && (
+                                  <button
+                                    type="button"
+                                    className={css.assetThumb}
+                                    aria-label={`${t('assetPreview')} ${t('assetSheet')} ${asset.name}`}
+                                    onClick={() => {
+                                      openPreview(
+                                        workbenchFileUrl(asset.sheet as string, summary.outputDir),
+                                        `${t('assetSheet')} ${asset.name}`,
+                                      )
+                                    }}
+                                  >
+                                    <img
+                                      className={css.assetImage}
+                                      src={workbenchFileUrl(asset.sheet, summary.outputDir)}
+                                      alt={`${t('assetSheet')} ${asset.name}`}
+                                    />
+                                  </button>
+                                )}
+                              </div>
+                              <div className={css.assetMeta}>
+                                <span className={css.assetName}>{asset.name}</span>
+                                {asset.prompt !== undefined
+                                  ? <p className={css.assetPrompt}>{asset.prompt}</p>
+                                  : asset.description !== undefined
+                                    ? <p className={css.assetPrompt}>{asset.description}</p>
+                                    : null}
+                                <span className={asset.saved ? css.assetSaved : css.assetUnsaved}>
+                                  {asset.saved ? t('assetSaved') : t('assetUnsaved')}
+                                </span>
+                                <button
+                                  type="button"
+                                  className={css.removeButton}
+                                  onClick={() => {
+                                    setHandoff(null)
+                                    void requestAssetRegeneration(selected.id, asset.id, asset.name, asset.kind)
+                                      .then(() => { setHandoff('sent') })
+                                      .catch(() => { setHandoff('failed') })
+                                  }}
+                                >
+                                  {t('assetRegenerate')}
+                                </button>
+                                <button
+                                  type="button"
+                                  className={css.removeButton}
+                                  aria-label={`${removeLabel(`asset:${selected.id}:${asset.id}`)} ${asset.name}`}
+                                  onClick={() => {
+                                    const key = `asset:${selected.id}:${asset.id}`
+                                    removeWithConfirm(key, () => deleteAsset(selected.id, asset.id))
+                                  }}
+                                >
+                                  {removeLabel(`asset:${selected.id}:${asset.id}`)}
+                                </button>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      </Fragment>
+                    )
+                  })}
+                <h3 className={css.sectionTitle}>{t('segments')}</h3>
+                <ul className={css.segmentList}>
+                  {selected.segments.map((segment) => {
+                    const shotLabel = `${t('segments')} ${segment.id}`
+                    const poster = segment.keyframe
+                    const anchors = shotAnchors(selected.assets, segment.prompt)
+                    return (
+                      <li key={segment.id} className={css.segmentRow}>
+                        {segment.file !== undefined
+                          ? (
+                            <video
+                              className={css.segmentVideo}
+                              src={workbenchFileUrl(segment.file, summary.outputDir)}
+                              poster={poster === undefined ? undefined : workbenchFileUrl(poster, summary.outputDir)}
+                              controls
+                              preload="metadata"
+                              aria-label={shotLabel}
+                            />
+                          )
+                          : poster === undefined
+                            ? <span className={css.keyframeEmpty} aria-hidden="true" />
+                            : (
+                              <button
+                                type="button"
+                                className={css.segmentThumb}
+                                aria-label={`${t('assetPreview')} ${shotLabel}`}
+                                onClick={() => {
+                                  openPreview(workbenchFileUrl(poster, summary.outputDir), shotLabel)
+                                }}
+                              >
+                                <img
+                                  className={css.keyframe}
+                                  src={workbenchFileUrl(poster, summary.outputDir)}
+                                  alt={`${t('keyframe')} ${segment.id}`}
+                                />
+                              </button>
+                            )}
+                        <span className={css.segmentMeta}>
+                          {segment.id}
+                          {' — '}
+                          {segment.rendered ? t('segmentRendered') : t('segmentPending')}
+                        </span>
+                        <ol className={css.shotDetails} aria-label={t('storyboard')}>
+                          {segment.shots.map(shot => (
+                            <li key={shot.id}>
+                              <span className={css.segmentMeta}>
+                                {shot.id}
+                                {shot.durationSeconds === undefined ? '' : ` · ${t('shotDuration').replace('{seconds}', String(shot.durationSeconds))}`}
+                                {[shot.resolution, shot.ratio].filter(Boolean).map(value => ` · ${value}`).join('')}
+                              </span>
+                              <p className={css.assetPrompt}>{shot.prompt}</p>
+                              {shot.camera !== undefined && <p className={css.segmentMeta}>{shot.camera}</p>}
+                            </li>
+                          ))}
+                        </ol>
+                        {anchors.length > 0 && (
+                          <span className={css.segmentMeta}>
+                            {t('segmentAnchors')}: {anchors.map(asset => asset.name).join('、')}
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          className={css.segmentRegenerate}
+                          onClick={() => {
+                            setHandoff(null)
+                            void requestRegeneration(
+                              selected.id,
+                              segment.id,
+                              segment.prompt,
+                              shotAnchors(selected.assets, segment.prompt),
+                              summary.outputDir,
+                            )
+                              .then(() => { setHandoff('sent') })
+                              .catch(() => { setHandoff('failed') })
+                          }}
+                        >
+                          {t(segment.id === 'all' ? 'storyboardRegenerate' : 'segmentRegenerate')}
+                        </button>
+                      </li>
+                    )
+                  })}
+                </ul>
+                {handoff !== null && (
+                  <p className={handoff === 'sent' ? css.hint : css.error}>
+                    {handoff === 'sent' ? t('segmentRegenerateHint') : t('segmentRegenerateFailed')}
+                  </p>
+                )}
+                <h3 className={css.sectionTitle}>{t('finalTitle')}</h3>
+                {selected.final !== undefined
+                  ? (
+                    <video
+                      className={css.finalVideo}
+                      src={workbenchFileUrl(selected.final, summary.outputDir)}
+                      controls
+                      preload="metadata"
+                    />
+                  )
+                  : <p className={css.hint}>{t('finalMissing')}</p>}
+                {selected.final !== undefined && selected.finalBytes !== undefined && (
+                  <p className={css.projectMeta}>{megabytes(selected.finalBytes)} {t('bytes.mb')}</p>
+                )}
+              </section>
+            )}
+          </div>
+        </>
       )}
       {preview !== null && (
         <div

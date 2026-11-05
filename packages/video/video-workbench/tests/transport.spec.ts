@@ -35,26 +35,38 @@ describe('Connection transport', () => {
       // registration test needs no browser-auth instance.
       const connection = new HostConnectionService(ctx, [], {} as never)
       await ctx.plugin(plugin, { outputDir: dir })
+      const owner = connection.createPeer({ principal: { kind: 'owner' } })
       const shared = connection.createSharedFetchHandler(
         '/api',
         connection.createChannelsFetchHandler(UNCLAIMED),
       )
 
-      const listing = await shared.fetch(new Request('http://127.0.0.1/api/video-workbench/projects'))
+      const listing = await shared.fetch(new Request('http://127.0.0.1/api/video-workbench/projects'), owner)
       expect(listing.status).toBe(200)
       expect(await listing.json()).toMatchObject({ outputDir: dir, projects: [{ id: 'vp-1' }] })
 
       const file = await shared.fetch(new Request(
         'http://127.0.0.1/api/video-workbench/file?path=final%2Fvp-1.mp4',
-      ))
+      ), owner)
       expect(file.status).toBe(200)
       expect(file.headers.get('content-type')).toBe('video/mp4')
       expect(await file.text()).toBe('bytes')
 
       const refused = await shared.fetch(new Request(
         'http://127.0.0.1/api/video-workbench/file?path=..%2Fsecrets.txt',
-      ))
+      ), owner)
       expect(refused.status).toBe(403)
+      const studioUrl = 'http://127.0.0.1/api/video-workbench/studio'
+      const created = await shared.fetch(new Request(studioUrl, {
+        method: 'POST', body: JSON.stringify({ content: { title: 'Work', source: 'Story', blocks: [] } }),
+      }), owner)
+      expect(created.status).toBe(201)
+      const document = await created.json() as { id: string; revision: number }
+      const opened = await shared.fetch(new Request(`${studioUrl}?id=${document.id}`), owner)
+      expect(await opened.json()).toMatchObject({ title: 'Work', revision: 1 })
+      const invalid = await shared.fetch(new Request(studioUrl, { method: 'POST', body: '{broken' }), owner)
+      expect(invalid.status).toBe(400)
+      await owner.dispose()
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

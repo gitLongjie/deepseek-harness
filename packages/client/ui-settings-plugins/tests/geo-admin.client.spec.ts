@@ -3,7 +3,7 @@
  * reference, and what the card shows when the credentials domain cannot answer.
  */
 import { describe, expect, it, vi } from 'vitest'
-import { RemoteError, stubSettingsScope } from '@deepseek-ai/dsh-client-test-runtime'
+import { RemoteError, stubConfigForm } from '@deepseek-ai/dsh-client-test-runtime'
 import {
   GEO_ADMIN_NS, GEO_ADMIN_PASSWORD_REF, GeoAdminCardController, type GeoAdminSettings,
 } from '../src/client/geo-admin-card-controller.ts'
@@ -34,7 +34,7 @@ function credentialsApi(configuredValue: boolean, writable = true) {
 
 /** A Host that accepts every settings write. */
 function acceptingHost() {
-  const host = stubSettingsScope<GeoAdminSettings>()
+  const host = stubConfigForm<GeoAdminSettings>()
   host.set.mockImplementation((field: string, value: unknown) => {
     host.publish({
       status: 'ready',
@@ -101,6 +101,18 @@ describe('GeoAdminCardController', () => {
     await vi.waitFor(() => { expect(face.hooks.geoAdminCard.getSnapshot().passwordConfigured).toBe(true) })
   })
 
+  it('retains a rejected password edit even if an older password is configured', async () => {
+    const host = acceptingHost()
+    const credentials = credentialsApi(true)
+    credentials.set.mockResolvedValue({ ok: false, error: new RemoteError('gateway/internal', 'unavailable', {}) } as never)
+    const controller = new GeoAdminCardController(host.scope, credentials.ctx)
+    await vi.waitFor(() => { expect(controller.inject().hooks.geoAdminCard.getSnapshot().passwordConfigured).toBe(true) })
+    const face = controller.inject()
+    face.edit('password', 'replacement')
+    face.save()
+    await vi.waitFor(() => { expect(face.hooks.geoAdminCard.getSnapshot().failed).toBe(true) })
+    expect(face.hooks.geoAdminCard.getSnapshot().password.text).toBe('replacement')
+  })
   it('treats an absent credential answer as unconfigured but writable', async () => {
     const host = acceptingHost()
     const describe = vi.fn(() => Promise.resolve({ ok: true as const, value: {} }))

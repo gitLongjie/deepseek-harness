@@ -10,7 +10,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
-import { stubSettingsScope } from '@deepseek-ai/dsh-client-test-runtime'
+import { stubConfigForm } from '@deepseek-ai/dsh-client-test-runtime'
 import { apply as applyLocale, inject as localeInject } from '@deepseek-ai/dsh-client-locale/client'
 import { apply, inject, PANEL_ID, type VideoWorkbenchInjected } from '../src/client/index.ts'
 import { en, NS, zh } from '../src/client/locales.ts'
@@ -43,11 +43,10 @@ async function bench(options: {
       'main': { kind: 'keyed', scope: 'root' },
     },
   } as never, () => null)
-  // The locale plugin binds a settings scope, which reads the connection handle
-  // and the forwarded-event port.
+  // Locale reads preferences through the config form service.
   ctx.provide('connection', { api: { settings: {} }, isLoopback: false } as never)
   ctx.provide('remote', { $on: () => () => {} } as never)
-  ctx.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
+  ctx.provide('configForms', { get: () => stubConfigForm().scope } as never)
   // The layout service closes the panel when a shot is handed back to the chat.
   ctx.provide('layout', { selectPanel: options.selectPanel ?? (() => {}) } as never)
   // The sessions service resolves the open Session the request is sent to.

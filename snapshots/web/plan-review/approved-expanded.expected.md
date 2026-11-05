@@ -1,6 +1,6 @@
 - banner:
   - navigation "Session hierarchy": "Plan a small change: add"
-  - text: Standard mode
+  - text: Standard expert
   - button "More actions"
   - tablist:
     - tab "Chat" [selected]

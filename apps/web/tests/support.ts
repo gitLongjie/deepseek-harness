@@ -363,6 +363,37 @@ export function conversationContextKey(kind: string, id: string): string {
  * @param page - browser page with the mounted sidebar.
  * @param locale - current UI language.
  */
+/** The experts-page card whose heading starts with `name`. The default badge sits in the same heading. */
+export function expertCard(page: Page, name: string) {
+  const heading = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return page.locator('li').filter({ has: page.getByRole('heading', { name: new RegExp(`^${heading}`) }) })
+}
+
+/**
+ * Open the experts page from the new-session chip.
+ * The chip names the expert the next task will use; the click is navigation.
+ * @param page - browser page showing the new-session chip.
+ */
+export async function openExperts(page: Page): Promise<void> {
+  await page.locator('[data-slot="conversation.hero.agentPreset"]').getByRole('button').click()
+  await page.getByRole('heading', { name: 'Experts', exact: true }).waitFor()
+}
+
+/**
+ * Hire one expert into a new chat and wait until the chip names it.
+ * @param page - browser page that can show the new-session chip.
+ * @param name - the expert's accessible card name.
+ */
+export async function hireExpert(page: Page, name: string): Promise<void> {
+  await openExperts(page)
+  await expertCard(page, name).getByRole('button', { name: 'Hire in a new chat' }).click()
+  await page.getByRole('button', { name, exact: true }).waitFor({ timeout: 15_000 })
+}
+
+/** Open Settings through the sidebar account menu.
+ * @param page - browser page with the mounted sidebar.
+ * @param locale - current UI language.
+ */
 export async function openSettings(page: Page, locale: 'en' | 'zh' | 'ja'): Promise<void> {
   const labels = { en: ['Account menu', 'Settings'], zh: ['账号菜单', '设置'], ja: ['アカウントメニュー', '設定'] } as const
   const trigger = page.getByRole('button', {

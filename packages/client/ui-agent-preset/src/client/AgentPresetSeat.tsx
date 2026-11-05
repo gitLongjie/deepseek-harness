@@ -8,23 +8,21 @@
  * them. A control that spends most of its life disabled belongs on the screen
  * where it still works.
  *
- * The menu opens on the staged choice, which starts as the deployment default.
- * Picking stages; the choice reaches a session when one becomes current. The
- * label always names the composition that chat will run — including one this
- * menu cannot offer, such as an expert the market hired into it.
+ * The label always names the composition that chat will run, including an
+ * expert hired from the market. Clicking the chip opens the experts page,
+ * where that roster is chosen and the new-task default is set.
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ObservableSnapshot, SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import {
-  IconAgentPresetOutlineRegular, IconChevronDownOutlineRegular, IconWarningOutlineRegular, Menu, Toast,
+  IconAgentPresetOutlineRegular, IconWarningOutlineRegular, Toast,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 // Type-only: pulls the ui-conversation SlotMap merge (the hero seat).
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { AgentPresetSeatState } from './seat-store.ts'
 import { presetDisplayText } from './locales.ts'
-import { requiresCodingTools } from './settings-store.ts'
 import css from './AgentPresetSeat.module.css'
 
 /** Registration-side business face for the hero chip. */
@@ -43,6 +41,8 @@ export interface AgentPresetSeatInjected {
   dismissRefusal: (error: AgentPresetSeatState['error']) => void
   /** Clear the one-shot introduce cue once the chip has played it. */
   introduced: () => void
+  /** Open the experts page. */
+  openExperts: () => void
 }
 
 /* Introduce timeline: the icon eases in first (the CSS animation shares this
@@ -81,13 +81,11 @@ export type AgentPresetSeatProps =
  * @returns The chip and any pending selection refusal, or null outside the main view.
  */
 export function AgentPresetSeat({
-  sessionId, useSessionRetainInfo, load, select, dismissRefusal, introduced, useAgentPresetSeat, useDeveloperTools, t,
+  sessionId, useSessionRetainInfo, load, dismissRefusal, introduced, openExperts, useAgentPresetSeat, t,
 }: AgentPresetSeatProps) {
-  const developerTools = useDeveloperTools(value => value)
   const state = useAgentPresetSeat(snapshot => snapshot)
   const main = useSessionRetainInfo(info => sessionId === undefined
     || (info?.retainedBy.mainView ?? 0) > 0)
-  const [open, setOpen] = useState(false)
   // The seq keys the banner, so picking the same broken preset twice replays
   // it rather than leaving the first one silently in place.
   const toastSeq = useRef(0)
@@ -103,15 +101,6 @@ export function AgentPresetSeat({
   useEffect(() => {
     void load()
   }, [load])
-
-  const options = useMemo(
-    () => state.options.filter(option => developerTools || !requiresCodingTools(option)),
-    [state.options, developerTools],
-  )
-
-  useEffect(() => {
-    setOpen(false)
-  }, [developerTools, options.length])
 
   // The roster row naming the composition this chat runs, when one carries it.
   const label = state.currentPreset === undefined
@@ -164,47 +153,18 @@ export function AgentPresetSeat({
 
   return (
     <>
-      {ready && <Menu
-        open={open && options.length > 0}
-        onClose={() => { setOpen(false) }}
-        items={options.map((option) => {
-          const text = presetDisplayText(option, t)
-          return {
-            id: option.id,
-            // Name and description together: the id alone never says what a
-            // preset does, which is why the roster carries display copy.
-            label: (
-              <span className={css.item}>
-                <span className={css.itemName}>{text.name}</span>
-                <span className={css.itemDesc}>{text.description ?? t('noDescription')}</span>
-              </span>
-            ),
-          }
-        })}
-        selectedId={state.current}
-        onSelect={(id) => {
-          setOpen(false)
-          void select(id)
-        }}
-        align="start"
-        portal
-        className={css.menuAnchor}
-        anchor={(
-          <button
-            type="button"
-            className={css.seat}
-            aria-haspopup="menu"
-            aria-expanded={open && options.length > 0}
-            title={(typeof state.error === 'object' ? state.error?.reason : state.error) ?? t('seatHint')}
-            disabled={state.busy || options.length === 0}
-            onClick={() => { setOpen(value => !value) }}
-          >
-            <IconAgentPresetOutlineRegular className={introducing ? `${css.seatIcon} ${css.introIcon}` : css.seatIcon} />
-            <span className={css.seatLabel}>{shownLabel}</span>
-            <IconChevronDownOutlineRegular className={css.chevron} />
-          </button>
-        )}
-      />}
+      {ready && (
+        <button
+          type="button"
+          className={css.seat}
+          title={(typeof state.error === 'object' ? state.error?.reason : state.error) ?? t('seatHint')}
+          disabled={state.busy}
+          onClick={() => { openExperts() }}
+        >
+          <IconAgentPresetOutlineRegular className={introducing ? `${css.seatIcon} ${css.introIcon}` : css.seatIcon} />
+          <span className={css.seatLabel}>{shownLabel}</span>
+        </button>
+      )}
       {toast !== null && (
         <Toast
           key={toast.seq}

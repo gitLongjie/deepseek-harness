@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Use the **Built-in plugins** settings section to inspect the plugins this deployment ships. The section is a shell: it owns the navigation entry and the tab row, and every tab in it is registered by another plugin — the read-only inventory ships one. Configuring a built-in plugin happens on the sidebar's Plugins page, where each official plugin's own companion package registers its page.
+Use the **Built-in plugins** settings section to inspect the plugins this deployment ships. The section owns the navigation entry and tab row. It contributes the 深度云海 account card when the Host serves `geo-admin`; the read-only inventory is contributed by another plugin. Configuring a built-in plugin happens on the sidebar's Plugins page, where each official plugin's own companion package registers its page.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ Use the **Built-in plugins** settings section to inspect the plugins this deploy
 <a id="use-this-package"></a>
 ## Use this package
 
-Open **Built-in plugins** in Settings. [ui-settings-plugin-inventory](../ui-settings-plugin-inventory/README.md) contributes the inventory as the section's one tab, shown as the page itself; a second registered tab turns the row into tabs. A deployment whose composition contributes no tab shows the section's empty line.
+Open **Built-in plugins** in Settings. The 深度云海 tab edits the backend address and username, and saves the password through the credentials API. [ui-settings-plugin-inventory](../ui-settings-plugin-inventory/README.md) contributes the inventory as the section's one tab, shown as the page itself; a second registered tab turns the row into tabs. A deployment whose composition contributes no tab shows the section's empty line.
 
 To contribute a tab, register into `settings.plugins.tab` with an `id`, an `order`, and a localized `label`; the section renders the entries in order and mounts a tab on its first selection. Feature copy stays in the registering plugin's dictionary.
 

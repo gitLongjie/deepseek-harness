@@ -1,6 +1,6 @@
 - banner:
   - navigation "Session hierarchy": /user-invoke-demo @"meeting notes-this-i
-  - text: Standard mode
+  - text: Standard expert
   - button "More actions"
   - button "Open right sidebar"
   - tablist:

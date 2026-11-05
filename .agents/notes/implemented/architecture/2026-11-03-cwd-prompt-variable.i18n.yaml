@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for 2026-11-03-cwd-prompt-variable.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-11-03-cwd-prompt-variable.md
+/agent-note-the-cwd-prompt-variable-returns-under-the-working-directory-service:
+  en: de2203356559cf64
+  zh: 5de1b9501fb571c2
+/agent-note-the-cwd-prompt-variable-returns-under-the-working-directory-service/problem:
+  en: 50510752e0f50b07
+  zh: 970655c3cf7e79b7
+/agent-note-the-cwd-prompt-variable-returns-under-the-working-directory-service/decision:
+  en: 1c10c16e7cd2311b
+  zh: a38e0d46250d178b
+/agent-note-the-cwd-prompt-variable-returns-under-the-working-directory-service/alternatives-considered:
+  en: a166ea9b120514cc
+  zh: 9a7fc84d129da7b6
+/agent-note-the-cwd-prompt-variable-returns-under-the-working-directory-service/consequences:
+  en: eeedafe81912ab70
+  zh: af2a5711f737bb22

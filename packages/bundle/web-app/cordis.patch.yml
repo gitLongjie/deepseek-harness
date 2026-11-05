@@ -58,9 +58,10 @@
     - id: subagent-model-selection-settings
       name: '@deepseek-ai/dsh-tool-subagent/model-selection-settings'
 
-    # FIXME(host-settings): the h3-video and geo-admin settings host entries
-    # await a re-port onto the reworked settings service; their composition
-    # configuration still drives both features.
+    - id: geo-admin
+      name: '@deepseek-ai/dsh-tool-geo-admin/settings'
+
+    # FIXME(host-settings): the h3-video settings entry awaits a re-port.
 
     # Video workbench, host half: the read-only projects/file routes over the
     # h3-video output directory. The ui-video-workbench browser row renders it.

@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 import type { Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
-import { clientBuildEnvironmentDefines } from '../../scripts/client-build-environment.ts'
+import { clientBuildEnvironmentDefines, repositoryVersion } from '../../scripts/client-build-environment.ts'
 import {
   oemClientBuildEnvironment,
   projectOemWebManifest,
@@ -16,7 +16,10 @@ import { katexWoff2Fonts } from './katex-fonts.ts'
 const src = (rel: string): string => fileURLToPath(new URL(rel, import.meta.url))
 const OEM_CONFIG = readOemConfig(src('../..'))
 const OEM_CLIENT_ENVIRONMENT = oemClientBuildEnvironment(OEM_CONFIG)
-const CLIENT_ENVIRONMENT = { ...OEM_CLIENT_ENVIRONMENT, ...process.env }
+// Ad-hoc vite builds run where no build orchestration exports DSH_CLIENT_VERSION;
+// without it every client-side version reader (account request identity, brand
+// badge) reads undefined at runtime.
+const CLIENT_ENVIRONMENT = { ...OEM_CLIENT_ENVIRONMENT, DSH_CLIENT_VERSION: repositoryVersion(src('../..')), ...process.env }
 const WEB_MANIFEST_CONFIG = {
   ...OEM_CONFIG,
   productName: CLIENT_ENVIRONMENT.DSH_CLIENT_BRAND_NAME ?? OEM_CONFIG.productName,

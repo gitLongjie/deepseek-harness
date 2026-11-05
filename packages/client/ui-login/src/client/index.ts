@@ -1,9 +1,12 @@
 /**
  * Login gate plugin, browser half. When the build carries an account-server
  * endpoint (`DSH_CLIENT_LOGIN_URL`), it registers the full-page sign-in
- * takeover into the layout's overlay seat and the account launcher (avatar +
+ * takeover into the layout's overlay seat, the account launcher (avatar +
  * display name, with the settings-shell menu) into the settings shell's
- * launcher seat. A launch revalidates the key the last sign-in issued and
+ * launcher seat, and the gateway account page (identity + balance) into the
+ * settings shell's section list — the launcher and the section shadow their
+ * upstream DeepSeek counterparts at a lower priority. A launch revalidates
+ * the key the last sign-in issued and
  * enters the app when the gateway still accepts it; a refused key replays the
  * stored account pair, which is the only path that creates a server-side
  * login session. A successful sign-in writes the issued key into the host
@@ -24,6 +27,7 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { LoginGate } from './LoginGate.tsx'
 import { SidebarAccount } from './SidebarAccount.tsx'
+import { GatewayAccountSection } from './GatewayAccountSection.tsx'
 import { LoginStore } from './login-store.ts'
 import { GATEWAY_CREDENTIAL_REF, type LoginCredentialAdapter } from './login-store.ts'
 import { en, zh, type LoginKey } from './locales.ts'
@@ -119,4 +123,27 @@ export function apply(ctx: ClientContext): void {
     { name: 'settings.launcher', priority: -1, inject: () => ({ controller, t }) },
     SidebarAccount,
   ))
+  // The settings 账号与余额 page, shadowing the upstream DeepSeek account
+  // section the same way the launcher is shadowed: same section id
+  // (`account`), lower priority (list cells render their lowest live entry),
+  // same nav order. Live only while a gateway session is signed in — signed
+  // out, the upstream page (or no page, without a DeepSeek credential) serves
+  // the cell again, exactly as before this plugin existed.
+  ctx.slots.inject('settings.section', () => {
+    let unregister: (() => void) | undefined
+    const update = (): void => {
+      if (controller.store.getSnapshot().session !== null) {
+        unregister ??= ctx.slots.register({
+          name: 'settings.section', id: 'account', order: -10, priority: -1,
+          label: () => t('accountNav'), locale: NS, inject: () => ({ controller, t }),
+        }, GatewayAccountSection)
+      } else {
+        unregister?.()
+        unregister = undefined
+      }
+    }
+    const offStore = controller.store.subscribe(update)
+    update()
+    return () => { offStore(); unregister?.() }
+  })
 }

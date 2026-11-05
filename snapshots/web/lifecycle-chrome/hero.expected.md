@@ -18,7 +18,7 @@
   - button "Open right sidebar"
 - text: Into the Unknown Preview
 - button "Choose workspace": workspace
-- button "Standard mode"
+- button "Standard expert"
 - textbox "Describe what you want to build, / commands, @ files or sessions":
   - paragraph
 - button "Add files or run commands"

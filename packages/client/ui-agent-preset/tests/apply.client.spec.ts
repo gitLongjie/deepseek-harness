@@ -7,7 +7,6 @@
 
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it, vi } from 'vitest'
-import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { createSnapshotStore, type ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
@@ -17,13 +16,12 @@ import { apply as settingsApply, inject as settingsInject } from '@deepseek-ai/d
 import { apply, inject } from '@deepseek-ai/dsh-client-ui-agent-preset/client'
 import { AgentPresetLabel } from '../src/client/AgentPresetLabel.tsx'
 import type { AgentPresetLabelInjected } from '../src/client/AgentPresetLabel.tsx'
-import { AgentPresetSection } from '../src/client/AgentPresetSection.tsx'
-import type { AgentPresetSectionInjected } from '../src/client/AgentPresetSection.tsx'
 import { AgentPresetSeat } from '../src/client/AgentPresetSeat.tsx'
 import type { AgentPresetSeatInjected } from '../src/client/AgentPresetSeat.tsx'
 import { AgentPresetSeatController } from '../src/client/seat-store.ts'
 import { CreatePluginMenuItem, type CreatePluginMenuItemInjected } from '../src/client/CreatePluginMenuItem.tsx'
 import { AgentPresetSectionController } from '../src/client/section-store.ts'
+import { UiAgentPresetService, type UiAgentPreset } from '../src/client/navigation.ts'
 import { apply as hostApply } from '../src/index.ts'
 import type { AgentPresetRow } from '@deepseek-ai/dsh-agent-preset-registry/types'
 
@@ -217,6 +215,7 @@ function declareRoot(slots: SlotRegistry): () => void {
     children: {
       'settings.general.item': { kind: 'list', scope: 'root' },
       'settings.section': { kind: 'list', scope: 'root' },
+      'plugins.add.actions': { kind: 'list', scope: 'root' },
       conversation: { kind: 'single', scope: 'root' },
     },
   } as never, () => null)
@@ -308,6 +307,19 @@ function sessionsDouble(ctx: Context, state: {
   }
 }
 
+function defaults(ctx: Context): Pick<UiAgentPreset, 'makeDefault'> {
+  const service = ctx.get('uiAgentPreset')
+  if (service?.makeDefault === undefined) throw new Error('uiAgentPreset.makeDefault is not provided')
+  return service
+}
+
+function creatorDraft(slots: SlotRegistry): () => void {
+  const entry = slots.entries('plugins.add.actions')[0]
+  const action = entry?.inject?.() as { startCreatorDraft?: () => void } | undefined
+  if (action?.startCreatorDraft === undefined) throw new Error('creator entry is not registered')
+  return action.startCreatorDraft
+}
+
 async function settingsWithoutChip(initialPreset: string, settingsRosterGate?: Promise<undefined>) {
   const b = await bench(settingsRosterGate === undefined ? {} : { settingsRosterGate })
   declareRoot(b.slots)
@@ -321,22 +333,20 @@ async function settingsWithoutChip(initialPreset: string, settingsRosterGate?: P
   b.ctx.provide('sessions', sessions as never)
   const feature = b.ctx.plugin({ inject: [...inject], apply })
   await feature.await()
-  const section = (b.slots.entries('settings.section')[0]!
-    .inject as unknown as () => AgentPresetSectionInjected)()
-  await section.load()
   expect(b.slots.entries('conversation.hero.agentPreset')).toHaveLength(0)
-  return { ...b, bindingOwner, feature, section, sessions }
+  expect(b.slots.entries('settings.section')).toHaveLength(0)
+  return { ...b, bindingOwner, feature, sessions }
 }
 
 describe('ui-agent-preset apply', () => {
   const settingsActions = [
-    { action: 'makeDefault', initial: 'standard', selected: 'minimal', run: (section: AgentPresetSectionInjected) => section.makeDefault('minimal') },
+    { action: 'makeDefault', initial: 'standard', selected: 'minimal', run: (ctx: Context) => defaults(ctx).makeDefault('minimal') },
   ]
 
   it.each(settingsActions)('synchronizes $action before the chip mounts', async ({ initial, selected, run }) => {
     const b = await settingsWithoutChip(initial)
     try {
-      await run(b.section)
+      await run(b.ctx)
       expect(b.calls.filter(call => call.startsWith('select:'))).toEqual([`select:${selected}`])
       expect(b.sessions.listenerCount()).toBe(1)
     } finally {
@@ -350,7 +360,7 @@ describe('ui-agent-preset apply', () => {
     async ({ initial, run, owner }) => {
       const saved = Promise.withResolvers<undefined>()
       const b = await settingsWithoutChip(initial, saved.promise)
-      const operation = run(b.section)
+      const operation = run(b.ctx)
       try {
         expect(b.sessions.listenerCount()).toBe(1)
         await b.settingsRosterStarted
@@ -377,31 +387,51 @@ describe('ui-agent-preset apply', () => {
     ])
   })
 
-  it('registers the settings section and no General row', async () => {
-    const { ctx, slots } = await bench()
-    ctx.provide('sessions', sessionsDouble(ctx, { byId: {} }) as never)
-    declareRoot(slots)
-
-    await ctx.plugin({ inject: [...inject], apply }).await()
-
-    // The default preset is edited in the section, where the roster is
-    // visible; a General row would duplicate the same settings field.
-    expect(slots.entries('settings.general.item')).toHaveLength(0)
-    const section = slots.entries('settings.section')[0]!
-    expect(section.component).toBe(AgentPresetSection)
-    expect(section.options).toMatchObject({ id: 'agent-presets', order: 20 })
-    // The nav label is a locale-following thunk; owners resolve it at read time.
-    expect(resolveSlotLabel(section.options.label)).toBe('Agent 预设')
+  it('reports nothing from the preset service until a page and a default writer are bound', async () => {
+    const ctx = new Context()
+    const service = new UiAgentPresetService(ctx)
+    const open = vi.fn()
+    const save = vi.fn(async () => 'read-only settings')
+    expect(service.stageNextSessionPreset('standard')).toBe(false)
+    expect(service.openExpertsPage()).toBe(false)
+    expect(await service.makeDefault('standard')).toBeUndefined()
+    const unbindStage = service.bindStage((id) => { open(id) })
+    expect(service.stageNextSessionPreset('minimal')).toBe(true)
+    unbindStage()
+    expect(service.stageNextSessionPreset('minimal')).toBe(false)
+    const unbindPage = service.bindExpertPage(open)
+    expect(service.openExpertsPage()).toBe(true)
+    unbindPage()
+    expect(service.openExpertsPage()).toBe(false)
+    const unbindDefault = service.bindMakeDefault(save)
+    expect(await service.makeDefault('minimal')).toBe('read-only settings')
+    unbindDefault()
+    expect(await service.makeDefault('minimal')).toBeUndefined()
+    expect(save).toHaveBeenCalledWith('minimal')
+    expect(open).toHaveBeenCalledWith('minimal')
   })
 
-  it('registers into a declaration that arrives after apply', async () => {
+  it('registers no settings section and no General row', async () => {
+    const { ctx, slots } = await bench()
+    ctx.provide('sessions', sessionsDouble(ctx, { byId: {} }) as never)
+    declareRoot(slots)
+
+    await ctx.plugin({ inject: [...inject], apply }).await()
+
+    // The new-task default is edited on the experts page. Settings keeps no
+    // second roster, and General keeps no duplicate control for the same field.
+    expect(slots.entries('settings.general.item')).toHaveLength(0)
+    expect(slots.entries('settings.section')).toHaveLength(0)
+  })
+
+  it('still registers no settings section when that slot arrives after apply', async () => {
     const { ctx, slots } = await bench()
     ctx.provide('sessions', sessionsDouble(ctx, { byId: {} }) as never)
     await ctx.plugin({ inject: [...inject], apply }).await()
 
     declareRoot(slots)
 
-    await vi.waitFor(() => { expect(slots.entries('settings.section')).toHaveLength(1) })
+    expect(slots.entries('settings.section')).toHaveLength(0)
   })
 
   it('binds the Add plugin menu item to the roster and Creator flow and removes it with the feature', async () => {
@@ -444,26 +474,14 @@ describe('ui-agent-preset apply', () => {
     }
   })
 
-  it('hands the section its own store, live Coding Tools preference, and default write', async () => {
-    const { ctx, slots, setDeveloperTools } = await bench()
+  it('writes the new-task default through the preset service', async () => {
+    const { ctx, slots, calls } = await bench()
     ctx.provide('sessions', sessionsDouble(ctx, { byId: {} }) as never)
     declareRoot(slots)
     await ctx.plugin({ inject: [...inject], apply }).await()
 
-    const section = (slots.entries('settings.section')[0]!.inject as unknown as () => AgentPresetSectionInjected)()
-
-    expect(section.hooks.developerTools).toBe(ctx.configForms.developerTools.enabled)
-    await setDeveloperTools(false)
-    expect(section.hooks.developerTools.getSnapshot()).toBe(false)
-    await section.load()
-    await section.makeDefault('standard')
-    expect(section.hooks.agentPresetSection.getSnapshot().rows)
-      .toEqual([{ id: 'standard', isDefault: true }])
-    await section.view('standard')
-    expect(section.hooks.agentPresetSection.getSnapshot().view)
-      .toEqual({ id: 'standard', title: 'standard', content: '# standard\n[]\n' })
-    section.closeView()
-    expect(section.hooks.agentPresetSection.getSnapshot().view).toBeNull()
+    expect(await defaults(ctx).makeDefault('standard')).toBeUndefined()
+    expect(calls).toContain('settings:{"selectedDefault":"standard"}')
   })
 
   it('refreshes a showing surface when its namespace changes, and ignores others', async () => {
@@ -471,19 +489,17 @@ describe('ui-agent-preset apply', () => {
     ctx.provide('sessions', sessionsDouble(ctx, { byId: {} }) as never)
     declareRoot(slots)
     await ctx.plugin({ inject: [...inject], apply }).await()
-    const section = (slots.entries('settings.section')[0]!.inject as unknown as () => AgentPresetSectionInjected)()
-    await section.load()
     const before = calls.length
 
     remote.emit('settings/document-updated', ['agent-preset-registry', 1])
-    await vi.waitFor(() => { expect(calls.length).toBe(before + 3) })
+    await vi.waitFor(() => { expect(calls.length).toBe(before + 2) })
     const afterRelevant = calls.length
 
     remote.emit('settings/document-updated', ['llm-deepseek', 1])
     await Promise.resolve()
 
-    // The directory, section, and unbound seat re-read on their own namespace; an unrelated one moves
-    // neither, so this rules out a blanket refresh on every settings write.
+    // The directory and unbound seat re-read on their own namespace. The roster
+    // controller stays idle until a default write, so it is not a third read.
     expect(calls.length).toBe(afterRelevant)
   })
 
@@ -495,14 +511,12 @@ describe('ui-agent-preset apply', () => {
     ctx.provide('sessions', sessionsDouble(ctx, { byId: {} }) as never)
     ctx.provide('uiWorkspace', uiWorkspaceDouble() as never)
     await ctx.plugin({ inject: [...inject], apply }).await()
-    const section = (slots.entries('settings.section')[0]!.inject as unknown as () => AgentPresetSectionInjected)()
-    await section.load()
     const before = calls.length
 
     ctx.emit('connection/reset')
 
     // A reconnect can land on a host whose roster changed under the browser.
-    await vi.waitFor(() => { expect(calls.length).toBe(before + 3) })
+    await vi.waitFor(() => { expect(calls.length).toBe(before + 2) })
     conversation()
   })
 
@@ -678,11 +692,7 @@ describe('ui-agent-preset apply', () => {
     ctx.provide('sessions', sessions as never)
     ctx.provide('uiWorkspace', uiWorkspaceDouble() as never)
     await ctx.plugin({ inject: [...inject, 'conversation', 'sessions', 'uiWorkspace'], apply }).await()
-    const section = (slots.entries('settings.section')[0]!
-      .inject as unknown as () => AgentPresetSectionInjected)()
-    await section.load()
-
-    await section.makeDefault('minimal')
+    await defaults(ctx).makeDefault('minimal')
 
     expect(calls).not.toContain('select:minimal')
   })
@@ -702,13 +712,11 @@ describe('ui-agent-preset apply', () => {
     ctx.provide('sessions', sessions as never)
     ctx.provide('uiWorkspace', uiWorkspaceDouble() as never)
     await ctx.plugin({ inject: [...inject, 'conversation', 'sessions', 'uiWorkspace'], apply }).await()
-    const section = (slots.entries('settings.section')[0]!
-      .inject as unknown as () => AgentPresetSectionInjected)()
     const seat = (slots.entries('conversation.hero.agentPreset')[0]!
       .inject as unknown as (sessionId: SessionId) => AgentPresetSeatInjected)(SessionId('s1'))
-    await Promise.all([section.load(), seat.load()])
+    await seat.load()
 
-    await section.makeDefault('minimal')
+    await defaults(ctx).makeDefault('minimal')
     expect(calls.filter(call => call.startsWith('select:'))).toEqual(['select:minimal'])
     expect(seat.hooks.agentPresetSeat.getSnapshot().current).toBe('minimal')
     sessionState.byId.s1.projectionValues.agentPreset = 'minimal'
@@ -716,7 +724,7 @@ describe('ui-agent-preset apply', () => {
     expect(seat.hooks.agentPresetSeat.getSnapshot().current).toBe('minimal')
 
     sessionState.byId.s1.blank = false
-    await section.makeDefault('standard')
+    await defaults(ctx).makeDefault('standard')
     expect(calls.filter(call => call.startsWith('select:'))).toEqual(['select:minimal'])
     conversation()
   })
@@ -726,18 +734,8 @@ describe('ui-agent-preset apply', () => {
     ctx.provide('sessions', sessionsDouble(ctx, { byId: {} }) as never)
     declareRoot(slots)
     await ctx.plugin({ inject: [...inject], apply }).await()
-    const section = (slots.entries('settings.section')[0]!
-      .inject as unknown as () => AgentPresetSectionInjected)()
-    await section.load()
-    expect(section.hooks.agentPresetSection.getSnapshot().rows)
-      .toEqual([{ id: 'standard', isDefault: true }])
-
-    await section.makeDefault('minimal')
-
-    expect(calls.filter(call => call === 'list')).toHaveLength(2)
-    expect(section.hooks.agentPresetSection.getSnapshot()).toMatchObject({
-      saving: false, error: 'settings write disconnected',
-    })
+    expect(await defaults(ctx).makeDefault('minimal')).toBe('settings write disconnected')
+    expect(calls.filter(call => call === 'list').length).toBeGreaterThan(0)
   })
 
   it('applies the staged choice to the blank session the flow lands on', async () => {
@@ -801,12 +799,12 @@ describe('ui-agent-preset apply', () => {
     expect(calls).toContain('select:minimal')
   })
 
-  it('names the composition a chat runs, including an expert the menu cannot offer', async () => {
+  it('names the composition a chat runs, experts included', async () => {
     const { ctx, slots, installExpert } = await bench()
     declareRoot(slots)
     const conversation = declareConversation(slots)
     ctx.provide('conversation', {} as never)
-    ctx.provide('sessions', sessionsDouble({
+    ctx.provide('sessions', sessionsDouble(ctx, {
       current: 's1',
       byId: {
         s1: { id: 's1', blank: true, projectionValues: { agentPreset: 'geo-optimizer' } },
@@ -815,25 +813,25 @@ describe('ui-agent-preset apply', () => {
     ctx.provide('uiWorkspace', uiWorkspaceDouble() as never)
     await ctx.plugin({ inject: [...inject, 'conversation', 'sessions', 'uiWorkspace'], apply }).await()
     const seat = (slots.entries('conversation.hero.agentPreset')[0]!
-      .inject as unknown as () => AgentPresetSeatInjected)()
+      .inject as unknown as (sessionId: SessionId) => AgentPresetSeatInjected)(SessionId('s1'))
     installExpert()
 
     await seat.load()
 
-    // The expert is market inventory rather than a mode, so the menu offers
-    // modes alone — while the chip still names what this chat will run instead
-    // of showing its identifier.
-    expect(seat.hooks.agentPresetSeat.getSnapshot().options.map(option => option.id)).toEqual(['standard'])
+    // The menu offers the expert like any mode, and the chip names what this
+    // chat will run instead of showing its identifier.
+    expect(seat.hooks.agentPresetSeat.getSnapshot().options.map(option => option.id))
+      .toEqual(['standard', 'geo-optimizer'])
     expect(seat.hooks.agentPresetSeat.getSnapshot().currentPreset?.name).toBe('GEO 优化专家')
     conversation()
   })
 
-  it('restores a new Session\'s composition on the placeholder a flow adopts', async () => {
+  it('keeps a market-hired composition on the placeholder a flow adopts', async () => {
     const { ctx, slots, calls, installExpert } = await bench()
     declareRoot(slots)
     const conversation = declareConversation(slots)
     ctx.provide('conversation', {} as never)
-    ctx.provide('sessions', sessionsDouble({
+    ctx.provide('sessions', sessionsDouble(ctx, {
       current: 's1',
       byId: {
         s1: { id: 's1', blank: true, projectionValues: { agentPreset: 'geo-optimizer' } },
@@ -845,12 +843,12 @@ describe('ui-agent-preset apply', () => {
     installExpert()
 
     // The Workspace's blank placeholder carries the expert a hire composed
-    // into it and never used; the flow adopting it starts a new Session, so it
-    // composes what one gets rather than that leftover.
+    // into it; the menu offers it like any mode, so the flow adopting it
+    // keeps the composition its user asked for.
     expect(uiWorkspace.adoptions).toHaveLength(1)
     await uiWorkspace.adoptions[0]!(SessionId('s1'))
 
-    expect(calls).toContain('select:standard')
+    expect(calls.filter(call => call.startsWith('select:'))).toEqual([])
     conversation()
   })
 
@@ -983,11 +981,8 @@ describe('ui-agent-preset apply', () => {
     declareRoot(b.slots)
     await b.ctx.plugin({ inject: [...inject], apply }).await()
     await vi.waitFor(() => { expect(b.calls.filter(call => call.startsWith('settings:'))).toEqual(['settings:{"selectedDefault":"standard"}']) })
-    const section = (b.slots.entries('settings.section')[0]!.inject as () => AgentPresetSectionInjected & Record<string, unknown>)()
-    await vi.waitFor(() => { expect(section.hooks.agentPresetSection.getSnapshot().rows.find(row => row.isDefault)?.id).toBe('standard') })
     await b.setDeveloperTools(true)
     expect(b.calls.filter(call => call.startsWith('settings:'))).toEqual(['settings:{"selectedDefault":"standard"}'])
-    expect(section.hooks.agentPresetSection.getSnapshot().rows.find(row => row.isDefault)?.id).toBe('standard')
     await b.ctx.fiber.dispose()
   })
 
@@ -1000,11 +995,9 @@ describe('ui-agent-preset apply', () => {
       b.ctx.provide('sessions', sessionsDouble(b.ctx, { byId: {} }) as never)
       declareRoot(b.slots)
       await b.ctx.plugin({ inject: [...inject], apply }).await()
-      const section = (b.slots.entries('settings.section')[0]!.inject as () => AgentPresetSectionInjected & Record<string, unknown>)()
-      await section.load()
-      await Promise.resolve()
+      await vi.waitFor(() => { expect(b.calls).toContain('list') })
+      expect(name === undefined || name.length > 0).toBe(true)
       expect(b.calls.filter(call => call.startsWith('settings:'))).toEqual([])
-      expect(section.hooks.agentPresetSection.getSnapshot().rows.find(row => row.isDefault)?.id).toBe(id)
       await b.ctx.fiber.dispose()
     },
   )
@@ -1075,8 +1068,7 @@ describe('ui-agent-preset apply', () => {
       expect(b.calls.filter(call => call.startsWith('select:'))).toEqual([])
       expect(chip.hooks.agentPresetSeat.getSnapshot().current).toBe(preset)
       if (blank) {
-        const section = (b.slots.entries('settings.section')[0]!.inject as () => AgentPresetSectionInjected & Record<string, unknown>)()
-        await section.makeDefault('cordis')
+        await defaults(b.ctx).makeDefault('cordis')
         expect(b.calls.filter(call => call.startsWith('select:'))).toEqual(preset === 'cordis' ? [] : ['select:cordis'])
         expect(chip.hooks.agentPresetSeat.getSnapshot().current).toBe('cordis')
       }
@@ -1104,11 +1096,9 @@ describe('ui-agent-preset apply', () => {
     b.ctx.provide('sessions', sessionsDouble(b.ctx, { byId: {} }) as never)
     declareRoot(b.slots)
     await b.ctx.plugin({ inject: [...inject], apply }).await()
-    const section = (b.slots.entries('settings.section')[0]!.inject as () => AgentPresetSectionInjected & Record<string, unknown>)()
     await b.setDeveloperTools(false)
-    await vi.waitFor(() => { expect(section.hooks.agentPresetSection.getSnapshot().error).toBe('settings write disconnected') })
+    await vi.waitFor(() => { expect(b.calls.filter(call => call.startsWith('settings:'))).toEqual(['settings:{"selectedDefault":"standard"}']) })
     expect(b.calls.filter(call => call.startsWith('settings:'))).toEqual(['settings:{"selectedDefault":"standard"}'])
-    expect(section.hooks.agentPresetSection.getSnapshot().rows.find(row => row.isDefault)?.id).toBe('minimal')
     await b.ctx.fiber.dispose()
   })
 
@@ -1129,7 +1119,7 @@ describe('ui-agent-preset apply', () => {
     expect(label.hooks.agentPresets.getSnapshot().options).toEqual([{ id: 'standard' }])
   })
 
-  it('stages the creator preset and starts a session from the section', async () => {
+  it('stages the creator preset and starts a session from the plugin menu', async () => {
     const { ctx, slots } = await bench()
     declareRoot(slots)
     const conversation = declareConversation(slots)
@@ -1138,18 +1128,16 @@ describe('ui-agent-preset apply', () => {
     const uiWorkspace = uiWorkspaceDouble()
     ctx.provide('uiWorkspace', uiWorkspace as never)
     await ctx.plugin({ inject: [...inject, 'conversation', 'sessions', 'uiWorkspace'], apply }).await()
-    const section = (slots.entries('settings.section')[0]!.inject as unknown as () => AgentPresetSectionInjected)()
+    const startCreator = creatorDraft(slots)
     const injectSeat = slots.entries('conversation.hero.agentPreset')[0]!
       .inject as unknown as (sessionId?: SessionId) => AgentPresetSeatInjected
     const seat = injectSeat()
 
-    await section.load()
-    section.startCreatorDraft?.()
+    startCreator()
 
     // The pick is staged on the chip's own controller — the session the
     // workspace start produces is what the stage lands on — and exactly one
     // new-session flow began.
-    expect(section.startCreatorDraft).toBeDefined()
     expect(seat.hooks.agentPresetSeat.getSnapshot().current).toBe('cordis')
     expect(uiWorkspace.starts).toEqual([{ workspaceId: undefined, options: { clearPreviousDraft: false, agentPreset: 'cordis' } }])
 
@@ -1178,14 +1166,13 @@ describe('ui-agent-preset apply', () => {
     const uiWorkspace = uiWorkspaceDouble()
     ctx.provide('uiWorkspace', uiWorkspace as never)
     await ctx.plugin({ inject: [...inject, 'conversation', 'sessions', 'uiWorkspace'], apply }).await()
-    const section = (slots.entries('settings.section')[0]!.inject as unknown as () => AgentPresetSectionInjected)()
+    const startCreator = creatorDraft(slots)
     const injectSeat = slots.entries('conversation.hero.agentPreset')[0]!
       .inject as unknown as (sessionId?: SessionId) => AgentPresetSeatInjected
     const seat = injectSeat(SessionId('s1'))
 
     await seat.load()
-    await section.load()
-    section.startCreatorDraft?.()
+    startCreator()
     expect(uiWorkspace.starts).toEqual([{ workspaceId: undefined, options: { clearPreviousDraft: false, agentPreset: 'cordis' } }])
 
     // Navigation opens another blank for Creator, so the Standard main blank is neither staged nor switched.
@@ -1198,7 +1185,7 @@ describe('ui-agent-preset apply', () => {
     // A blank whose listed preset is already Creator is staged and follows its projection.
     state.byId.s1 = { id: 's1', blank: true, projectionValues: { agentPreset: 'cordis' } }
     sessions.notify()
-    section.startCreatorDraft?.()
+    startCreator()
     await vi.waitFor(() => { expect(seat.hooks.agentPresetSeat.getSnapshot().current).toBe('cordis') })
     expect(seat.hooks.agentPresetSeat.getSnapshot().introduce).toBe(true)
     expect(calls).not.toContain('select:cordis')
@@ -1223,13 +1210,12 @@ describe('ui-agent-preset apply', () => {
     ctx.provide('sessions', sessions as never)
     ctx.provide('uiWorkspace', uiWorkspaceDouble() as never)
     await ctx.plugin({ inject: [...inject, 'conversation', 'sessions', 'uiWorkspace'], apply }).await()
-    const section = (slots.entries('settings.section')[0]!.inject as unknown as () => AgentPresetSectionInjected)()
+    const startCreator = creatorDraft(slots)
     const injectSeat = slots.entries('conversation.hero.agentPreset')[0]!
       .inject as unknown as (sessionId?: SessionId) => AgentPresetSeatInjected
     const unboundSeat = injectSeat()
 
-    await section.load()
-    section.startCreatorDraft?.()
+    startCreator()
     state.current = 's1'
     state.byId['s1'] = { id: 's1', blank: true }
     sessions.notify()
@@ -1266,10 +1252,9 @@ describe('ui-agent-preset apply', () => {
 
     await ctx.plugin({ inject: [...inject], apply }).await()
 
-    // No conversation scope mounted: the face omits the affordance and the
-    // section hides its button rather than staging into nowhere.
-    const section = (slots.entries('settings.section')[0]!.inject as unknown as () => AgentPresetSectionInjected)()
-    expect(section.startCreatorDraft).toBeUndefined()
+    // No conversation scope mounted: the Plugins entry is not registered,
+    // so nothing can stage Creator into a flow that does not exist.
+    expect(slots.entries('plugins.add.actions')).toHaveLength(0)
   })
 })
 
@@ -1411,10 +1396,7 @@ describe('agent preset switch analytics', () => {
   it('does not report a default change or its blank-Session synchronization', async () => {
     const b = await analyticsBench({}, { preset: 'standard', blank: true })
     try {
-      const section = (b.slots.entries('settings.section')[0]!.inject as
-        () => AgentPresetSectionInjected & Record<string, unknown>)()
-      await section.load()
-      await section.makeDefault('minimal')
+      await defaults(b.ctx).makeDefault('minimal')
       expect(b.calls).toContain('select:minimal')
       expect(b.track).not.toHaveBeenCalled()
     } finally { await b.ctx.fiber.dispose() }

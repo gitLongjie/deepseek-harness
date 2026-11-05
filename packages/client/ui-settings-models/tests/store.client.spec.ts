@@ -37,13 +37,13 @@ it.each([false, true])('retains configuration diagnostics when the route is acti
   }])
 })
 
-it('places account and official before third-party providers', () => {
-  const providers = ['custom', 'deepseek-official', 'deepseek-account', 'openai']
+it('places the gateway, account, and official before third-party providers', () => {
+  const providers = ['custom', 'deepseek-official', 'deepagens', 'deepseek-account', 'openai']
   const directory = providers.map(provider => ({
     provider, displayName: provider, settingsNs: 'fixture', settingsPath: [],
   }))
   expect(joinProviderDirectory([], directory).map(row => row.provider))
-    .toEqual(['deepseek-account', 'deepseek-official', 'custom', 'openai'])
+    .toEqual(['deepagens', 'deepseek-account', 'deepseek-official', 'custom', 'openai'])
   expect(directory.map(row => row.provider)).toEqual(providers)
 })
 

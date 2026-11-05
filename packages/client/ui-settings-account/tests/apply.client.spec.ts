@@ -282,18 +282,12 @@ it('keeps successful account refreshes silent and reports only failed reads', as
   c.mock.remote.account.getProfile.mockResolvedValueOnce(ok({ status: 'failed' }))
   c.mock.remote.account.getBalance.mockRejectedValueOnce(new Error('private-transport-detail'))
   await actions.refreshAccount()
-  expect(output).toHaveBeenCalledWith('[deepseek-account] account read failed', expect.objectContaining({
-    field: 'profile',
-  }))
-  expect(output).toHaveBeenCalledWith('[deepseek-account] account read failed', expect.objectContaining({
-    field: 'balance',
-  }))
+  expect(output).toHaveBeenCalledWith('[deepseek-account] profile read failed')
+  expect(output).toHaveBeenCalledWith('[deepseek-account] balance read failed')
   expect(JSON.stringify(output.mock.calls)).not.toContain('private-transport-detail')
   c.mock.remote.account.getBalance.mockResolvedValueOnce({ ok: false, error: new RemoteError('gateway/internal', 'private-rpc-detail', {}) })
   await actions.refreshAccount()
-  expect(output).toHaveBeenCalledWith('[deepseek-account] account read failed', expect.objectContaining({
-    field: 'balance',
-  }))
+  expect(output).toHaveBeenCalledWith('[deepseek-account] balance read failed')
   expect(JSON.stringify(output.mock.calls)).not.toContain('private-rpc-detail')
 }, 60_000)
 

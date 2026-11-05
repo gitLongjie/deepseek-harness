@@ -54,11 +54,22 @@ async function bench() {
   }
   const remote = new TestRemote(ctx, { settings, agentPresets })
 
-  const sessionState: { current?: string; byId: Record<string, SessionRow> } = {
+  const sessionState: {
+    current?: string
+    ids: string[]
+    byId: Record<string, SessionRow & { retainedBy: { mainView?: number } }>
+  } = {
     current: 's1',
-    byId: { s1: { id: 's1', blank: true, projectionValues: { agentPreset: 'standard' } } },
+    ids: ['s1'],
+    byId: {
+      s1: {
+        id: 's1', blank: true, projectionValues: { agentPreset: 'standard' },
+        retainedBy: { mainView: 1 },
+      },
+    },
   }
   const sessionListeners = new Set<() => void>()
+  const bindings = new Map<string, { sessionId: SessionId; ctx: Context }>()
   ctx.provide('sessions', {
     list: {
       getSnapshot: () => sessionState,
@@ -67,6 +78,36 @@ async function bench() {
         return () => { sessionListeners.delete(fn) }
       },
     },
+    binding: (id: string) => {
+      if (sessionState.byId[id] === undefined) return undefined
+      let binding = bindings.get(id)
+      if (binding === undefined) {
+        binding = { sessionId: SessionId(id), ctx }
+        bindings.set(id, binding)
+      }
+      return binding
+    },
+    retainInfo: (id: string) => ({
+      getSnapshot: () => {
+        const retainedBy = sessionState.byId[id]?.retainedBy ?? {}
+        return {
+          referenceCount: Object.values(retainedBy).reduce((sum, count) => sum + (count ?? 0), 0),
+          retainedBy,
+        }
+      },
+      subscribe: (fn: () => void) => {
+        sessionListeners.add(fn)
+        return () => { sessionListeners.delete(fn) }
+      },
+    }),
+  } as never)
+  const form = {
+    getSnapshot: () => ({ status: 'ready' as const, value: { enabled: true }, writable: true, revision: 1 }),
+    subscribe: () => () => {},
+  }
+  ctx.provide('configForms', {
+    developerTools: { enabled: { getSnapshot: () => true, subscribe: () => () => {} } },
+    get: () => form,
   } as never)
 
   const starts: unknown[] = []
@@ -127,10 +168,11 @@ describe('expert hire across packages', () => {
     // The chip loads its roster the way its mount does.
     const slots = b.ctx.get('slots') as SlotRegistry
     const seat = (slots.entries('conversation.hero.agentPreset')[0]!
-      .inject as unknown as () => {
+      .inject as unknown as (sessionId: SessionId) => {
       hooks: { agentPresetSeat: { getSnapshot: () => { current: string; currentPreset?: { name?: string }; introduce: boolean } } }
       load: () => Promise<void>
-    })()
+      openExperts: () => void
+    })(SessionId('s1'))
     await seat.load()
     expect(seat.hooks.agentPresetSeat.getSnapshot().current).toBe('standard')
 
@@ -161,5 +203,12 @@ describe('expert hire across packages', () => {
     // because the menu cannot offer it.
     expect(snapshot.currentPreset?.name).toBe('GEO 优化专家')
     expect(b.remote).toBeDefined()
+
+    const nav = (slots.entries('sidebar.experts')[0]!.inject as unknown as () => {
+      hooks: { view: { getSnapshot(): { open: boolean } } }
+    })()
+    expect(nav.hooks.view.getSnapshot().open).toBe(false)
+    seat.openExperts()
+    expect(nav.hooks.view.getSnapshot().open).toBe(true)
   })
 })

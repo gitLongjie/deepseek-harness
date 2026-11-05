@@ -1,0 +1,170 @@
+/* Visual twin of the upstream account section (ui-settings-account): the
+   gateway section replaces it in place, so both must read as one page. */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 8px 0;
+  font-size: 13px;
+  line-height: 22px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.card,
+.balanceCard {
+  padding: 12px 16px;
+  border: 0.5px solid var(--dsw-alias-settings-card-stroke);
+  border-radius: var(--dsw-radius-xl);
+  background: var(--dsw-alias-settings-card-fill);
+}
+
+.card,
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  min-width: 0;
+}
+
+.avatar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  overflow: hidden;
+  color: var(--dsw-alias-label-tertiary);
+  background: var(--dsw-alias-bg-skeleton);
+}
+
+.avatarImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.identityCopy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.name {
+  font-size: 14px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status,
+.secondary,
+.unavailable {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.balanceCard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.row {
+  min-height: 40px;
+  padding: 6px 0;
+  box-sizing: border-box;
+}
+
+.divider {
+  border-top: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.links {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.linkButton {
+  flex: none;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  box-sizing: border-box;
+  height: 36px;
+  min-width: 58px;
+  padding: 0 14px;
+  border: 0.5px solid var(--dsw-alias-border-l3);
+  border-radius: var(--dsw-radius-md);
+  font-size: 14px;
+  line-height: 22px;
+  text-decoration: none;
+  white-space: nowrap;
+  color: var(--dsw-alias-label-primary);
+  background: transparent;
+}
+
+@media (hover: hover) {
+  .linkButton:hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+  }
+}
+
+.linkButton:focus-visible {
+  outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
+  outline-offset: 2px;
+}
+
+.primary {
+  color: var(--dsw-alias-label-primary-foreground);
+  background: var(--dsw-alias-button-primary-fill);
+  font-weight: 500;
+  border-color: transparent;
+}
+
+@media (hover: hover) {
+  .primary:hover {
+    background: var(--dsw-alias-button-primary-hover);
+  }
+}
+
+.amount {
+  font-size: 18px;
+  line-height: 28px;
+  font-weight: 510;
+}
+
+.retry {
+  border: none;
+  padding: 0;
+  background: none;
+  font: inherit;
+  color: var(--dsw-alias-label-tertiary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .retry:hover {
+    color: var(--dsw-alias-label-primary);
+  }
+}
+
+.retry:focus-visible {
+  outline: 2px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
+  outline-offset: 2px;
+  border-radius: 4px;
+}

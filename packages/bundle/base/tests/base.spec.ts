@@ -41,8 +41,17 @@ describe('dsh-base bundle', () => {
     })
     expect(rows.filter(row => row.id === 'subagent-codex')).toHaveLength(0)
     expect(rows.filter(row => row.id === 'subagent-claude-code')).toHaveLength(0)
-    expect(rows.find(row => row.id === 'web')?.config).toMatchObject({ fetchProvider: 'http' })
-    expect(rows.find(row => row.id === 'web-fetch-http')).toBeDefined()
+    expect(rows.find(row => row.id === 'web')?.config).toMatchObject({
+      searchProvider: 'deepseek-search-api',
+      fetchProvider: 'http',
+    })
+    expect(rows.find(row => row.id === 'web-deepseek-api')?.config).toMatchObject({
+      apiKeyEnv: 'DEEPAGENS_API_KEY',
+      baseURL: 'https://claw.deepagens.com/v1/tools',
+    })
+    expect(rows.find(row => row.id === 'web-search-deepseek')?.disabled).toBeUndefined()
+    expect(rows.find(row => row.id === 'web-search-deepseek')?.config).toMatchObject({ apiKeyEnv: 'DEEPSEEK_API_KEY' })
+    expect(rows.find(row => row.id === 'web-fetch-http')?.disabled).toBeUndefined()
     expect(rows.find(row => row.id === 'tool-web')?.config).toMatchObject({ fetch: true })
     expect(manifest.dependencies).not.toHaveProperty('@deepseek-ai/dsh-subagent-codex')
     expect(manifest.dependencies).not.toHaveProperty('@deepseek-ai/dsh-subagent-claude-code')

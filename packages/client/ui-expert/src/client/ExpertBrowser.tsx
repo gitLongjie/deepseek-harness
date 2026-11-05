@@ -16,6 +16,24 @@ function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
+/** Shipped category ids whose chip text comes from the expert dictionary. */
+const CATEGORY_LABELS: Readonly<Record<string, 'category.general' | 'category.marketing' | 'category.content'>> = {
+  general: 'category.general',
+  marketing: 'category.marketing',
+  content: 'category.content',
+}
+
+/**
+ * Chip text for one category id.
+ * @param id - the category id the roster published.
+ * @param translate - expert-dictionary lookup.
+ * @returns the localized label for a shipped id, or the id itself when the roster authored another category.
+ */
+function categoryLabel(id: string, translate: ExpertBrowserProps['t']): string {
+  const key = CATEGORY_LABELS[id]
+  return key === undefined ? id : translate(key)
+}
+
 /** The category ids the roster publishes, in first-seen roster order. */
 function categoriesOf(experts: readonly ExpertRecord[]): string[] {
   const seen: string[] = []
@@ -71,6 +89,7 @@ export function ExpertBrowser({
   load,
   hire,
   remove,
+  makeDefault,
   t,
 }: ExpertBrowserProps) {
   // undefined = the market read is in flight; error switches the grid for a
@@ -86,6 +105,7 @@ export function ExpertBrowser({
   // The card whose removal is armed. Removing deletes a preset directory, so
   // it takes a second click; arming is per card and any other action clears it.
   const [armedRemove, setArmedRemove] = useState<string | null>(null)
+  const [savingDefault, setSavingDefault] = useState<string | null>(null)
 
   useEffect(() => {
     const reader = new AbortController()
@@ -115,6 +135,27 @@ export function ExpertBrowser({
   useEffect(() => {
     if (category !== null && !categories.includes(category)) setCategory(null)
   }, [category, categories])
+
+  /** Save one expert as the new-task default, then re-read so the badge moves. */
+  const confirmDefault = (id: string): void => {
+    setArmedRemove(null)
+    setActionError(null)
+    setSavingDefault(id)
+    void makeDefault(id).then(
+      (refused) => {
+        setSavingDefault(null)
+        if (refused === undefined) {
+          setReloadToken(token => token + 1)
+          return
+        }
+        setActionError(refused)
+      },
+      (error: unknown) => {
+        setSavingDefault(null)
+        setActionError(messageOf(error))
+      },
+    )
+  }
 
   /** Remove one armed card, then re-read the market so the grid matches disk. */
   const confirmRemove = (id: string): void => {
@@ -180,7 +221,7 @@ export function ExpertBrowser({
                     className={category === id ? clsx(css.chip, css.chipActive) : css.chip}
                     onClick={() => { setCategory(category === id ? null : id) }}
                   >
-                    {id}
+                    {categoryLabel(id, t)}
                   </button>
                 ))}
               </nav>
@@ -201,6 +242,7 @@ export function ExpertBrowser({
                       <div className={css.cardTitles}>
                         <h3 className={css.cardName}>
                           <span className={css.cardNameText}>{record.name}</span>
+                          {record.isDefault === true && <span className={css.defaultMark}>{t('card.default')}</span>}
                           {record.badge !== undefined && <span className={css.cardBadge}>{record.badge}</span>}
                         </h3>
                         {record.subtitle !== undefined && (
@@ -227,6 +269,17 @@ export function ExpertBrowser({
                       <p className={css.broken} role="note">{t('card.broken', { reason: record.broken })}</p>
                     )}
                     <div className={css.cardActions}>
+                      {record.isDefault !== true && record.broken === undefined && (
+                        <button
+                          type="button"
+                          className={css.makeDefault}
+                          disabled={savingDefault !== null}
+                          aria-label={`${t('card.setDefault')}: ${record.name}`}
+                          onClick={() => { confirmDefault(record.id) }}
+                        >
+                          {t('card.setDefault')}
+                        </button>
+                      )}
                       <button
                         type="button"
                         className={css.hire}

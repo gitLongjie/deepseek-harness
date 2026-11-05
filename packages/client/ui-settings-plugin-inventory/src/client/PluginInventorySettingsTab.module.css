@@ -1,6 +1,5 @@
-/* The tab's own width, not the window's, decides the card columns below. */
+/* One column of list rows. The settings panel is too narrow for a card grid. */
 .section {
-  container: plugin-inventory / inline-size;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -87,51 +86,40 @@
 }
 
 .cards {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-/* Cards stretch to their grid row's height. The button fills a stretched card:
-   the title row and description stay at the top, in line with the other card's,
-   and the spare height sits above the entry id chip or at the bottom. */
+/* The hover surface reaches 8px past the content on both sides while the
+   row's text stays aligned with the group title. */
 .card {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  margin: 0 -8px;
   overflow: hidden;
-  border: 0.5px solid var(--dsw-alias-settings-card-stroke);
   border-radius: var(--dsw-radius-xl);
-  background: var(--dsw-alias-settings-card-fill);
-}
-
-.card[data-open='true'] {
-  border-color: var(--dsw-alias-border-l3);
-}
-
-/* The other card in an expanded card's row keeps its own height instead of
-   stretching alongside the details. The selectors assume the two columns
-   `.cards` declares, where each row starts at an odd position, and must change
-   with that count; in one column the matched card sits alone in its row. */
-.card:nth-child(odd)[data-open='true'] + .card,
-.card:nth-child(odd):has(+ .card[data-open='true']) {
-  align-self: start;
 }
 
 .cardContent {
   box-sizing: border-box;
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 2px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'title trail'
+    'desc trail'
+    'meta meta';
+  column-gap: 12px;
+  row-gap: 2px;
+  align-items: center;
   width: 100%;
-  min-height: 52px;
   border: 0;
-  padding: 12px 14px;
+  /* 28px cancels the row's -8px margin and lines the title up with the group heading. */
+  padding: 8px 16px 8px 28px;
   background: transparent;
   color: inherit;
   font: inherit;
@@ -161,11 +149,7 @@
 }
 
 .cardMainRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-width: 0;
+  display: contents;
 }
 
 .cardTitle,
@@ -176,15 +160,16 @@
 }
 
 .cardTitle {
-  flex: 1;
+  grid-area: title;
   min-width: 0;
   font-size: 14px;
   line-height: 20px;
   font-weight: 500;
 }
 
-/* Two lines at most while collapsed; the expanded card shows the full text. */
+/* One line while collapsed; the expanded row shows the full text. */
 .cardDescription {
+  grid-area: desc;
   display: -webkit-box;
   overflow: hidden;
   color: var(--dsw-alias-label-tertiary);
@@ -192,24 +177,25 @@
   line-height: 18px;
   text-wrap: pretty;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
 }
 
 .card[data-open='true'] .cardDescription {
   display: block;
 }
 
-/* The entry id is metadata, not prose: a code chip in the card's bottom-left
-   corner whose left edge lines up with the title. */
+/* The entry id is metadata, not prose: a code chip under the title, in line with it. */
 .cardMeta {
+  grid-area: meta;
   display: flex;
-  margin-top: auto;
-  padding-top: 6px;
+  justify-self: start;
+  min-width: 0;
+  max-width: 100%;
 }
 
-/* The Loader entry id keeps one size in the card chip and the row it expands into;
+/* The Loader entry id keeps one size in the collapsed chip and the expanded row;
    the collapsed chip stays on the quieter label tier, while the expanded row carries
-   the card's primary value. */
+   the row's primary value. */
 .cardIdentity,
 .entryValue {
   font-family: var(--ds-font-family-code);
@@ -228,10 +214,12 @@
 }
 
 .cardTrailing {
+  grid-area: trail;
+  align-self: start;
   display: inline-flex;
-  flex: none;
   align-items: center;
   gap: 8px;
+  padding-top: 2px;
   color: var(--dsw-alias-label-tertiary);
 }
 
@@ -396,17 +384,16 @@
   cursor: pointer;
 }
 
-/* Loading placeholder in the cards grid, sized like a card with one description
+/* Loading placeholder in the list, sized like a row with one description
    line; its bars pulse through the shared skeleton token as the input-trigger
    menu's pending rows do. */
 .skeletonCard {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  border: 0.5px solid var(--dsw-alias-settings-card-stroke);
+  margin: 0 -8px;
   border-radius: var(--dsw-radius-xl);
-  padding: 15px 14px;
-  background: var(--dsw-alias-settings-card-fill);
+  padding: 10px 16px 10px 28px;
 }
 
 .skeletonBar {
@@ -422,7 +409,8 @@
 }
 
 .card[data-failed='true'] {
-  border-color: color-mix(in srgb, var(--dsw-alias-state-error-primary) 45%, transparent);
+  background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 8%, transparent);
+  box-shadow: inset 2px 0 0 var(--dsw-alias-state-error-primary);
 }
 
 .chevron {
@@ -436,7 +424,7 @@
 
 .cardDetails {
   border-top: 0.5px solid var(--dsw-alias-border-l2);
-  padding: 10px 14px 12px;
+  padding: 10px 16px 12px 28px;
   background: var(--dsw-alias-bg-module-platform);
 }
 
@@ -496,12 +484,6 @@
   0% { opacity: 1; }
   40% { opacity: 0.6; }
   80%, 100% { opacity: 1; }
-}
-
-@container plugin-inventory (max-width: 520px) {
-  .cards {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 
 /* iOS Safari zooms the visual viewport for a focused field under 16px. */

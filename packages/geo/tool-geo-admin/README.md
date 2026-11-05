@@ -25,10 +25,10 @@ English | [中文](README.zh.md)
 The package has two entries:
 
 - `.` — the model-facing tools. A preset mounts it beside its persona; the tools register into that session's `tools` registry.
-- `./settings` — the host row that registers the `geo-admin` namespace and publishes the live view. It is a **host** row: `settings.register` is once-per-process, so a preset must never mount it.
+- `./settings` — the host row that registers the `geo-admin` namespace and publishes the live view. Mount it once on the host; its volatile Config fields are editable through the active profile.
 
 ```yaml
-- id: geo-admin-settings
+- id: geo-admin
   name: '@deepseek-ai/dsh-tool-geo-admin/settings'
   config:
     baseUrl: http://localhost:8001
@@ -38,12 +38,13 @@ The package has two entries:
   name: '@deepseek-ai/dsh-tool-geo-admin'
 ```
 
-Composition config is the base layer; a value saved on the settings page overlays it. The launching environment can seed that base through `GEO_ADMIN_BASE_URL` / `GEO_ADMIN_USERNAME`, and `GEO_ADMIN_PASSWORD` in the environment satisfies the credential reference.
+Composition config is the base layer; a value saved on the settings page overlays it. `GEO_ADMIN_PASSWORD` in the launching environment also satisfies the credential reference.
 
 ## Tools
 
 | Tool | Effect |
 |---|---|
+| `geo_configure` | Inspect missing configuration or save user-supplied account fields; no network request. |
 | `geo_sites_list` | Sites the account may publish to (`id`, `name`, `domain`, `code`, `role`). |
 | `geo_news_list` | One page of articles, filtered by site, category, keyword, or publish state. |
 | `geo_article_get` | One stored article by id. |
@@ -78,7 +79,7 @@ No runtime invariant companion is published: the settings registration and the p
 
 #### What the model sees
 
-The thirteen tools appear only in a session whose preset mounts this package. Their descriptions state the confirmation rules (draft by default, read back after a write, no blind retry, report generation costs model calls), and their results render as short text: a site list, a page of rows, one article, one report with its brand ranking, or one job's status. A missing deployment row, an unset field, or an unset password fails with the Settings → Plugins → 深度云海 path in the message, so the model can name the fix instead of guessing.
+The fourteen tools appear only in a session whose preset mounts this package. Their descriptions state the confirmation rules (draft by default, read back after a write, no blind retry, report generation costs model calls), and their results render as short text: a site list, a page of rows, one article, one report with its brand ranking, or one job's status. `geo_configure` reports only missing field names and never returns a password. Experts ask for missing fields, save them, then resume the task. Addresses and usernames persist in the active profile; passwords persist in the credential store. Chat-supplied passwords enter Session history, so the settings card offers private password entry. Saving does not authenticate: `geo_sites_list` verifies login. Writes to settings and credentials are separate; a failure can leave one saved, and the next inspection reports what remains missing.
 
 #### Token effect
 

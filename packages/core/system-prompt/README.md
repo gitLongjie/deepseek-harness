@@ -71,13 +71,13 @@ The agent loop calls `assemble(context)` once per proposed step before `agent/pr
 
 ### Contribute a prompt variable
 
-Variables are referenced from section or context text as `{{name}}` and resolved at each assembly; scoped variables shadow a same-named global for that agent. The loop supplies `provider` and `model`; plugins can register the facts they own. The working-directory service supplies directory text as literal user context.
+Variables are referenced from section or context text as `{{name}}` and resolved at each assembly; scoped variables shadow a same-named global for that agent. The loop supplies `provider` and `model`; plugins can register the facts they own. The [working-directory service](../../session/working-directory/README.md) registers `cwd` from the Session's effective directory and supplies directory text as literal user context.
 
 ```text
 ctx.systemPrompt.variable('response_language', () => 'English')
 ```
 
-Custom persona templates must not depend on a built-in `{{cwd}}` variable: the loop does not register it, so unresolved references fail prompt assembly before any model request. Remove the `Your working directory is {{cwd}}.` clause from home, profile, or invocation `personaSuffix` settings and preset `suffix` fields, preserving unrelated text. Omit or clear an otherwise empty suffix. The [working-directory service](../../session/working-directory/README.md) supplies the required current-directory context.
+Persona templates may interpolate `{{cwd}}` when the working-directory service is mounted; the value is the effective directory at assembly time and can differ from the Session header's original project path. Assemblies without an Agent leave `cwd` without a value, so references fail assembly the same as any other unset variable. The service also publishes the required current-directory user context, which remains the canonical runtime statement when templates omit `{{cwd}}`.
 
 ### Contribute tool schemas
 

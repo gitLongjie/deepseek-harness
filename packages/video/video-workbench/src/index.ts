@@ -17,6 +17,18 @@ import type {} from '@deepseek-ai/dsh-client-connection'
 import { resolveWorkbenchFile, workbenchFileResponse } from './file-serve.ts'
 import { scanProjects } from './projects.ts'
 import { deleteAsset, deleteProject } from './trash.ts'
+import { StudioStore } from './studio-store.ts'
+import type { StudioRenderOptions } from './studio-render.ts'
+import { registerStudioRoutes } from './studio-routes.ts'
+
+declare module '@deepseek-ai/cordis' {
+  interface Context {
+    /** Shared authoring owner consumed by future model-facing studio tools. */
+    videoWorkbenchStudio: StudioStore
+  }
+}
+
+export type { StudioDirectorScene, StudioId, ScriptKind, ScriptBlock, StudioContent, StudioDocument, StudioSummary, StudioCatalog } from './studio-types.ts'
 
 export type {
   WorkbenchAssetRow,
@@ -45,10 +57,20 @@ export interface Config {
    * deployment needs no configuration to see its renders.
    */
   outputDir?: string
+  /** Maximum encoded authoring document or request size in bytes. */
+  maxStudioBytes?: number
+  /** Local FFmpeg export executable paths, limits and output dimensions. */
+  studioRender?: Partial<StudioRenderOptions>
 }
 
 export const Config: z<Config> = z.object({
   outputDir: z.string(),
+  maxStudioBytes: z.number().min(1024).max(16777216).default(2097152),
+  studioRender: z.object({
+    ffmpegPath: z.string(), ffprobePath: z.string(), timeoutMs: z.number().min(1000).max(3600000),
+    maxDurationSeconds: z.number().min(1).max(7200), maxClips: z.number().min(1).max(256),
+    width: z.number().min(16).max(3840), height: z.number().min(16).max(2160), fps: z.number().min(1).max(60),
+  }),
 })
 
 /** The projects listing route. */
@@ -75,6 +97,17 @@ export function apply(ctx: Context, config: Config): void {
   const outputDir = config.outputDir === undefined || config.outputDir.length === 0
     ? dshCachePath('video')
     : expandHomePath(config.outputDir)
+  const maxStudioBytes = config.maxStudioBytes ?? 2097152
+  const render: StudioRenderOptions = {
+    ffmpegPath: 'ffmpeg', ffprobePath: 'ffprobe', timeoutMs: 300000, maxDurationSeconds: 600,
+    maxClips: 64, width: 1280, height: 720, fps: 30, ...config.studioRender,
+  }
+  if (![render.width, render.height].every(value => Number.isInteger(value) && value % 2 === 0)) {
+    throw new Error('Studio export width and height must be even integers')
+  }
+  const studio = new StudioStore(outputDir, maxStudioBytes, render)
+  ctx.provide('videoWorkbenchStudio', studio)
+  registerStudioRoutes(ctx, studio, maxStudioBytes)
 
   ctx.effect(() => ctx.connection.fetch.register({
     path: PROJECTS_PATH,

@@ -41,17 +41,98 @@ test('a missing Host gateway fails clearly instead of silently falling back to l
 
 test('the current Connection/Typert Gateway services provide the local HarnessClient carrier', async () => {
   const calls = [];
+  const peer = { signal: new AbortController().signal };
+  const baseline = { items: [{ path: 'E:\\work', sessionIds: [] }], archivedSessionIds: [], pinnedSessionIds: [] };
   const gateway = {
     async invoke(request) {
       calls.push(request);
-      return { items: [] };
+      if (request.method === 'events') {
+        if (request.args?.request?.address?.sessionId === 'gone') {
+          const error = new Error('session "gone" not found');
+          error.code = 'session/not-found';
+          throw error;
+        }
+        return { records: [{ type: 'event', event: { type: 'turn/start', seq: 1 } }] };
+      }
+      return { accepted: true };
     },
-    wireStream: { open: async function* () {} },
+    async stream(request) {
+      calls.push(request);
+      return (async function* () {
+        yield { type: 'baseline', value: baseline };
+      })();
+    },
+    wireStream: {
+      open(endpoint, payload, uplink, openedPeer, signal) {
+        calls.push({ endpoint, payload, uplink, peer: openedPeer, signal });
+        return (async function* () {})();
+      },
+    },
   };
-  const adapter = createApiProxyAdapter({ typertGateway: gateway });
-  const response = await adapter.workspace.list({ rpcId: 'rpc-1', payload: {} }, new AbortController().signal);
-  assert.deepEqual(response.result, { ok: true, value: { items: [] } });
-  assert.deepEqual(calls, [{ namespace: 'workspace', method: 'list', args: {}, signal: calls[0].signal }]);
+  const adapter = createApiProxyAdapter({
+    typertGateway: gateway,
+    connection: { browserPeer: peer },
+  });
+  const described = await adapter.host.describe({ rpcId: 'health' });
+  assert.deepEqual(described.result, { ok: true, value: { ready: true } });
+  const listed = await adapter.workspace.list({ rpcId: 'rpc-1', payload: {} }, new AbortController().signal);
+  assert.deepEqual(listed.result, { ok: true, value: baseline });
+  const prompted = await adapter.sessions.prompt({
+    rpcId: 'prompt-1',
+    payload: { sessionId: 'session-1', mode: 'queue', content: [{ type: 'text', text: 'hi' }] },
+  });
+  assert.deepEqual(prompted.result, { ok: true, value: { accepted: true } });
+  const history = await adapter.sessions.history({
+    rpcId: 'history-1',
+    payload: { sessionId: 'session-1', maxMessages: 20 },
+  });
+  assert.deepEqual(history.result, { ok: true, value: { events: [{ type: 'turn/start', seq: 1 }] } });
+  const listedSessions = await adapter.sessions.list({ rpcId: 'sessions-1', payload: {} });
+  assert.equal(listedSessions.result.ok, true);
+  assert.deepEqual(calls.map((call) => ({
+    namespace: call.namespace,
+    method: call.method,
+    args: call.args,
+    peer: call.peer,
+  })), [
+    { namespace: 'workspace', method: 'follow', args: {}, peer },
+    {
+      namespace: 'session',
+      method: 'prompt',
+      args: {
+        request: {
+          sessionId: 'session-1',
+          mode: 'queue',
+          content: [{ type: 'text', text: 'hi' }],
+          requestId: 'prompt-1',
+        },
+      },
+      peer,
+    },
+    {
+      namespace: 'session',
+      method: 'events',
+      args: { request: { address: { kind: 'session', sessionId: 'session-1' }, maxMessages: 20 } },
+      peer,
+    },
+    { namespace: 'session', method: 'list', args: { _request: {} }, peer },
+  ]);
+  const missing = await adapter.sessions.history({ rpcId: 'missing', payload: { sessionId: 'gone' } });
+  assert.equal(missing.result.ok, false);
+  assert.equal(missing.result.error.code, 'session-not-found');
+});
+
+test('a gateway without the owner Peer fails before any Remote call', () => {
+  assert.throws(
+    () => createApiProxyAdapter({
+      typertGateway: {
+        invoke() {},
+        stream() {},
+        wireStream: { open() {} },
+      },
+    }),
+    /owner Peer/,
+  );
 });
 
 test('Host and all IM channel plugins wait for the Typert Gateway rather than a webServer', async () => {

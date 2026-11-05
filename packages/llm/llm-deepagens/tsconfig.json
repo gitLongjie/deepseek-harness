@@ -1,0 +1,64 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types",
+    "composite": true
+  },
+  "include": [
+    "src"
+  ],
+  "references": [
+    {
+      "path": "../../../vendor/cordis"
+    },
+    {
+      "path": "../../../vendor/cosmokit"
+    },
+    {
+      "path": "../../../vendor/schemastery"
+    },
+    {
+      "path": "../llm"
+    },
+    {
+      "path": "../../attachment/attachment"
+    },
+    {
+      "path": "../../fs/fs"
+    },
+    {
+      "path": "../../util/atomic-write"
+    },
+    {
+      "path": "../../util/brand"
+    },
+    {
+      "path": "../../util/home-paths"
+    },
+    {
+      "path": "../deepseek-llm-api-extensions"
+    },
+    {
+      "path": "../../util/launch-environment"
+    },
+    {
+      "path": "../../util/timeout"
+    },
+    {
+      "path": "../../identity/anonymous-user-id"
+    },
+    {
+      "path": "../../credentials/credentials"
+    },
+    {
+      "path": "../../settings/settings"
+    },
+    {
+      "path": "../../util/values"
+    },
+    {
+      "path": "../../../vendor/loader"
+    }
+  ]
+}

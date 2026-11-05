@@ -15,6 +15,28 @@ const CALLBACK_PROBE_TIMEOUT_NOTICE = '⚠️ 修复验证超时：未收到测�
 const CALLBACK_PROBE_SEND_FAILURE_NOTICE = '⚠️ 修复验证失败：无法发送专用测试卡，不能确认 card.action.trigger 已恢复。请不要重复授权；先检查机器人消息权限和连接状态。';
 const CALLBACK_PROBE_ABORT_NOTICE = '⚠️ 修复验证中断：Runtime 已停止，未完成 card.action.trigger 实测，不能确认修复成功。请不要重复授权；先等待机器人恢复连接。';
 const REUSABLE_WS_STATES = new Set(['connected', 'connecting', 'reconnecting']);
+/** A handshake or SDK reconnect that outlives this is replaced by a new socket. */
+export const FEISHU_CONNECTION_ATTEMPT_BUDGET_MS = 20_000;
+
+/**
+ * Whether a live attempt should be left alone.
+ * A connected runtime is current. A connecting or reconnecting runtime is
+ * current only inside the attempt budget; an older attempt is replaced.
+ *
+ * @param {object} connection
+ * @param {number} [now]
+ * @returns {boolean}
+ */
+export function feishuConnectionAttemptIsCurrent(connection, now = Date.now()) {
+  if (connection?.ready === true
+    && connection.feishuLongConnectionState === 'connected'
+    && connection.harnessReachable === true) return true;
+  const state = connection?.feishuLongConnectionState;
+  if (state !== 'connecting' && state !== 'reconnecting') return false;
+  const stamp = state === 'reconnecting' ? connection.reconnectAttemptAt : connection.startedAt;
+  const at = Date.parse(stamp ?? '');
+  return Number.isFinite(at) && now - at < FEISHU_CONNECTION_ATTEMPT_BUDGET_MS;
+}
 
 function nonEmptyString(value) {
   return typeof value === 'string' && value.trim() ? value.trim() : null;
@@ -188,7 +210,9 @@ export class FeishuRuntime {
       const wsClient = this.#wsClient;
       if (wsClient) {
         const state = websocketState(wsClient, this.#status.feishuLongConnectionState);
-        if (REUSABLE_WS_STATES.has(state)) return this.status;
+        if (REUSABLE_WS_STATES.has(state) && feishuConnectionAttemptIsCurrent(this.#status)) {
+          return this.status;
+        }
 
         await this.stop({ preserveError: state === 'failed' });
         continue;
@@ -333,6 +357,7 @@ export class FeishuRuntime {
           this.#status.feishuLongConnectionState = 'connected';
           this.#status.ready = true;
           this.#status.lastError = null;
+          delete this.#status.reconnectAttemptAt;
           settleReady();
         },
         onError: (error) => {
@@ -347,12 +372,17 @@ export class FeishuRuntime {
           if (!isCurrentStart()) return;
           this.#status.feishuLongConnectionState = 'reconnecting';
           this.#status.ready = false;
+          // Keep the first stamp. Later callbacks must not extend a stuck loop.
+          if (!this.#status.reconnectAttemptAt) {
+            this.#status.reconnectAttemptAt = new Date().toISOString();
+          }
         },
         onReconnected: () => {
           if (!isCurrentStart()) return;
           this.#status.feishuLongConnectionState = 'connected';
           this.#status.ready = true;
           this.#status.lastError = null;
+          delete this.#status.reconnectAttemptAt;
         },
       });
       this.#wsClient = wsClient;
@@ -604,6 +634,7 @@ export class FeishuRuntime {
     this.#client = null;
     this.#status.feishuLongConnectionState = preserveError ? 'failed' : 'idle';
     this.#status.lastError = error;
+    delete this.#status.reconnectAttemptAt;
     return this.status;
   }
 }

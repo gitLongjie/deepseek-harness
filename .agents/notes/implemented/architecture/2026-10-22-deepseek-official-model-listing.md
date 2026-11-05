@@ -1,4 +1,4 @@
-# Agent Note: The official DeepSeek route follows the official model listing until its catalog is customized
+# Agent Note: The API-key route no longer follows the official model listing
 
 Status: implemented
 
@@ -10,13 +10,11 @@ The `deepseek-official` route offered whatever its `models` setting held, and th
 
 ## Decision
 
-- [`llm-deepseek-api-key`](../../../../packages/llm/llm-deepseek-api-key/README.md) follows `GET https://api.deepseek.com/models`, authenticated with the API key in `x-api-key`, only while the Messages origin is `https://api.deepseek.com` and `models` equals the built-in catalog. Any other endpoint or catalog sends no listing request.
-- Loading, refresh, fallback, merging, and the client-version gate are the [account route's](2026-09-24-deepseek-account-remote-model-catalog.md): a first access waits up to `modelsTimeoutMs`, a listing older than `modelsMaxAgeMs` refreshes in the background on the next access, a failure keeps the last good listing or the built-in catalog, and the cache lives in memory, keyed by endpoint and key fingerprint.
-- A customized `models` list wins whole: it replaces the catalog and stops listing requests. A list is customized when it resolves differently from the built-in catalog, because the schema default materializes an absent `models` as the built-in list and the Models page shows that default as its inherited rows.
-- Switching between a customized catalog and the listing invalidates the cache from a `loader/volatile-update` listener, so Restore defaults reloads the listing on the next access even when the cached listing is fresh.
-- The listing request, its cache, catalog resolution, and the gate live in the shared [Messages transport](../../../../packages/llm/llm-deepseek/README.md) because two routes consume them; the transport's provider hooks remain `connect` and `admit`.
+The API-key route does not request `GET /models`. [That withdrawal](../simplification/2026-11-04-api-key-route-skips-model-listing.md) replaces the follow this note originally recorded. The account route still follows `GET /models` through the shared Messages transport.
 
 ## Alternatives considered
+
+These alternatives were set aside in favor of following the listing. That follow is withdrawn; they remain as the record of how it was shaped.
 
 **Follow the listing on every endpoint.** A gateway that publishes an OpenAI-style `/models` returns entries without `api_capabilities.anthropic_messages`, which the decoder hides, so the route would offer no models. Every such gateway would also receive an extra request carrying the key.
 
@@ -30,7 +28,6 @@ The `deepseek-official` route offered whatever its `models` setting held, and th
 
 ## Consequences
 
-- API-key users on the official endpoint receive listed models without a release, and an older build hides or refuses a model that needs a newer client, as account users' builds do.
-- A customized catalog receives no later listed models until Restore defaults, and a `models` list identical to the built-in catalog counts as uncustomized. The comparison uses the running version's built-in catalog, so a saved list equal to an earlier version's built-in catalog counts as customized once the built-in catalog changes.
-- The Models page shows the built-in rows while the listing is followed, so a model only the listing offers appears only in model selectors, and editing the page's catalog drops it.
-- The first catalog access on the official endpoint can wait up to `modelsTimeoutMs`, and a suite that boots the route there must answer the listing itself to stay off the network.
+- API-key users receive the configured catalog. A model the service adds later arrives when a release updates the built-in catalog or the deployment sets `models`.
+- The account route still receives listed models without a release. Its listing cache, client-version gate, and refresh stay in the shared transport.
+- A suite that boots the account route on the official endpoint must answer the listing itself. The API-key route does not request it.

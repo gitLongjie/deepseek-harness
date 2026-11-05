@@ -39,8 +39,21 @@ export interface TransportFetchRequest {
   method: string
   /** Request headers. */
   headers?: Record<string, string>
-  /** JSON body text. */
-  body?: string
+  /** Request body: JSON text for RPC calls, exact bytes for the binary routes. */
+  body?: string | Uint8Array<ArrayBuffer>
+}
+
+/**
+ * Read an app-scheme request's body for the carrier. Binary routes (image and
+ * file uploads) post their payload here, so the bytes cross as bytes: decoding
+ * them as text replaces every invalid UTF-8 sequence and delivers a corrupted
+ * image to the Host.
+ * @param request - the renderer's app-scheme `/api` request.
+ * @returns the exact request bytes, or undefined for a bodyless method.
+ */
+export async function transportRequestBytes(request: Request): Promise<Uint8Array<ArrayBuffer> | undefined> {
+  if (request.method === 'GET' || request.method === 'HEAD') return undefined
+  return new Uint8Array(await request.arrayBuffer())
 }
 
 /** The fetch response carried back to the renderer. */

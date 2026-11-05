@@ -2,9 +2,8 @@
  * Built-in plugins settings section, browser half: the shell around the
  * feature-owned tabs registered into `settings.plugins.tab` (the read-only
  * inventory ships one). The configuration pages of the host-plane plugins
- * live in their own companion packages, which register into the Plugins
- * page; this section owns the Settings navigation entry and the tab chrome
- * only.
+ * live in their own companion packages. This section also contributes the
+ * shared GEO account card while its Host configuration is available.
  */
 
 // Type-only: pulls the locale plugin's Context merge (ctx.locale).
@@ -19,6 +18,8 @@ import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
 import { PluginsSettingsSection } from './PluginsSettingsSection.tsx'
 import type { PluginsSettingsSectionInjected, PluginsSettingsTabEntry } from './PluginsSettingsSection.tsx'
 import { en, ja, es, fr, de, ru, pt, zh } from './locales.ts'
+import { GeoAdminCard } from './GeoAdminCard.tsx'
+import { GEO_ADMIN_NS, GeoAdminCardController, type GeoAdminSettings } from './geo-admin-card-controller.ts'
 
 export type { PluginsSettingsSectionInjected, PluginsSettingsSectionProps } from './PluginsSettingsSection.tsx'
 
@@ -35,6 +36,18 @@ export const inject = ['slots', 'locale']
 export function apply(ctx: ClientContext): void {
   const t = ctx.locale.bind(NS)
   ctx.effect(() => ctx.locale.register(NS, { zh, en, ja, es, fr, de, ru, pt }), 'ui-settings-plugins: section dictionaries')
+
+  ctx.inject(['configForms', 'remote'], (ctx) => {
+    const card = new GeoAdminCardController(ctx.configForms.get<GeoAdminSettings>(GEO_ADMIN_NS), ctx)
+    ctx.effect(() => ctx.remote.$on('credentials/reference-updated', (ref) => {
+      card.refreshCredential(ref)
+    }), 'ui-settings-plugins: geo password status')
+    ctx.effect(() => ctx.configForms.whileServed([GEO_ADMIN_NS], () =>
+      ctx.slots.inject('settings.plugins.tab', () => ctx.slots.register({
+        name: 'settings.plugins.tab', id: GEO_ADMIN_NS, order: 10,
+        label: () => t('geoTitle'), locale: NS, inject: () => card.inject(),
+      }, GeoAdminCard))), 'ui-settings-plugins: geo account card')
+  })
 
   let tabsVersion = -1
   let tabsRevision = -1

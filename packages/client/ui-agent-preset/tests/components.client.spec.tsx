@@ -29,7 +29,7 @@ const ROSTER_READY: AgentPresetSettingsState = {
 }
 
 const SEAT_OPTIONS: AgentPresetSeatState['options'] = [
-  { id: 'standard', name: '标准模式', description: '完整的编码 agent。' },
+  { id: 'standard' },
   { id: 'mine' },
 ]
 
@@ -68,6 +68,7 @@ function renderSeat(
   const developerTools = createSnapshotStore(enabled)
   const actions = {
     load: vi.fn(() => Promise.resolve()), select: vi.fn(select), introduced: vi.fn(),
+    openExperts: vi.fn(),
     dismissRefusal: vi.fn((error: AgentPresetSeatState['error']) => {
       if (store.getSnapshot().error === error && error !== null && typeof error === 'object') {
         store.set({ ...store.getSnapshot(), error: error.reason })
@@ -109,52 +110,21 @@ function renderLabel(
 }
 
 describe('the new-session chip', () => {
-  it.each([false, true])('offers Standard, Creator and custom presets with Developer tools %s', (enabled) => {
-    const actions = renderSeat({ options: [
-      { id: 'standard' }, { id: 'ptc' }, { id: 'minimal' }, { id: 'cordis' }, { id: 'mine' },
-    ] }, undefined, undefined, enabled)
-
-    fireEvent.click(screen.getByRole('button'))
-    expect(screen.getAllByRole('menuitem')).toHaveLength(enabled ? 5 : 3)
-    expect(screen.getByRole('menuitem', { name: /^Standard mode/ })).toBeTruthy()
-    expect(screen.getByRole('menuitem', { name: /^mine/ })).toBeTruthy()
-    expect(screen.queryByRole('menuitem', { name: /^PTC mode/ }) !== null).toBe(enabled)
-    expect(screen.queryByRole('menuitem', { name: /^Minimal mode/ }) !== null).toBe(enabled)
-    fireEvent.click(screen.getByRole('menuitem', { name: /^Creator mode/ }))
-    expect(actions.select).toHaveBeenCalledWith('cordis')
-  })
-
-  it('keeps a named custom preset that overrides a development preset id', () => {
-    renderSeat({ options: [{ id: 'ptc', name: 'My workflow' }] }, undefined, undefined, false)
-    fireEvent.click(screen.getByRole('button'))
-    expect(screen.getByRole('menuitem', { name: /^My workflow/ })).toBeTruthy()
-  })
-
-  it('keeps the current mode visible without opening a picker when all options are hidden', () => {
-    const actions = renderSeat({ current: 'minimal', options: [{ id: 'ptc' }, { id: 'minimal' }] }, undefined, undefined, false)
-    const trigger = screen.getByRole<HTMLButtonElement>('button', { name: en.presetMinimalName })
-    expect(trigger.disabled).toBe(true)
-    fireEvent.click(trigger)
-    expect(trigger.getAttribute('aria-expanded')).toBe('false')
-    expect(screen.queryByRole('menu')).toBeNull()
+  it('opens the experts page and does not stage a preset from the chip', () => {
+    const actions = renderSeat()
+    fireEvent.click(screen.getByRole('button', { name: en.presetStandardName }))
+    expect(actions.openExperts).toHaveBeenCalledOnce()
     expect(actions.select).not.toHaveBeenCalled()
+    expect(screen.queryByRole('menu')).toBeNull()
   })
 
-  it('closes a picker when its last visible option disappears and keeps it closed when options return', () => {
-    const options = [{ id: 'minimal' }, { id: 'mine' }]
-    const actions = renderSeat({ current: 'minimal', options }, undefined, undefined, false)
-    const trigger = screen.getByRole<HTMLButtonElement>('button', { name: en.presetMinimalName })
-    fireEvent.click(trigger)
-    expect(screen.getByRole('menuitem', { name: /^mine/ })).toBeTruthy()
-    act(() => { actions.store.set({ ...actions.store.getSnapshot(), options: [{ id: 'ptc' }, { id: 'minimal' }] }) })
-    expect(trigger.disabled).toBe(true)
-    expect(trigger.getAttribute('aria-expanded')).toBe('false')
-    expect(screen.queryByRole('menu')).toBeNull()
-    act(() => { actions.store.set({ ...actions.store.getSnapshot(), options }) })
-    expect(trigger.disabled).toBe(false)
-    expect(trigger.getAttribute('aria-expanded')).toBe('false')
-    expect(screen.queryByRole('menu')).toBeNull()
-    expect(actions.select).not.toHaveBeenCalled()
+  it('keeps a named preset visible and still opens the experts page', () => {
+    const actions = renderSeat({
+      current: 'ptc',
+      options: [{ id: 'ptc', name: 'My workflow' }],
+    }, undefined, undefined, false)
+    fireEvent.click(screen.getByRole('button', { name: 'My workflow' }))
+    expect(actions.openExperts).toHaveBeenCalledOnce()
   })
 
   it('renders only for a Session retained by the main view', () => {
@@ -176,33 +146,6 @@ describe('the new-session chip', () => {
     expect(screen.getByRole('button').getAttribute('title')).toBe(en.seatHint)
   })
 
-  it('offers each preset with what it is for', () => {
-    renderSeat()
-
-    fireEvent.click(screen.getByRole('button'))
-
-    // The id alone never said what a preset does; the description is the
-    // whole reason a preset can publish metadata at all.
-    expect(screen.getByText(en.presetStandardDescription)).toBeTruthy()
-    // A preset that published none still reads as a row, with its id standing
-    // in for the name.
-    expect(screen.getByText(en.noDescription)).toBeTruthy()
-    expect(screen.getByText('mine')).toBeTruthy()
-  })
-
-  it('closes the picker immediately when developer tools turn off without changing the staged preset', () => {
-    const actions = renderSeat()
-    fireEvent.click(screen.getByRole('button'))
-    expect(screen.getByText(en.presetStandardDescription)).toBeTruthy()
-    act(() => { actions.developerTools.set(false) })
-    expect(screen.getByRole('button').getAttribute('aria-expanded')).toBe('false')
-    expect(screen.queryByText(en.presetStandardDescription)).toBeNull()
-    expect(actions.select).not.toHaveBeenCalled()
-    act(() => { actions.developerTools.set(true) })
-    expect(screen.getByRole('button').getAttribute('aria-expanded')).toBe('false')
-    expect(screen.getByRole('button').textContent).toContain(en.presetStandardName)
-  })
-
   it('falls back to the id when the staged preset published no name', () => {
     renderSeat({ current: 'mine' })
 
@@ -215,31 +158,19 @@ describe('the new-session chip', () => {
     expect(screen.getByRole('button').textContent).toContain('arriving')
     // Nothing on the roster names it, so the hint says as much instead of
     // claiming a preset that is not there.
-    expect(screen.getByRole('button').getAttribute('title'))
-      .toBe(translate('seatUnknownHint', { id: 'arriving' }))
+    expect(screen.getByRole('button').getAttribute('title')).toBe(en.seatHint)
   })
 
-  it('names a composition the menu cannot offer and says where it came from', () => {
-    // An expert is hired from the market rather than picked here, so the chip
-    // shows a preset its own menu has no row for.
+  it('names a market-hired composition like any staged preset', () => {
+    // A hire from the expert market stages through this seat, so the chip
+    // names the expert the same way it names a mode picked on the spot.
     renderSeat({
       current: 'geo-optimizer',
       currentPreset: { id: 'geo-optimizer', name: 'GEO 优化专家' },
     })
 
     expect(screen.getByRole('button').textContent).toContain('GEO 优化专家')
-    expect(screen.getByRole('button').getAttribute('title'))
-      .toBe(translate('seatExpertHint', { name: 'GEO 优化专家' }))
-  })
-
-  it('stages the picked preset and closes the menu', () => {
-    const actions = renderSeat()
-    fireEvent.click(screen.getByRole('button'))
-
-    fireEvent.click(screen.getByText('mine'))
-
-    expect(actions.select).toHaveBeenCalledWith('mine')
-    expect(screen.getByRole('button').getAttribute('aria-expanded')).toBe('false')
+    expect(screen.getByRole('button').getAttribute('title')).toBe(en.seatHint)
   })
 
   it('disables the trigger while a switch is in flight', () => {
@@ -264,14 +195,6 @@ describe('the new-session chip', () => {
     expect(screen.queryByRole('button')).toBeNull()
   })
 
-  it('closes on an outside dismissal', () => {
-    renderSeat()
-    fireEvent.click(screen.getByRole('button'))
-
-    fireEvent.keyDown(document, { key: 'Escape' })
-
-    expect(screen.getByRole('button').getAttribute('aria-expanded')).toBe('false')
-  })
 })
 
 describe('a refused switch', () => {
@@ -308,13 +231,10 @@ describe('a refused switch', () => {
     }
   })
 
-  it('says nothing when the switch lands', async () => {
+  it('says nothing when the chip opens the experts page', () => {
     const actions = renderSeat()
-
     fireEvent.click(screen.getByRole('button'))
-    fireEvent.click(screen.getByRole('menuitem', { name: /mine/ }))
-
-    await waitFor(() => { expect(actions.select).toHaveBeenCalledWith('mine') })
+    expect(actions.openExperts).toHaveBeenCalledOnce()
     expect(screen.queryByRole('alert')).toBeNull()
   })
 })
@@ -361,7 +281,7 @@ describe('the chip introduce cue', () => {
     vi.useFakeTimers()
     renderSeat({
       current: 'creator',
-      options: [{ id: 'creator', name: '创造模式' }],
+      options: [{ id: 'creator', name: '创造专家' }],
       introduce: true,
     })
 

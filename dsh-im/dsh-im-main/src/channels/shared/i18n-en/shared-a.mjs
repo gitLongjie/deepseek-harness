@@ -101,6 +101,8 @@ export default {
     'The reply was generated, but this channel could not send it. Please try again later.',
   '当前消息包含无法处理的图片或文件。请调整后重新发送。':
     'This message contains an image or file that cannot be processed. Adjust it and send it again.',
+  '本次任务所需的工具暂时不可用，任务未完成。请重试；若持续发生，请将参考号提供给管理员。':
+    'A tool this task needs is unavailable, so the task did not finish. Try again; if it persists, give the reference ID to an administrator.',
   '任务未完成，暂时无法确定原因。请重试；若持续发生，请将参考号提供给管理员。':
     'The task did not finish and the cause could not be determined. Try again; if it persists, give the reference ID to an administrator.',
   '错误码：{code}；参考号：{referenceId}': 'Error code: {code}; reference: {referenceId}',

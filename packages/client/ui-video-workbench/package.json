@@ -43,8 +43,8 @@
     "@deepseek-ai/cordis": "workspace:^"
   },
   "devDependencies": {
-    "@deepseek-ai/dsh-api-session-controller": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
+    "@deepseek-ai/dsh-api-session-controller": "workspace:^",
     "@deepseek-ai/dsh-client-locale": "workspace:^",
     "@deepseek-ai/dsh-client-test-runtime": "workspace:^",
     "@deepseek-ai/dsh-client-ui-layout": "workspace:^",
@@ -55,11 +55,16 @@
     "@deepseek-ai/dsh-session": "workspace:^",
     "@deepseek-ai/dsh-video-workbench": "workspace:^",
     "@types/react": "~18.3.1",
+    "@types/three": "^0.187.0",
     "react": "^18.2.0"
   },
   "files": [
     "lib/index.js",
     "lib/client.js",
     "lib/types/**/*.d.ts"
-  ]
+  ],
+  "dependencies": {
+    "@deepseek-ai/dsh-util-crypto": "workspace:*",
+    "three": "^0.187.0"
+  }
 }

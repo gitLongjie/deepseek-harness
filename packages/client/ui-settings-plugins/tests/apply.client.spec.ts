@@ -8,6 +8,7 @@ import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { apply, inject } from '@deepseek-ai/dsh-client-ui-settings-plugins/client'
 import type { PluginsSettingsSectionInjected } from '@deepseek-ai/dsh-client-ui-settings-plugins/client'
 import { apply as hostApply } from '../src/index.ts'
+import { stubConfigForm } from '@deepseek-ai/dsh-client-test-runtime'
 
 // These specs assert the shipped Chinese copy. The lane has no jsdom `window`,
 // so browser-language detection never runs and a fresh LocaleRuntime opens on
@@ -31,6 +32,30 @@ function declareRoot(slots: SlotRegistry): () => void {
 }
 
 describe('ui-settings-plugins apply', () => {
+  it('restores the account form as a tab when the host serves geo-admin', async () => {
+    const { ctx, slots } = await bench()
+    const form = stubConfigForm()
+    form.publish({ status: 'ready', writable: true, value: {}, base: {}, user: {} })
+    const describe = vi.fn(async () => ({ ok: true, value: {} }))
+    ctx.provide('configForms', {
+      get: () => form.scope,
+      whileServed: (_namespaces: string[], register: (served: Set<string>) => () => void) => register(new Set(['geo-admin'])),
+    } as never)
+    ctx.provide('remote', {
+      credentials: { describe },
+      $on: () => () => {},
+    } as never)
+    declareRoot(slots)
+    const fiber = ctx.plugin({ inject: [...inject], apply })
+    await fiber.await()
+    await vi.waitFor(() => {
+      expect(slots.entries('settings.plugins.tab').map(entry => entry.options.id)).toEqual(['geo-admin'])
+    })
+    expect(describe).toHaveBeenCalledWith(['GEO_ADMIN_PASSWORD'])
+    await fiber.dispose()
+    expect(slots.entries('settings.plugins.tab')).toHaveLength(0)
+  })
+
   it('keeps the host Loader entry inert', () => {
     expect(hostApply).not.toThrow()
   })

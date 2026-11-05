@@ -1,6 +1,6 @@
 - banner:
   - navigation "Session hierarchy": Use web_search once with queries
-  - text: Standard mode
+  - text: Standard expert
   - button "More actions"
   - button "Open right sidebar"
   - tablist:

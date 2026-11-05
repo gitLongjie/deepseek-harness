@@ -8,6 +8,7 @@ import { TestRemote } from '@deepseek-ai/dsh-client-test-runtime'
 import { apply, inject } from '../src/client/index.ts'
 import { LoginGate } from '../src/client/LoginGate.tsx'
 import { SidebarAccount } from '../src/client/SidebarAccount.tsx'
+import { GatewayAccountSection } from '../src/client/GatewayAccountSection.tsx'
 
 // The lane has no jsdom `window`, so a fresh LocaleRuntime opens on
 // FALLBACK_LOCALE (en); the bench stages zh explicitly instead.
@@ -53,6 +54,7 @@ function declare(slots: SlotRegistry): () => void {
     children: {
       'shell.overlay': { kind: 'list', scope: 'root' },
       'settings.launcher': { kind: 'single', scope: 'root' },
+      'settings.section': { kind: 'list', scope: 'root' },
     },
   } as never, () => null)
 }
@@ -109,6 +111,46 @@ describe('ui-login apply', () => {
     expect(other().controller).toBe(face.controller)
     expect(other().brandIcon).toBe('/brand/oem-login.svg')
     expect(other().t('tagline')).toBe('配置的登录副标题')
+  })
+
+  it('shadows the account section with the gateway page only while a session lives', async () => {
+    vi.stubEnv('DSH_CLIENT_LOGIN_URL', 'https://claw.deepagens.com/api/claw/login')
+    const subject = await bench()
+    declare(subject.slots)
+    await subject.ctx.plugin({ inject: [...inject], apply }).await()
+    // Signed out: no gateway section at all.
+    expect(subject.slots.entries('settings.section')).toHaveLength(0)
+    const face = (subject.slots.entries('settings.launcher')[0]!
+      .inject as unknown as () => import('../src/client/SidebarAccount.tsx').SidebarAccountInjected)()
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (url === 'https://claw.deepagens.com/api/claw/login') {
+        return Promise.resolve(new Response(
+          JSON.stringify({ success: true, data: { display_name: '杰哥', avatar: null, api_key: 'sk-9' } }),
+          { status: 200 },
+        ))
+      }
+      if (url.includes('billing/')) {
+        return Promise.resolve(new Response(JSON.stringify({ hard_limit_usd: 10 }), { status: 200 }))
+      }
+      return Promise.resolve(new Response('[]', { status: 200 }))
+    }))
+    await expect(face.controller.login('jiege', 'pw')).resolves.toBe(true)
+    const sections = subject.slots.entries('settings.section')
+    expect(sections).toHaveLength(1)
+    expect(sections[0]!.component).toBe(GatewayAccountSection)
+    expect(sections[0]!.options).toMatchObject({ id: 'account', priority: -1, order: -10 })
+    const injected = sections[0]!.inject as unknown as () => { t: (key: string) => string }
+    expect(injected().t('accountNav')).toBe('账号与余额')
+    // The list cell renders its lowest-priority live entry: alongside an
+    // upstream `account` registration the gateway page wins, and after
+    // sign-out the upstream page serves the cell again.
+    subject.slots.register({ name: 'settings.section', id: 'account' }, () => null)
+    expect(subject.slots.entriesOfSlot('settings.section')[0]!.options.priority).toBe(-1)
+    face.controller.logout()
+    await Promise.resolve()
+    expect(subject.slots.entries('settings.section')).toHaveLength(1)
+    expect(subject.slots.entriesOfSlot('settings.section')[0]!.options.priority ?? 0).toBe(0)
+    vi.unstubAllGlobals()
   })
 
   it('writes the issued key under the gateway reference and leaves the DeepSeek key alone', async () => {

@@ -9,7 +9,7 @@ import {
   assertFinalWorkspaceSnapshot, assertFixtureInventory, captureExpandedTurnProcessAria, compareOrRefreshGolden,
   fixtureUserPrompts, launchWebScaffold, recordFixture, selectedSessionFixture, watchConsole, webSnapshotMode, type WebScaffold,
 } from './scaffold.ts'
-import { connectFreshWorkspace, newEnglishPage, saveFailureShot } from './support.ts'
+import { connectFreshWorkspace, hireExpert, newEnglishPage, saveFailureShot } from './support.ts'
 
 const DIR = fileURLToPath(new URL('../../../snapshots/web/optional-string-editor', import.meta.url))
 const FIXTURE = join(DIR, 'session.v4.jsonl')
@@ -39,9 +39,7 @@ describe('web snapshot: standalone string editor through PTC', () => {
     await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
     await page.waitForSelector('[class*="frame"]', { timeout: 30_000 })
     await connectFreshWorkspace(page, scaffold.workspaceCwd)
-    await page.getByRole('button', { name: 'Standard mode', exact: true }).click()
-    await page.getByRole('menuitem', { name: /^PTC mode/ }).click()
-    await page.getByRole('button', { name: 'PTC mode', exact: true }).waitFor({ state: 'visible' })
+    await hireExpert(page, 'PTC expert')
   })
 
   afterAll(async () => {

@@ -47,6 +47,8 @@ export interface ExpertRecord {
   readonly quickPrompts?: readonly string[]
   /** Curator badge beside the name, e.g. an invited-expert mark. */
   readonly badge?: string
+  /** Whether new tasks start with this expert until another default is chosen. */
+  readonly isDefault?: boolean
   /**
    * The roster's health verdict, present when the preset's composition cannot
    * mount. A broken expert's card stays on the page with its hire action
@@ -119,6 +121,12 @@ export type ExpertBrowserInjected = {
    * @returns the refusal message, or undefined once it was removed.
    */
   remove: (id: string) => Promise<string | undefined>
+  /**
+   * Save one expert as the default for new tasks and apply it to the current blank task.
+   * @param id - the preset id the card forwards.
+   * @returns the refusal message, or undefined once it landed.
+   */
+  makeDefault: (id: string) => Promise<string | undefined>
 }
 
 /** Full page props: owner share + injected actions + the locale seat. */

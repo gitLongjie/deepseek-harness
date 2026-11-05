@@ -60,7 +60,7 @@ export interface ModelsSectionInjected {
 type AddMode = 'catalog' | 'custom'
 
 /** The child slots this section declares and dispatches (see ./slot-contract.ts). */
-type ModelsChildSlots = 'settings.models.provider-card' | 'settings.models.footer'
+type ModelsChildSlots = 'settings.models.provider-card' | 'settings.models.sign-in' | 'settings.models.footer'
 
 /** The child-slot dispatch function the renderer binds for the section. */
 type ModelsRenderSlot = PropsRenderSlots<ModelsChildSlots>['renderSlot']
@@ -272,6 +272,8 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
   const [deleteFailure, setDeleteFailure] = useState<string | undefined>(undefined)
   const [savedTarget, setSavedTarget] = useState<ProviderIdentity | undefined>(undefined)
   const [dismissedSetup, setDismissedSetup] = useState<ReadonlySet<string>>(() => new Set())
+  /** User chose API-key setup for official DeepSeek instead of account sign-in. */
+  const [preferOfficialApiKey, setPreferOfficialApiKey] = useState(false)
 
   const announceSaved = (target: ProviderIdentity): void => {
     // Announced only once the refreshed directory is in the snapshot the
@@ -308,6 +310,7 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
    */
   const closeSetup = (changed: boolean, target: ProviderIdentity): void => {
     setDismissedSetup(previous => new Set([...previous, target.provider]))
+    setPreferOfficialApiKey(false)
     if (changed) announceSaved(target)
   }
 
@@ -437,19 +440,30 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
           if (needsSetup(row, anyUsable) && !dismissedSetup.has(row.entry.provider)) {
             // First-run posture: the provider exists but has no key — the
             // setup card IS its presence on the page, until the user closes it.
+            const setupEditor = renderProviderEditor({
+              target,
+              row,
+              namespace,
+              schema,
+              operations,
+              t,
+              readOnly: !state.writable,
+              onClose: (changed) => { closeSetup(changed, target) },
+            })
+            const setupBody = row.entry.provider === 'deepseek-official' && !preferOfficialApiKey
+              ? renderSlot(
+                'settings.models.sign-in',
+                {
+                  complete: () => { closeSetup(false, target) },
+                  useApiKey: () => { setPreferOfficialApiKey(true) },
+                },
+                { fallback: setupEditor },
+              )
+              : setupEditor
             return (
               <li key={row.entry.provider} className={styles['setupCard']}>
                 {error}
-                {renderProviderEditor({
-                  target,
-                  row,
-                  namespace,
-                  schema,
-                  operations,
-                  t,
-                  readOnly: !state.writable,
-                  onClose: (changed) => { closeSetup(changed, target) },
-                })}
+                {setupBody}
                 {renderSlot(
                   'settings.models.provider-card',
                   { provider: row.entry, configured: row.configured, keyConfigured: keyConfiguredOf(row) },
@@ -504,8 +518,10 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                       : null}
                 </span>
                 <span className={styles['rowActions']}>
-                  {/* The account catalog comes from the account listing; its model overrides live in settings.yaml. */}
-                  {row.entry.provider === 'deepseek-account'
+                  {/* The account catalog comes from the account listing; its model overrides live in
+                      settings.yaml. The gateway route's endpoint and catalog are the sign-in's own
+                      (login re-points them), so its card opens no editor either. */}
+                  {row.entry.provider === 'deepseek-account' || row.entry.provider === 'deepagens'
                     ? null
                     : (
                       <button

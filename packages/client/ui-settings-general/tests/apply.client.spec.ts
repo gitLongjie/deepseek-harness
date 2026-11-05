@@ -20,6 +20,7 @@ import { CloseLabel, HeaderContent, TriggerContent } from '../src/client/chrome.
 import { GeneralSection } from '../src/client/GeneralSection.tsx'
 import { SettingsDocumentAction } from '../src/client/SettingsDocumentAction.tsx'
 import type { SettingsDocumentActionInjected } from '../src/client/SettingsDocumentAction.tsx'
+import type { SettingsRootInjected } from '../src/client/shell-contract.ts'
 
 const SELF = '@deepseek-ai/dsh-client-ui-settings-general'
 const SIDEBAR = '@deepseek-ai/dsh-client-ui-sidebar'
@@ -124,6 +125,26 @@ describe('ui-settings-general apply', () => {
     for (const [name, component] of SEATS) {
       expect(c.ctx.slots.entries(name).find(row => row.component === component)!.locale).toBe(NS)
     }
+  }, COLD_BOOT_TIMEOUT_MS)
+
+  it('projects nav rows from the shadowing winners, not the raw ledger', async ({ mock, start }) => {
+    const { c } = await client(mock, start)
+    // A lower-priority entry over the Models cell shadows it: the panel outlet
+    // renders exactly the winners, so the nav must show one row — the
+    // winner's label — where the raw ledger would show two.
+    const disposeShadow = c.ctx.slots.register({
+      name: 'settings.section', id: 'models', order: 10, priority: -1, label: () => '阴影模型',
+    }, () => null)
+    onTestFinished(disposeShadow)
+    const shell = c.ctx.slots.entries('sidebar.settings')[0]!
+    const rows = (shell.inject as unknown as () => SettingsRootInjected)().hooks.sections.getSnapshot()
+    const modelRows = rows.filter(row => row.id === 'models')
+    expect(modelRows).toHaveLength(1)
+    expect(modelRows[0]!.label).toBe('阴影模型')
+    // The other sections keep their rows, and the projection stays order-sorted.
+    const generalRow = rows.find(row => row.id === 'general')!
+    expect(generalRow.label).toBe('通用设置')
+    expect([...rows].sort((a, b) => a.order - b.order)).toEqual(rows)
   }, COLD_BOOT_TIMEOUT_MS)
 
   it('reports a Coding Tools toggle only when a known value changes to the requested one', async ({ mock, start }) => {

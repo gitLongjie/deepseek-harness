@@ -40,6 +40,9 @@ test('message failures use verified turn-end provider codes without exposing pro
     ['STREAM_CLOSED', 'MODEL_STREAM'],
     ['EMPTY_RESPONSE', 'MODEL_EMPTY_REPLY'],
     ['CONTENT_FILTER', 'MODEL_CONTENT_REJECTED'],
+    ['ACCOUNT_QUOTA', 'MODEL_QUOTA'],
+    ['IMAGE_OFFLOAD_REQUIRED', 'MODEL_CONFIG'],
+    ['TOOL_ACTIVATION_FAILED', 'TOOL_UNAVAILABLE'],
   ]) {
     const failure = classifyMessageFailure({
       code: 'harness-turn-failed',
@@ -57,6 +60,23 @@ test('message failures use verified turn-end provider codes without exposing pro
   assert.equal(classifyMessageFailure({
     code: 'harness-turn-failed', providerCode: 'PRIVATE_PROVIDER_CODE',
   }, options).code, 'INTERNAL_UNKNOWN');
+});
+
+test('an unclassified turn failure keeps its provider code in the persisted reason', () => {
+  const unmapped = classifyMessageFailure({
+    code: 'harness-turn-failed',
+    providerCode: 'tool-activation-failed-v2',
+  }, options);
+  assert.deepEqual([unmapped.code, unmapped.reason], ['INTERNAL_UNKNOWN', 'TOOL_ACTIVATION_FAILED_V2']);
+
+  const mapped = classifyMessageFailure({
+    code: 'harness-turn-failed',
+    providerCode: 'RATE_LIMIT',
+  }, options);
+  assert.deepEqual([mapped.code, mapped.reason], ['MODEL_RATE_LIMIT', 'MODEL_RATE_LIMIT']);
+
+  const plain = classifyMessageFailure(new Error('secret-shaped internal detail'), options);
+  assert.deepEqual([plain.code, plain.reason], ['INTERNAL_UNKNOWN', 'INTERNAL_UNKNOWN']);
 });
 
 test('message failure text contains a safe code and traceable reference', () => {

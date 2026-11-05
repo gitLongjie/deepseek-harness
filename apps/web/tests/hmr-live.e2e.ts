@@ -94,10 +94,10 @@ it('hot-reloads a real client-plugin source edit without refreshing the page', a
     .map(async path => [path, await readFile(path)] as const))
   const originalClientArtifactPaths = new Set(originalClientArtifacts.map(([path]) => path))
   const originalSource = await readFile(sourcePath)
-  const oldText = 'Into the Realm of Wonder'
-  const sourceNeedle = "'hero.headline': 'Into the Realm of Wonder'"
+  const oldText = 'Choose workspace'
+  const sourceNeedle = "'hero.chooseWorkspace': 'Choose workspace'"
   const newText = `HMR UPDATED ${'x'.repeat(80)}`
-  const updatedSource = originalSource.toString().replace(sourceNeedle, `'hero.headline': '${newText}'`)
+  const updatedSource = originalSource.toString().replace(sourceNeedle, `'hero.chooseWorkspace': '${newText}'`)
   if (updatedSource === originalSource.toString()) throw new Error(`HMR source lacks ${JSON.stringify(sourceNeedle)}`)
 
   const subprocessCtx = new Context()

@@ -1,9 +1,9 @@
 /**
  * Keep unit suites from requesting the official DeepSeek model listing.
  *
- * The API-key and account routes request `GET https://api.deepseek.com/models` whenever they hold a
- * credential for the official endpoint, and suites routinely boot those routes with a dummy key or
- * inherit a developer's real one. Such a request would reach production and, on a network that never
+ * The account route requests `GET https://api.deepseek.com/models` whenever it holds a credential for
+ * the official endpoint. The API-key route does not. Suites routinely boot the account route with a
+ * stored login or inherit one. Such a request would reach production and, on a network that never
  * answers, hold the route's first catalog access for its whole listing deadline. Here it fails at once,
  * so the route serves its built-in catalog; a suite that exercises the listing replaces `fetch` itself.
  * @module

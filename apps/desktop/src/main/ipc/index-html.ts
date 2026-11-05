@@ -12,14 +12,11 @@
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
 import type { ClientModuleRegistry } from '@deepseek-ai/dsh-client-modules'
 import { renderIndexInjections, type IndexInjection } from '@deepseek-ai/dsh-host-webserver'
+import { resolveDesktopRenderTransportPath } from '../desktop-paths.ts'
 import { pluginBundleRequestUrl } from './loopback-authority.ts'
-
-/** The built render-transport IIFE, inlined ahead of the module-system queue. */
-const TRANSPORT_IIFE_PATH = fileURLToPath(new URL('../../render-transport.js', import.meta.url))
 const CLIENT_MODULES_ID = '@deepseek-ai/dsh-client-modules'
 const CLIENT_MODULES_BOOTSTRAP_PATH = createRequire(import.meta.url).resolve(`${CLIENT_MODULES_ID}/client`)
 
@@ -75,7 +72,7 @@ async function readPluginBundle(modules: ClientModuleRegistry, src: string): Pro
 export async function renderDesktopIndex(
   ctx: Context,
   webDistDir: string,
-  transportIifePath: string = TRANSPORT_IIFE_PATH,
+  transportIifePath: string = resolveDesktopRenderTransportPath(import.meta.url),
   clientModulesBootstrapPath: string = CLIENT_MODULES_BOOTSTRAP_PATH,
   writeLog?: (line: string) => void,
 ): Promise<string> {

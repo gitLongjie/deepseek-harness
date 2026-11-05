@@ -121,8 +121,8 @@ it.skipIf(process.platform !== 'darwin').each([
     expect(selected()).toContain('@deepseek-ai/dsh-cua-bundle')
     expect(profileManifest().dependencies).toEqual(dependencies)
     expect(await card.getByText('实验性', { exact: true }).count()).toBe(1)
-    expect(await card.textContent()).not.toContain('将 PTC 模式改为可持久化')
-    expect(await card.textContent()).toContain('请切换到 PTC 模式')
+    expect(await card.textContent()).not.toContain('将 PTC 专家改为可持久化')
+    expect(await card.textContent()).toContain('请切换到 PTC 专家')
     expect(await card.textContent()).toContain('Windows 支持正在开发中')
     expect(await card.textContent()).not.toContain('Swift')
     const description = await card.getByRole('button', { name: '查看 Computer Use', exact: true }).evaluate((button) => {

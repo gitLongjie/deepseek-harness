@@ -113,6 +113,7 @@ export function apply(ctx: ClientContext): void {
     inject: injected,
     children: {
       'settings.models.provider-card': { kind: 'keyed', scope: 'root' },
+      'settings.models.sign-in': { kind: 'single', scope: 'root' },
       'settings.models.footer': { kind: 'list', scope: 'root' },
     },
   }, ModelsSection))

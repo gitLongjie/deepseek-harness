@@ -18,15 +18,19 @@ import type { EntryOptions } from '@deepseek-ai/cordis-plugin-loader'
 import {
   boot,
   composeEntries,
+  createRuntimeResolution,
   installFailLoud,
   loadOptionalPatches,
   loadOverlayPatches,
   loadProfile,
+  PluginPackages,
   PROFILE_PATCH_FILENAME,
+  type Profile,
+  type ProfileContext,
 } from '@deepseek-ai/dsh-app-boot'
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import { DSH_LAUNCH_ENVIRONMENT_KEY, type LaunchEnvironmentSnapshot } from '@deepseek-ai/dsh-launch-environment'
-import { provideCmdline } from '@deepseek-ai/dsh-cmdline'
+import { createAppReady, provideCmdline } from '@deepseek-ai/dsh-cmdline'
 import { createProcessShutdown, type ProcessShutdown } from './process-shutdown.ts'
 
 const NAME = 'desktop'
@@ -54,18 +58,17 @@ const PROFILE_ROOT_CONFIG = `# dsh profile root — an empty entry list. The tre
 const TELEMETRY_ROW_ID = 'session-telemetry-otel'
 
 /**
- * Whether this boot runs in an open checkout and must therefore heal the
- * shared `$DSH_HOME/profiles/node_modules` farm. The branded dev executable
- * reports `app.isPackaged` like the installed build and receives a
+ * Whether this boot runs in an open checkout and must therefore ensure the
+ * repository-root plugin links. The branded dev executable reports
+ * `app.isPackaged` like the installed build and receives a
  * `bareModuleBaseUrl`, but its checkout is a real filesystem tree whose
- * preset roster resolves through the shared farm — skipping the heal there
- * leaves the farm stale whenever the checkout gains a package, and discovery
- * then reports every composition naming the new package unresolvable. Only a
- * closed archive skips the heal: links cannot reach inside app.asar, and that
- * runtime resolves bare plugins through the archive base instead. Segment
- * comparison so an `app.asar.unpacked` twin does not read as the archive.
+ * third-party plugin packages are resolvable only through the links
+ * {@link ensureRootPluginLinks} writes. Only a closed archive skips the work:
+ * links cannot reach inside app.asar, and that runtime resolves bare plugins
+ * through the archive base instead. Segment comparison so an
+ * `app.asar.unpacked` twin does not read as the archive.
  * @param bareModuleBaseUrl - the bare-module base URL this boot was given, if any.
- * @returns true when the boot must heal the shared farm.
+ * @returns true when the boot must ensure the root plugin links.
  */
 export function healsSharedModuleFallback(bareModuleBaseUrl: string | undefined): boolean {
   return bareModuleBaseUrl === undefined
@@ -324,6 +327,22 @@ export function resolveTelemetryPatch(disabledEnv: string | undefined, hasRow: b
   return { id: TELEMETRY_ROW_ID, disabled: true }
 }
 
+/** The product analytics rows the web-app bundle inserts for the desktop surface. */
+const PRODUCT_ANALYTICS_ROW_IDS = ['desktop-product-telemetry', 'product-analytics'] as const
+
+/**
+ * Resolve the development switch into patches muting product analytics. A
+ * development session's activity is not product data, and the branded dev
+ * executable is the only place `DSH_DESKTOP_DEV` is set; installed builds keep
+ * the composition's own desktop rows.
+ * @param devEnv - the raw `DSH_DESKTOP_DEV` value (`undefined` when unset).
+ * @returns one disable patch per analytics row, empty outside development.
+ */
+export function resolveDevAnalyticsPatches(devEnv: string | undefined): PatchOptions[] {
+  if (devEnv !== '1') return []
+  return PRODUCT_ANALYTICS_ROW_IDS.map(id => ({ id, disabled: true }))
+}
+
 /**
  * Resolve the market anchor handoff into its boot patch. The packaged shell's
  * app package sits at the asar root, off every Node search path, so
@@ -336,6 +355,32 @@ export function resolveTelemetryPatch(disabledEnv: string | undefined, hasRow: b
 export function resolveMarketAnchorPatch(hasRow: boolean, installAnchor: string): PatchOptions | undefined {
   if (!hasRow) return undefined
   return { id: 'market-local', config: { installAnchor } }
+}
+
+/**
+ * Launcher facts for the in-process desktop Host. The tree loads the web
+ * profile bundles from the web profile directory, but `name` is `desktop` so
+ * composition rows keyed on the desktop surface activate and profile-backed
+ * services (`configEditor`, `settings`) mount.
+ * @param profile - the loaded web profile tree this boot composes.
+ * @param overlays - boot-time patches applied above bundle and user layers.
+ * @returns the context every profile-scoped service reads through `ctx.profileContext`.
+ */
+export function createDesktopProfileContext(
+  profile: Profile,
+  overlays: readonly PatchOptions[],
+): ProfileContext {
+  return {
+    name: 'desktop',
+    dir: profile.dir,
+    patchPath: profile.patchPath,
+    installAnchor: INSTALL_ANCHOR,
+    startedBundles: profile.layers.map(layer => layer.packageName),
+    cwd: process.cwd(),
+    home: resolveDshHome(),
+    overlays,
+    telemetryDisabledEnv: process.env.DSH_TELEMETRY_DISABLED,
+  }
 }
 
 /** Options for {@link runDesktopBoot}. */
@@ -368,16 +413,14 @@ export interface DesktopBootResult {
  * @returns the settled root context and the shutdown controller.
  */
 export async function runDesktopBoot(options: DesktopBootOptions): Promise<DesktopBootResult> {
-  // The shared module-fallback heal (junction farm repair for sibling-checkout
-  // overwrites) is disabled: the upstream app-boot rework removed the
-  // installation-module-link introspection it was built on.
-  // FIXME(host-module-fallback): re-port the heal onto the upstream
-  // profile-resolution service or inline the link enumeration here.
-  if (healsSharedModuleFallback(options.bareModuleBaseUrl)) {
-    console.warn('desktop: shared module-fallback heal is disabled after the upstream merge; a sibling checkout may have overwritten $DSH_HOME/profiles links')
-    ensureRootPluginLinks()
-  }
+  if (healsSharedModuleFallback(options.bareModuleBaseUrl)) ensureRootPluginLinks()
   const profile = loadProfile(NAME, 'web', INSTALL_ANCHOR)
+  // Preset subtrees and nested Includes resolve bare plugin names from the
+  // profile directory, where only the (unmaintained) shared farm walk stands
+  // between a composition and an unresolvable package. The runtime resolution
+  // supplies installation- and profile-scope packages to Node's resolvers the
+  // same way the CLI does; see the plugin(PluginPackages) mount below.
+  const resolution = await createRuntimeResolution({ installAnchor: INSTALL_ANCHOR, profile })
   // The root is always rewritten: the whole composition is patch layers, and
   // the vendored Loader's tree write-back can bake composed rows into this file.
   writeFileSync(join(profile.dir, PROFILE_ROOT_FILENAME), PROFILE_ROOT_CONFIG)
@@ -394,6 +437,7 @@ export async function runDesktopBoot(options: DesktopBootOptions): Promise<Deskt
     name: '@deepseek-ai/cordis-plugin-include',
     config: { path: SHIPPED_PRESETS },
   }] })
+  overlays.push(...resolveDevAnalyticsPatches(process.env.DSH_DESKTOP_DEV))
   // A patch's config replaces the row's config wholesale, so the market anchor
   // rides on the row's own composed config.
   const marketAnchorPatch = resolveMarketAnchorPatch(rows.has('market-local'), INSTALL_ANCHOR)
@@ -433,12 +477,21 @@ export async function runDesktopBoot(options: DesktopBootOptions): Promise<Deskt
 
   const rootConfig = join(profile.dir, PROFILE_ROOT_FILENAME)
   const allPatches = [...bundlePatches, ...profile.patches, ...homePatches, ...overlays]
-  const ctx = await boot(NAME, rootConfig, structuredClone(allPatches), (hostCtx) => {
+  const profileContext = createDesktopProfileContext(profile, overlays)
+  const appReady = createAppReady()
+  const ctx = await boot(NAME, rootConfig, structuredClone(allPatches), async (hostCtx) => {
     app.current = hostCtx
+    hostCtx.provide('profileContext', profileContext)
     hostCtx.provide(DSH_LAUNCH_ENVIRONMENT_KEY, options.environment)
+    // Before any config-tree entry mounts, so every plugin import routes
+    // through the computed resolution rather than the shared farm walk.
+    await hostCtx.plugin(PluginPackages, { resolution })
     provideCmdline(hostCtx, {
       args: options.args,
       exit: code => void shutdown.shutdown(code),
+      // Profile-scoped entries (the `hmr` row) hold startup work until the
+      // launcher commits this signal.
+      ready: appReady.service,
       // The desktop boots the web profile; profile-scoped services (the
       // plugin market) resolve the profile they manage from this fact.
       profile: 'web',
@@ -447,9 +500,11 @@ export async function runDesktopBoot(options: DesktopBootOptions): Promise<Deskt
   app.current = ctx
 
   // Config-only HMR for the live profile/home patch layers, mirroring the CLI
-  // surface: the web bundle disables the shared `hmr` row, so mount a
-  // watch-only instance with no module roots when the composition left none.
+  // surface: the composition's own `hmr` row reloads profile patch files once
+  // readiness commits; mount a watch-only instance with no module roots when
+  // the composition left none.
   if (ctx.fiber.state === FiberState.ACTIVE && ctx.get('loader') !== undefined) {
+    appReady.commit()
     // FIXME(host-patches): user-patch hot reload (the upstream-removed
     // watchUserPatches) is disabled; committed patch edits now apply on the
     // next launch. The hmr/timer plugins stay available for entry-level HMR.

@@ -20,3 +20,9 @@
 # lives only on the dev webserver, so the browser row stays disabled here.
 - id: client-hmr
   disabled: true
+# This deployment signs users into the Claw gateway (the `deepagens` route,
+# named by the OEM gatewayProviderName); the official DeepSeek account route
+# has no sign-in surface here, so its row stays off the directory, the Models
+# page, and the model catalog.
+- id: llm-deepseek-account
+  disabled: true

@@ -38,5 +38,6 @@ it('loads all four desktop experts with their card metadata and preset-local com
   expect(presets.every(row => row.name && row.quickPrompts?.length)).toBe(true)
   expect(presets.find(row => row.id === 'geo-optimizer')).toMatchObject({ subtitle: '喵工作台 官方', badge: '官方', icon: '🔍', avatar: expect.any(String) as string })
   expect(skillRoots).toContain(fileURLToPath(new URL('../config/agent-presets/geo-optimizer/skills/', import.meta.url)))
+  expect(skillRoots).toContain(fileURLToPath(new URL('../config/agent-presets/h3-video-director/skills/', import.meta.url)))
   expect(presets).toMatchSnapshot()
 })

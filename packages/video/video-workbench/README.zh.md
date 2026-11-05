@@ -22,7 +22,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-把本包作为宿主插件加载（web-app bundle 已携带）。配置只有一个可选字段：
+把本包作为宿主插件加载（web-app bundle 已携带）。配置支持输出目录和作品大小限制：
 
 ```yaml
 - id: video-workbench
@@ -43,7 +43,7 @@ kind: "package-reference"
 - [`src/trash.ts`](src/trash.ts) 拥有两种删除：按 id 前缀发现项目工件，以及一个计划素材连同它记录的图片，未被共享的文件移进 `video-trash`，计划则在不含该素材的情况下重写。其他计划的素材或分镜直接引用、同一计划保留的素材或分镜，以及项目资产库仍引用的文件保留原位。删除素材时，回收目录也会保存原计划；写入失败会恢复已移动的文件。其他引用文档无法读取时，删除会失败，因为无法确认其中的素材引用。
 - [`src/index.ts`](src/index.ts) 经 `ctx.effect` 把四条路由注册到 Connection 的精确 Fetch 注册表，路由行的存活期与插件一致。
 
-**运行时不变量：** 不发布 companion。两条路由每次请求都读取输出目录，不持有跨请求状态，因此没有被拥有的关系可供 companion 观察。
+**运行时不变量：** 不发布 companion。作品存储校验集合 id、图谱端点、版本和片段时长；同一实例拒绝同一作品的并发导出。
 
 <a id="model-experience"></a>
 ## Model Experience
@@ -52,15 +52,15 @@ kind: "package-reference"
 
 #### What the model sees
 
-什么都看不到。工作台不注册工具、不发会话事件；模型循环不知道它的存在。浏览器页面是 `GET /api/video-workbench/projects` 与 `GET /api/video-workbench/file` 的唯一消费者。
+宿主提供 `ctx.videoWorkbenchStudio`。智能体侧 `@deepseek-ai/dsh-video-workbench/tools` 注册读取、保存和导出工具。读取返回作品 JSON，保存返回 id 和 revision，导出返回媒体路径、时长及源版本。工具参数和结果按标准会话机制记录；界面修改保存在作品文件中。
 
 #### Token effect
 
-无影响：路由是对浏览器的只读 HTTP 应答，从不进入模型请求或会话记录；`plans/*.json` 的扫描发生在宿主进程内。
+读取作品会将正文和工程集合写入工具结果。目录读取只返回摘要，保存和导出只返回简短元数据。纯 HTTP 编辑不产生模型消息。
 
 #### KV Cache effect
 
-无影响：本包不添加系统提示文本，也没有逐请求前缀。
+工具入口添加稳定工具定义，宿主入口不添加提示文本。
 
 <a id="known-limitations-and-deferred-work"></a>
 ## Known Limitations and Deferred Work
@@ -80,3 +80,7 @@ kind: "package-reference"
 路由经 `ctx.effect` 注册到 Connection 的精确 Fetch 注册表，行存活期与插件一致；只注册在 web-server 上的路由能应答浏览器，却永远应答不了桌面外壳——后者把 `/api` 走同一张注册表分发。文件服务的包含性检查顺序是：段白名单 → 扩展白名单 → `realpath` 双端解析 → `relative` 复查；调整任何一步前先读 `tests/workbench.spec.ts` 里对应的拒绝用例，载体分发读 `tests/transport.spec.ts`。双语对的 ToC 锚点必须保持英文 slug，两侧链接才会一致。
 
 </details>
+
+作品编写使用 `GET /api/video-workbench/studio`（目录或 `?id=` 文档）和 `POST`（`{content}` 新建；`{id,revision,content}` 保存）。内容包括 `title`、`source`、有序 `blocks`、画布卡片、图谱节点与边、导演场景以及剪辑轨道。不可覆盖的版本位于 `studio/<id>/<revision>.json`。旧版本保存返回 409；损坏或不支持的文档返回 422 并保留原文件。`maxStudioBytes` 默认 2 MiB。原子发布依赖文件系统硬链接；存储失败不改变已有版本。宿主为模型侧工具提供同一个 `ctx.videoWorkbenchStudio` 所有者；生成计划保持独立工件。
+
+剪辑导出使用 `POST /api/video-workbench/studio/export`，请求为 `{id,revision}`。固定版本在独立目录中渲染，后轨视频覆盖前轨、音频混合、字幕片段名称作为 MP4 可选字幕。源路径经过受控媒体解析，入点及片段长度不能超出探测到的媒体时长。失败仅删除此次导出的临时输出，不改已有版本；取消会终止子进程。`studioRender` 配置包含 `ffmpegPath`、`ffprobePath`、`timeoutMs`（300000）、`maxDurationSeconds`（600）、`maxClips`（64）、`width`（1280）、`height`（720）和 `fps`（30），宽高必须是偶数整数。默认从 PATH 查找 FFmpeg 和 FFprobe。

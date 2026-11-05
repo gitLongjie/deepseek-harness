@@ -28,6 +28,8 @@ describe('desktop builder identity', () => {
   it('ships the product name used by the native shell', () => {
     expect(config).toMatch(/^appId:\s*com\.meowwork\.app\s*$/m)
     expect(config).not.toMatch(/^productName:/m)
+    expect(config).toMatch(/^  shortcutName:\s*\$\{productName\}\s*$/m)
+    expect(config).toMatch(/^  uninstallDisplayName:\s*\$\{productName\}\s*$/m)
     expect(config).not.toContain('miaoWorks')
   })
 

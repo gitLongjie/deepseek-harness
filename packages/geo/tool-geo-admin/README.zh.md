@@ -20,15 +20,16 @@ kind: "package-reference"
 - [已知限制与后续工作](#known-limitations-and-deferred-work)
 - [开发备注](#dev-note)
 
+<a id="use-this-package"></a>
 ## 使用本包
 
 包有两个入口：
 
 - `.`——面向模型的工具。预设把它和 persona 挂在一起；工具注册进该会话的 `tools` 注册表。
-- `./settings`——注册 `geo-admin` 命名空间并发布实时视图的**宿主**行。`settings.register` 是每进程一次的所有权注册，预设绝不能挂它。
+- `./settings`——注册 `geo-admin` 命名空间并发布实时视图的**宿主**行。该行只在宿主挂载一次，其 volatile Config 字段可通过当前 profile 编辑。
 
 ```yaml
-- id: geo-admin-settings
+- id: geo-admin
   name: '@deepseek-ai/dsh-tool-geo-admin/settings'
   config:
     baseUrl: http://localhost:8001
@@ -38,12 +39,14 @@ kind: "package-reference"
   name: '@deepseek-ai/dsh-tool-geo-admin'
 ```
 
-组合配置是基础层，设置页保存的值覆盖它。启动环境可以用 `GEO_ADMIN_BASE_URL` / `GEO_ADMIN_USERNAME` 提供这个基值，环境里的 `GEO_ADMIN_PASSWORD` 也满足凭据引用。
+组合配置是基础层，设置页保存的值覆盖它。启动环境里的 `GEO_ADMIN_PASSWORD` 也满足凭据引用。
 
+<a id="tools"></a>
 ## 工具
 
 | 工具 | 作用 |
 |---|---|
+| `geo_configure` | 检查缺失配置或保存用户提供的账号字段，不发起网络请求。 |
 | `geo_sites_list` | 账号可发布的站点（`id`、`name`、`domain`、`code`、`role`）。 |
 | `geo_news_list` | 一页文章，可按站点、栏目、关键词或发布状态过滤。 |
 | `geo_article_get` | 按 id 读一篇落库文章。 |
@@ -60,6 +63,7 @@ kind: "package-reference"
 
 新建不会重试：后台的 `POST /api/v1/news` 没有幂等键，盲重试会重复建文章。删除同样不重试：它的拒绝（存在投稿或投放记录）是需要用户处理的状态。
 
+<a id="settings-and-credentials"></a>
 ## 设置与凭据
 
 | 字段 | 含义 |
@@ -68,17 +72,20 @@ kind: "package-reference"
 | `username` | 工具登录的账号；需要在每个目标站点上具备 `content.news` 权限，跨站点列报告还需 `geotool.reports.all`。 |
 | `GEO_ADMIN_PASSWORD`（凭据） | 该账号的密码。经凭据域存储，绝不写进设置文档。 |
 
+`geo_configure` 只返回缺失字段名，不返回密码。专家在聊天中询问缺失项，保存后继续原任务。地址和用户名持久化到当前 profile，密码持久化到凭据存储。聊天提供的密码会进入会话历史，设置卡片提供私密密码输入方式。保存配置不等于登录成功，需用 `geo_sites_list` 验证。设置与凭据分开写入；失败时可能已有一部分保存，下次检查会报告仍缺少的内容。
+
 每个请求都拒绝重定向：登录请求带密码、已登录请求带 bearer token，端点被重定向时必须在这里失败，而不是把两者转发到另一个源。
 
 不发布运行时不变式伴生入口：设置注册与会话级工具注册表已经拥有各自的状态，本包没有新增「独立观测会分歧」的关系。
 
+<a id="model-experience"></a>
 ## 模型体验
 
 ### 面向模型的契约
 
 #### 模型看到什么
 
-十三个工具只出现在挂载了本包的预设会话里。工具描述写明确认规则（默认草稿、写完读回、不盲重试、发起报告生成消耗模型调用），结果渲染成短文本：站点列表、一页行、单篇文章、带品牌榜的单份报告，或一次任务的状态。缺少部署行、字段未填或未存密码时，错误信息里带「设置 → 插件 → 深度云海」路径，模型可以直接指出该怎么修。
+十四个工具只出现在挂载了本包的预设会话里。工具描述写明确认规则（默认草稿、写完读回、不盲重试、发起报告生成消耗模型调用），结果渲染成短文本：站点列表、一页行、单篇文章、带品牌榜的单份报告，或一次任务的状态。`geo_configure` 只报告缺失字段的名称，绝不返回密码。专家会先询问缺失字段、保存，然后继续任务。地址与用户名保存在当前 profile 里；密码保存在凭据存储里。聊天里提供的密码会进入 Session 历史，因此设置卡片提供私密密码录入。保存并不做登录验证：由 `geo_sites_list` 验证登录。设置与凭据的写入相互独立；一次失败可能只保存了一部分，下次检查会报告还缺哪些字段。
 
 #### Token 影响
 
@@ -88,6 +95,7 @@ kind: "package-reference"
 
 无。工具 schema 与结果属于请求内容，适用常规的工具目录缓存规则；密码每次调用解析，绝不进入请求前缀。
 
+<a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与后续工作
 
 - **删除可能被拒绝。** 存在投稿或投放记录时后台会拒绝，工具如实转述原因，由用户决定怎么处理。
@@ -96,6 +104,7 @@ kind: "package-reference"
 - **报告生成是异步的。** 发起调用只返回任务；`geo_report_job` 报 `succeeded` 之后报告才存在。
 - **静态明文。** 密码存放在 harness 凭据存储里，同一 OS 用户（因而 agent 自己的工具进程）可以读到；工具绝不把它的值交给模型。
 
+<a id="dev-note"></a>
 ### 开发备注
 
 工具是后台 `/api/v1` 接口之上的薄 REST 适配层：每次调用都用配置的用户名和每次解析的 `GEO_ADMIN_PASSWORD` 凭据登录，携带得到的 bearer token，并拒绝重定向。`./settings` 入口每进程注册一次 `geo-admin` 命名空间，并发布桌面设置卡片读取的实时视图。

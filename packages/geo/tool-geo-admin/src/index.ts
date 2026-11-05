@@ -94,14 +94,14 @@ async function resolveTarget(ctx: Context, timeoutMs: number): Promise<GeoAdminT
   if (baseUrl === undefined || username === undefined) {
     throw new GeoAdminError(
       'unconfigured',
-      '深度云海 is not configured: open Settings → Plugins → 深度云海 and set the backend address and account',
+      `深度云海 is not configured: ask the user for ${[baseUrl === undefined ? 'backend address' : '', username === undefined ? 'username' : ''].filter(Boolean).join(' and ')}, then save with geo_configure. Settings → Plugins → 深度云海 also accepts these fields.`,
     )
   }
   const password = await ctx.credentials.resolve(credentialRef(GEO_ADMIN_PASSWORD_REF))
   if (password === undefined) {
     throw new GeoAdminError(
       'unconfigured',
-      `深度云海 has no stored password: open Settings → Plugins → 深度云海 and save the password (credential ${GEO_ADMIN_PASSWORD_REF})`,
+      `深度云海 has no stored password: ask the user to supply it through geo_configure or Settings → Plugins → 深度云海 (credential ${GEO_ADMIN_PASSWORD_REF}). Never repeat the password in a reply.`,
     )
   }
   return { baseUrl, username, password: password.value, timeoutMs }
@@ -280,6 +280,59 @@ const ARTICLE_OUTPUT = {
  */
 export function apply(ctx: Context, config: Config): void {
   const timeoutMs = config.timeoutMs ?? 30_000
+
+  ctx.tools.register(defineTool({
+    name: 'geo_configure',
+    description: 'Inspect or persist the shared 深度云海 account configuration. Call with no arguments to find missing fields; ask the user only for those fields, then save supplied values. Passwords supplied in chat enter the session history; offer Settings → Plugins → 深度云海 for private entry. Never repeat passwords in replies. Saving configuration does not verify login.',
+    parameters: {
+      baseUrl: { type: 'string', description: 'Backend HTTP(S) origin supplied by the user.' },
+      username: { type: 'string', description: 'Account name supplied by the user.' },
+      password: { type: 'string', description: 'Password supplied by the user. Stored in credentials, never returned.' },
+    },
+    output: {
+      schema: {
+        type: 'object', additionalProperties: false,
+        properties: {
+          missing: { type: 'array', required: true, items: { type: 'string' } },
+        },
+      },
+      render: (_args, value) => [{ type: 'text', text: value.missing.length === 0
+        ? '深度云海 account configuration is complete. Use geo_sites_list to verify login.'
+        : `Ask the user to supply: ${value.missing.join(', ')}. Save with geo_configure.` }],
+    },
+    timeoutMs,
+    isConcurrencySafe: () => false,
+    async execute(args) {
+      const view = ctx.get('geoAdminSettings')
+      if (view === undefined) throw new GeoAdminError('unavailable', 'The deployment must mount the geo-admin settings plugin before configuration can be saved.')
+      const patch: { baseUrl?: string; username?: string } = {}
+      if (args.baseUrl !== undefined) {
+        if (!URL.canParse(args.baseUrl)) throw new GeoAdminError('unconfigured', 'Backend address must be an HTTP(S) origin.')
+        const url = new URL(args.baseUrl)
+        if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash || url.pathname !== '/') {
+          throw new GeoAdminError('unconfigured', 'Backend address must be an HTTP(S) origin without credentials, path, query, or fragment.')
+        }
+        patch.baseUrl = url.origin
+      }
+      if (args.username !== undefined) {
+        if (text(args.username) === undefined) throw new GeoAdminError('unconfigured', 'Username must not be blank.')
+        patch.username = args.username.trim()
+      }
+      if (args.password !== undefined && args.password.trim().length === 0) {
+        throw new GeoAdminError('unconfigured', 'Password must not be blank.')
+      }
+      if (Object.keys(patch).length > 0) await view.update(patch)
+      if (args.password !== undefined) await ctx.credentials.set(credentialRef(GEO_ADMIN_PASSWORD_REF), args.password)
+      const section = view.get()
+      const password = await ctx.credentials.resolve(credentialRef(GEO_ADMIN_PASSWORD_REF))
+      return { missing: [
+        ...(text(section.baseUrl) === undefined ? ['baseUrl'] : []),
+        ...(text(section.username) === undefined ? ['username'] : []),
+        ...(password === undefined ? ['password'] : []),
+      ] }
+    },
+    presentCall: (): GenericCallView => ({ card: 'generic', title: 'Configure 深度云海 account', kind: 'edit' }),
+  }))
 
   ctx.tools.register(defineTool({
     name: 'geo_sites_list',

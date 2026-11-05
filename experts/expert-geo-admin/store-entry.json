@@ -5,8 +5,8 @@
   "url": "https://github.com/xmanrui/expert-geo-admin",
   "category": "expert",
   "description": {
-    "zh": "用配置好的账号查询、核对并修改 GEO 多站点内容后台的文章数据。安装后专家页出现该卡片，聘用即以该专家的组合开启新对话。",
-    "en": "Queries, checks, and updates articles on the GEO multi-site content backend with the configured account. After install, the expert page shows the card and hiring starts a session composed as the expert."
+    "zh": "用配置好的账号查询、核对并修改 GEO 多站点内容后台的文章数据，也可推理客户品牌的买方画像、核实海外买家邮箱并以品牌口吻发开发信。安装后专家页出现该卡片，聘用即以该专家的组合开启新对话。",
+    "en": "Queries, checks, and updates articles on the GEO multi-site content backend with the configured account, and can infer a client brand's buyer personas, verify overseas prospect emails, and send outreach in the brand's voice. After install, the expert page shows the card and hiring starts a session composed as the expert."
   },
   "installMethods": [
     {

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { connectionTestMessage } from '../shared/connection-test.mjs';
 import { publicMessageFailure } from '../shared/message-failure.mjs';
+import { feishuConnectionAttemptIsCurrent } from './feishu-runtime.mjs';
 import { RegistrationManager } from './registration-manager.mjs';
 import {
   CALLBACK_REPAIR_OPERATION,
@@ -64,6 +65,8 @@ function publicBot(config) {
 function botPhase({ connected, error, connection }) {
   if (connected) return 'connected';
   if (error || connection.feishuLongConnectionState === 'failed') return 'error';
+  if (connection.feishuLongConnectionState === 'connecting'
+    || connection.feishuLongConnectionState === 'reconnecting') return 'connecting';
   return 'disconnected';
 }
 
@@ -125,6 +128,7 @@ export class MultiBotDshFeishuController {
   #botTransitions = new Map();
   #revision = 1;
   #callbackProbeTimeoutMs;
+  #postOwnerMessage;
   #closed = false;
 
   constructor({
@@ -137,6 +141,7 @@ export class MultiBotDshFeishuController {
     createBotId = makeBotId,
     createRegistrationId = makeRegistrationId,
     callbackProbeTimeoutMs = DEFAULT_CALLBACK_PROBE_TIMEOUT_MS,
+    postOwnerMessage,
   }) {
     if (typeof registerApp !== 'function') throw new Error('registerApp is required');
     if (typeof verifyApp !== 'function') throw new Error('verifyApp is required');
@@ -160,6 +165,10 @@ export class MultiBotDshFeishuController {
     this.#createBotId = createBotId;
     this.#createRegistrationId = createRegistrationId;
     this.#callbackProbeTimeoutMs = callbackProbeTimeoutMs;
+    if (postOwnerMessage !== undefined && typeof postOwnerMessage !== 'function') {
+      throw new TypeError('postOwnerMessage must be a function');
+    }
+    this.#postOwnerMessage = postOwnerMessage;
   }
 
   async initialize() {
@@ -168,11 +177,9 @@ export class MultiBotDshFeishuController {
     let attempted = false;
     await Promise.allSettled(bots.map((config) => this.#withBotTransition(config.id, async () => {
       const current = connectionStatus(this.#runtimes.get(config.id));
-      if (isConnected(current)
-        || current.feishuLongConnectionState === 'connecting'
-        || current.feishuLongConnectionState === 'reconnecting') {
-        return;
-      }
+      // A fresh handshake or SDK reconnect stays in place. An attempt older
+      // than the budget is replaced; leaving it would keep the card offline.
+      if (feishuConnectionAttemptIsCurrent(current)) return;
       attempted = true;
       if (config.deletionPending) {
         this.#botErrors.set(config.id, {
@@ -515,6 +522,72 @@ export class MultiBotDshFeishuController {
       this.#touch();
       return this.status(botId);
     });
+  }
+
+  /**
+   * Deliver text to the user who connected this bot.
+   * The long connection is not required; Feishu accepts the tenant-token send on its own.
+   * @param text - message body.
+   * @param options - optional bot when more than one app is connected.
+   * @returns the bot that accepted the message.
+   */
+  async sendToOwner(text, { botId } = {}) {
+    this.#assertOpen();
+    const content = typeof text === 'string' ? text.trim() : '';
+    if (!content) throw new TypeError('Feishu message text is required');
+    if (content.length > 100_000) {
+      const error = new Error('Feishu message is too long');
+      error.code = 'message-too-long';
+      throw error;
+    }
+    const available = this.#configStore.list().filter((bot) => bot.deletionPending !== true);
+    let config;
+    if (botId !== undefined) config = this.#requireBot(botId);
+    else if (available.length === 1) config = available[0];
+    else {
+      const error = new Error(available.length === 0
+        ? 'No Feishu bot is connected'
+        : 'More than one Feishu bot is connected');
+      error.code = available.length === 0 ? 'feishu-bot-missing' : 'feishu-bot-ambiguous';
+      throw error;
+    }
+    const ownerOpenId = (config.ownerOpenIds ?? []).find((value) => value && value !== ALL_VISIBLE_SENDERS);
+    if (!ownerOpenId) {
+      const error = new Error('Feishu bot has no owner to message');
+      error.code = 'feishu-recipient-missing';
+      throw error;
+    }
+    if (typeof this.#postOwnerMessage !== 'function') {
+      const error = new Error('Feishu owner send is not configured');
+      error.code = 'feishu-send-unavailable';
+      throw error;
+    }
+    let resolved;
+    try {
+      resolved = await this.#credentials.resolve(config.secretRef);
+    } catch (error) {
+      const failure = new Error('Feishu bot credentials are unreadable');
+      failure.code = 'missing_credentials';
+      failure.cause = error;
+      throw failure;
+    }
+    if (typeof resolved?.value !== 'string' || !resolved.value) {
+      const error = new Error('Feishu bot credentials are missing');
+      error.code = 'missing_credentials';
+      throw error;
+    }
+    const sent = await this.#postOwnerMessage({
+      appId: config.appId,
+      appSecret: resolved.value,
+      domain: config.domain,
+      ownerOpenId,
+      text: content,
+    });
+    return {
+      sent: true,
+      botId: config.id,
+      messageId: sent?.messageId ?? null,
+    };
   }
 
   async sendConnectionTest(botId) {

@@ -609,8 +609,7 @@ describe('ConversationRoot resident composer', () => {
     expect(b.view.queryByRole('tablist')).toBeNull()
     expect(b.slotCalls).not.toContain('conversation.session.header.utilities')
     expect(b.slotCalls).not.toContain('conversation.session.header.actions')
-    expect(b.view.getByText('探索未至之境')).toBeTruthy()
-    expect(b.view.getByText('预览版')).toBeTruthy()
+    expect(b.view.getByText(/探索未至之境/u)).toBeTruthy()
     expect(b.view.queryByTestId('view-chat')).toBeNull()
     // The same machine-backed textarea is live in the hero, and the
     // persistence mirror stays bound (ConversationSession mounts chrome-hidden
@@ -675,7 +674,7 @@ describe('ConversationRoot resident composer', () => {
     // blank the column for the history round-trip.
     const root = b.view.container.querySelector('[data-phase]')
     expect(root?.getAttribute('data-phase')).toBe('hero')
-    expect(b.view.getByText('探索未至之境', { exact: true })).toBeTruthy()
+    expect(b.view.getByText(/探索未至之境/u)).toBeTruthy()
     expect(b.view.getByRole('textbox')).toBeTruthy()
   })
 

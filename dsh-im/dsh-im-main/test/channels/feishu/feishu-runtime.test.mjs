@@ -158,6 +158,7 @@ test('FeishuRuntime becomes chat-ready only after Harness and Feishu are connect
   const reconnecting = await runtime.start();
   assert.equal(reconnecting.ready, false);
   assert.equal(reconnecting.feishuLongConnectionState, 'reconnecting');
+  assert.equal(Number.isNaN(Date.parse(reconnecting.reconnectAttemptAt)), false);
   assert.equal(harnessChecks, 1);
   assert.equal(FakeWSClient.instances.length, 1);
   assert.equal(FakeClient.instances.length, 1);
@@ -165,6 +166,7 @@ test('FeishuRuntime becomes chat-ready only after Harness and Feishu are connect
   FakeWSClient.instances[0].becomeReconnected();
   assert.equal(runtime.status.ready, true);
   assert.equal(runtime.status.feishuLongConnectionState, 'connected');
+  assert.equal(runtime.status.reconnectAttemptAt, undefined);
 
   assert.deepEqual(await runtime.sendConnectionTest('连接测试'), { sent: true });
   assert.deepEqual(FakeClient.sent, [{

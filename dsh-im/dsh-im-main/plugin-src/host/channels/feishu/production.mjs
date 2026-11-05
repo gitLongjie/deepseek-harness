@@ -7,7 +7,7 @@ import { createConnectionSupervisor } from './connection-supervisor.mjs';
 import { createHarnessCommandExecutor } from '../../harness-command-executor.mjs';
 import { harnessConnection } from '../../harness-connection.mjs';
 import { createHarnessSessionExecutors } from '../../harness-session-coordinator.mjs';
-import { verifyFeishuApp } from '../../../../src/channels/feishu/feishu-app.mjs';
+import { postFeishuOwnerMessage, verifyFeishuApp } from '../../../../src/channels/feishu/feishu-app.mjs';
 import { FeishuRuntime } from '../../../../src/channels/feishu/feishu-runtime.mjs';
 import { HarnessClient } from '../../../../src/channels/feishu/harness-client.mjs';
 import {
@@ -177,6 +177,10 @@ export async function createProductionController(ctx, config = {}, internals = {
         },
       });
     },
+    postOwnerMessage: (options) => postFeishuOwnerMessage({
+      ...options,
+      httpInstance: lark.defaultHttpInstance,
+    }),
     deleteState: async ({ botId, config: botConfig }) => {
       stateStores.delete(botId);
       try {

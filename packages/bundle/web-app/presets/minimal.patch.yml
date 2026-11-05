@@ -7,6 +7,8 @@
       config:
         id: minimal
         order: 3
+        category: general
+        icon: ⚡
         plugins:
           - id: persona
             name: '@deepseek-ai/dsh-persona'

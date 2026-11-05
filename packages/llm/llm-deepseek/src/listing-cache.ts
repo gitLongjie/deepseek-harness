@@ -1,10 +1,18 @@
 /** Credential-scoped `/models` cache with single-flight loads, background refresh, and last-known-good retention. */
 import { createHash } from 'node:crypto'
+import { LlmError } from '@deepseek-ai/dsh-llm'
 import { deadline, MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
 import { deepEqualJson } from '@deepseek-ai/dsh-util-values'
 import type { ListingSettings } from './listing-config.ts'
 import { LISTING_TIMEOUT } from './listing.ts'
 import type { ModelListing } from './listing.ts'
+
+/** Remediation hint for a listing the endpoint rejected on authentication. */
+function credentialRejectionHint(error: unknown): string {
+  return error instanceof LlmError && (error.code === 'HTTP_401' || error.code === 'HTTP_403')
+    ? ' — the endpoint rejected the stored credential; update it in the Models settings'
+    : ''
+}
 
 /** Host-owned inputs of one cache instance. */
 export interface ListingCacheDependencies {
@@ -141,7 +149,7 @@ export class ModelListingCache {
         if (generation !== this.generation) return
         if (!this.failing) {
           const fallback = this.listing === undefined ? 'using the bundled catalog' : 'keeping the previous catalog'
-          this.dependencies.warn(`model listing from ${settings.url} failed (${String(error)}); ${fallback}`)
+          this.dependencies.warn(`model listing from ${settings.url} failed (${String(error)}); ${fallback}${credentialRejectionHint(error)}`)
         }
         this.settledAt = this.dependencies.now()
         this.failing = true

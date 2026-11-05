@@ -1,6 +1,7 @@
 import { createProvisioningBackedController } from './controller.mjs';
 import { createProductionController } from './production.mjs';
 import { installFeishuRpc } from './rpc.mjs';
+import { installFeishuSendTool } from './send-tool.mjs';
 
 export const name = 'dsh-feishu-host';
 export const inject = ['connection', 'credentials', 'typertGateway'];
@@ -22,13 +23,21 @@ function controllerFrom(ctx, config) {
  * controller service; tests and embedded distributions may inject one through
  * config without changing the Connection RPC boundary.
  */
+function installSendTool(ctx, controller) {
+  const bind = (toolCtx) => installFeishuSendTool(toolCtx, controller);
+  if (typeof ctx?.inject === 'function') ctx.inject(['tools', 'systemPrompt'], bind);
+  else bind(ctx);
+}
+
 export async function apply(ctx, config = {}) {
   const controller = controllerFrom(ctx, config);
   if (controller) {
+    installSendTool(ctx, controller);
     return installFeishuRpc(ctx, controller, config.rpcOptions, config.rpcAuthority);
   }
 
   const production = await createProductionController(ctx, config);
+  installSendTool(ctx, production.controller);
   const disposeRpc = installFeishuRpc(
     ctx,
     production.controller,

@@ -26,6 +26,29 @@ export interface UiAgentPreset {
    * @returns whether a conversation flow took the pick.
    */
   stageNextSessionPreset(id: string): boolean
+  /**
+   * Open the experts page when the expert center has bound one.
+   * @returns whether a page took the request.
+   */
+  openExpertsPage(): boolean
+  /**
+   * Point chip clicks at the experts page.
+   * @param open - opens the experts page.
+   * @returns the disposer that unbinds it.
+   */
+  bindExpertPage(open: () => void): () => void
+  /**
+   * Persist one preset as the default for new tasks and apply it to the current blank task.
+   * @param id - the preset id to save.
+   * @returns the refusal message, or undefined once it landed. Undefined also when no writer is bound.
+   */
+  makeDefault(id: string): Promise<string | undefined>
+  /**
+   * Point default writes at the roster controller.
+   * @param save - writes the default and returns a refusal message.
+   * @returns the disposer that unbinds it.
+   */
+  bindMakeDefault(save: (id: string) => Promise<string | undefined>): () => void
 }
 
 declare module '@deepseek-ai/cordis' {
@@ -39,6 +62,10 @@ declare module '@deepseek-ai/cordis' {
 export class UiAgentPresetService extends Service implements UiAgentPreset {
   /** The bound flow's staging move, absent between bindings. */
   private stage: ((id: string) => void) | undefined
+  /** Opens the experts page, absent until the expert center binds one. */
+  private openPage: (() => void) | undefined
+  /** Writes the new-task default, absent until the roster controller binds one. */
+  private saveDefault: ((id: string) => Promise<string | undefined>) | undefined
 
   /** @param ctx - Client root Context. */
   constructor(ctx: Context) {
@@ -64,6 +91,32 @@ export class UiAgentPresetService extends Service implements UiAgentPreset {
     this.stage = stage
     return () => {
       if (this.stage === stage) this.stage = undefined
+    }
+  }
+
+  openExpertsPage(): boolean {
+    if (this.openPage === undefined) return false
+    this.openPage()
+    return true
+  }
+
+  bindExpertPage(open: () => void): () => void {
+    this.openPage = open
+    return () => {
+      if (this.openPage === open) this.openPage = undefined
+    }
+  }
+
+  makeDefault(id: string): Promise<string | undefined> {
+    const save = this.saveDefault
+    if (save === undefined) return Promise.resolve(undefined)
+    return save(id)
+  }
+
+  bindMakeDefault(save: (id: string) => Promise<string | undefined>): () => void {
+    this.saveDefault = save
+    return () => {
+      if (this.saveDefault === save) this.saveDefault = undefined
     }
   }
 }

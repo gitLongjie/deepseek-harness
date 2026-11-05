@@ -35,34 +35,10 @@ import { PROFILE_TEMPLATES } from '@deepseek-ai/dsh-official-bundles'
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import { installProxyFromEnvironment } from '@deepseek-ai/dsh-http-proxy'
 import { DSH_LAUNCH_ENVIRONMENT_KEY, type LaunchEnvironmentSnapshot } from '@deepseek-ai/dsh-launch-environment'
-import { provideCmdline, type AppReady } from '@deepseek-ai/dsh-cmdline'
+import { createAppReady, provideCmdline } from '@deepseek-ai/dsh-cmdline'
 import { createProcessShutdown, type ProcessShutdown } from './process-shutdown.ts'
 
 const NAME = 'dsh'
-
-/** Launcher-owned readiness signal committed only after boot and host setup succeed. */
-function createAppReady(): { service: AppReady; commit(): void } {
-  let ready = false
-  const listeners = new Set<() => void>()
-  return {
-    service: {
-      onReady(listener) {
-        if (ready) {
-          listener()
-          return () => {}
-        }
-        listeners.add(listener)
-        return () => { listeners.delete(listener) }
-      },
-    },
-    commit() {
-      if (ready) return
-      ready = true
-      for (const listener of [...listeners]) listener()
-      listeners.clear()
-    },
-  }
-}
 
 /**
  * The home-level user patch layer (`$DSH_HOME/cordis.patch.yml`), applied

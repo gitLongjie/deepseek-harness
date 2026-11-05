@@ -9,9 +9,9 @@ kind: "package-reference"
 
 ## 概述
 
-`@xmanrui/expert-geo-admin` 把「深度云海 GEO 专家」发布为 dsh 专家市场里可下载、可聘用的专家卡片。包内 `experts/geo-admin/` 是完整的专家目录（`preset.yml` 卡片元数据、`agent.cordis.yml` 组合、`skills/` 工具箱——`geo-admin-data` 操作流程），随包附带一个微同步插件，宿主每次启动把专家目录同步进 harness home 的用户预设根（`.agent-presets`），预设名单的用户根在下一次读取时即发现它（trust: user）。专家页对其的展示与聘用经由既有的 agentPresets 投影与暂存机制，本包不新增任何模型侧机制。
+`@xmanrui/expert-geo-admin` 把「深度云海 GEO 专家」发布为 dsh 专家市场里可下载、可聘用的专家卡片。包内 `experts/geo-admin/` 是完整的专家目录（`preset.yml` 卡片元数据、`agent.cordis.yml` 组合、`skills/` 工具箱——`geo-admin-data` 后台操作流程与 `geo-outbound-prospecting` 海外获客流程），随包附带一个微同步插件，宿主每次启动把专家目录同步进 harness home 的用户预设根（`.agent-presets`），预设名单的用户根在下一次读取时即发现它（trust: user）。专家页对其的展示与聘用经由既有的 agentPresets 投影与暂存机制，本包不新增任何模型侧机制。
 
-该专家通过 `geo_*` 工具（`@deepseek-ai/dsh-tool-geo-admin`）查询并修改 GEO 多站点内容后台：列站点、列文章与读单篇、列栏目、新建/修改/删除文章、列 GEO 关键词任务并重试失败项、列/读/发起品牌可见度报告（并跟进生成任务）。后台地址与账号来自设置 → 插件 → 深度云海卡片，密码保存在 DSH 凭据存储的 `GEO_ADMIN_PASSWORD` 名下、每次调用时解析，凭据不会出现在会话里。
+该专家通过 `geo_*` 工具（`@deepseek-ai/dsh-tool-geo-admin`）查询并修改 GEO 多站点内容后台：列站点、列文章与读单篇、列栏目、新建/修改/删除文章、列 GEO 关键词任务并重试失败项、列/读/发起品牌可见度报告（并跟进生成任务）。另挂载 `web_search` / `web_fetch`（`@deepseek-ai/dsh-tool-web`）补充公开网页背景；搜索固定到 claw 网关的 `/v1/tools/search`，页面抓取保持本地 HTTP，后台落库数据仍以 `geo_*` 为准。后台地址与账号来自设置 → 插件 → 深度云海卡片，密码保存在 DSH 凭据存储的 `GEO_ADMIN_PASSWORD` 名下、每次调用时解析，工具结果不返回已保存的密码。缺失的字段可在聊天中提供并用 `geo_configure` 保存；聊天提供的密码会进入 Session 历史，设置卡片则提供私密密码录入。
 
 ## 使用本包
 
@@ -27,5 +27,5 @@ kind: "package-reference"
 
 - 同步只增不删：卸载本包后，最后一次同步的专家目录保留在用户预设根，可在预设创作界面删除。
 - `avatar`/`subtitle`/`badge` 已随包发布，名单投影携带它们的工作随市场安装通道推进；当前投影忽略未知字段，卡片以字形头像兜底。
-- 预设挂载 `@deepseek-ai/dsh-tool-geo-admin`，部署必须组装该包（深度云海版本已包含）；不带它的标准 dsh profile 会组装出没有工具的专家。
+- 预设挂载 `@deepseek-ai/dsh-tool-geo-admin` 与 `@deepseek-ai/dsh-tool-web`；部署必须组装 geo-admin 工具包，且宿主须已组装 `web` 搜索/抓取提供方（深度云海版本已包含）。不带它们的 profile 会组装出缺少对应工具的专家。
 - 卡片不删除文章，也不改账号、角色、权限与站点配置；这些仍由后台自己的管理页面负责。

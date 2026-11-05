@@ -7,6 +7,7 @@ const PROVIDER_FAILURES = Object.freeze({
   MISSING_CREDENTIAL: 'MODEL_AUTH',
   INVALID_CREDENTIAL: 'MODEL_AUTH',
   QUOTA: 'MODEL_QUOTA',
+  ACCOUNT_QUOTA: 'MODEL_QUOTA',
   RATE_LIMIT: 'MODEL_RATE_LIMIT',
   CONTEXT_WINDOW_EXCEEDED: 'MODEL_CONTEXT_LIMIT',
   UNKNOWN_MODEL: 'MODEL_UNAVAILABLE',
@@ -21,6 +22,8 @@ const PROVIDER_FAILURES = Object.freeze({
   EMPTY_RESPONSE: 'MODEL_EMPTY_REPLY',
   CONTENT_FILTER: 'MODEL_CONTENT_REJECTED',
   UNSUPPORTED_CONTENT: 'MODEL_CONFIG',
+  IMAGE_OFFLOAD_REQUIRED: 'MODEL_CONFIG',
+  TOOL_ACTIVATION_FAILED: 'TOOL_UNAVAILABLE',
 });
 
 const FAILURE_MESSAGES = Object.freeze({
@@ -88,6 +91,8 @@ const FAILURE_MESSAGES = Object.freeze({
     '回复已经生成，但当前渠道暂时无法发送。请稍后重试。',
   INPUT_INVALID:
     '当前消息包含无法处理的图片或文件。请调整后重新发送。',
+  TOOL_UNAVAILABLE:
+    '本次任务所需的工具暂时不可用，任务未完成。请重试；若持续发生，请将参考号提供给管理员。',
   INTERNAL_UNKNOWN:
     '任务未完成，暂时无法确定原因。请重试；若持续发生，请将参考号提供给管理员。',
 });
@@ -174,12 +179,21 @@ function safeFailureReason(value) {
   return value.toUpperCase().replaceAll('-', '_');
 }
 
+function providerFailureReason(error) {
+  if (error?.code !== 'harness-turn-failed') return null;
+  const value = error?.providerCode ?? error?.details?.providerCode;
+  return typeof value === 'string' ? safeFailureReason(value) : null;
+}
+
 export function classifyMessageFailure(error, {
   userMessage,
   reason,
   referenceId,
   at = Date.now(),
 } = {}) {
+  // An explicit diagnostic reason keeps the input-error promotion below; the
+  // provider code only fills in the persisted reason for an otherwise
+  // unclassified turn failure.
   const safeReason = safeFailureReason(reason);
   const classifiedCode = failureCode(error);
   const code = classifiedCode === 'INTERNAL_UNKNOWN'
@@ -190,7 +204,9 @@ export function classifyMessageFailure(error, {
     : classifiedCode;
   return Object.freeze({
     code,
-    reason: safeReason ?? code,
+    reason: safeReason
+      ?? (classifiedCode === 'INTERNAL_UNKNOWN' ? providerFailureReason(error) : null)
+      ?? code,
     message: typeof userMessage === 'string' && userMessage.trim()
       ? userMessage.trim()
       : t(FAILURE_MESSAGES[code]),

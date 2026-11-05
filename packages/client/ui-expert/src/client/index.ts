@@ -4,10 +4,10 @@
  * entry row), ExpertBrowser fills ui-conversation's `conversation.expert.browser`
  * hole (the full page: the expert market as hireable expert cards), and
  * `UiExpertService` owns the page state and its close-on-session policy.
- * The market's sole source is the experts the deployment ships — roster rows
- * that publish card metadata, delivered by the download channel as installed
- * expert packages; mode presets publish no card metadata and cannot present
- * here. Hiring crosses packages through the uiAgentPreset staging service and
+ * The market's sole source is roster rows that publish card metadata. Shipped
+ * Standard, PTC, Minimal, and Creator presets publish `category`, so they are
+ * experts here beside the other shipped experts. A row with no card metadata
+ * stays out. Hiring crosses packages through the uiAgentPreset staging service and
  * uiWorkspace's startSession.
  * Export discipline: packages/client/AGENTS.md.
  */
@@ -24,9 +24,9 @@ import type { AgentPresetRow } from '@deepseek-ai/dsh-agent-preset-registry/type
 // The expert marker the market admits by — the same predicate the mode
 // surfaces exclude by, so the two rules cannot drift. The display fold is
 // the shared inline-safe home a client bundle may inline.
-import { isExpertPreset } from '@deepseek-ai/dsh-agent-preset-registry/display'
+import { isExpertPreset, presetDisplayText, type BuiltInPresetCopyKey } from '@deepseek-ai/dsh-agent-preset-registry/display'
 // Type-only: pulls the uiAgentPreset and uiWorkspace service merges.
-import type {} from '@deepseek-ai/dsh-client-ui-agent-preset/client'
+import type { UiAgentPreset } from '@deepseek-ai/dsh-client-ui-agent-preset/client'
 // Type-only: pulls the uiWorkspace service merges.
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 // Type-only: pulls the Session root standard-props merge.
@@ -35,7 +35,7 @@ import { UiExpertService } from './navigation.ts'
 import type { ExpertRecord } from './contract/slots.ts'
 import { ExpertBrowser } from './ExpertBrowser.tsx'
 import { ExpertNav } from './ExpertNav.tsx'
-import { en, zh, type ExpertKey } from './locales.ts'
+import { de, en, es, fr, ja, pt, ru, zh, type ExpertKey } from './locales.ts'
 
 export type { ExpertKey } from './locales.ts'
 export type { ExpertBrowserProps, ExpertNavProps, ExpertRecord } from './contract/slots.ts'
@@ -63,22 +63,34 @@ export const inject = [
   'slots', 'locale', 'remote', 'remote.agentPresets', 'sessions', 'layout', 'uiWorkspace', 'uiAgentPreset',
 ]
 
-/** Project one roster row onto the market's card record. */
-function recordOf(preset: AgentPresetRow): ExpertRecord {
+/**
+ * Project one roster row onto the market's card record.
+ * Shipped preset ids keep the localized name; a row that publishes its own
+ * name keeps that text.
+ * @param preset - roster row the market admitted.
+ * @param label - locale lookup for shipped preset copy.
+ * @returns the card record.
+ */
+function recordOf(
+  preset: AgentPresetRow,
+  label: (key: BuiltInPresetCopyKey) => string,
+): ExpertRecord {
+  const text = presetDisplayText(preset, label)
   return {
     id: preset.id,
-    name: preset.name ?? preset.id,
+    name: text.name,
     // The roster row no longer carries a system/user trust bit, and the
     // preset remote no longer exposes deletion. Keep the card on the shipped
     // side so the remove control stays hidden.
     trust: 'system',
     ...(preset.subtitle !== undefined ? { subtitle: preset.subtitle } : {}),
     ...(preset.avatar !== undefined && preset.avatar !== '' ? { avatar: preset.avatar } : {}),
-    ...(preset.description !== undefined ? { description: preset.description } : {}),
+    ...(text.description !== undefined ? { description: text.description } : {}),
     ...(preset.category !== undefined ? { category: preset.category } : {}),
     ...(preset.tags !== undefined ? { tags: preset.tags } : {}),
     ...(preset.quickPrompts !== undefined ? { quickPrompts: preset.quickPrompts } : {}),
     ...(preset.badge !== undefined ? { badge: preset.badge } : {}),
+    isDefault: preset.isDefault,
     ...(preset.icon !== undefined && preset.icon !== '' ? { icon: preset.icon } : {}),
     // A row the host reported broken stays on the page: the market is the
     // only surface that advertises it, so the card carries the health
@@ -96,11 +108,10 @@ function recordOf(preset: AgentPresetRow): ExpertRecord {
 export function apply(ctx: Context): void {
   const sessions = ctx.get('sessions') as ISessions
   const uiWorkspace = ctx.get('uiWorkspace') as unknown as { startSession(workspaceId?: unknown): void }
-  const uiAgentPreset = ctx.get('uiAgentPreset') as unknown as {
-    stageNextSessionPreset(id: string): boolean
-  }
+  const uiAgentPreset = ctx.get('uiAgentPreset') as UiAgentPreset
   const uiExpert = new UiExpertService(ctx, sessions, ctx.layout)
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-expert: dictionaries')
+  ctx.effect(() => uiAgentPreset.bindExpertPage(() => { uiExpert.openPage() }), 'ui-expert: preset chip opens the page')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, ja, es, fr, de, ru, pt }), 'ui-expert: dictionaries')
 
   const navInjected = () => ({
     openPage: () => { uiExpert.openPage() },
@@ -110,14 +121,14 @@ export function apply(ctx: Context): void {
 
   const pageInjected = () => ({
     load: async (): Promise<{ experts: readonly ExpertRecord[] }> => {
-      // The market's only source is the roster: rows the shared expert
-      // predicate admits — the same marker the mode surfaces exclude by, so
-      // a preset presents here or as a mode, never both. A refused or absent
-      // roster read degrades to an empty market; the page never fails on the
-      // market read.
+      // The market admits rows the shared expert predicate matches, including
+      // shipped presets that publish `category`. Names for those ids come from
+      // the agent-preset dictionaries. A refused or absent roster read degrades
+      // to an empty market; the page never fails on the market read.
+      const label = ctx.locale.bind('settings.agentPreset')
       const shipped = await ctx.remote.agentPresets.list().then(
         (result): readonly ExpertRecord[] => (result.ok
-          ? result.value.presets.filter(isExpertPreset).map(recordOf)
+          ? result.value.presets.filter(isExpertPreset).map(preset => recordOf(preset, label))
           : []),
         (): readonly ExpertRecord[] => [],
       )
@@ -145,6 +156,7 @@ export function apply(ctx: Context): void {
       // action while every row is treated as shipped.
       return undefined
     },
+    makeDefault: (id: string) => uiAgentPreset.makeDefault(id),
   })
 
   ctx.slots.inject('sidebar.experts', () => ctx.slots.register(

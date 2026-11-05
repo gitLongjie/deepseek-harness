@@ -92,6 +92,18 @@ describe('VideoWorkbenchPage', () => {
     expect(await screen.findByText(`${en.errors}: 1`)).toBeDefined()
   })
 
+  it('identifies unfinished studio surfaces as previews without hiding existing renders', async () => {
+    renderPage()
+    await screen.findByText('vp-1')
+    for (const name of ['3D director', 'Edit timeline', 'Relationship graph']) {
+      fireEvent.click(screen.getByRole('button', { name }))
+      expect(screen.getByRole('status').textContent).toBe(en.studioPreviewOnly)
+      expect(screen.getByText('Final assembly')).toBeDefined()
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Overview' }))
+    expect(screen.queryByRole('status')).toBeNull()
+  })
+
   it('keeps every authored shot visible when the backend renders one combined task', async () => {
     renderPage(() => summary({ projects: [{
       ...VP1,

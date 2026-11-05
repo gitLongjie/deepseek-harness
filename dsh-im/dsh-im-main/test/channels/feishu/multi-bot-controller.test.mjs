@@ -113,7 +113,8 @@ function fixture({
         get status() { return structuredClone(status); },
         async start() {
           runtime.starts += 1;
-          if (runtimeStart) await runtimeStart({ botId, runtime });
+          const outcome = runtimeStart ? await runtimeStart({ botId, runtime, status }) : undefined;
+          if (outcome === false) return;
           status.ready = true;
           status.feishuLongConnectionState = 'connected';
           status.harnessReachable = true;
@@ -188,6 +189,39 @@ test('QR registration separates events from card callbacks', async () => {
     user_info: { open_id: 'ou_callbacks', tenant_brand: 'feishu' },
   });
   await waitFor(() => fx.controller.registrationStatus(attemptId).registration.state === 'succeeded');
+  await fx.controller.close();
+});
+
+test('a fresh Feishu reconnect stays in place and a stale one is replaced', async () => {
+  const existing = bot('bot_stale', 'stale');
+  let liveStatus;
+  let starts = 0;
+  const fx = fixture({
+    bots: [existing],
+    secrets: { [existing.secretRef]: 'stable-secret' },
+    runtimeStart: async ({ status }) => {
+      starts += 1;
+      liveStatus = status;
+      if (starts === 1) {
+        status.ready = false;
+        status.harnessReachable = true;
+        status.feishuLongConnectionState = 'reconnecting';
+        status.reconnectAttemptAt = new Date().toISOString();
+        return false;
+      }
+      return undefined;
+    },
+  });
+  await fx.controller.initialize();
+  assert.equal(fx.runtimes.get(existing.id).length, 1);
+  assert.equal(fx.controller.status().bots[0].phase, 'connecting');
+  assert.equal(fx.controller.status().bots[0].connected, false);
+  await fx.controller.initialize();
+  assert.equal(fx.runtimes.get(existing.id).length, 1);
+  liveStatus.reconnectAttemptAt = new Date(Date.now() - 60_000).toISOString();
+  await fx.controller.initialize();
+  assert.equal(fx.runtimes.get(existing.id).length, 2);
+  assert.equal(fx.controller.status().bots[0].connected, true);
   await fx.controller.close();
 });
 

@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for 2026-11-04-api-key-route-skips-model-listing.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/simplification/2026-11-04-api-key-route-skips-model-listing.md
+/agent-note-the-api-key-route-does-not-request-the-official-model-listing:
+  en: 0e94df76d9c795f2
+  zh: aff289ef1c94e69e
+/agent-note-the-api-key-route-does-not-request-the-official-model-listing/problem:
+  en: 0d980de20cf258da
+  zh: 86347f996b2e3e98
+/agent-note-the-api-key-route-does-not-request-the-official-model-listing/decision:
+  en: 15aca6115f89b9db
+  zh: ca69ae7da43cafec
+/agent-note-the-api-key-route-does-not-request-the-official-model-listing/alternatives-considered:
+  en: 2ec539d8ff818a6c
+  zh: c98912d05855887f
+/agent-note-the-api-key-route-does-not-request-the-official-model-listing/consequences:
+  en: 10f987d3d7bf65c9
+  zh: b8f9852f867bd819

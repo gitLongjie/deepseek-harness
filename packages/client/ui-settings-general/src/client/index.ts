@@ -148,7 +148,11 @@ export function apply(ctx: ClientContext): void {
           if (version !== rowsVersion || revision !== rowsRevision) {
             rowsVersion = version
             rowsRevision = revision
-            rows = ctx.slots.entries('settings.section')
+            // Cell winners, not the raw ledger: a shadowed registration (a
+            // lower-priority entry over the same id) must no more show a nav
+            // row than it shows a panel — the section outlet renders exactly
+            // these winners (`entriesOfSlot`).
+            rows = ctx.slots.entriesOfSlot('settings.section')
               .map(e => ({
                 /* v8 ignore next -- list-slot registration requires id (SlotCore rejects an entry without one) */
                 id: e.options.id ?? '',

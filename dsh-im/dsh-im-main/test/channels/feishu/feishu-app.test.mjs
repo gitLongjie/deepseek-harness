@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { verifyFeishuApp } from '../../../src/channels/feishu/feishu-app.mjs';
+import { postFeishuOwnerMessage, verifyFeishuApp } from '../../../src/channels/feishu/feishu-app.mjs';
 
 test('verifyFeishuApp validates credentials and returns a safe bot identity', async () => {
   const requests = [];
@@ -54,6 +54,34 @@ test('verifyFeishuApp rejects invalid credentials before reading bot info', asyn
     },
   }), /invalid app secret/);
   assert.equal(calls, 1);
+});
+
+test('postFeishuOwnerMessage sends a private text message with the tenant token', async () => {
+  const requests = [];
+  const result = await postFeishuOwnerMessage({
+    appId: 'cli_test',
+    appSecret: 'never-return-this',
+    ownerOpenId: 'ou_owner',
+    text: '画像已写好',
+    timeoutMs: 2000,
+    httpInstance: {
+      async request(options) {
+        requests.push(options);
+        if (requests.length === 1) return { code: 0, tenant_access_token: 'tenant-token' };
+        return { code: 0, data: { message_id: 'om_sent' } };
+      },
+    },
+  });
+  assert.deepEqual(result, { messageId: 'om_sent' });
+  assert.equal(requests[1].method, 'POST');
+  assert.equal(requests[1].url, 'https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=open_id');
+  assert.equal(requests[1].headers.authorization, 'Bearer tenant-token');
+  assert.deepEqual(requests[1].data, {
+    receive_id: 'ou_owner',
+    msg_type: 'text',
+    content: JSON.stringify({ text: '画像已写好' }),
+  });
+  assert.equal(JSON.stringify(requests).includes('never-return-this') && requests[1].data.content.includes('never-return-this'), false);
 });
 
 test('verifyFeishuApp requires the shared SDK HTTP instance', async () => {

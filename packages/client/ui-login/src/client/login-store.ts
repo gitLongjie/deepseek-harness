@@ -110,6 +110,15 @@ function writeStoredLogin(record: StoredLogin | null): void {
   }
 }
 
+/** One gateway balance read outcome as the account section renders it. */
+export type GatewayBalance =
+  /** A read is in flight and no value is available yet. */
+  | { status: 'loading' }
+  /** Remaining quota in the gateway's display dollars, read at `checkedAt`. */
+  | { status: 'ready'; remainingUsd: number; checkedAt: number }
+  /** The last read failed and no earlier value survives. */
+  | { status: 'unavailable' }
+
 /** State rendered by the login gate. */
 export interface LoginState {
   /** The boot-time session restore is in flight; the gate renders only its backdrop. */
@@ -120,6 +129,8 @@ export interface LoginState {
   busy: boolean
   /** Failure text from the last sign-in attempt: a server message or a locale key. */
   error: string | null
+  /** Gateway balance for the signed-in account; null while signed out. */
+  balance: GatewayBalance | null
 }
 
 /** Host credential writes the store delegates after a session transition. */
@@ -143,7 +154,7 @@ export interface LoginApi {
 export class LoginStore {
   /** uSES-safe state source shared by the registered gate. */
   readonly store: SnapshotStore<LoginState> = createSnapshotStore<LoginState>({
-    restoring: false, session: null, busy: false, error: null,
+    restoring: false, session: null, busy: false, error: null, balance: null,
   })
 
   /**
@@ -163,6 +174,83 @@ export class LoginStore {
    */
   baseUrl(): string {
     return new URL(this.authUrl).origin
+  }
+
+  /**
+   * Re-read the signed-in account's gateway balance. A launch-time sign-in and
+   * every session adoption already schedule one read; the settings account
+   * section calls this again on each entry so the shown number tracks top-ups.
+   * A failed re-read keeps the last good value instead of downgrading it.
+   */
+  async refreshBalance(): Promise<void> {
+    const session = this.store.getSnapshot().session
+    if (session === null) return
+    const hasValue = this.store.getSnapshot().balance?.status === 'ready'
+    if (!hasValue) {
+      this.store.update((state) => {
+        state.balance = { status: 'loading' }
+      })
+    }
+    try {
+      const balance = await this.readGatewayBalance(session.apiKey)
+      // A sign-out (or a next sign-in) during the reads invalidates this result.
+      if (this.store.getSnapshot().session !== session) return
+      this.store.update((state) => {
+        state.balance = balance
+      })
+    } catch (error: unknown) {
+      console.warn(`[ui-login] gateway balance read failed: ${error instanceof Error ? error.message : String(error)}`)
+      if (this.store.getSnapshot().session !== session) return
+      if (hasValue) return
+      this.store.update((state) => {
+        state.balance = { status: 'unavailable' }
+      })
+    }
+  }
+
+  /**
+   * Read the signed-in account's remaining quota from the gateway's billing
+   * endpoints. Wire contract (new-api lineage, the Deepagens Claw gateway):
+   * `GET /v1/dashboard/billing/subscription` answers
+   * `{hard_limit_usd}` — total quota, remaining plus used, in display dollars;
+   * `GET /v1/dashboard/billing/usage` answers `{total_usage}` — used quota in
+   * the same unit. The difference is the remaining balance, both for a key
+   * capped below the account quota and for an unlimited one.
+   * @param apiKey - the signed-in session's key.
+   * @returns the ready balance fact.
+   * @throws when either endpoint refuses, answers non-JSON, or omits its number.
+   */
+  private async readGatewayBalance(apiKey: string): Promise<GatewayBalance> {
+    const origin = this.baseUrl()
+    // The usage read covers the account's lifetime: the endpoint clips to the
+    // requested window, and this deployment reports no reset period.
+    const end = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10)
+    const readField = async (path: string, field: 'hard_limit_usd' | 'total_usage'): Promise<number> => {
+      const response = await fetch(`${origin}${path}`, { headers: { authorization: `Bearer ${apiKey}` } })
+      const raw = await response.text()
+      let body: unknown = null
+      try {
+        body = JSON.parse(raw)
+      } catch {
+        body = null
+      }
+      const value = typeof body === 'object' && body !== null
+        ? (body as Record<string, unknown>)[field]
+        : undefined
+      if (!response.ok || typeof value !== 'number' || !Number.isFinite(value)) {
+        throw new Error(`HTTP ${response.status}: ${replyExcerpt(raw)}`)
+      }
+      return value
+    }
+    const [total, used] = await Promise.all([
+      readField('/v1/dashboard/billing/subscription', 'hard_limit_usd'),
+      readField(`/v1/dashboard/billing/usage?start_date=2000-01-01&end_date=${end}`, 'total_usage'),
+    ])
+    return {
+      status: 'ready',
+      remainingUsd: Math.round((total - used) * 100) / 100,
+      checkedAt: Date.now(),
+    }
   }
 
   /**
@@ -366,6 +454,7 @@ export class LoginStore {
     this.store.update((state) => {
       state.session = session
     })
+    void this.refreshBalance()
   }
 
   /**
@@ -466,6 +555,7 @@ export class LoginStore {
       state.busy = false
       state.session = session
     })
+    void this.refreshBalance()
     return true
   }
 
@@ -476,6 +566,7 @@ export class LoginStore {
     this.store.update((state) => {
       state.session = null
       state.error = null
+      state.balance = null
     })
   }
 }

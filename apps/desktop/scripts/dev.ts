@@ -48,9 +48,14 @@ function run(cmd: string, cmdArgs: readonly string[], opts: { cwd?: string } = {
 function refreshLocalImPlugin(): void {
   const source = resolve(root, '..', '..', 'dsh-im', 'dsh-im-main')
   run('npm', ['run', 'build'], { cwd: source })
-  const target = resolve(process.env.DSH_HOME ?? `${process.env.USERPROFILE ?? ''}\\.dsh`, 'profiles', 'web', 'node_modules', '@xmanrui', 'dsh-im', 'lib')
+  const packageDir = resolve(process.env.DSH_HOME ?? `${process.env.USERPROFILE ?? ''}\\.dsh`, 'profiles', 'web', 'node_modules', '@xmanrui', 'dsh-im')
+  const target = resolve(packageDir, 'lib')
   mkdirSync(target, { recursive: true })
   for (const file of ['client.js', 'index.js']) copyFileSync(resolve(source, 'lib', file), resolve(target, file))
+  // The Loader resolves the package from this directory. lib/ alone has no
+  // manifest, so Node looks for index.js at the package root and the entry fails.
+  copyFileSync(resolve(source, 'cordis.patch.yml'), resolve(packageDir, 'cordis.patch.yml'))
+  copyFileSync(resolve(source, 'package.json'), resolve(packageDir, 'package.json'))
 }
 
 /** Build the checked-out business-entry plugin and refresh the active Web profile copy. */

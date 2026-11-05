@@ -149,6 +149,16 @@ describe('Session working directories', () => {
     expect(renderContextSnapshot(await f.ctx.systemPrompt.assemble())).toBe('')
   })
 
+  it('resolves the {{cwd}} prompt variable for persona templates', async () => {
+    await using f = await fixture()
+    const child = join(f.root, 'moved')
+    await mkdir(child)
+    await f.ctx.workingDirectory.set(f.agent, child)
+    f.ctx.systemPrompt.section({ name: 'persona:under-test', order: 0, text: 'Workspace: {{cwd}}.' })
+    const assembly = await f.ctx.systemPrompt.assemble({ agent: f.agent, scope: f.agent })
+    expect(renderPrompt(assembly)).toContain(`Workspace: ${child}.`)
+  })
+
   it('uses and records the configured launch fallback for a Session without origin metadata', async () => {
     await using f = await fixture()
     const agent = await f.harness.create(SessionId('without-origin'))

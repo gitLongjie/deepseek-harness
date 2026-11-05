@@ -58,7 +58,7 @@ const PHASE_KEYS = {
   unloading: 'unloading',
 } satisfies Record<Exclude<PluginFiberPhase, null>, PluginInventoryLocaleKey>
 
-/** Placeholder cards the loading skeleton lays out in the cards grid. */
+/** Placeholder rows the loading skeleton lays out in the list. */
 const SKELETON_CARDS = [0, 1, 2, 3] as const
 
 /** Localized accessible label for one root Fiber phase. */
@@ -120,7 +120,7 @@ function presetLabel(preset: AgentPresetGroup, t: Translate, presetName: (preset
   return name
 }
 
-/** One expandable plugin card; the caller owns the trailing status content. */
+/** One expandable plugin row; the caller owns the trailing status content. */
 function PluginCard({
   rowKey, moduleName, title, description, metadataError, entryId, trailing, ariaLabel, failed, expanded, onToggle, children,
 }: {

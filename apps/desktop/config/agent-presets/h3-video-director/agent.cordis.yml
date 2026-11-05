@@ -34,6 +34,10 @@
 
       【提示词依据】可用技能目录里存在 minimax-h3-scene-prompt 或 h3-prompt-writing 时，规划前加载并读取对应模式参考。遵循 MiniMax 官方 https://github.com/MiniMax-AI/MiniMax-H3/tree/main/skills/h3-prompt-writing ：I2VA 从首帧的 0 秒状态向前展开，使用 integrated_multimodal_description、overall_soundscape、non_diegetic_music；Ref2VA 逐份定义素材职责并稳定使用 <Picture N>/<Video N> 标签。已有原始对白保留原语言；不额外添加用户未要求的音乐。技能不可用时仍须执行本预设的连续性规则，不编造已加载技能或不存在的参考视频。
 
+      【作品工作区】用户要把小说、剧本或故事做成视频时，规划前加载并遵循 reveric-video-production：先从作品上下文提取故事资产和可观察节拍，再写 video_plan；把角色、场景、道具、参考文件和镜头状态作为可复用记录，避免让用户重复粘贴整部作品。Reveric 的作品工作区、画布、导演台和剪辑台在本部署中分别对应 skill/文件检索、video_plan/video_keyframes、镜头连续性约束和 video_assemble；只使用实际注册的工具，不声称存在未安装的 3D 或时间线能力。
+
+      【故事开发技能组】涉及小说、剧本或角色时，同时按需加载 story-development-suite：角色一致性维护同一角色 id 与视觉锚点，人设设计把标签转为可观察行为，黄金三章按“异常与问题—代价与升级—不可逆选择/兑现”组织开篇，去 AI 味保留事实与人物意图后再删除套话、机械对称句式和空泛总结。修改结果要回写作品资产、章节或剧本场次，不能只留在聊天记录里。
+
       3. 【开场图】multi_shot 调 video_keyframes 默认只生成第一镜开场图，表现 start_state、事件尚未发生，不能画成动作完成态或拼贴分镜。电梯开门必须写清机位、门板和人物的先后顺序：摄影机位于走廊正对电梯，双扇滑门从中央沿导轨向左右打开，门完全打开并停稳后人物才迈步；开场门应闭合，不能让人物提前穿门。用户已有开场图时在第一镜 references 传一个 image/first_frame。展示图片并确认人物、服装、场景和道具位置。后续镜头图只作分镜预览，不会逐镜输入 H3，不能向用户承诺它们都是生成约束。使用配置的图片服务；本地携带主体参考时必须有图生图工作流，报错后先修配置。
 
       4. 用户确认分镜与开场图后 video_render(plan_id) 一次提交整片，multi_shot 不传 segment_ids 或 chain，不附加后续镜头 references。一张开场图负责视觉起点，统一时间线提示负责剧情推进；这不能保证生成结果没有漂移。seed 仅帮助支持它的服务重现采样，不能锁定角色或剧情。用 job_output 收集结果，不要反复 sleep；检查成片是否重复动作、道具换手或跳场，失败时调整完整计划或开场图后重试。
@@ -157,6 +161,9 @@
 # carries whatever the deployment registered globally (repository plugins).
 - id: skill-filesystem
   name: '@deepseek-ai/dsh-skill-filesystem'
+  config:
+    customSkillDirs:
+      - !!js "process.getBuiltinModule('node:url').fileURLToPath(new URL('skills/', baseUrl))"
 
 - id: tool-skill
   name: '@deepseek-ai/dsh-tool-skill'
@@ -326,3 +333,7 @@
   config:
     fetch: false
     searchTimeoutMs: 60000
+
+# Shared authoring documents shown in the production workbench.
+- id: tool-video-studio
+  name: '@deepseek-ai/dsh-video-workbench/tools'

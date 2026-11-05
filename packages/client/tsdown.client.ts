@@ -36,7 +36,7 @@ import {
 } from './modules/src/assets.ts'
 import { optionalStringArray } from './modules/src/client/manifest.ts'
 import { PLATFORM_MODULES, PRELOADED_CLIENT_EXTERNALS } from './web/src/platform.ts'
-import { clientBuildEnvironmentDefines, clientBuildValueDefines } from '../../scripts/client-build-environment.ts'
+import { clientBuildEnvironmentDefines, clientBuildValueDefines, repositoryVersion } from '../../scripts/client-build-environment.ts'
 import { isExperimentalPackageName } from '../../scripts/experimental-package-policy.ts'
 import { oemClientBuildEnvironment, readOemConfig } from '../../scripts/oem-config.ts'
 import { BundleInputIsolation, physicalBundleInput } from '../../scripts/bundle-input-isolation.ts'
@@ -104,6 +104,10 @@ const SKIP_WORKSPACE_BUILD: UserConfig = { entry: '' }
 
 const REPOSITORY_ROOT = fileURLToPath(new URL('../..', import.meta.url))
 const OEM_CLIENT_ENVIRONMENT = oemClientBuildEnvironment(readOemConfig(REPOSITORY_ROOT))
+// Ad-hoc client bundles run where no build orchestration exports DSH_CLIENT_VERSION:
+// without this value the browser artifacts render `{}.DSH_CLIENT_VERSION` and every
+// client-side version reader (account request identity, brand badge) reads undefined.
+const CLIENT_BUILD_VERSION = repositoryVersion(REPOSITORY_ROOT)
 
 /** Rebase a physical lib-relative source onto a browser URL that mirrors the repository directories. */
 function browserSourcePath(source: string, sourcemapPath: string): string {
@@ -830,7 +834,7 @@ function clientConfig(
     // key: zustand probes `import.meta.env ? import.meta.env.MODE : ...`, and
     // the truthiness probe would otherwise survive as an empty import.meta.
     define: {
-      ...clientBuildEnvironmentDefines({ ...OEM_CLIENT_ENVIRONMENT, ...process.env }),
+      ...clientBuildEnvironmentDefines({ ...OEM_CLIENT_ENVIRONMENT, DSH_CLIENT_VERSION: CLIENT_BUILD_VERSION, ...process.env }),
       'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV ?? 'production'),
       'import.meta.env.MODE': JSON.stringify(process.env.NODE_ENV ?? 'production'),
       'import.meta.env': JSON.stringify({ MODE: process.env.NODE_ENV ?? 'production' }),

@@ -21,7 +21,7 @@ Browse video plans, cast and set assets, keyframes, clips, and final assemblies 
 
 ## Use this package
 
-Load the package as a host plugin (the web-app bundle carries it). Configuration is one optional field:
+Load the package as a host plugin (the web-app bundle carries it). Configuration accepts an output directory and authoring size limit:
 
 ```yaml
 - id: video-workbench
@@ -41,7 +41,7 @@ The listing also projects each plan's recorded cast/set/prop assets: the referen
 - [`src/trash.ts`](src/trash.ts) owns the two deletions: project artifacts discovered by id prefix, and one plan asset plus the images it recorded, with unshared files moved into `video-trash` and the plan rewritten without the asset. Files referenced by another plan’s assets or authored segment references, by remaining assets or segments in the same plan, or by the project library remain in place. Asset deletion also saves the original plan in the recovery directory; a failed write restores moved files. An unreadable referring document blocks deletion because its references cannot be checked.
 - [`src/index.ts`](src/index.ts) registers all four routes on Connection's exact Fetch registry under `ctx.effect`, so the rows live exactly as long as the plugin.
 
-**Runtime invariant:** No companion is published. Both routes read the output directory per request and hold no cross-request state, so there is no owned relationship for a companion to observe.
+**Runtime invariant:** No companion is published. The store validates collection ids, relationship endpoints, revisions and clip timing; one instance refuses concurrent exports of the same work.
 
 ## Model Experience
 
@@ -49,15 +49,15 @@ The listing also projects each plan's recorded cast/set/prop assets: the referen
 
 #### What the model sees
 
-Nothing. The workbench registers no tools and emits no session events; the model loop is unaware of it. The browser page is the only consumer of `GET /api/video-workbench/projects` and `GET /api/video-workbench/file`.
+The host provides `ctx.videoWorkbenchStudio`; the agent-scoped `@deepseek-ai/dsh-video-workbench/tools` entry registers `video_studio_read`, `video_studio_save` and `video_studio_export`. Reads return complete JSON, saves return the committed id/revision, and exports return the media path, duration and source revision. Tool arguments and results follow normal Session logging; GUI changes remain work artifacts.
 
 #### Token effect
 
-No effect: routes are read-only HTTP answers to the browser and never enter a model request or the session transcript; the `plans/*.json` scan stays inside the host process.
+Reading a work exposes its authored text and collections in the tool result. Catalog reads return summaries; saves and exports return compact metadata. HTTP-only editing adds no model messages.
 
 #### KV Cache effect
 
-No effect: the package adds no system-prompt text and no per-request prefix.
+The tools entry contributes stable tool definitions; the host entry adds no prompt text.
 
 ## Known Limitations and Deferred Work
 
@@ -76,3 +76,7 @@ No effect: the package adds no system-prompt text and no per-request prefix.
 Routes register on Connection's exact Fetch registry under `ctx.effect`, so the rows live exactly as long as the plugin; a route registered only on the web server answers the browser and never the desktop shell, which dispatches `/api` through that registry. The file service's containment order is segment whitelist → extension whitelist → `realpath` on both ends → `relative` re-check; read the matching refusal cases in `tests/workbench.spec.ts` before changing any step, and `tests/transport.spec.ts` for the carrier dispatch. Bilingual ToC anchors keep English slugs so both sides' links agree.
 
 </details>
+
+Authoring uses `GET /api/video-workbench/studio` (catalog or `?id=` document) and `POST` (`{content}` to create; `{id,revision,content}` to save). Content contains `title`, `source`, ordered `blocks`, canvas cards, graph nodes and edges, director scenes, and edit tracks. Immutable revisions live under `studio/<id>/<revision>.json`. Stale saves return 409; corrupt or unsupported data returns 422 and is preserved. `maxStudioBytes` defaults to 2 MiB. Atomic publication requires filesystem hard links; storage failures preserve existing revisions. The host provides the same `ctx.videoWorkbenchStudio` owner for model-facing tools; generated plans remain separate artifacts.
+
+Timeline export uses `POST /api/video-workbench/studio/export` with `{id,revision}`. It renders the captured revision into an isolated directory, mixes audio, layers later video tracks over earlier ones and embeds selectable MP4 subtitles from subtitle clip names. Source paths are resolved through the controlled media resolver; source in points and clip lengths must fit the probed media duration. Failed exports remove only their temporary output; existing revisions remain intact. Cancellation terminates subprocesses. The `studioRender` configuration sets `ffmpegPath`, `ffprobePath`, `timeoutMs` (300000), `maxDurationSeconds` (600), `maxClips` (64), `width` (1280), `height` (720) and `fps` (30); dimensions must be even integers. The defaults use FFmpeg and FFprobe on PATH.

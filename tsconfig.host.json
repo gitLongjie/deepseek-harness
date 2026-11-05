@@ -472,6 +472,7 @@
     { "path": "./packages/experimental/ptc-runtime-python" },
     { "path": "./packages/ptc-runtime/ptc-runtime-node" },
     { "path": "./packages/llm/llm-deepseek" },
+    { "path": "./packages/llm/llm-deepagens" },
     { "path": "./packages/llm/llm-deepseek-api-key" },
     { "path": "./packages/llm/llm-deepseek-account" },
     { "path": "./packages/llm/llm-pi-ai" },

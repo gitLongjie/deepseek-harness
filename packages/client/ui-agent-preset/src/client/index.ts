@@ -1,16 +1,13 @@
 /**
- * Agent-preset surface plugin, browser half — three surfaces over one roster:
- * a chip on the new-session screen for the session about to start, a
- * read-only label in the session header, and a settings section that lists
- * the roster (selection, the new-task default, a read-only view of each
- * declared composition, and the way into Creator mode).
+ * Agent-preset surface plugin, browser half — the new-session chip and a
+ * read-only label in the session header, over one roster.
  *
  * A running session keeps the composition it began with (the host switches a
  * session's preset only before its first turn). That is what splits
- * the choice from the display: the hero chip is before-the-fact, while the
- * header only reports what a session already runs. The default preset is
- * edited where the roster is visible — the settings section's "make default"
- * — so General settings carries no duplicate control for the same field.
+ * the choice from the display: the hero chip names the expert the next task
+ * will use and opens the experts page, while the header only reports what a
+ * session already runs. The new-task default is edited on the experts page,
+ * which writes through this plugin, so Settings carries no Agent presets section.
  *
  * Coding Tools (General settings) hide PTC and Minimal from the hero menu
  * and Settings roster when off. Hidden saved defaults fall back to Standard;
@@ -26,8 +23,6 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 // Type-only: pulls the ctx.remote merge and the forwarded-event key face
 // (the settings invalidation rides the allowlist) into this program.
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
-// Type-only: pulls the settings shell's SlotMap merge (the 'settings.section' entry).
-import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 // Type-only: pulls the Workspace UI navigation service merge (ctx.uiWorkspace).
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
@@ -38,9 +33,8 @@ import { CreatePluginMenuItem } from './CreatePluginMenuItem.tsx'
 import type { AgentPresetLabelInjected } from './AgentPresetLabel.tsx'
 import { AgentPresetSeat } from './AgentPresetSeat.tsx'
 import type { AgentPresetSeatInjected } from './AgentPresetSeat.tsx'
-import { AgentPresetSection } from './AgentPresetSection.tsx'
-import type { AgentPresetSectionInjected } from './AgentPresetSection.tsx'
 import { AgentPresetSeatController, type AgentPresetStage } from './seat-store.ts'
+import { UiAgentPresetService } from './navigation.ts'
 import type {} from './navigation.ts'
 import { AgentPresetSectionController } from './section-store.ts'
 import { en, ja, es, fr, de, ru, pt, zh, type AgentPresetSettingsKey } from './locales.ts'
@@ -56,7 +50,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 
 export type { AgentPresetLabelInjected, AgentPresetLabelProps } from './AgentPresetLabel.tsx'
 export type { AgentPresetSeatInjected, AgentPresetSeatProps } from './AgentPresetSeat.tsx'
-export type { AgentPresetSectionInjected, AgentPresetSectionProps } from './AgentPresetSection.tsx'
+export type { UiAgentPreset } from './navigation.ts'
 export type { AgentPresetSeatState } from './seat-store.ts'
 export type { AgentPresetSectionState, PresetView } from './section-store.ts'
 export type { AgentPresetOption, AgentPresetSettingsState } from './settings-store.ts'
@@ -68,7 +62,7 @@ export const inject = [
 ]
 
 /**
- * Mount the roster surfaces: hero chip, session-header label, settings section.
+ * Mount the roster surfaces: hero chip and session-header label.
  * @param ctx - the browser plugin context.
  */
 export function apply(ctx: ClientContext): void {
@@ -79,24 +73,7 @@ export function apply(ctx: ClientContext): void {
   const codingToolsDisabled = (): boolean => active && toolsSettings.getSnapshot().value?.enabled === false
   const controller = new AgentPresetSettingsController(ctx)
   const staged: AgentPresetStage = { id: undefined, introduce: false }
-  // Cross-surface staging (expert hiring writes from the market page, the seat
-  // flow consumes it on the next new session): a routed pick lands in the same
-  // staged object the seat controllers read.
-  ctx.effect(() => {
-    let stage: ((id: string) => void) | undefined
-    ctx.provide('uiAgentPreset', {
-      stageNextSessionPreset: (id: string): boolean => {
-        if (stage === undefined) return false
-        stage(id)
-        return true
-      },
-    })
-    stage = (id) => {
-      staged.id = id
-      staged.introduce = false
-    }
-    return () => { stage = undefined }
-  }, 'ui-agent-preset: staging service')
+  const presetService = new UiAgentPresetService(ctx)
   const seats = new WeakMapWithValues<SessionBinding, AgentPresetSeatController>()
   const boundSeatDisposers = new Set<() => Promise<void>>()
   ctx.effect(() => async () => {
@@ -146,6 +123,12 @@ export function apply(ctx: ClientContext): void {
     const binding = summary === undefined ? undefined : ctx.sessions.binding(summary.id)
     return binding === undefined ? undefined : seatFor(binding)
   }
+  // Cross-surface staging (expert hiring writes from the market page, the seat
+  // flow consumes it on the next new session): a routed pick lands on the chip
+  // the user is looking at. The introduce cue announces a pick made elsewhere.
+  ctx.effect(() => presetService.bindStage((id) => {
+    ;(mainBlankSeat() ?? unboundSeat).stage(id, true)
+  }), 'ui-agent-preset: staging service')
 
   ctx.effect(() => ctx.locale.register('settings.agentPreset', { zh, en, ja, es, fr, de, ru, pt }), 'ui-agent-preset: settings row dictionaries')
 
@@ -194,12 +177,9 @@ export function apply(ctx: ClientContext): void {
     }
   }, 'ui-agent-preset: settings refresh')
 
-  // The settings section's conversational authoring entry: stage the
-  // self-referential preset and land a new session on it. Bound inside the
-  // conversation scope below (the seat and the session flow live there) and
-  // unbound with it, so the section's face reads the current binding per
-  // render and simply hides the button while no flow exists.
-  let creatorDraft: (() => void) | undefined
+  // Creator authoring stages the self-referential preset and lands a new session
+  // on it. The Plugins add menu is the entry; it lives in the conversation scope
+  // because the seat and the session flow live there.
   ctx.inject(['slots', 'conversation', 'sessions', 'uiWorkspace'], (scope: ClientContext) => {
     const seatInjected = (sessionId: SessionId | undefined): AgentPresetSeatInjected => {
       const binding = sessionId === undefined ? undefined : ctx.sessions.binding(sessionId)
@@ -224,6 +204,7 @@ export function apply(ctx: ClientContext): void {
         },
         dismissRefusal: (error) => { seat.dismissRefusal(error) },
         introduced: () => { seat.introduced() },
+        openExperts: () => { presetService.openExpertsPage() },
       }
     }
 
@@ -241,7 +222,6 @@ export function apply(ctx: ClientContext): void {
     }
 
     scope.effect(() => {
-      creatorDraft = startCreatorDraft
       const chip = scope.slots.register({
         name: 'conversation.hero.agentPreset',
         locale: 'settings.agentPreset',
@@ -256,11 +236,16 @@ export function apply(ctx: ClientContext): void {
         inject: labelInjected,
       }, AgentPresetLabel)
       return () => {
-        creatorDraft = undefined
         chip()
         label()
       }
     }, 'ui-agent-preset: new-session chip and header label')
+
+    scope.effect(() => scope.uiWorkspace.bindPlaceholderAdoption((sessionId) => {
+      const binding = ctx.sessions.binding(sessionId)
+      const seat = binding === undefined ? unboundSeat : seatFor(binding)
+      return seat.prepareNewSession(sessionId)
+    }), 'ui-agent-preset: placeholder adoption')
 
     scope.slots.inject('plugins.add.actions', () => scope.slots.register({
       name: 'plugins.add.actions',
@@ -288,23 +273,8 @@ export function apply(ctx: ClientContext): void {
     }
   }
 
-  const sectionInjected = (): AgentPresetSectionInjected => ({
-    hooks: { agentPresetSection: section.store, developerTools: ctx.configForms.developerTools.enabled },
-    load: () => section.load(),
-    view: (id: string) => section.view(id),
-    closeView: () => { section.closeView() },
-    ...creatorDraft === undefined ? {} : { startCreatorDraft: creatorDraft },
-    makeDefault: (id: string) => section.makeDefault(id, captureBlankSessionSync()),
-  })
-
-  // Ordered after Models: choosing a model is routine, and composing an
-  // agent is the deployment-shaping act behind it.
-  ctx.slots.inject('settings.section', () => ctx.slots.register({
-    name: 'settings.section',
-    id: 'agent-presets',
-    order: 20,
-    label: () => ctx.locale.bind('settings.agentPreset')('nav'),
-    locale: 'settings.agentPreset',
-    inject: sectionInjected,
-  }, AgentPresetSection))
+  ctx.effect(() => presetService.bindMakeDefault(async (id) => {
+    await section.makeDefault(id, captureBlankSessionSync())
+    return section.store.getSnapshot().error ?? undefined
+  }), 'ui-agent-preset: new-task default')
 }

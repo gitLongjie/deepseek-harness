@@ -96,7 +96,8 @@ export function apply(ctx: Context): void {
       let value: AccountDetails[K] | null
       try { value = await query() }
       catch { value = { status: 'failed' } }
-      if (value?.status === 'failed') console.error('[deepseek-account] account read failed', { field })
+      // Field name only: query failures may carry provider or transport detail that must not reach diagnostics.
+      if (value?.status === 'failed') console.error(`[deepseek-account] ${String(field)} read failed`)
       if (generation === revision && value !== null) publish({ ...snapshot, details: { ...snapshot.details, [field]: value } })
     }
     const request = Promise.all([
