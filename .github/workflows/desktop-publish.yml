@@ -138,6 +138,10 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
           GH_TOKEN: ${{ github.token }}
+          # The macOS runner holds 7 GB; uncapped V8 heaps across the build's
+          # tsc/vite/rolldown processes exceed it and the runner is killed
+          # mid-build (the job reports "cancelled" and uploads no logs).
+          NODE_OPTIONS: --max-old-space-size=4096
 
       - uses: actions/upload-artifact@v7
         with:
