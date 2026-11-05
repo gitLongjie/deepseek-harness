@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url'
  *
  * The walk starts inside the package's own build output, so the first readable
  * manifest upward is the package root itself. The packaged manifest's `name`
- * is the ASCII OEM identity (miaoWorker), not the workspace name, so the name
+ * is the ASCII OEM identity (DeepWorker), not the workspace name, so the name
  * cannot select the root.
  */
 export function desktopPackageRoot(moduleUrl: string): string {

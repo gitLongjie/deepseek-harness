@@ -67,7 +67,7 @@ win:
   # Windows Explorer, the taskbar, and Task Manager read the executable's
   # embedded icon rather than BrowserWindow's runtime icon.
   icon: build/icon.ico
-  executableName: miaoWorker
+  executableName: DeepWorker
   target:
     - target: nsis
       arch:
@@ -77,9 +77,9 @@ nsis:
   # non-ASCII prefix puts unescaped characters in the GitHub request path and
   # electron-builder's safe-name fallback drops the arch suffix. Keep the
   # artifact prefix ASCII; shortcuts and the uninstall entry follow ${productName}.
-  artifactName: miaoWorker-${version}-win-${arch}.${ext}
+  artifactName: DeepWorker-${version}-win-${arch}.${ext}
   # Per-machine install so the assisted wizard defaults to Program Files, and
-  # installer.nsh pins that default to the ASCII miaoWorker directory: the
+  # installer.nsh pins that default to the ASCII DeepWorker directory: the
   # display name follows productName while the on-disk path stays stable across
   # OEM renames.
   perMachine: true
@@ -94,12 +94,12 @@ mac:
   # Both architectures are built in one job. The architecture suffix prevents
   # the Intel and Apple Silicon assets from colliding in the GitHub release.
   # Keep the artifact prefix ASCII (see the nsis note).
-  artifactName: miaoWorker-${version}-mac-${arch}.${ext}
+  artifactName: DeepWorker-${version}-mac-${arch}.${ext}
   # The app bundle under /Applications follows the platform executable name:
-  # an ASCII miaoWorker.app matches the Windows install directory and keeps
+  # an ASCII DeepWorker.app matches the Windows install directory and keeps
   # scripts and support paths stable, while productName stays the display
   # name — CFBundleName, the window title, tray, notifications, and About copy.
-  executableName: miaoWorker
+  executableName: DeepWorker
   target:
     - target: dmg
       arch:
@@ -115,7 +115,7 @@ mac:
   identity: null
   notarize: false
 dmg:
-  artifactName: miaoWorker-${version}-mac-${arch}.${ext}
+  artifactName: DeepWorker-${version}-mac-${arch}.${ext}
 linux:
   target:
     - AppImage
@@ -123,13 +123,13 @@ linux:
   category: Development
   # Without an explicit name, AppImage/deb infer executableName from the
   # package.json name (which contains @ and /) and the build fails.
-  executableName: miaoworker
+  executableName: deepworker
   # The scoped package name (@deepseek-ai/dsh-desktop) would put the .deb under
   # a missing dist-electron/@deepseek-ai/ directory (fpm: parent directory does
   # not exist). Pin a flat artifact name so both Linux targets write directly
   # under dist-electron/.
   # Keep the artifact prefix ASCII (see the nsis note).
-  artifactName: miaoWorker-${version}-linux-${arch}.${ext}
+  artifactName: DeepWorker-${version}-linux-${arch}.${ext}
 publish:
   provider: github
   owner: gitLongjie

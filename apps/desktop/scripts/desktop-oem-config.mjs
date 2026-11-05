@@ -131,12 +131,12 @@ export function createElectronBuilderOemConfig(productName, updateUrl, options =
     extends: 'electron-builder.yml',
     // The installer identity (install dir, shortcuts, uninstall entry) carries
     // the configured OEM display name. The package `name` stays the ASCII
-    // miaoWorker identity: electron-builder derives APP_FILENAME from it to
+    // DeepWorker identity: electron-builder derives APP_FILENAME from it to
     // sanitize the install directory, and an ASCII name keeps that check stable
     // while the display name may be non-ASCII.
     productName,
     extraMetadata: {
-      name: 'miaoWorker',
+      name: 'DeepWorker',
       productName,
       dsh: {
         // No updateUrl means the packaged runtime disables auto-update

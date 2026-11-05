@@ -41,22 +41,22 @@ describe('desktop builder identity', () => {
 
   it('gives Windows and macOS release assets stable architecture-specific names', () => {
     expect(config).toMatch(
-      /^nsis:\s*$[\s\S]*?^\s+artifactName:\s+miaoWorker-\$\{version\}-win-\$\{arch\}\.\$\{ext\}\s*$/m,
+      /^nsis:\s*$[\s\S]*?^\s+artifactName:\s+DeepWorker-\$\{version\}-win-\$\{arch\}\.\$\{ext\}\s*$/m,
     )
     expect(config).toMatch(
-      /^mac:\s*$[\s\S]*?^\s+artifactName:\s+miaoWorker-\$\{version\}-mac-\$\{arch\}\.\$\{ext\}\s*$/m,
+      /^mac:\s*$[\s\S]*?^\s+artifactName:\s+DeepWorker-\$\{version\}-mac-\$\{arch\}\.\$\{ext\}\s*$/m,
     )
     expect(config).toMatch(
-      /^linux:\s*$[\s\S]*?^\s+artifactName:\s+miaoWorker-\$\{version\}-linux-\$\{arch\}\.\$\{ext\}\s*$/m,
+      /^linux:\s*$[\s\S]*?^\s+artifactName:\s+DeepWorker-\$\{version\}-linux-\$\{arch\}\.\$\{ext\}\s*$/m,
     )
     expect(config).not.toContain('${productName}-${version}')
   })
 
-  it('installs per-machine under the stable ASCII miaoWorker directory', () => {
+  it('installs per-machine under the stable ASCII DeepWorker directory', () => {
     expect(config).toMatch(/^  perMachine: true\s*$/m)
     expect(config).toMatch(/^  include: build\/installer\.nsh\s*$/m)
     const installer = readFileSync(fileURLToPath(new URL('../build/installer.nsh', import.meta.url)), 'utf8')
-    expect(installer).toContain('StrCpy $INSTDIR "$PROGRAMFILES64\\miaoWorker"')
+    expect(installer).toContain('StrCpy $INSTDIR "$PROGRAMFILES64\\DeepWorker"')
   })
 
   it('brands the Windows development executable used by Task Manager', () => {
@@ -96,7 +96,7 @@ describe('desktop builder identity', () => {
       extends: 'electron-builder.yml',
       productName: 'miaoWorker',
       extraMetadata: {
-        name: 'miaoWorker',
+        name: 'DeepWorker',
         productName: 'miaoWorker',
         dsh: { updateUrl: 'https://updates.example.test/desktop' },
       },
@@ -120,7 +120,7 @@ describe('desktop builder identity', () => {
     })).toMatchObject({
       directories: { output: 'C:/local-update/feed' },
       extraMetadata: {
-        name: 'miaoWorker',
+        name: 'DeepWorker',
         productName: 'Worker',
         version: '1.2.4',
         dsh: { updateUrl: 'http://127.0.0.1:43119', localUpdateTest: true },
@@ -149,7 +149,7 @@ describe('desktop builder identity', () => {
       extends: 'electron-builder.yml',
       productName: 'miaoWorker',
       extraMetadata: {
-        name: 'miaoWorker',
+        name: 'DeepWorker',
         productName: 'miaoWorker',
         dsh: {},
       },

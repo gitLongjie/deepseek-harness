@@ -1,4 +1,4 @@
-; Default the assisted installer to the ASCII miaoWorker directory under
+; Default the assisted installer to the ASCII DeepWorker directory under
 ; Program Files: the OEM display name stays user-facing (see the nsis config)
 ; while the on-disk install path stays stable across OEM display-name renames.
 ;
@@ -17,7 +17,7 @@
 !include "LogicLib.nsh"
 
 !macro customInit
-  StrCpy $INSTDIR "$PROGRAMFILES64\miaoWorker"
+  StrCpy $INSTDIR "$PROGRAMFILES64\DeepWorker"
   InitPluginsDir
   !insertmacro _dwStopLegacyApp "MeowWork.exe"
   !insertmacro _dwStopLegacyApp "Deepagens-Worker.exe"

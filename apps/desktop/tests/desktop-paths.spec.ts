@@ -28,7 +28,7 @@ describe('desktop shell paths', () => {
 
   it('accepts the packaged manifest whose name is the OEM identity', () => {
     const root = mkdtempSync(join(tmpdir(), 'dsh-desktop-paths-'))
-    writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'miaoWorker' }))
+    writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'DeepWorker' }))
     const distMain = join(root, 'dist/main/desktop-paths.js')
     mkdirSync(join(root, 'dist/main'), { recursive: true })
     writeFileSync(distMain, 'export {}\n')
