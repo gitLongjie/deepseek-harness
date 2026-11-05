@@ -133,14 +133,14 @@ linux:
 publish:
   provider: github
   owner: gitLongjie
-  repo: miaoWorker
+  repo: deepseek-harness
   releaseType: release
-  # The miaoWorker repository is the release home: the desktop-publish
-  # workflow tags and builds there, so `--publish always` (manual `pnpm
-  # release` runs and the workflow's smoke --publish path) must target this
-  # same repository for the built-in GITHUB_TOKEN to have write access. The
-  # packaged app's updater feed is the generic provider baked from
-  # oem.config.json's updateUrl (the ciyuan /setup/ mirror), not this block.
-  # GitHub release tags default to v${version} and
+  # The desktop-publish workflow runs in THIS repository, so `--publish always`
+  # (manual `pnpm release` runs and the workflow's smoke --publish path) must
+  # target it for the built-in GITHUB_TOKEN to have write access — a repo
+  # mismatch fails the upload with 403 after the installers are already built.
+  # The packaged app's updater feed is the generic provider baked from
+  # oem.config.json's updateUrl, which points at this repository's releases
+  # too. GitHub release tags default to v${version} and
   # electron-updater parses tags as semver, so a non-semver prefix (e.g.
   # desktop-v) breaks update detection; keep the default v prefix.
