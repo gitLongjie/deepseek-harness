@@ -103,7 +103,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest]
+        # macos-latest currently provisions-fails on this workflow (three
+        # consecutive jobs died at exactly 15:01 with zero steps and no logs;
+        # the same workflow ran macos-latest fine on 2026-10-27), so pin the
+        # stable image until that image rotation settles.
+        os: [windows-latest, macos-15]
     steps:
       - uses: actions/checkout@v6
 
