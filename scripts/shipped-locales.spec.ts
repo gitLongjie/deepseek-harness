@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import * as desktop from '../apps/desktop/src/locale.ts'
+import * as desktop from '../apps/desktop/src/main/desktop/locales.ts'
 import { readInstallerLocales } from '../apps/desktop/scripts/installer-locales.mjs'
 /** Translations preserve executable command examples and named interpolation fields. */
 import { expect, it } from 'vitest'
@@ -29,16 +29,15 @@ it.each(['\u200b', '\ufeff'])('rejects an invisible translation character', (cha
   expect(hasInvisibleLocaleCharacters('normal text')).toBe(false)
 })
 
-it('matches Desktop dictionaries, resolution and installer resources to the shipped catalog', () => {
+it('matches Desktop dictionaries and installer resources to the shipped catalog', () => {
   const dictionaries = Object.keys(desktop).filter(name => /^[a-z]{2}$/u.test(name)).sort()
-  expect(dictionaries).toEqual([...SHIPPED_LOCALE_IDS].sort())
-  for (const id of SHIPPED_LOCALE_IDS) {
-    expect(desktop.resolveDesktopLocale(id).id).toBe(id === 'zh' ? 'zh-CN' : id)
-    expect(desktop.resolveDesktopStartupLocale(null, [id]).id).toBe(id === 'zh' ? 'zh-CN' : id)
-  }
-  expect(readInstallerLocales().map(locale => locale.id.split('_')[0]).sort()).toEqual(dictionaries)
+  expect(dictionaries).toEqual(['en', 'zh'])
+  expect(desktop.normalizeLocale('en')).toBe('en')
+  expect(desktop.normalizeLocale('zh')).toBe('zh')
+  expect(desktop.normalizeLocale(null)).toBe('zh')
+  expect(readInstallerLocales().map(locale => locale.id.split('_')[0]).sort()).toEqual([...SHIPPED_LOCALE_IDS].sort())
 })
 
 it('rejects invisible characters in the Desktop locale source', () => {
-  expect(hasInvisibleLocaleCharacters(readFileSync(new URL('../apps/desktop/src/locale.ts', import.meta.url), 'utf8'))).toBe(false)
+  expect(hasInvisibleLocaleCharacters(readFileSync(new URL('../apps/desktop/src/main/desktop/locales.ts', import.meta.url), 'utf8'))).toBe(false)
 })
