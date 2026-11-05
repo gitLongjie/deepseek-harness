@@ -9,17 +9,22 @@ import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const DESKTOP_PACKAGE_NAME = '@deepseek-ai/dsh-desktop'
-
-/** Absolute path of the apps/desktop directory for the executing main module. */
+/**
+ * Absolute path of the apps/desktop directory for the executing main module.
+ *
+ * The walk starts inside the package's own build output, so the first readable
+ * manifest upward is the package root itself. The packaged manifest's `name`
+ * is the ASCII OEM identity (miaoWorker), not the workspace name, so the name
+ * cannot select the root.
+ */
 export function desktopPackageRoot(moduleUrl: string): string {
   let directory = dirname(resolve(fileURLToPath(moduleUrl)))
   for (let depth = 0; depth < 8; depth += 1) {
     const manifestPath = join(directory, 'package.json')
     if (existsSync(manifestPath)) {
       try {
-        const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as { name?: string }
-        if (manifest.name === DESKTOP_PACKAGE_NAME) return directory
+        JSON.parse(readFileSync(manifestPath, 'utf8'))
+        return directory
       } catch {
         // Keep walking when the manifest is unreadable.
       }

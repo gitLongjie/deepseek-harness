@@ -36,6 +36,7 @@ export default defineConfig([
     plugins: [packagedImportsPlugin({ packages: new Set(), nodeBuiltins: true })],
     outDir: 'lib', format: ['esm'], platform: 'node', target: 'es2024',
     fixedExtension: false, dts: false, clean: false, codeSplitting: false,
+    deps: { alwaysBundle: [/^@deepseek-ai\//u] },
   },
   {
     entry: ['lib/types/command-manager-entry.js'],
@@ -48,7 +49,7 @@ export default defineConfig([
     dts: false,
     clean: false,
     codeSplitting: false,
-    deps: { alwaysBundle: ['@deepseek-ai/dsh-atomic-write'] },
+    deps: { alwaysBundle: ['@deepseek-ai/dsh-atomic-write', /^@deepseek-ai\//u] },
   },
   {
     entry: ['lib/types/main/index.js'],

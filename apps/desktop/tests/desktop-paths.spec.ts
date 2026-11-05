@@ -26,6 +26,15 @@ describe('desktop shell paths', () => {
     expect(desktopWebDistDir(pathToFileURL(libMain).href)).toBe(join(root, 'web'))
   })
 
+  it('accepts the packaged manifest whose name is the OEM identity', () => {
+    const root = mkdtempSync(join(tmpdir(), 'dsh-desktop-paths-'))
+    writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'miaoWorker' }))
+    const distMain = join(root, 'dist/main/desktop-paths.js')
+    mkdirSync(join(root, 'dist/main'), { recursive: true })
+    writeFileSync(distMain, 'export {}\n')
+    expect(desktopPackageRoot(pathToFileURL(distMain).href)).toBe(root)
+  })
+
   it('prefers the packaged preload bundle when both dev and lib outputs exist', () => {
     const root = mkdtempSync(join(tmpdir(), 'dsh-desktop-paths-'))
     writeFileSync(join(root, 'package.json'), JSON.stringify({ name: '@deepseek-ai/dsh-desktop' }))
