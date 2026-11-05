@@ -33,6 +33,9 @@ export const REQUIRED_UNPACKED_PACKAGES: readonly string[] = [
 export const UNPACKED_DEPENDENCY_PACKAGES: readonly string[] = [
   '@deepseek-ai/dsh-lazy-require',
   '@deepseek-ai/dsh-subprocess',
+  // The runner chain's sandbox config loader reads YAML documents at its
+  // plain-Node load time.
+  'yaml',
 ]
 
 /** electron-builder `asarUnpack` globs covering every required unpacked package. */
@@ -44,6 +47,14 @@ export const ASAR_UNPACK_GLOBS: readonly string[] = [
   '**/*.so.*',
   ...REQUIRED_UNPACKED_PACKAGES.map(name => `**/node_modules/${name}/**`),
   ...UNPACKED_DEPENDENCY_PACKAGES.map(name => `**/node_modules/${name}/**`),
+  // Every workspace plugin package ships as real files: plain-Node subprocess
+  // chains (the sandbox runner, tool runners) and a fresh profile's bare-name
+  // resolution walk the unpacked tree, and a hand-picked package list cannot
+  // keep up with the composition. npm dependencies stay archived; only code
+  // that plain Node must reach, plus the packages the profile resolution
+  // hands out, needs the unpacked twin.
+  '**/node_modules/@deepseek-ai/**',
+  '**/node_modules/@xmanrui/**',
 ]
 
 /** Stable id of one boot-critical packaged resource, localized in desktop/locales. */

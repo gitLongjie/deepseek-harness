@@ -123,6 +123,8 @@ function okLogin(): void {
 const discovered: LlmDiscoveredModel[] = [
   { id: 'gpt-4o', name: 'gpt-4o', contextWindow: 128000, maxTokens: 4096 },
   { id: 'gpt-3.5', name: 'gpt-3.5' },
+  { id: 'deepseek-v4.1-flash', name: 'deepseek-v4.1-flash', inputModalities: ['text', 'image'] },
+  { id: 'image-only', name: 'image-only', inputModalities: ['file', 'image', 'image'] as LlmDiscoveredModel['inputModalities'] },
 ]
 
 const expectedModels = [
@@ -139,6 +141,18 @@ const expectedModels = [
     name: 'gpt-3.5',
     description: '',
     inputModalities: ['text'],
+  },
+  {
+    id: 'deepseek-v4.1-flash',
+    name: 'deepseek-v4.1-flash',
+    description: '',
+    inputModalities: ['text', 'image'],
+  },
+  {
+    id: 'image-only',
+    name: 'image-only',
+    description: '',
+    inputModalities: ['text', 'image'],
   },
 ]
 

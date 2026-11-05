@@ -92,6 +92,18 @@ export async function runPackagedSmoke(options: PackagedSmokeOptions): Promise<P
       : `missing services: ${absentCarriers.join(', ')}`,
   })
 
+  // One-line diagnostics for the host rows a preset subtree depends on: the
+  // roster check only names the preset, so a failed owner here stays invisible.
+  type HostRowProbe = { options: { id?: string; name?: string }; disabled?: boolean; fiber?: { state: number } | undefined }
+  const loaderEntries = (ctx as unknown as { loader?: { entries(): HostRowProbe[] } }).loader
+  if (loaderEntries !== undefined) {
+    const watched = ['video-workbench', 'credentials', 'connection']
+    const rows = [...loaderEntries.entries()]
+      .filter(entry => watched.includes(entry.options.id ?? '') && entry.fiber?.state !== 2)
+      .map(entry => `${entry.options.id ?? '?'}(${entry.options.name ?? '?'}): ${entry.disabled ? 'disabled' : entry.fiber === undefined ? 'no-fiber' : `fiber-${String(entry.fiber.state)}`}`)
+    checks.push({ name: 'host-rows-debug', ok: true, detail: rows.length === 0 ? 'watched rows all active' : rows.join(' | ') })
+  }
+
   // A graph without application entries renders a page that boots zero plugins
   // and waits forever: the packaged dsh.client scan resolved no client package
   // (a node_modules closure or resolution failure the resource check cannot see).
@@ -129,7 +141,7 @@ export async function runPackagedSmoke(options: PackagedSmokeOptions): Promise<P
         ? 'the agentPresets service is not composed'
         : broken.length === 0
           ? `${String(presets.length)} presets resolve from the packaged node_modules`
-          : `broken presets: ${broken.map(preset => preset.id).join(', ')}`,
+          : `broken presets: ${broken.map(preset => `${preset.id}: ${preset.broken ?? 'unspecified'}`).join(' | ')}`,
     })
   } catch (error) {
     checks.push({ name: 'agent-preset-roster', ok: false, detail: error instanceof Error ? error.message : String(error) })

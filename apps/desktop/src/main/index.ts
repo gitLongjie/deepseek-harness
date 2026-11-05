@@ -379,9 +379,31 @@ async function main(): Promise<void> {
       if (ns === 'locale') rebuildShell(win)
     })
   } catch (error) {
-    log(`desktop: startup failed:\n${flattenError(error)}`)
+    log(`desktop: startup failed:\n${flattenError(error)}${startupDiagnostic(error)}`)
     app.exit(1)
   }
+}
+
+/** Dump the boot collector's warn/error records the StartupError carries, if any. */
+function startupDiagnostic(error: unknown): string {
+  type StartupMessages = {
+    startup?: { messages?: readonly { name: string; type: string; args: readonly unknown[] }[] }
+  }
+  type CompositionPlugins = {
+    composition?: { plugins?: readonly { id: string; module: string; state: string; missing?: readonly string[] }[] }
+  }
+  const lines: string[] = []
+  const messages = (error as StartupMessages).startup?.messages
+  if (messages !== undefined) {
+    lines.push(...messages.map(({ name, type, args }) => `startup ${type} ${name}: ${args.map(String).join(' ')}`))
+  }
+  const plugins = (error as CompositionPlugins).composition?.plugins
+  if (plugins !== undefined) {
+    for (const row of plugins.filter(plugin => plugin.state !== 'active')) {
+      lines.push(`entry ${row.id} (${row.module}): ${row.state}${row.missing?.length ? ` missing ${row.missing.join(', ')}` : ''}`)
+    }
+  }
+  return lines.length === 0 ? '' : '\n' + lines.join('\n')
 }
 
 /** Read packaged metadata and resolve the desktop update feed (undefined disables updates). */

@@ -17,7 +17,7 @@
  */
 
 import { INVALID_CREDENTIAL_CODE, LlmError, normalizeApiKey, attributionHeaders } from '@deepseek-ai/dsh-llm'
-import type { LlmDiscoveredModel, LlmModelDiscoveryRequest } from '@deepseek-ai/dsh-llm'
+import type { LlmDiscoveredModel, LlmModelDiscoveryRequest, ModelModality } from '@deepseek-ai/dsh-llm'
 
 /**
  * Endpoint replies larger than this are refused. The endpoint is whatever URL
@@ -38,6 +38,32 @@ interface ListingEntry {
   context_length?: unknown
   max_tokens?: unknown
   max_output_tokens?: unknown
+  /** Catalog input types. Token-api publishes this from model metadata; official listings omit it. */
+  input_modalities?: unknown
+}
+
+/** Input types this build can send. Other listed values, such as audio, are ignored. */
+const SUPPORTED_INPUT_MODALITIES = ['text', 'image'] as const satisfies readonly ModelModality[]
+
+/**
+ * Accepted input types one listing entry declares.
+ * Absent, non-array, or entirely unsupported values stay undisclosed so the
+ * caller keeps its text-only default instead of inventing image support.
+ * @param value - the entry's `input_modalities` field.
+ * @returns supported modalities in listing order, or `undefined` when none are declared.
+ */
+function listedInputModalities(value: unknown): readonly ModelModality[] | undefined {
+  if (!Array.isArray(value)) return undefined
+  const seen = new Set<ModelModality>()
+  const modalities: ModelModality[] = []
+  for (const item of value) {
+    if (typeof item !== 'string') continue
+    const modality = SUPPORTED_INPUT_MODALITIES.find(candidate => candidate === item)
+    if (modality === undefined || seen.has(modality)) continue
+    seen.add(modality)
+    modalities.push(modality)
+  }
+  return modalities.length === 0 ? undefined : modalities
 }
 
 /** A positive integer field of a listing entry, or `undefined` when absent or unusable. */
@@ -130,11 +156,13 @@ function readListing(body: unknown): LlmDiscoveredModel[] {
     const name = label(entry?.name, entry?.display_name)
     const contextWindow = capacity(entry?.context_window, entry?.context_length)
     const maxTokens = capacity(entry?.max_output_tokens, entry?.max_tokens)
+    const inputModalities = listedInputModalities(entry?.input_modalities)
     models.push({
       id,
       ...name === undefined ? {} : { name },
       ...contextWindow === undefined ? {} : { contextWindow },
       ...maxTokens === undefined ? {} : { maxTokens },
+      ...inputModalities === undefined ? {} : { inputModalities },
     })
   }
   return models

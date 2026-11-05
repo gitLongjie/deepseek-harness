@@ -62,8 +62,16 @@ describe('deepseek model discovery', () => {
       body: JSON.stringify({
         data: [
           { id: 'deepseek-large', name: 'DeepSeek Large', context_window: 100_000, max_tokens: 8192 },
-          { id: 'deepseek-vision', display_name: 'DeepSeek Vision', context_length: 65_536, max_output_tokens: 4096 },
+          {
+            id: 'deepseek-vision',
+            display_name: 'DeepSeek Vision',
+            context_length: 65_536,
+            max_output_tokens: 4096,
+            input_modalities: ['image', 'audio', 'text', 'image', 1],
+          },
           { id: 'deepseek-small' },
+          { id: 'deepseek-audio', input_modalities: ['audio'] },
+          { id: 'deepseek-bad', input_modalities: 'image' },
         ],
       }),
     })
@@ -72,8 +80,16 @@ describe('deepseek model discovery', () => {
 
     expect(models).toEqual([
       { id: 'deepseek-large', name: 'DeepSeek Large', contextWindow: 100_000, maxTokens: 8192 },
-      { id: 'deepseek-vision', name: 'DeepSeek Vision', contextWindow: 65_536, maxTokens: 4096 },
+      {
+        id: 'deepseek-vision',
+        name: 'DeepSeek Vision',
+        contextWindow: 65_536,
+        maxTokens: 4096,
+        inputModalities: ['image', 'text'],
+      },
       { id: 'deepseek-small' },
+      { id: 'deepseek-audio' },
+      { id: 'deepseek-bad' },
     ])
     expect(server.paths).toEqual(['/v1/models'])
     expect(server.headers[0]?.authorization).toBe('Bearer probe-key')

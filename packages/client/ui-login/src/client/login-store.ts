@@ -300,7 +300,9 @@ export class LoginStore {
     // a fabricated window would pin a fake fact on every silent endpoint —
     // absent capacities instead resolve at request time from the route's
     // defaultContextWindow and maxTokens, and the Models page shows its
-    // provider-default placeholder.
+    // provider-default placeholder. Input types follow the same rule: image
+    // is stored only when the listing declares it, otherwise the row stays
+    // text-only and the composer refuses image prompts.
     let catalogModels: GatewayCatalogRow[] | undefined
     let modelsOp: Array<{ op: 'set'; path: string[]; value: GatewayCatalogRow[] }> = []
     if (discovered.ok) {
@@ -310,7 +312,7 @@ export class LoginStore {
         description: '',
         ...m.contextWindow === undefined ? {} : { contextWindow: m.contextWindow },
         ...m.maxTokens === undefined ? {} : { maxTokens: m.maxTokens },
-        inputModalities: ['text'],
+        inputModalities: catalogInputModalities(m.inputModalities),
       }))
       if (modelsEquivalent(stored?.models, catalogModels)) {
         console.warn(`[ui-login] gateway catalog unchanged (${catalogModels.length} models); keeping stored`)
@@ -602,7 +604,27 @@ type GatewayCatalogRow = {
   readonly description: string
   readonly contextWindow?: number
   readonly maxTokens?: number
-  readonly inputModalities: ['text']
+  readonly inputModalities: ('text' | 'image')[]
+}
+
+/**
+ * Persist image input only when the gateway listing declares it.
+ * An undisclosed listing stays text-only. A declaration that names image
+ * without text still stores text, because the catalog editor rejects an
+ * image-only list.
+ * @param declared - modalities discovery read from the listing, when present.
+ * @returns the catalog row's input types.
+ */
+function catalogInputModalities(
+  declared: readonly string[] | undefined,
+): ('text' | 'image')[] {
+  if (declared?.includes('image') !== true) return ['text']
+  const ordered: ('text' | 'image')[] = []
+  for (const item of declared) {
+    if ((item === 'text' || item === 'image') && !ordered.includes(item)) ordered.push(item)
+  }
+  if (!ordered.includes('text')) ordered.unshift('text')
+  return ordered
 }
 
 /**
