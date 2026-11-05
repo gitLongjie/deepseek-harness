@@ -530,18 +530,24 @@ export function resolveOverlayConfig(base: Config, overlay: H3VideoSettingsSecti
 
 /**
  * Resolve a credential reference into a per-request secret source.
+ *
+ * The service presence check runs on first request, not at activation: preset
+ * registration mounts its composition mid-startup, where a host-provided
+ * credentials service is not necessarily ACTIVE yet and a strict read would
+ * misreport it as absent. By first use the host tree has settled, so absence
+ * there is a real deployment gap.
  * @param ctx - plugin context carrying the optional credentials service.
  * @param ref - reference name, e.g. `AUTODL_TOKEN`.
  * @param requirement - configuration field that named the reference, for the failure message.
  * @returns a resolver reading the current secret on every call.
  */
 function credentialSource(ctx: Context, ref: string, requirement: string): () => Promise<string> {
-  const credentials = ctx.get('credentials')
-  if (credentials === undefined) {
-    throw new Error(`h3-video: ${requirement} requires the credentials service (load @deepseek-ai/dsh-credentials-local)`)
-  }
   const branded = credentialRef(ref)
   return async () => {
+    const credentials = ctx.get('credentials')
+    if (credentials === undefined) {
+      throw new Error(`h3-video: ${requirement} requires the credentials service (load @deepseek-ai/dsh-credentials-local)`)
+    }
     const resolved = await credentials.resolve(branded)
     if (resolved === undefined) {
       throw new Error(`h3-video: credential ${ref} is not configured (store it via the credentials service or the ${ref} environment variable)`)
