@@ -90,6 +90,7 @@ Nothing here enters a model request, so provider cache reuse is unaffected.
 - git 2.13 or later is required for `rev-parse --absolute-git-dir`; an unsupported repository format or another git failure abandons the turn with a warning rather than being treated as a plain directory.
 - The first snapshot of a Session writes every untracked, non-ignored file of the work tree into the Session's temporary directory; a repository without a `.gitignore` that carries large build outputs costs that much temporary space until the Session is disposed.
 - Edits the user makes during a turn are attributed to that turn.
+- When two Sessions share one working tree, a path another Session captured through a file-tool (or Office-create write-intent) claim is omitted from this Session's git summary unless this Session claimed it too. Shell-only edits that no Session captured can still appear on every overlapping turn.
 - A working directory outside any git repository lists file-tool edits only, so shell edits are missing from its card; a shadow repository under the Harness home is deferred until its exclude rules can replace a missing `.gitignore` reliably.
 - Outside snapshot coverage only paths a file tool names are captured: a file only a shell command changes there is absent, and a file both changed before its first file-tool call is compared from that call onward.
 - Every file-tool edit copies its whole file once per turn, up to `maxFileBytes`, even for paths the snapshots also cover; the copies go with the Session's temporary directory.

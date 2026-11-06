@@ -25,6 +25,11 @@ export interface RecorderEnvironment {
   diffTimeoutMs: number
   /** Failure reporter; a failed turn records nothing and the next turn retries. */
   warn: (message: string) => void
+  /**
+   * Other Sessions' recorders that share this Host. Used to keep a shared working
+   * tree's git diff from attributing another Session's captured mutations to this turn.
+   */
+  peers: () => readonly TurnRecorder[]
 }
 
 /** Canonical paths every comparison and display uses, resolved once per Session. */
@@ -117,12 +122,26 @@ export class TurnRecorder {
   /** Records by the sequence of the event that announced them. */
   private readonly records = new Map<number, TurnRecord>()
   private readonly lifetime = new AbortController()
+  /**
+   * Canonical absolute paths this Session's file tools prepared to mutate, across turns.
+   * Survives `turn/start` so a peer finishing earlier can still keep its writes out of
+   * this Session's later git summary for the same shared working tree.
+   */
+  private readonly claimed = new Set<string>()
 
   constructor(
     private readonly session: Session,
     private readonly cwd: string,
     private readonly env: RecorderEnvironment,
   ) {}
+
+  /**
+   * Canonical paths this Session's file tools prepared to mutate while it lived.
+   * Peers read this when attributing a shared working tree's git diff.
+   */
+  claimedPaths(): ReadonlySet<string> {
+    return this.claimed
+  }
 
   /**
    * Open a turn with fresh per-turn state and queue its baseline snapshot.
@@ -158,6 +177,7 @@ export class TurnRecorder {
       const paths = this.paths
       if (paths === undefined) return
       const absolute = await canonicalPath(path)
+      this.claimed.add(absolute)
       if (state.captures.has(absolute)) return
       const capture = await captureFile(absolute, join(await this.scratchDir(), 'captures'), this.env.maxFileBytes)
       if (capture !== undefined) state.captures.set(absolute, capture)
@@ -310,8 +330,17 @@ export class TurnRecorder {
       const after = await snapshotTree(baseline.git, baseline.workspace, signal)
       snapshot = { before: baseline.tree, after }
       const repository: Repository = { git: baseline.git, workspace: baseline.workspace }
+      // A shared working tree's git diff sees every Session's writes. Drop paths
+      // another Session already claimed unless this Session claimed them too.
+      const foreign = new Set<string>()
+      for (const peer of this.env.peers()) {
+        if (peer === this) continue
+        for (const absolute of peer.claimedPaths()) foreign.add(absolute)
+      }
       for (const entry of await diffTrees(baseline.git, baseline.workspace, baseline.tree, after, signal)) {
         const absolute = resolve(root, entry.path)
+        const canonical = await canonicalPath(absolute)
+        if (foreign.has(canonical) && !this.claimed.has(canonical)) continue
         listed.set(absolute, {
           file: changedFile(paths, root, absolute, entry),
           sources: entry.binary ? { refusal: 'binary' } : {

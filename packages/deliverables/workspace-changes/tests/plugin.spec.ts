@@ -112,6 +112,27 @@ describe('workspace-changes in a repository', () => {
     expect(ctx.workspaceChanges.summary(session.id, seq)).toBeUndefined()
   })
 
+  it('does not attribute another Session’s captured write on a shared working tree to this turn', async () => {
+    const cwd = await repository()
+    const { ctx } = await boot()
+    const viewer = ctx.sessions.create(SessionId('viewer'), { meta: { cwd } })
+    const author = ctx.sessions.create(SessionId('author'), { meta: { cwd } })
+    startTurn(viewer, 1)
+    await settle(ctx, viewer)
+    startTurn(author, 1)
+    await settle(ctx, author)
+    await mutate(ctx, author, 1, 'write', { file_path: 't3.pptx', content: 'deck\n' }, 't3.pptx',
+      () => writeFile(join(cwd, 't3.pptx'), 'deck\n'))
+    endTurn(author, 1)
+    await settle(ctx, author)
+    expect(changes(ctx, author)[0]?.files.map(file => file.display)).toEqual(['t3.pptx'])
+    toolCall(viewer, 1, 'bash', { command: 'echo still-here' })
+    endTurn(viewer, 1)
+    await settle(ctx, viewer)
+    const viewerFiles = changes(ctx, viewer)[0]?.files.map(file => file.display) ?? []
+    expect(viewerFiles).not.toContain('t3.pptx')
+  })
+
   it('serves each listed file’s comparison from the snapshots or the captured copies', async () => {
     const cwd = await repository()
     await writeFile(join(cwd, 'long.txt'), `${'0123456789'.repeat(10)}\n`)

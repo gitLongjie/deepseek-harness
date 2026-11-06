@@ -175,7 +175,10 @@ describe('TurnRecorder', () => {
     let release!: (runner: GitRunner | null) => void
     const gate = new Promise<GitRunner | null>((resolve) => { release = resolve })
     const tempRoot = await scratchDir('dsh-git-store-', cleanups)
-    const env = { git: gate, tempRoot, maxFiles: 10, maxFileBytes: 1024, diffTimeoutMs: 100, warn: (m: string) => { warnings.push(m) } }
+    const env = {
+      git: gate, tempRoot, maxFiles: 10, maxFileBytes: 1024, diffTimeoutMs: 100,
+      warn: (m: string) => { warnings.push(m) }, peers: () => [],
+    }
     const disposed = new TurnRecorder(session, cwd, env)
     disposed.start(1)
     await new Promise(resolve => setTimeout(resolve, 5))
@@ -200,7 +203,7 @@ describe('TurnRecorder', () => {
     const { ctx, git: runnerGit } = await runner()
     const env = {
       git: Promise.resolve(runnerGit), tempRoot, maxFiles: 10, maxFileBytes: 1024, diffTimeoutMs: 100,
-      warn: (m: string) => { throw new Error(m) },
+      warn: (m: string) => { throw new Error(m) }, peers: () => [],
     }
     const plain = new TurnRecorder(ctx.sessions.create(SessionId('plain'), { meta: { cwd: tempRoot } }), tempRoot, env)
     plain.start(1)
@@ -229,7 +232,7 @@ describe('TurnRecorder', () => {
     const session = ctx.sessions.create(SessionId('tmp-in-tree'), { meta: { cwd } })
     const env = {
       git: Promise.resolve(runnerGit), tempRoot, maxFiles: 10, maxFileBytes: 1024, diffTimeoutMs: 100,
-      warn: (m: string) => { throw new Error(m) },
+      warn: (m: string) => { throw new Error(m) }, peers: () => [],
     }
     const recorder = new TurnRecorder(session, cwd, env)
     startTurn(session, 1)

@@ -136,6 +136,7 @@ export function apply(ctx: Context, config: Config): void {
         git: gitRunner(), tempRoot: tmpdir(), maxFiles: config.maxFiles,
         maxFileBytes: config.maxFileBytes, diffTimeoutMs: config.diffTimeoutMs,
         warn: (message) => { ctx.logger.warn(message) },
+        peers: () => [...recorders.values()],
       })
       recorders.set(session, recorder)
       byId.set(session.id, recorder)
