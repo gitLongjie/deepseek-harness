@@ -1,14 +1,14 @@
 /**
  * Desktop-only custom title bar, installed by the render entry before the web
  * app boots. The window runs frameless on Windows and Linux; there this module draws
- * the branded bar (the brand mark alone — the sidebar owns the product name and
- * the native window title stays pinned to it), the 编辑/视图/窗口/帮助 menu buttons,
- * the drag region, and the window controls; macOS draws only the bare drag bar
+ * the bar with the 编辑/视图/窗口/帮助 menu buttons leading at the left edge (no
+ * brand mark — the sidebar owns the product identity), the drag region, and the
+ * window controls; macOS draws only the bare drag bar
  * (see the platform branch below); it shifts the app below it through a body
  * top padding and publishes that inset for fixed client overlays; routes menu clicks to the main-process
  * application menu over IPC and drives the window controls over the existing
  * generic bridge. The chrome branches on the preload bridge's platform:
- * macOS draws none of that — no brand, no menus, no window controls: the
+ * macOS draws none of that — no menus, no window controls: the
  * native traffic lights (main/desktop/window-chrome.ts hiddenInset) own
  * minimize/maximize/close, the system menu bar owns the menus, and the bar is
  * the drag region and the update slot past the lights inset; Linux keeps the
@@ -26,7 +26,7 @@ export const TITLE_BAR_HEIGHT_PX = 36
 /**
  * Left inset (px) the macOS bar reserves for the native traffic lights that
  * main/desktop/window-chrome.ts pins at x=12 — three 12px lights with 8px gaps
- * end at 64px, and the brand starts past that.
+ * end at 64px, and the bar content starts past that.
  */
 export const MACOS_TRAFFIC_LIGHTS_INSET_PX = 80
 
@@ -180,25 +180,11 @@ body {
   -webkit-app-region: drag;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
-#dsh-desktop-titlebar .dsh-titlebar-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  flex-shrink: 0;
-}
-#dsh-desktop-titlebar .dsh-titlebar-brand img {
-  width: 20px;
-  height: 20px;
-  display: block;
-  border-radius: 4px;
-  opacity: 0.9;
-}
 #dsh-desktop-titlebar .dsh-titlebar-menubar {
   display: inline-flex;
   align-items: center;
   height: 100%;
-  margin-left: 10px;
+  margin-left: -8px;
   flex-shrink: 0;
   -webkit-app-region: no-drag;
 }
@@ -318,10 +304,8 @@ function titleBarStyleText(platform: TitleBarPlatform): string {
  * @param doc - the live document.
  * @param ipc - the preload bridge used for the platform, the menu channel, and
  *   the control channels.
- * @param markSrc - the brand mark image source, or a resolver for head-phase
- *   installs; unused on macOS, which mounts no brand mark.
  */
-export function installTitleBar(doc: Document, ipc: IpcSender, markSrc: string | (() => string)): void {
+export function installTitleBar(doc: Document, ipc: IpcSender): void {
   const platform = normalizeTitleBarPlatform(ipc.platform)
   const style = doc.createElement('style')
   style.id = 'dsh-desktop-titlebar-style'
@@ -330,18 +314,6 @@ export function installTitleBar(doc: Document, ipc: IpcSender, markSrc: string |
 
   const bar = doc.createElement('div')
   bar.id = 'dsh-desktop-titlebar'
-
-  // macOS additionally renders no brand mark: with hiddenInset the lights plus
-  // a drag region are the whole bar, per the macOS app convention.
-  let mark: HTMLImageElement | undefined
-  if (platform !== 'darwin') {
-    const brand = doc.createElement('span')
-    brand.className = 'dsh-titlebar-brand'
-    mark = doc.createElement('img')
-    mark.alt = ''
-    brand.append(mark)
-    bar.append(brand)
-  }
 
   // macOS renders neither the menu buttons (the system menu bar owns them) nor
   // the window controls (the native traffic lights own them).
@@ -398,9 +370,7 @@ export function installTitleBar(doc: Document, ipc: IpcSender, markSrc: string |
   // deferral honest to both the runtime and the type pass.
   const docView = doc as Omit<Document, 'body'> & { body?: HTMLElement | null }
   const mount = (): void => {
-    // macOS mounts no mark, so the OEM favicon resolver never runs there.
-    if (mark !== undefined) mark.src = typeof markSrc === 'function' ? markSrc() : markSrc
-    ;(docView.body as HTMLElement).prepend(bar)
+    (docView.body as HTMLElement).prepend(bar)
   }
   if (docView.body === undefined || docView.body === null) {
     // Re-read at fire time: by DOMContentLoaded the parsed body exists.

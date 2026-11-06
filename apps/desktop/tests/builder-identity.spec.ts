@@ -13,7 +13,6 @@ import {
 const BUILDER_CONFIG = fileURLToPath(new URL('../electron-builder.yml', import.meta.url))
 const DEV_LAUNCHER = fileURLToPath(new URL('../scripts/dev.ts', import.meta.url))
 const DEPLOY_LAUNCHER = fileURLToPath(new URL('../scripts/deploy-app.mjs', import.meta.url))
-const RENDER_ENTRY = fileURLToPath(new URL('../src/render/entry.ts', import.meta.url))
 const UPDATER = fileURLToPath(new URL('../src/main/updater.ts', import.meta.url))
 const DESKTOP_MANIFEST = fileURLToPath(new URL('../package.json', import.meta.url))
 const roots: string[] = []
@@ -237,12 +236,6 @@ describe('desktop builder identity', () => {
       DSH_CLIENT_BRAND_ICON: 'https://cdn.acme.test/icon.ico',
     })).toThrow(/local/)
     expect(() => syncDesktopOemIcons(repoRoot, desktopRoot, {})).toThrow(/valid ICO/)
-  })
-
-  it('takes the custom title-bar mark from the OEM-projected document favicon', () => {
-    const entry = readFileSync(RENDER_ENTRY, 'utf8')
-    expect(entry).toContain("querySelector<HTMLLinkElement>('link[rel~=\"icon\"]')")
-    expect(entry).not.toContain("installTitleBar(document, ipc, './favicon.ico')")
   })
 
   it('configures electron-updater from the OEM update URL before checking', () => {

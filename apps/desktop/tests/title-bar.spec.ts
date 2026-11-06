@@ -28,12 +28,12 @@ function buttonAt(buttons: readonly HTMLButtonElement[], index: number): HTMLBut
 }
 
 function installedBar(platform: string): HTMLElement {
-  installTitleBar(document, ipcMock(platform), './favicon.ico')
+  installTitleBar(document, ipcMock(platform))
   return document.getElementById('dsh-desktop-titlebar')!
 }
 
 describe('desktop title bar', () => {
-  it('injects the app-shift stylesheet, the logo-only brand, menus, and three controls on Windows', () => {
+  it('injects the app-shift stylesheet, leading menus, and three controls on Windows', () => {
     const bar = installedBar('win32')
 
     const style = document.getElementById('dsh-desktop-titlebar-style')
@@ -41,9 +41,9 @@ describe('desktop title bar', () => {
     expect(style?.textContent).toContain(`--dsh-shell-top-inset: ${TITLE_BAR_HEIGHT_PX}px`)
     expect(document.body.firstElementChild?.id).toBe('dsh-desktop-titlebar')
 
-    // Logo only: the brand span carries no text node next to the mark.
-    expect(bar.querySelector('.dsh-titlebar-brand img')?.getAttribute('src')).toBe('./favicon.ico')
-    expect(bar.querySelector('.dsh-titlebar-brand')?.textContent).toBe('')
+    // The menus lead the bar: no brand mark precedes them.
+    expect(bar.firstElementChild?.className).toBe('dsh-titlebar-menubar')
+    expect(bar.querySelector('img')).toBeNull()
     expect(bar.querySelector('[role="dialog"]')).toBeNull()
 
     const menuButtons = [...bar.querySelectorAll<HTMLButtonElement>('.dsh-titlebar-menu-btn')]
@@ -58,12 +58,11 @@ describe('desktop title bar', () => {
     expect(bar.querySelector('.dsh-titlebar-update-slot + .dsh-titlebar-controls')).not.toBeNull()
   })
 
-  it('renders the macOS chrome: drag-only bar past the traffic-light inset, no brand, menus, or controls', () => {
+  it('renders the macOS chrome: drag-only bar past the traffic-light inset, no menus or controls', () => {
     const bar = installedBar('darwin')
 
     expect(bar.querySelector('.dsh-titlebar-menu-btn')).toBeNull()
     expect(bar.querySelector('.dsh-titlebar-controls')).toBeNull()
-    expect(bar.querySelector('.dsh-titlebar-brand')).toBeNull()
     expect(bar.querySelector('.dsh-titlebar-spacer + .dsh-titlebar-update-slot')).not.toBeNull()
 
     const style = document.getElementById('dsh-desktop-titlebar-style')
@@ -81,7 +80,7 @@ describe('desktop title bar', () => {
         return () => {}
       },
     }
-    installTitleBar(document, ipc, './favicon.ico')
+    installTitleBar(document, ipc)
 
     const style = document.getElementById('dsh-desktop-titlebar-style')
     expect(style?.textContent).toContain("body[data-dsh-fullscreen='true'] #dsh-desktop-titlebar")
@@ -108,7 +107,7 @@ describe('desktop title bar', () => {
 
   it('routes each control click over its own IPC channel', () => {
     const ipc = ipcMock('win32')
-    installTitleBar(document, ipc, './favicon.ico')
+    installTitleBar(document, ipc)
     const buttons = [...document.querySelectorAll<HTMLButtonElement>('#dsh-desktop-titlebar .dsh-titlebar-controls button')]
     buttonAt(buttons, 0).click()
     buttonAt(buttons, 1).click()
@@ -120,7 +119,7 @@ describe('desktop title bar', () => {
 
   it('asks the main process to pop up each menu next to its button', () => {
     const ipc = ipcMock('win32')
-    installTitleBar(document, ipc, './favicon.ico')
+    installTitleBar(document, ipc)
     const buttons = [...document.querySelectorAll<HTMLButtonElement>('.dsh-titlebar-menu-btn')]
     buttonAt(buttons, 0).click()
     buttonAt(buttons, 3).click()
@@ -144,19 +143,14 @@ describe('desktop title bar', () => {
     Object.defineProperty(document, 'body', { value: null, configurable: true })
     try {
       const ipc = ipcMock('win32')
-      installTitleBar(document, ipc, () => document.querySelector<HTMLLinkElement>('link[rel~="icon"]')!.href)
+      installTitleBar(document, ipc)
       expect(document.getElementById('dsh-desktop-titlebar')).toBeNull()
     } finally {
       Object.defineProperty(document, 'body', { value: body, configurable: true })
     }
-    const favicon = document.createElement('link')
-    favicon.rel = 'icon'
-    favicon.href = './brand.ico'
-    document.head.append(favicon)
     // By DOMContentLoaded the body exists again (as in the real document), so
-    // the deferred install lands the bar and resolves the parsed favicon.
+    // the deferred install lands the bar.
     document.dispatchEvent(new Event('DOMContentLoaded'))
     expect(document.getElementById('dsh-desktop-titlebar')).not.toBeNull()
-    expect(document.querySelector<HTMLImageElement>('.dsh-titlebar-brand img')?.src).toBe(favicon.href)
   })
 })
