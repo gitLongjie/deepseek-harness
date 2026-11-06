@@ -133,6 +133,18 @@ jobs:
         env:
           NODE_OPTIONS: --max-old-space-size=8192
 
+      # The POSIX session lock (session-persistence-jsonl's lease) resolves a
+      # flock NAPI binding from the @deepseek-ai/node-addon-system platform
+      # packages, whose published npm tarballs carry no bin/ — the binaries
+      # exist only after this clang build. macOS cross-compiles both
+      # architectures (`cc -arch`); without this step every session write on
+      # macOS fails the run with 'Cannot find module ... system.node'.
+      - name: Build native system bindings (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          pnpm --dir native/system run build:native --arch arm64
+          pnpm --dir native/system run build:native --arch x64
+
       # Package the --dir artifact and boot it under the smoke harness, and
       # only after the smoke passes run the full release build with
       # --publish always (same rev), which attaches the installers, blockmaps,
