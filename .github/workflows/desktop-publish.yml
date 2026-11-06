@@ -122,9 +122,16 @@ jobs:
 
       - name: Install (immutable)
         run: pnpm install --frozen-lockfile
+        env:
+          # The client-face tsc program OOMs at the default ~2 GiB heap on the
+          # post-merge package graph; the host-libraries step already runs
+          # with --max-old-space-size=8192 for the same reason.
+          NODE_OPTIONS: --max-old-space-size=8192
 
       - name: Build host libs
         run: pnpm build:lib
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
 
       # Package the --dir artifact and boot it under the smoke harness, and
       # only after the smoke passes run the full release build with
