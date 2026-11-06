@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for 2026-11-06-desktop-office-create-tools.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-11-06-desktop-office-create-tools.md
+/agent-note-desktop-first-class-office-create-tools:
+  en: 70b24ec6ed6632d0
+  zh: ee606413ddfb7c8c
+/agent-note-desktop-first-class-office-create-tools/problem:
+  en: f04a11c42c9b9371
+  zh: 2769e87ad2453016
+/agent-note-desktop-first-class-office-create-tools/decision:
+  en: 403cf3a8e42fe60a
+  zh: 96edf4b75fb755c9
+/agent-note-desktop-first-class-office-create-tools/alternatives-considered:
+  en: f4db6b47e19201ea
+  zh: b18a3e848f4965fc
+/agent-note-desktop-first-class-office-create-tools/consequences:
+  en: b034e94ca88d342b
+  zh: 544e2487e1f6426c

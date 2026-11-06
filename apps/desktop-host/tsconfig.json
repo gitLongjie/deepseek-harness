@@ -16,6 +16,7 @@
     { "path": "../../packages/skill/skill-office" },
     { "path": "../../packages/util/home-paths" },
     { "path": "../../packages/skill/tool-workspace-dependencies" },
+    { "path": "../../packages/document/tool-office-create" },
     {
       "path": "../cli"
     },

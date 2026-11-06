@@ -49,6 +49,18 @@
     },
     {
       "path": "../../packages/client/modules"
+    },
+    {
+      "path": "../../packages/document/tool-office-create"
+    },
+    {
+      "path": "../../packages/skill/skill-office"
+    },
+    {
+      "path": "../../packages/skill/tool-workspace-dependencies"
+    },
+    {
+      "path": "../../packages/core/tools"
     }
   ],
   "exclude": [

@@ -726,4 +726,32 @@ describe('GenericToolCard', () => {
     fireEvent.click(within(bare.container).getByText('工具调用'))
     expect(within(bare.container).getByText(/character 马锅头/)).toBeTruthy()
   })
+
+  it('shows a generate_image gallery immediately without a disclosure expand', () => {
+    const attachment = {
+      attachmentId: 'sha256:generated' as never, mediaType: 'image/png' as const, bytes: 24_588, width: 941, height: 1672,
+      name: 'generated-image.png',
+    }
+    const material = result({
+      call: { name: 'generate_image', argsRaw: '{"prompt":"a bay at dusk"}' },
+      meta: { path: 'generated-image.png' },
+      content: [
+        { type: 'text', text: '<path>generated-image.png</path>\n<type>image</type>\n<content>\nimage/png image, 941x1672 px, 24588 bytes\n</content>' },
+        { type: 'image', attachment },
+      ],
+    })
+    const renderSlot = vi.fn(() => <div data-gallery />)
+    const view = render(
+      <GenericToolCard
+        {...props('generate_image', material)}
+        renderSlot={renderSlot as unknown as GenericToolCardProps['renderSlot']}
+      />,
+    )
+    expect(view.container.querySelector('[data-gallery="inline"]')).not.toBeNull()
+    expect(view.container.querySelector('[data-expandable]')).toBeNull()
+    expect(renderSlot).toHaveBeenCalledWith('tool.call.result-images', expect.objectContaining({
+      images: [{ attachment }],
+      align: 'start',
+    }))
+  })
 })

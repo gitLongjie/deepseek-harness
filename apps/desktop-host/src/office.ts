@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { runtimeArchivePath } from './office-engine.ts'
 import type { Context } from '@deepseek-ai/cordis'
 import * as officeSkills from '@deepseek-ai/dsh-skill-office'
+import * as officeCreate from '@deepseek-ai/dsh-tool-office-create'
 import * as workspaceDependencies from '@deepseek-ai/dsh-tool-workspace-dependencies'
 
 /** Loader identity for the application-owned Office composition. */
@@ -21,12 +22,13 @@ export interface Config {
 }
 
 /**
- * Enable offline Office authoring and LibreOffice Kit operations in the Desktop profile.
+ * Enable offline Office create tools, authoring skills, and LibreOffice Kit operations in the Desktop profile.
  * @param ctx - Profile scope; child plugins declare their own service requirements.
  * @param config - Bundled payload source and Harness-home installation root.
  */
 export async function apply(ctx: Context, config: Config): Promise<void> {
   await ctx.plugin(workspaceDependencies, config)
+  await ctx.plugin(officeCreate, { source: config.source, root: config.root })
   const archive = runtimeArchivePath(config.runtimeDir) === undefined ? undefined : dirname(realpathSync(config.runtimeDir))
   const manifest = fileURLToPath(import.meta.resolve('@deepseek-ai/libreoffice-kit/package.json'))
   const packageRoot = dirname(archive === undefined ? manifest : join(`${archive}.unpacked`, relative(archive, manifest)))

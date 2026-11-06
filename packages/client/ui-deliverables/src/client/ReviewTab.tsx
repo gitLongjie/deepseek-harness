@@ -154,7 +154,8 @@ export function ReviewTab({
       {summaryState === 'loading' && <p className={diffCss.status} role="status">{t('diff.loading')}</p>}
       {summaryState === 'missing' && <p className={diffCss.status}>{t('diff.missing')}</p>}
       {file !== undefined && <FileDiff state={diffState} split={split} wrap={wrap} t={t}
-        retry={() => { void loadChangesDiff(sessionId, seq, index) }} />}
+        retry={() => { void loadChangesDiff(sessionId, seq, index) }}
+        openFile={() => { tab.actions.openResource(fileAddressFor(sessionId, cwd, file.path)) }} />}
     </div>
   )
 }

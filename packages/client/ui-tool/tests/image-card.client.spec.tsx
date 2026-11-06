@@ -29,6 +29,7 @@ import { AttachmentId, type ImageAttachmentRef } from '@deepseek-ai/dsh-attachme
 import type { ToolImagesOwnerProps, ToolTreeProps } from '../src/client/contract/slots.ts'
 import { imageCardModel } from '../src/client/tool/models/image-card-model.ts'
 import { ReadImageRow, readImageToolview } from '../src/client/tool/toolviews/read-image-row.tsx'
+import { GenerateImageRow, generateImageToolview } from '../src/client/tool/toolviews/generate-image-row.tsx'
 
 afterEach(cleanup)
 
@@ -425,5 +426,72 @@ describe('ReadImageRow keyed toolview', () => {
       children: { 'tool.call.images': { kind: 'single', scope: 'session' } },
     }])
     expect(readImageToolview.inject).toEqual(['slots', 'sessions'])
+  })
+})
+
+describe('GenerateImageRow keyed toolview', () => {
+  const genEnvelope = '<path>generated-image.png</path>\n<type>image</type>\n<content>\nimage/png image, 1496x260 px, 24588 bytes\n</content>'
+  const genSettled = (over?: Partial<ToolResultNode>): ToolResultNode => settled({
+    call: { name: 'generate_image', argsRaw: '{"prompt":"a bay at dusk"}' },
+    meta: { path: 'generated-image.png' },
+    content: [
+      { type: 'text', text: genEnvelope },
+      { type: 'image', attachment: sampleImage },
+    ],
+    ...over,
+  } as never)
+
+  const genRowProps = (
+    block: StartedToolCall | ToolResultNode,
+    renderSlot?: PropsRenderSlots<'tool.call.images'>['renderSlot'],
+    loader: MessageImageLoader = loadImage,
+  ): Parameters<typeof GenerateImageRow>[0] => ({
+    useDisclosure, callId: 'c1', toolName: 'generate_image',
+    ...('kind' in block ? { phase: 'result' as const, block } : { phase: block.phase, block }),
+    openFile: vi.fn(), renderSlot, loadImage: loader,
+    t,
+  } as unknown as Parameters<typeof GenerateImageRow>[0])
+
+  it('shows the gallery immediately without a disclosure expand', () => {
+    const renderSlot = stubRenderSlot()
+    const view = render(<GenerateImageRow {...genRowProps(genSettled(), renderSlot)} />)
+    expect(view.container.querySelector('[data-expandable]')).toBeNull()
+    expect(view.container.querySelector('[data-images]')).not.toBeNull()
+    expect(renderSlot).toHaveBeenCalledWith('tool.call.images', {
+      images: [{ attachment: sampleImage }],
+      loadImage,
+      align: 'start',
+    })
+    expect(view.container.querySelector(`[data-image-id="${sampleImage.attachmentId}"]`)).not.toBeNull()
+  })
+
+  it('keeps a running call as a one-line status without a gallery', () => {
+    const renderSlot = stubRenderSlot()
+    const view = render(<GenerateImageRow {...genRowProps(running({
+      name: 'generate_image',
+      argsRaw: '{"prompt":"a bay at dusk"}',
+    }), renderSlot)} />)
+    expect(view.container.querySelector('[data-images]')).toBeNull()
+    expect(renderSlot).not.toHaveBeenCalled()
+    expect(view.container.querySelector('[data-expandable]')).toBeNull()
+    expect(view.container.textContent).toContain('生成图片')
+  })
+
+  it('registers under the generate_image key with an always-on image slot', () => {
+    const registered: { name: unknown; key?: unknown; children?: unknown }[] = []
+    const ctx = { slots: {
+      inject: (_name: string, callback: () => () => void) => callback(),
+      register: (options: { name: unknown; key?: unknown; children?: unknown }) => {
+        registered.push(options)
+        return () => undefined
+      },
+    } } as unknown as Context
+    generateImageToolview.apply(ctx)
+    expect(registered).toMatchObject([{
+      name: 'tool.call.toolview',
+      key: 'generate_image',
+      locale: 'conversation',
+      children: { 'tool.call.images': { kind: 'single', scope: 'session' } },
+    }])
   })
 })

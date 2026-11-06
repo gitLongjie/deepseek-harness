@@ -124,6 +124,8 @@
             config:
               fetch: true
               searchTimeoutMs: 60000
+          - id: tool-image
+            name: '@deepseek-ai/dsh-tool-image'
           - id: tool-executor-ptc
             name: '@deepseek-ai/dsh-tool-executor-ptc'
           - id: present

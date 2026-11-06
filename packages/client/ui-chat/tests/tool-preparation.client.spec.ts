@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { AttachmentId } from '@deepseek-ai/dsh-attachment'
 import { createAssistantMessage, createToolResultMessage, LlmAttemptId, ToolCallId } from '@deepseek-ai/dsh-llm'
 import { AssistantStreamAccumulator } from '@deepseek-ai/dsh-llm/assistant-stream'
 import type { StreamChunk } from '@deepseek-ai/dsh-llm'
@@ -377,5 +378,52 @@ describe('Tool preparation and durable replay', () => {
     h.assembler.settleAssistant(attemptId)
     h.assembler.append(call(8, second))
     expect(h.phases()).toEqual([[second, 'start']])
+  })
+
+  it('keeps ordinary settled tools inside the process and lifts generate_image with an image to the Turn', () => {
+    const imageArgs = '{"prompt":"a quiet bay at dusk"}'
+    const imageCallId = ToolCallId('gen-one')
+    const imageAttachment = {
+      attachmentId: AttachmentId('sha256:' + 'a'.repeat(64)),
+      mediaType: 'image/png' as const,
+      width: 941,
+      height: 1672,
+      bytes: 100,
+      name: 'generated-image.png',
+    }
+    const imageResult = (seq: number, isError = false): SessionLiveEventEntry => entry({
+      type: 'tool/result', seq: SessionSeq(seq), time: seq, surfaceOp: 'append', data: {
+        turn: 1, step: 1,
+        message: createToolResultMessage({
+          callId: imageCallId,
+          content: isError
+            ? [{ type: 'text', text: 'generation failed' }]
+            : [
+              { type: 'text', text: '<path>generated-image.png</path><type>image/png</type>' },
+              { type: 'image', attachment: imageAttachment },
+            ],
+          isError,
+        }),
+      },
+    })
+
+    const ordinary = harness()
+    ordinary.assembler.append(call(6))
+    ordinary.assembler.append(result(7))
+    expect(ordinary.tools()[0]!.groupTree).toBeUndefined()
+
+    const running = harness()
+    running.assembler.append(call(6, imageCallId, 'generate_image', imageArgs))
+    expect(running.tools()[0]!.groupTree).toBeUndefined()
+
+    const failed = harness()
+    failed.assembler.append(call(6, imageCallId, 'generate_image', imageArgs))
+    failed.assembler.append(imageResult(7, true))
+    expect(failed.tools()[0]!.groupTree).toBeUndefined()
+
+    const ok = harness()
+    ok.assembler.append(call(6, imageCallId, 'generate_image', imageArgs))
+    ok.assembler.append(imageResult(7))
+    expect(ok.tools()[0]).toMatchObject({ groupTree: 'turn', data: { root: { name: 'generate_image' } } })
   })
 })

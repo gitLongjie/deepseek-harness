@@ -288,6 +288,20 @@ function fallbackState(context: ConversationNodeContext<ToolState>): ToolState |
   return state
 }
 
+/**
+ * Whether a settled generate_image result should leave the process disclosure.
+ * Running and failed calls stay inside the step run; only a successful result
+ * that actually carries an image becomes Turn-level chat content.
+ * @param root - projected root Tool block for this call.
+ * @returns true when the Node should declare `groupTree: 'turn'`.
+ */
+function promoteGenerateImageResult(root: ToolCallBlock): boolean {
+  if (!('kind' in root) || root.isError) return false
+  const name = root.name !== '' ? root.name : root.call?.name ?? ''
+  if (name !== 'generate_image') return false
+  return root.content.some(part => part.type === 'image')
+}
+
 /** Root Tool preparation, dispatch, result, and nested PTC calls. */
 export const toolDefinition: ConversationNodeDefinition<ToolState> = {
   kind: 'tool-call',
@@ -345,10 +359,14 @@ export const toolDefinition: ConversationNodeDefinition<ToolState> = {
     const preparing = !('kind' in projected) && projected.phase === 'preparing'
     const visibility = preparing && interruptedAt !== undefined ? 'hidden' : 'visible'
     const location = contextLocation(context)
+    // Settled generate_image results belong in the Turn's answer stream, not
+    // inside the foldable process ("已调用工具"): the picture is the deliverable.
+    const groupTree = promoteGenerateImageResult(projected) ? 'turn' as const : undefined
     const data = current?.data.root === projected ? current.data : { root: projected } satisfies ToolChatData
     if (current?.data === data && current.anchorSeq === anchor
-      && current.visibility === visibility && current.location === location) return current
-    return chatNode(context, 'tool-call', anchor, data, { visibility, location })
+      && current.visibility === visibility && current.location === location
+      && current.groupTree === groupTree) return current
+    return chatNode(context, 'tool-call', anchor, data, { visibility, location, groupTree })
   },
 }
 

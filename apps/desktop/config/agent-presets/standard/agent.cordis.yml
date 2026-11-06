@@ -254,3 +254,6 @@
   config:
     fetch: false
     searchTimeoutMs: 60000
+
+- id: tool-image
+  name: '@deepseek-ai/dsh-tool-image'

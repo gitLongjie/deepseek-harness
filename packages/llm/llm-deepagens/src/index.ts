@@ -1,16 +1,19 @@
 /**
  * Deepagens Claw gateway provider: OpenAI-compatible chat completions over the
- * login-seeded `llm-deepagens` settings section and `DEEPAGENS_API_KEY`.
+ * login-seeded `llm-deepagens` settings section and `DEEPAGENS_API_KEY`. When `ctx.image` is
+ * mounted, the route also registers the `deepagens` image provider, usable once `imageModel` is set.
  */
 import type { Context } from '@deepseek-ai/cordis'
 import { assertUsableApiKey, LlmError, resolveImageAttachmentAccess } from '@deepseek-ai/dsh-llm'
 import type {} from '@deepseek-ai/cordis-plugin-loader'
 import type {} from '@deepseek-ai/dsh-settings'
+import type {} from '@deepseek-ai/dsh-image'
 import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
 import { getOrCreateAnonymousUserId, type AnonymousUserId } from '@deepseek-ai/dsh-anonymous-user-id'
 import { deepEqualJson } from '@deepseek-ai/dsh-util-values'
 import { discoverModels } from './discovery.ts'
 import { DeepSeekAdapter } from './adapter.ts'
+import { requestImage } from './protocols/image-generation/generate.ts'
 import { Config, plainOptions, resolveAdapterOptions, type ResolvedDeepSeekOptions } from './config.ts'
 
 export { Config, plainOptions, resolveAdapterOptions } from './config.ts'
@@ -82,6 +85,29 @@ export function apply(ctx: Context, config: Config): void {
       try { return await resolveApiKey(options()) } catch { return undefined }
     }, signal),
   )
+
+  ctx.inject(['image'], (imageCtx) => {
+    imageCtx.image.register({
+      id: PROVIDER,
+      available: () => config.imageModel.get() !== undefined,
+      generate: async (request, signal) => {
+        const connection = options()
+        const model = connection.imageModel
+        if (model === undefined) {
+          throw new LlmError(`llm-deepagens: provider route "${PROVIDER}" has no imageModel configured`, 'INVALID_REQUEST')
+        }
+        const image = await requestImage({
+          baseURL: connection.baseURL,
+          apiKey: await resolveApiKey(connection),
+          userId: userId ??= getOrCreateAnonymousUserId(),
+          model,
+          prompt: request.prompt,
+          ...signal !== undefined ? { signal } : {},
+        })
+        return { data: image.data, mediaType: image.mediaType, model }
+      },
+    })
+  })
 
   let registeredPolicy = options().retryPolicy
   ctx.inject(['settings'], (settingsCtx) => {

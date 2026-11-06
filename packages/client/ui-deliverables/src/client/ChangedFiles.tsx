@@ -30,16 +30,19 @@ function Counts({ added, deleted, t }: { added: number; deleted: number } & Prop
 /**
  * Render one turn's changed files. The header opens the turn's review in the
  * right Sidebar on its first file. A single file uses only the header; it and
- * multi-file rows preview their comparison after a 500ms hover.
- * @param props - the recorded summary, the review opener, and localized copy.
+ * multi-file rows preview their comparison after a 500ms hover. A binary file
+ * has no text comparison, so its click opens the file's document preview instead.
+ * @param props - the recorded summary, the review and file openers, and localized copy.
  * @returns the card.
  */
-export function ChangedFiles({ changes, cwd, openReview, t, sessionId, useChangesDiff, loadChangesDiff }: {
+export function ChangedFiles({ changes, cwd, openReview, openFile, t, sessionId, useChangesDiff, loadChangesDiff }: {
   /** The served summary with the sequence of the event that announced it. */
   changes: Pick<ChangesSummary, 'files' | 'total' | 'added' | 'deleted'> & { seq: number }
   cwd: string | undefined
   /** Open the turn's review on the file at an original summary index. */
   openReview: (index: number) => void
+  /** Open one workspace path in the right Sidebar's document preview. */
+  openFile: (path: string) => void
 } & PropsLocale<typeof NS> & PreviewProps) {
   const cardRef = useRef<HTMLDivElement>(null)
   const pathDescriptionId = useId()
@@ -47,10 +50,15 @@ export function ChangedFiles({ changes, cwd, openReview, t, sessionId, useChange
   const singleFile = changes.total === 1 ? changes.files[0] : undefined
   const foldable = changes.files.length > COLLAPSED_ROWS
   const rows = foldable && !expanded ? changes.files.slice(0, COLLAPSED_ROWS) : changes.files
+  const open = (index: number): void => {
+    const file = changes.files[index]
+    if (file?.binary === true) openFile(file.path)
+    else openReview(index)
+  }
   const header = <button type="button" className={css.header}
     aria-label={singleFile === undefined ? t('changes.openReview') : t('changes.viewDiff', { name: singleFile.display })}
     aria-describedby={singleFile === undefined ? undefined : pathDescriptionId}
-    onClick={() => { openReview(0) }}>
+    onClick={() => { if (singleFile === undefined) openReview(0); else open(0) }}>
     <span className={css.tile}>
       {singleFile === undefined ? <FileTypeIcon kind="code" size={20} /> : <FileTypeIcon path={singleFile.path} size={20} />}
     </span>
@@ -83,7 +91,7 @@ export function ChangedFiles({ changes, cwd, openReview, t, sessionId, useChange
             anchor={<button type="button" className={css.row}
               aria-label={t('changes.viewDiff', { name: file.display })}
               aria-describedby={`${pathDescriptionId}-${index}`}
-              onClick={() => { openReview(index) }}>
+              onClick={() => { open(index) }}>
               <span className={css.path}>{file.display}</span>
               <span className={css.counts}>
                 {file.binary === true ? t('changes.binary')

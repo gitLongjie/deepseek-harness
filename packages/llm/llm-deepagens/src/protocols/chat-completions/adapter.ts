@@ -8,7 +8,7 @@
  * @module dsh-llm-deepseek/adapter
  */
 
-import { attributionHeaders, contentHasImage, CONTEXT_WINDOW_EXCEEDED_CODE, isContextWindowExceededError, isQuotaExceededError, LlmAdapter, LlmError, ProviderRequestId, QUOTA_EXCEEDED_CODE } from '@deepseek-ai/dsh-llm'
+import { attributionHeaders, contentHasImage, LlmAdapter, LlmError, ProviderRequestId } from '@deepseek-ai/dsh-llm'
 import type {
   ContentBlock,
   GenerateOptions,
@@ -38,6 +38,8 @@ import type { DeepSeekAdapterOptions, DeepSeekCatalogModel, DeepSeekConnectionOp
 import type { DeepSeekFileStore } from '../../common/file-store.ts'
 import { FileResolutionFailure, RequestFiles } from '../../common/request-files.ts'
 import { prepareRequestExtensions } from '../../common/request-extensions.ts'
+import { httpErrorCode } from '../../common/http-error.ts'
+import { generateImage } from '../image-generation/generate.ts'
 import { parseSse } from './sse.ts'
 import { translate } from './translate.ts'
 import type { WireError, WireRequest } from './types.ts'
@@ -85,26 +87,6 @@ function providerRetryAfterMs(value: string | null): number | undefined {
 function requestId(headers: Headers): ReturnType<typeof ProviderRequestId> | undefined {
   const value = headers.get('x-request-id') ?? headers.get('x-deepseek-request-id')
   return value === null || value.length === 0 ? undefined : ProviderRequestId(value)
-}
-
-/**
- * Map an HTTP status to a stable LlmError code.
- * @param status - status of a non-2xx provider response.
- * @param error - parsed provider error body, when available.
- * @returns the normalized harness error code.
- */
-export function httpErrorCode(status: number, error?: WireError['error']): string {
-  if (status === 401 || status === 403) return 'AUTH'
-  if (status === 413) return 'INVALID_REQUEST'
-  const detail = [error?.code, error?.type, error?.message].filter(Boolean).join(' ')
-  if (isQuotaExceededError(detail)) return QUOTA_EXCEEDED_CODE
-  if (status === 429) return 'RATE_LIMIT'
-  if (status === 400) {
-    if (isContextWindowExceededError(detail)) return CONTEXT_WINDOW_EXCEEDED_CODE
-    return 'INVALID_REQUEST'
-  }
-  if (status >= 500) return 'SERVER'
-  return `HTTP_${status}`
 }
 
 /**
@@ -175,10 +157,19 @@ export class ChatCompletionsAdapter extends LlmAdapter {
     // never observes a configuration change and the next call re-resolves.
     // The key resolves *from this snapshot*, so an endpoint and the secret
     // sent to it can never come from different configuration generations.
+    const model = connection.models.find(entry => entry.id === options.model)
+    const imageGeneration = model?.endpoint === 'image-generation'
     const hasImages = options.messages.some(message => contentHasImage(message.content))
     let attachments: AttachmentStore | undefined
-    if (hasImages) {
-      const model = connection.models.find(entry => entry.id === options.model)
+    if (imageGeneration) {
+      attachments = this.config.resolveAttachments?.()
+      if (attachments === undefined) {
+        throw new LlmError(
+          `Image-generation model "${options.model}" requires the durable attachment service.`,
+          'UNSUPPORTED_CONTENT',
+        )
+      }
+    } else if (hasImages) {
       if (model?.inputModalities?.includes('image') !== true) {
         throw new LlmError(
           `DeepSeek model "${options.model}" does not accept image input.`,
@@ -200,14 +191,17 @@ export class ChatCompletionsAdapter extends LlmAdapter {
       ? consumer.signal
       : AbortSignal.any([options.signal, consumer.signal])
     using watchdog = idleWatchdog(upstream, connection.streamIdleTimeoutMs, STREAM_IDLE_TIMEOUT_CODE)
-    const iterator = this.request(
-      options,
-      watchdog.signal,
-      connection,
-      apiKey,
-      userId,
-      attachments,
-      () => { watchdog.pulse() },
+    const onActivity = (): void => { watchdog.pulse() }
+    const iterator = (imageGeneration && attachments !== undefined
+      ? generateImage(options, {
+        baseURL: connection.baseURL,
+        apiKey,
+        userId,
+        attachments,
+        signal: watchdog.signal,
+        onActivity,
+      })
+      : this.request(options, watchdog.signal, connection, apiKey, userId, attachments, onActivity)
     )[Symbol.asyncIterator]()
     let exhausted = false
     try {

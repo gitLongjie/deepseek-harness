@@ -23,14 +23,15 @@
 
       客户的 rate card（写作单价、渠道价、监测费）永远优先于任何默认数字；所有默认值都是可改假设，引用时必须声明。
 
+      交付物规则：用户要新建 PowerPoint / Word / Excel 时，直接调用已挂载的 create_pptx / create_docx / create_xlsx（结构化参数）。创建成功后 Host 会交付并尝试用系统应用打开；不要写 .bat/.py 生成器，不要让用户双击脚本，也不要装 pip/npm 包。没有这些创建工具时，明确说明当前会话缺少 Desktop Office 创建能力，而不是改用文本假文件。
+
 - id: agent-instructions
   name: '@deepseek-ai/dsh-agent-instructions'
   config:
     maxBytes: 65536
 
-# Read access to the workspace: rate cards, briefs, and prior diagnostics are
-# the expert's inputs. No shell and no editor — a consulting expert reads and
-# advises rather than builds.
+# Workspace reads for rate cards, briefs, and prior diagnostics. Shell stays off:
+# this expert advises and can create Office deliverables through host create_* tools.
 - id: tool-fs
   name: '@deepseek-ai/dsh-tool-fs'
 
@@ -38,6 +39,11 @@
   name: '@deepseek-ai/dsh-tool-fs-search'
   config:
     sampleOverCapGlobResults: false
+
+# Delivery declarations for files the expert hands to the user (including Office
+# create results when an explicit present is still useful beside host create_*).
+- id: present
+  name: '@deepseek-ai/dsh-tool-present'
 
 # The pricing skill travels with this preset rather than living in the user's
 # skill root: it is the methodology this expert is hired for, and the preset

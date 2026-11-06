@@ -604,6 +604,15 @@ describe('ChangedFiles card', () => {
     expect(view.queryByRole('list')).toBeNull()
   })
 
+  it('opens a binary file in the document preview instead of its review', () => {
+    const t = makeTranslate(en)
+    const single = servedStore({ turn: 1, files: [changedFile('deck/plan.pptx', 0, 0, { binary: true })], total: 1, added: 0, deleted: 0 })
+    const { props, openFile, view } = renderCard(new PresentedOpenController(), en, { changes, presented: [] }, single)
+    fireEvent.click(view.getByRole('button', { name: t('changes.viewDiff', { name: 'deck/plan.pptx' }) }))
+    expect(openFile).toHaveBeenCalledExactlyOnceWith('deck/plan.pptx')
+    expect(props.openChangesReview).not.toHaveBeenCalled()
+  })
+
   it('hides changed files and avoids summary reads when developer tools are off', () => {
     const props = openProps(new PresentedOpenController(), servedStore())
     const base = { ...props, matched: { changes, presented: [] }, openFile: vi.fn(), sessionId: SessionId('child-session'), t: makeTranslate(en) }
@@ -720,7 +729,8 @@ describe('ChangedFiles card', () => {
     expect(within(card).getByRole('button', { name: 'View changes to ~/.zshrc' }).getAttribute('title')).toBeNull()
     expect(within(card).getByRole('button', { name: 'View changes to ~/.zshrc', description: '/home/u/.zshrc' })).toBeTruthy()
     fireEvent.click(within(card).getByRole('button', { name: 'View changes to ~/.zshrc' }))
-    expect(props.openChangesReview).toHaveBeenLastCalledWith({ sessionId: 'child-session', seq: 5, turn: 1 }, 4)
+    expect(openFile).toHaveBeenCalledExactlyOnceWith('/home/u/.zshrc')
+    expect(props.openChangesReview).toHaveBeenLastCalledWith({ sessionId: 'child-session', seq: 5, turn: 1 }, 0)
     const collapse = within(card).getByRole('button', { name: 'Collapse changed files' })
     expect(collapse.getAttribute('aria-expanded')).toBe('true')
     expect(card.lastElementChild).toBe(collapse)

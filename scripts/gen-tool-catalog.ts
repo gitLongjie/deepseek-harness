@@ -69,6 +69,8 @@ import * as ToolSkill from '@deepseek-ai/dsh-tool-skill'
 import * as ToolSessionQuery from '@deepseek-ai/dsh-tool-session-query'
 import * as ToolJobs from '@deepseek-ai/dsh-tool-jobs'
 import * as ToolVideo from '@deepseek-ai/dsh-tool-video'
+import * as ToolImage from '@deepseek-ai/dsh-tool-image'
+import ImageRuntime from '@deepseek-ai/dsh-image'
 import H3VideoService from '@deepseek-ai/dsh-h3-video'
 import CommandRuntime from '@deepseek-ai/dsh-commands'
 import BrowserUseRegistry from '@deepseek-ai/dsh-browser-use'
@@ -606,6 +608,20 @@ const TOOL_PACKAGES: ToolPackage[] = [
     },
     note:
       'The kind-agnostic background-job controller: background bash commands and PTY sends are read, listed, and killed through the same three tools. Loading the plugin attaches the controller that arms producers\' `ctx.jobs.start()`.',
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-image',
+    dir: 'tool-image',
+    source: 'packages/image/tool-image/src/index.ts',
+    requires: ['ctx.tools', 'ctx.image', 'ctx.attachments', 'ctx.llm (calling-route image input check)'],
+    writes: ['tool/call', 'tool/result', 'durable attachment for the generated image'],
+    async mount(ctx) {
+      await ctx.plugin(CatalogAttachmentStore)
+      await ctx.plugin(ImageRuntime)
+      await ctx.plugin(ToolImage)
+    },
+    note:
+      'Generates one image from a text prompt through the selected `ctx.image` provider and returns it as an image block. Refuses before generation when the calling route does not declare image input.',
   },
   {
     pkg: '@deepseek-ai/dsh-tool-video',

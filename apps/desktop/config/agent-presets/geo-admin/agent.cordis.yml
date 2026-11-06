@@ -57,6 +57,9 @@
     fetch: true
     searchTimeoutMs: 60000
 
+- id: tool-image
+  name: '@deepseek-ai/dsh-tool-image'
+
 # The operating skill travels with this preset: the workflow and safety rules
 # this expert is hired for. `baseUrl` is the preset's own directory, so the root
 # resolves wherever the preset is installed.

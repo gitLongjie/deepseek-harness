@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Convert authorized Office files to reusable PDFs on the Host. The shared service converts through LibreOffice kit. Targets with a declared native engine use it; other targets use Node WASM.
+Convert authorized Office files to reusable PDFs on the Host, and create new Office Open XML files through first-class Desktop tools. The shared conversion service uses LibreOffice kit. Targets with a declared native engine use it; other targets use Node WASM.
 
 ## Table of Contents
 
@@ -27,6 +27,7 @@ Each package owns its configuration and lifetime rules; the subsystem reference 
 | Package | Role | ctx key |
 |---|---|---|
 | [office-to-pdf](office-to-pdf/README.md) | Authorized Office bytes to complete PDFs with bounded queues and caching | `ctx.officeToPdf` |
+| [tool-office-create](tool-office-create/README.md) | Model-facing `create_pptx` / `create_docx` / `create_xlsx` via the bundled primary runtime | — |
 
 -----
 

@@ -9,6 +9,9 @@ import type { DeepSeekFileStore, DeepSeekFilePolicy } from './file-store.ts'
 /** Supported wire implementations; Responses is not yet implemented. */
 export type DeepSeekProtocol = 'chat-completions' | 'messages'
 
+/** Non-chat endpoint a catalog model is served from instead of the configured chat protocol. */
+export type DeepSeekModelEndpoint = 'image-generation'
+
 /** One optional model entry advertised by the direct-fetch adapter. */
 export interface DeepSeekCatalogModel {
   /** Wire model id accepted by the configured endpoint. */
@@ -37,6 +40,12 @@ export interface DeepSeekCatalogModel {
    * system prompt; omission means only a leading system message is read.
    */
   systemPromptUpdate?: SystemPromptUpdate
+  /**
+   * `'image-generation'` serves the model from `POST {baseURL}/images/generations`: each
+   * conversation request sends the latest user text as the prompt and answers with one assistant
+   * image block, ignoring tools and earlier history. Omission uses the configured chat protocol.
+   */
+  endpoint?: DeepSeekModelEndpoint
 }
 
 /**
@@ -85,6 +94,8 @@ export interface DeepSeekConnectionOptions {
   filePolicy: DeepSeekFilePolicy
   /** Provider-owned model-request retry policy, already resolved. */
   retryPolicy: ResolvedRetryPolicy
+  /** Model the route's `ctx.image` provider sends to `POST {baseURL}/images/generations`; omitted = provider unavailable. */
+  imageModel?: string
 }
 
 /** Constructor options for {@link DeepSeekAdapter}: the operation-local resolution hooks the plugin owns. */

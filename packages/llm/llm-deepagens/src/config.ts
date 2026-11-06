@@ -41,6 +41,8 @@ export interface Config {
   fileRefreshMarginSeconds: Volatile<number>
   fileQuotaCleanupBatch: Volatile<number>
   retryPolicy: Volatile<RetryPolicyConfig | undefined>
+  /** Model served through `POST {baseURL}/images/generations` for `ctx.image`; omitted = provider unavailable. */
+  imageModel: Volatile<string | undefined>
 }
 
 const catalogModel: z<DeepSeekCatalogModel> = z.object({
@@ -53,6 +55,7 @@ const catalogModel: z<DeepSeekCatalogModel> = z.object({
   imagePixelBudget: z.union([z.number().step(1).min(1), 'low']),
   imageMaxBytes: z.number().step(1).min(1),
   systemPromptUpdate: z.const('in-history'),
+  endpoint: z.const('image-generation'),
 })
 
 export const Config = z.object({
@@ -78,6 +81,7 @@ export const Config = z.object({
   fileRefreshMarginSeconds: z.number().step(1).min(0).default(DEFAULT_FILE_REFRESH_MARGIN_SECONDS).volatile(),
   fileQuotaCleanupBatch: z.number().step(1).min(1).max(1_000).default(DEFAULT_FILE_QUOTA_CLEANUP_BATCH).volatile(),
   retryPolicy: RetryPolicySchema.volatile(),
+  imageModel: z.string().volatile(),
 })
 
 /** Plain options the resolver reads on each request. */
@@ -152,6 +156,10 @@ function resolveModels(models: readonly DeepSeekCatalogModel[] | undefined): Dee
     if (systemPromptUpdate !== undefined && systemPromptUpdate !== 'in-history') {
       throw new Error(`llm-deepagens: catalog model "${model.id}" systemPromptUpdate must be "in-history" when present`)
     }
+    const endpoint: string | undefined = model.endpoint
+    if (endpoint !== undefined && endpoint !== 'image-generation') {
+      throw new Error(`llm-deepagens: catalog model "${model.id}" endpoint must be "image-generation" when present`)
+    }
     if (seen.has(model.id)) throw new Error(`llm-deepagens: duplicate catalog model "${model.id}"`)
     seen.add(model.id)
     return {
@@ -161,6 +169,7 @@ function resolveModels(models: readonly DeepSeekCatalogModel[] | undefined): Dee
       ...model.contextWindow === undefined ? {} : { contextWindow: model.contextWindow },
       ...model.maxTokens === undefined ? {} : { maxTokens: model.maxTokens },
       ...model.systemPromptUpdate === undefined ? {} : { systemPromptUpdate: model.systemPromptUpdate },
+      ...model.endpoint === undefined ? {} : { endpoint: model.endpoint },
       inputModalities: [...inputModalities],
       ...hasImage
         ? {
@@ -259,6 +268,10 @@ export function resolveAdapterOptions(config: Options, environment?: LaunchEnvir
     || fileQuotaCleanupBatch > 1_000) {
     throw new Error('llm-deepagens: fileQuotaCleanupBatch must be an integer from 1 through 1000')
   }
+  if (config.imageModel !== undefined) {
+    if (config.imageModel.length === 0) throw new Error('llm-deepagens: imageModel must be non-empty when present')
+    if (protocol !== 'chat-completions') throw new Error('llm-deepagens: imageModel requires the chat-completions protocol')
+  }
   const baseURL = config.baseURL ?? environment?.get(BASE_URL_ENV)?.value
     ?? (protocol === 'messages' ? MESSAGES_BASE_URL : PUBLIC_BASE_URL)
   if (protocol === 'messages') {
@@ -292,5 +305,6 @@ export function resolveAdapterOptions(config: Options, environment?: LaunchEnvir
       quotaCleanupBatch: fileQuotaCleanupBatch,
     },
     retryPolicy: resolveRetryPolicy(config.retryPolicy, 'llm-deepagens: retryPolicy'),
+    ...config.imageModel !== undefined ? { imageModel: config.imageModel } : {},
   }
 }

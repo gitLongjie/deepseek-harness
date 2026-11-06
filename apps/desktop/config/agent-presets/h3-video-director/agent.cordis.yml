@@ -334,6 +334,9 @@
     fetch: false
     searchTimeoutMs: 60000
 
+- id: tool-image
+  name: '@deepseek-ai/dsh-tool-image'
+
 # Shared authoring documents shown in the production workbench.
 - id: tool-video-studio
   name: '@deepseek-ai/dsh-video-workbench/tools'

@@ -44,6 +44,22 @@ export type GenericToolCardProps = ToolCallOwnerProps & {
 export function GenericToolCard({
   toolName, block, cwd, home, openFile, getFileTriggerProps, inspect, loadImage, renderSlot, useDisclosure, t,
 }: GenericToolCardProps) {
+  // generate_image is a chat deliverable: never hide the picture behind the
+  // generic disclosure, even when the keyed GenerateImageRow entry missed.
+  if (toolName === 'generate_image') {
+    const generated = imageCardModel(block)
+    if (generated !== null && loadImage !== undefined && renderSlot !== undefined) {
+      return (
+        <div data-tool="generate_image" data-state="ok" data-gallery="inline">
+          {renderSlot('tool.call.result-images', {
+            images: generated.images,
+            loadImage,
+            align: 'start',
+          })}
+        </div>
+      )
+    }
+  }
   const model = toolRowModel(toolName, block, cwd, home)
   const autoReview = model.autoReviewDenial === null
     ? null

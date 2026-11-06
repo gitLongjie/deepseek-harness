@@ -486,6 +486,14 @@
         fetch: true
         searchTimeoutMs: 60000
 
+    # Image generation seam. `llm-deepagens` registers the `deepagens` provider,
+    # usable once its `imageModel` setting names a gateway image model.
+    - id: image
+      name: '@deepseek-ai/dsh-image'
+
+    - id: tool-image
+      name: '@deepseek-ai/dsh-tool-image'
+
     - id: mcp-resources
       name: '@deepseek-ai/dsh-mcp-resources'
 

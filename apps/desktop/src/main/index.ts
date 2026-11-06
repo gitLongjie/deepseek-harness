@@ -16,6 +16,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { loadLayeredEnv } from '@deepseek-ai/dsh-app-boot'
 import type { TypertGateway } from '@deepseek-ai/dsh-api-gateway/types'
 import { runDesktopBoot } from './boot.ts'
+import { mountDesktopOffice } from './desktop/office.ts'
 import { comfyuiLocalDir, deployBundledComfyUI } from './desktop/comfyui-bootstrap.ts'
 import type { ProcessShutdown } from './process-shutdown.ts'
 import { dispatchTransportFetch, registerTransportIpc, transportRequestBytes, type TransportFetchRequest } from './ipc/transport.ts'
@@ -248,6 +249,15 @@ async function main(): Promise<void> {
     host.ctx = result.ctx
     host.shutdown = result.shutdown
     log('desktop: host booted')
+    // Office create tools and skills live on the in-process host (not only the
+    // legacy child dsh-desktop-host). Without this mount, chat never sees
+    // create_pptx / create_docx / create_xlsx and falls back to text scripts.
+    await mountDesktopOffice(result.ctx, {
+      packaged: app.isPackaged,
+      resourcesPath: process.resourcesPath,
+      appPath: app.getAppPath(),
+    })
+    log('desktop: office tools mounted')
     // First-launch ComfyUI deployment runs beside the shell, never blocking it:
     // copying the bundled program tree takes minutes, the app works without it
     // (the remote MiniMax backend), and the module's own logging owns progress.

@@ -58,6 +58,7 @@ harness 由 `packages/` 下的 npm 包组装而成，按能力系列分组：会
 | [`web/`](web/README.zh.md) | Web 能力系列：seam、搜索／获取提供方、面向模型的 Web 工具 |
 | [`geo/`](geo/README.zh.md) | 深度云海 GEO 内容后台系列：面向模型的站点／文章工具与 `geo-admin` 设置命名空间 |
 | [`video/`](video/README.zh.md) | 视频生成能力系列：H3 接口及其本地与托管 provider、面向模型的视频工具，以及工作台路由 |
+| [`image/`](image/README.zh.md) | 图片生成能力系列：`ctx.image` 接口与面向模型的 `generate_image` 工具 |
 | [`document/`](document/README.zh.md) | 共享宿主 Office 到 PDF 转换 |
 | [`attachment/`](attachment/README.zh.md) | 持久附件标识、校验、本地内容寻址存储 |
 | [`spill/`](spill/README.zh.md) | spill 能力系列：存储 seam、本地实现、工具结果 spill 策略 |

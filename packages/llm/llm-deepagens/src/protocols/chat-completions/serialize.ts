@@ -3,7 +3,8 @@
  * requests retain string user content; the image path resolves durable
  * attachments into ordered file-id or inline parts. Tool-role messages map to
  * string-only `tool` wire messages; their image parts follow in one shared
- * trailing user message.
+ * trailing user message. Assistant images follow their assistant message in
+ * one user message of their own.
  * @module dsh-llm-deepseek/serialize
  */
 
@@ -61,6 +62,7 @@ export type { ImageWireLocation } from '../../common/request-files.ts'
 import type { ImageWireLocation } from '../../common/request-files.ts'
 
 const TOOL_RESULT_IMAGE_TEXT = 'Attached image(s) from tool result:'
+const ASSISTANT_IMAGE_TEXT = 'Image(s) generated in the previous assistant turn:'
 
 /** Validate the adapter-owned effort before resolving its DeepSeek wire fields. */
 function reasoningEffort(effort: NonNullable<GenerateOptions['reasoningEffort']>): 'off' | 'low' | 'high' | 'max' {
@@ -120,7 +122,7 @@ function assertSupportedRole(message: RequestMessage): void {
 function assertSupportedHistory(messages: readonly RequestMessage[]): void {
   for (const message of messages) {
     assertSupportedRole(message)
-    if (message.role !== 'user' && message.role !== 'tool' && contentHasImage(message.content)) {
+    if (message.role === 'system' && contentHasImage(message.content)) {
       throw new LlmError(
         `The DeepSeek chat-completions adapter cannot represent image content in a ${message.role} message.`,
         'UNSUPPORTED_CONTENT',
@@ -305,6 +307,12 @@ export async function serializeMessagesWithImages(
     if (message.role === 'assistant') {
       flushToolImages()
       wire.push(serializeAssistant(message))
+      const imageBlocks = message.content.filter(block => block.type === 'image')
+      if (imageBlocks.length > 0) {
+        // Chat completions carries images only in user content, so generated images follow the turn.
+        const parts = await contentParts(imageBlocks, images, messageIndex + 1, nextImage)
+        wire.push({ role: 'user', content: [{ type: 'text', text: ASSISTANT_IMAGE_TEXT }, ...parts] })
+      }
       continue
     }
     if (message.role === 'tool') {

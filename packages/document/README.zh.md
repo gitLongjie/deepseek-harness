@@ -9,7 +9,7 @@ kind: "package-group"
 
 ## 摘要
 
-在宿主上将已授权的 Office 文件转换为可复用的 PDF。共享服务使用 LibreOffice kit 执行转换。声明了原生引擎的目标使用原生引擎，其余目标使用 Node WASM。
+在宿主上将已授权的 Office 文件转换为可复用的 PDF，并通过 Desktop 一等公民工具新建 Office Open XML 文件。共享转换服务使用 LibreOffice kit。声明了原生引擎的目标使用原生引擎，其余目标使用 Node WASM。
 
 ## 目录
 
@@ -27,6 +27,7 @@ kind: "package-group"
 | 包 | 职责 | ctx 键 |
 |---|---|---|
 | [office-to-pdf](office-to-pdf/README.zh.md) | 将已授权 Office 字节转换为完整 PDF，并提供有界队列和缓存 | `ctx.officeToPdf` |
+| [tool-office-create](tool-office-create/README.zh.md) | 面向模型的 `create_pptx` / `create_docx` / `create_xlsx`（内置 primary-runtime） | — |
 
 -----
 

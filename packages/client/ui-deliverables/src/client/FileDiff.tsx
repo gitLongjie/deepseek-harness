@@ -135,21 +135,27 @@ function noteOf(diff: Extract<ChangesDiff, { kind: 'text' }>): 'diff.created' | 
 /**
  * Render a file comparison with the same states and highlighting in previews and review tabs.
  * Addition-only and deletion-only comparisons use one column without changing the requested layout.
- * @param props - comparison state, layout choices, retry action, and localized copy.
+ * @param props - comparison state, layout choices, retry action, optional binary-file opener, and localized copy.
  * @returns the comparison or its loading, unavailable, or error state.
  */
-export function FileDiff({ state, split, wrap, retry, t }: {
+export function FileDiff({ state, split, wrap, retry, openFile, t }: {
   state: ChangesDiffState | undefined
   split: boolean
   wrap: boolean
   retry: () => void
+  /** Open the whole file in the document preview; offered beside the binary notice. */
+  openFile?: () => void
 } & PropsLocale<typeof NS>): ReactNode {
   if (state === undefined || state === 'loading') return <p className={css.status} role="status">{t('diff.loading')}</p>
   if (state === 'missing') return <p className={css.status}>{t('diff.missing')}</p>
   if (state === 'error') {
     return <div className={css.status}><span>{t('diff.error')}</span><Button size="sm" onClick={retry}>{t('presented.retry')}</Button></div>
   }
-  if (state.kind === 'binary') return <p className={css.status}>{t('diff.binary')}</p>
+  if (state.kind === 'binary') {
+    if (openFile === undefined) return <p className={css.status}>{t('diff.binary')}</p>
+    return <div className={css.status}><span>{t('diff.binary')}</span>
+      <Button size="sm" data-review-binary-open onClick={openFile}>{t('review.openFile')}</Button></div>
+  }
   if (state.kind === 'oversized') return <p className={css.status}>{t('diff.oversized')}</p>
   const hasAdditions = state.hunks.some(hunk => hunk.lines.some(line => line.startsWith('+')))
   const hasDeletions = state.hunks.some(hunk => hunk.lines.some(line => line.startsWith('-')))

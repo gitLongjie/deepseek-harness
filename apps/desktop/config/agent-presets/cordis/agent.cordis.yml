@@ -243,6 +243,9 @@
     fetch: false
     searchTimeoutMs: 60000
 
+- id: tool-image
+  name: '@deepseek-ai/dsh-tool-image'
+
 # ── self-modification ───────────────────────────────────────────────────────
 
 # Read the live runtime, mount a temporary plugin, unmount it. The toolset is a

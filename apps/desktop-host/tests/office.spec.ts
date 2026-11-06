@@ -7,6 +7,9 @@ import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import Include from '@deepseek-ai/cordis-plugin-include'
 import AgentRegistry from '@deepseek-ai/dsh-agent'
+import { provideWorkingDirectoryFixture } from '@deepseek-ai/dsh-agent-loop-testkit'
+import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
+import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import SkillRegistry from '@deepseek-ai/dsh-skill'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
@@ -25,11 +28,14 @@ it('loads Desktop Office CLI paths and removes them on disposal', async () => {
     await mkdir(nodeDirectory, { recursive: true })
     await cp(process.execPath, join(nodeDirectory, process.platform === 'win32' ? 'node.exe' : 'node'))
     ctx.baseUrl = pathToFileURL(root).href + '/'
+    provideWorkingDirectoryFixture(ctx)
+    await ctx.plugin(LocalFileSystem, { cwd: root })
     await ctx.plugin(Loader)
     ctx.loader.builtins.include = Include
     expect('default' in desktopOffice).toBe(false)
     expect(ctx.loader.unwrapExports(desktopOffice)).toBe(desktopOffice)
     const modules = new Map<string, unknown>([
+      ['sessionProjections', SessionProjectionRegistry],
       ['agents', AgentRegistry], ['systemPrompt', SystemPrompt], ['tools', ToolRuntime], ['toolExecutor', NativeToolExecutor],
       ['skills', SkillRegistry], ['office', desktopOffice],
     ])
@@ -42,6 +48,7 @@ it('loads Desktop Office CLI paths and removes them on disposal', async () => {
     } as unknown as NonNullable<typeof ctx.loader.internal>
     const config = join(root, 'cordis.yml')
     await writeFile(config, [
+      '- name: sessionProjections',
       '- name: agents', '- name: systemPrompt', '- name: tools', '- name: skills', '- name: office',
       '  config:', `    source: ${JSON.stringify(join(root, 'runtime', 'primary-runtime'))}`,
       `    root: ${JSON.stringify(join(root, 'installed'))}`,
@@ -54,7 +61,9 @@ it('loads Desktop Office CLI paths and removes them on disposal', async () => {
     expect((await ctx.skills.get('office-pptx'))?.resourceBase).toEqual({ kind: 'directory', path: join(assets, 'office-pptx').split(sep).join('/') })
     expect((await ctx.skills.get('office-pptx'))?.content).toContain('office-render')
     expect((await ctx.skills.get('office-pptx'))?.content).not.toContain(nodeDirectory)
-    expect(ctx.tools.schemas().map(tool => tool.name)).toEqual(['load_workspace_dependencies'])
+    expect(ctx.tools.schemas().map(tool => tool.name).toSorted()).toEqual([
+      'create_docx', 'create_pptx', 'create_xlsx', 'load_workspace_dependencies',
+    ])
     const entry = [...ctx.loader.entries()].find(entry => entry.options.name === 'office')
     expect(entry).toBeDefined()
     await entry?.fiber?.dispose()

@@ -256,6 +256,9 @@
     fetch: false
     searchTimeoutMs: 60000
 
+- id: tool-image
+  name: '@deepseek-ai/dsh-tool-image'
+
 # ── presentation ────────────────────────────────────────────────────────────
 
 # Code Mode for this agent alone. The row waits for the host's `codeRuntime`

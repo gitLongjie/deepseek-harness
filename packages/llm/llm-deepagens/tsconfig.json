@@ -55,6 +55,9 @@
       "path": "../../settings/settings"
     },
     {
+      "path": "../../image/image"
+    },
+    {
       "path": "../../util/values"
     },
     {

@@ -14,6 +14,7 @@ import { bashToolviewSample } from './tool/toolviews/bash-sample.tsx'
 import { fileMutationToolview } from './tool/toolviews/file-mutation-row.tsx'
 import { readToolview } from './tool/toolviews/read-row.tsx'
 import { readImageToolview } from './tool/toolviews/read-image-row.tsx'
+import { GenerateImageRow } from './tool/toolviews/generate-image-row.tsx'
 import { searchToolview } from './tool/toolviews/search-row.tsx'
 import { detailsToolview } from './tool/toolviews/details-row.tsx'
 import { todoToolview } from './tool/toolviews/todo-row.tsx'
@@ -49,6 +50,14 @@ export function apply(ctx: ClientContext): void {
   ctx.plugin(bashToolviewSample)
   ctx.plugin(readToolview)
   ctx.plugin(readImageToolview)
+  // Register generate_image in this apply pass so the keyed gallery cannot miss
+  // the ToolCallTree dispatch and fall back to the expandable generic card.
+  ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({
+    name: 'tool.call.toolview',
+    key: 'generate_image',
+    locale: NS,
+    children: { 'tool.call.images': { kind: 'single', scope: 'session' } },
+  }, GenerateImageRow))
   ctx.plugin(fileMutationToolview)
   ctx.plugin(searchToolview)
   ctx.plugin(webToolview)

@@ -1,0 +1,64 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/image/tool-image/README.md
+/:
+  en: 36995a783ad8b333
+  zh: cbfe6691abfb6b8a
+/deepseek-ai-dsh-tool-image:
+  en: 820897a8394c0027
+  zh: 91f3db160fe38403
+/deepseek-ai-dsh-tool-image/summary:
+  en: f259a0d1813049fc
+  zh: bd7569d51292c453
+/deepseek-ai-dsh-tool-image/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 09388d293f9be9cb
+/deepseek-ai-dsh-tool-image/use-this-package:
+  en: 9ebe2660cde9a996
+  zh: 6e7702c1821fde83
+/deepseek-ai-dsh-tool-image/use-this-package/when-to-choose-it:
+  en: a2fb7f313a219a7d
+  zh: 9c55e31b8d4f5ed1
+/deepseek-ai-dsh-tool-image/use-this-package/minimal-configuration:
+  en: 7a111ec477107388
+  zh: 64222b127c26ef59
+/deepseek-ai-dsh-tool-image/use-this-package/what-the-model-can-do:
+  en: 0e97ab4d588f2558
+  zh: b03eabd2859cde43
+/deepseek-ai-dsh-tool-image/use-this-package/what-success-and-failure-look-like:
+  en: aee6e470f1786af9
+  zh: b091450e31acee7b
+/deepseek-ai-dsh-tool-image/understand-the-implementation:
+  en: 42b15ac6321706aa
+  zh: 6eb78656420aa552
+/deepseek-ai-dsh-tool-image/understand-the-implementation/design-philosophy:
+  en: 4741c211c3103c83
+  zh: 4b2859f8f576457c
+/deepseek-ai-dsh-tool-image/understand-the-implementation/source-map:
+  en: 99385cfb95c53247
+  zh: 1ff4f8fce802673c
+/deepseek-ai-dsh-tool-image/further-exploration:
+  en: e09381bc90e77d86
+  zh: a76a3f9f6dec4bc0
+/deepseek-ai-dsh-tool-image/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-tool-image/model-experience/model-facing-contract:
+  en: fa56266b2731f7ba
+  zh: 91cd900e09379746
+/deepseek-ai-dsh-tool-image/model-experience/model-facing-contract/what-the-model-sees:
+  en: 051e26e1f6e74200
+  zh: 448a8ea8d1cbf8e9
+/deepseek-ai-dsh-tool-image/model-experience/model-facing-contract/token-effect:
+  en: 39da8663da1b78df
+  zh: f88811b6b8ebc8d3
+/deepseek-ai-dsh-tool-image/model-experience/model-facing-contract/kv-cache-effect:
+  en: 10cf27c2fa49afb1
+  zh: 3601307d89d7e615
+/deepseek-ai-dsh-tool-image/known-limitations-and-deferred-work:
+  en: 27c4a89fd4721a44
+  zh: 38c83e407a535331
+/deepseek-ai-dsh-tool-image/known-limitations-and-deferred-work/dev-note:
+  en: 3e932088c03ca48d
+  zh: 932c34ab6eb29e34

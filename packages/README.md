@@ -58,6 +58,7 @@ Every package lives in exactly one group; new packages join existing groups, and
 | [`web/`](web/README.md) | Web capability family: seam, search/fetch providers, model-facing web tools |
 | [`geo/`](geo/README.md) | 深度云海 GEO content-backend family: model-facing site/article tools and the `geo-admin` settings namespace |
 | [`video/`](video/README.md) | Video-generation capability family: the H3 seam with its local and hosted providers, the model-facing video tools, and the workbench routes |
+| [`image/`](image/README.md) | Image-generation capability family: the `ctx.image` seam and the model-facing `generate_image` tool |
 | [`document/`](document/README.md) | Shared Host Office-to-PDF conversion |
 | [`attachment/`](attachment/README.md) | Durable attachment identity, validation, local content-addressed storage |
 | [`spill/`](spill/README.md) | Spill capability family: storage seam, local impl, tool-result spill policy |
