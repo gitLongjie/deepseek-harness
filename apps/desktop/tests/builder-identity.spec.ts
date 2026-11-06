@@ -27,7 +27,7 @@ describe('desktop builder identity', () => {
   const config = readFileSync(BUILDER_CONFIG, 'utf8')
 
   it('ships the product name used by the native shell', () => {
-    expect(config).toMatch(/^appId:\s*com\.meowwork\.app\s*$/m)
+    expect(config).toMatch(/^appId:\s*com\.deepagens\.app\s*$/m)
     expect(config).not.toMatch(/^productName:/m)
     expect(config).toMatch(/^  shortcutName:\s*\$\{productName\}\s*$/m)
     expect(config).toMatch(/^  uninstallDisplayName:\s*\$\{productName\}\s*$/m)

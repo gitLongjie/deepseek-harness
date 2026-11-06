@@ -8,7 +8,7 @@
  */
 
 /** Installed id; equals electron-builder.yml `appId`, which the NSIS shortcuts carry. */
-export const DESKTOP_APP_USER_MODEL_ID = 'com.meowwork.app'
+export const DESKTOP_APP_USER_MODEL_ID = 'com.deepagens.app'
 
 /**
  * Resolve the AppUserModelId for this launch.
