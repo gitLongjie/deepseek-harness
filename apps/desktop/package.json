@@ -384,6 +384,8 @@
   "optionalDependencies": {
     "node-addon-require-builtin-darwin-arm64": "0.1.9",
     "node-addon-require-builtin-darwin-x64": "0.1.9",
-    "node-addon-require-builtin-win32-x64-msvc": "0.1.9"
+    "node-addon-require-builtin-win32-x64-msvc": "0.1.9",
+    "@deepseek-ai/node-addon-system-darwin-arm64": "workspace:~",
+    "@deepseek-ai/node-addon-system-darwin-x64": "workspace:~"
   }
 }

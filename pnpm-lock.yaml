@@ -1647,6 +1647,12 @@ importers:
         specifier: 4.4.3
         version: 4.4.3
     optionalDependencies:
+      '@deepseek-ai/node-addon-system-darwin-arm64':
+        specifier: workspace:~
+        version: link:../../native/system/packages/darwin-arm64
+      '@deepseek-ai/node-addon-system-darwin-x64':
+        specifier: workspace:~
+        version: link:../../native/system/packages/darwin-x64
       node-addon-require-builtin-darwin-arm64:
         specifier: 0.1.9
         version: 0.1.9
