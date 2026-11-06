@@ -103,11 +103,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # macos-latest currently provisions-fails on this workflow (three
-        # consecutive jobs died at exactly 15:01 with zero steps and no logs;
-        # the same workflow ran macos-latest fine on 2026-10-27), so pin the
-        # stable image until that image rotation settles.
-        os: [windows-latest, macos-15]
+        # The macOS arm64 hosted pool currently provisions-fails on this
+        # workflow (five consecutive jobs died at exactly 15:01 with zero
+        # steps and no logs, across macos-latest and macos-15; the same
+        # workflow ran macos-latest fine on 2026-10-27). The Intel pool takes
+        # a separate provisioning path; the build itself cross-compiles both
+        # architectures either way.
+        os: [windows-latest, macos-15-intel]
     steps:
       - uses: actions/checkout@v6
 
