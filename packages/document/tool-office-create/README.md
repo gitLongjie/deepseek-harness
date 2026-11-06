@@ -51,6 +51,6 @@ Tool declarations participate in the ordinary tool-schema cache key for the comp
 
 ## Known Limitations and Deferred Work
 
-- `create_pptx` applies one built-in 16:9 theme. A different template, or edits to an existing file, stay on the `office-pptx` skill.
+- Designed presentations use the bundled `dashi-ppt` skill. `create_pptx` remains the plain Office file. Edits to an existing file stay on `office-pptx`.
 - PDF export stays on `office-export-pdf`.
 - Ordinary Web and shared base do not mount these tools in phase 1.

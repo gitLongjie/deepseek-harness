@@ -5,7 +5,7 @@
  * mount it here or `create_pptx` never appears in chat.
  */
 
-import { existsSync, realpathSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, realpathSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { shell } from 'electron'
@@ -45,6 +45,42 @@ export interface DesktopOfficePaths {
   readonly runtimeDir: string
   /** Whether sibling `office-skills` assets are present beside `source`. */
   readonly skillsAvailable: boolean
+}
+
+/**
+ * Directory of skills shipped with Desktop, including `dashi-ppt`.
+ * Installed launches copy `dashi-ppt` into the Harness home on first use so
+ * its generator can install npm dependencies. Development uses the prepared
+ * runtime directory directly.
+ * @param options - Packaged flag and Electron path anchors.
+ * @returns The skill root passed to `DSH_BUNDLED_SKILL_DIR`, or `undefined` when `dashi-ppt` is absent.
+ */
+export function resolveBundledSkillDir(options: DesktopOfficeMountOptions): string | undefined {
+  const shipped = bundledSkillRoot(options)
+  if (shipped === undefined || !existsSync(join(shipped, 'dashi-ppt', 'SKILL.md'))) return undefined
+  if (!usePackagedOfficeLayout(options.packaged)) return shipped
+  const live = join(resolveDshHome(), 'bundled-skills')
+  if (!existsSync(join(live, 'dashi-ppt', 'SKILL.md'))) {
+    mkdirSync(live, { recursive: true })
+    cpSync(join(shipped, 'dashi-ppt'), join(live, 'dashi-ppt'), { recursive: true })
+  }
+  return live
+}
+
+/** Runtime directory that holds `bundled-skills/` beside `primary-runtime`. */
+function bundledSkillRoot(options: DesktopOfficeMountOptions): string | undefined {
+  if (usePackagedOfficeLayout(options.packaged)) {
+    const runtime = join(options.resourcesPath, 'runtime')
+    if (existsSync(join(runtime, 'primary-runtime'))) return join(runtime, 'bundled-skills')
+  }
+  const override = process.env.DSH_DESKTOP_PRIMARY_RUNTIME
+  if (override !== undefined && override !== '') return join(dirname(override), 'bundled-skills')
+  const target = process.platform === 'darwin'
+    ? (process.arch === 'arm64' ? 'mac-arm64' : 'mac-x64')
+    : 'win-x64'
+  const prepared = join(DESKTOP_ROOT, '.desktop-build', 'targets', target, 'runtime', 'primary-runtime')
+  if (existsSync(prepared)) return join(dirname(prepared), 'bundled-skills')
+  return undefined
 }
 
 /**

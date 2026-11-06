@@ -1,10 +1,31 @@
 /** Unit tests for in-process Desktop Office path resolution. */
 
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { resolveDesktopOfficePaths, usePackagedOfficeLayout } from '../src/main/desktop/office.ts'
+import { resolveBundledSkillDir, resolveDesktopOfficePaths, usePackagedOfficeLayout } from '../src/main/desktop/office.ts'
+
+describe('resolveBundledSkillDir', () => {
+  afterEach(() => { vi.unstubAllEnvs() })
+
+  it('copies the shipped dashi-ppt skill into the Harness home for an installed launch', () => {
+    const root = mkdtempSync(join(tmpdir(), 'dsh-desktop-dashi-'))
+    vi.stubEnv('DSH_HOME', root)
+    vi.stubEnv('DSH_DESKTOP_DEV', '')
+    const resourcesPath = join(root, 'resources')
+    mkdirSync(join(resourcesPath, 'runtime', 'primary-runtime'), { recursive: true })
+    mkdirSync(join(resourcesPath, 'runtime', 'bundled-skills', 'dashi-ppt'), { recursive: true })
+    writeFileSync(join(resourcesPath, 'runtime', 'bundled-skills', 'dashi-ppt', 'SKILL.md'), '---\nname: dashi-ppt\n---\n')
+    const resolved = resolveBundledSkillDir({
+      packaged: true,
+      resourcesPath,
+      appPath: join(resourcesPath, 'app.asar'),
+    })
+    expect(resolved).toBe(join(root, 'bundled-skills'))
+    expect(readFileSync(join(root, 'bundled-skills', 'dashi-ppt', 'SKILL.md'), 'utf8')).toContain('dashi-ppt')
+  })
+})
 
 describe('resolveDesktopOfficePaths', () => {
   afterEach(() => {

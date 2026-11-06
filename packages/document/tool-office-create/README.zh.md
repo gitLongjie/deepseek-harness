@@ -51,6 +51,6 @@ Host 校验结构化参数、解析 Session 工作目录路径、准备 primary-
 
 ## 已知限制与后续工作
 
-- `create_pptx` 使用一套内置 16:9 主题。换一套模板，或编辑已有文件，仍走 `office-pptx` skill。
+- 正式演示走随包提供的 `dashi-ppt` skill。`create_pptx` 只负责纯 Office 文件。编辑已有文件仍走 `office-pptx`。
 - PDF 导出仍由 `office-export-pdf` 负责。
 - 第一期普通 Web 与共享 base 不挂载这些工具。

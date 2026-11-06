@@ -16,7 +16,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { loadLayeredEnv } from '@deepseek-ai/dsh-app-boot'
 import type { TypertGateway } from '@deepseek-ai/dsh-api-gateway/types'
 import { runDesktopBoot } from './boot.ts'
-import { mountDesktopOffice } from './desktop/office.ts'
+import { mountDesktopOffice, resolveBundledSkillDir } from './desktop/office.ts'
 import { comfyuiLocalDir, deployBundledComfyUI } from './desktop/comfyui-bootstrap.ts'
 import type { ProcessShutdown } from './process-shutdown.ts'
 import { dispatchTransportFetch, registerTransportIpc, transportRequestBytes, type TransportFetchRequest } from './ipc/transport.ts'
@@ -234,6 +234,12 @@ async function main(): Promise<void> {
     // platform-view headers, product analytics `serviceVersion`) the way the
     // official build's inlined value would; an explicit build value wins.
     process.env.DSH_CLIENT_VERSION ??= app.getVersion()
+    const bundledSkills = resolveBundledSkillDir({
+      packaged: app.isPackaged,
+      resourcesPath: process.resourcesPath,
+      appPath: app.getAppPath(),
+    })
+    if (bundledSkills !== undefined) process.env.DSH_BUNDLED_SKILL_DIR ??= bundledSkills
     const environment = loadLayeredEnv('desktop')
     log(`desktop: booting (packaged=${String(app.isPackaged)}) execArgv=${JSON.stringify(process.execArgv)} node=${process.versions.node}`)
     const result = await runDesktopBoot({

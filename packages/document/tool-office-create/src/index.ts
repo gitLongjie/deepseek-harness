@@ -71,10 +71,12 @@ export {
   MAX_TEXT_CHARS,
 } from './limits.ts'
 
-const CREATE_GUIDANCE = 'For a new PowerPoint, Word, or Excel file, call create_pptx, create_docx, or create_xlsx with structured content. '
+const CREATE_GUIDANCE = 'For a presentation, deck, or slideshow, load the dashi-ppt skill and follow it. '
+  + 'That skill is the default PowerPoint workflow. '
+  + 'Call create_pptx, create_docx, or create_xlsx only for a plain Office file, or when dashi-ppt is not in the skill catalog. '
   + 'A successful create already declares the file as a deliverable; Desktop may also open it. '
-  + 'Do not write generator scripts, install pip or npm packages, or search for a system Python for this workflow. '
-  + 'Use office-* skills only to edit an existing Office file, render pages, recalculate formulas, or export PDF.'
+  + 'Do not write your own generator scripts or search for a system Python. '
+  + 'Use office-* skills to edit an existing Office file, render pages, recalculate formulas, or export PDF.'
 
 /**
  * Register the three create tools against the bundled Office runtime.
@@ -125,9 +127,8 @@ export function apply(ctx: Context, config: Config): void {
   registerCreateTool(ctx, {
     name: 'create_pptx',
     kind: 'pptx',
-    description: 'Create a new PowerPoint presentation (.pptx) with the bundled Office runtime. '
-      + 'The tool applies a built-in 16:9 theme: a dark cover and light content slides with accent bars. '
-      + 'Use for new decks only. Do not install packages or write Python scripts to restyle it. '
+    description: 'Create a plain PowerPoint presentation (.pptx) with the bundled Office runtime and its built-in 16:9 theme. '
+      + 'For a designed deck, load dashi-ppt instead. Use this tool only when that skill is unavailable or the user wants a plain file. '
       + 'A successful create declares the file as a deliverable. Edit existing PPTX files through the office-pptx skill.',
     pending,
     parameters: {

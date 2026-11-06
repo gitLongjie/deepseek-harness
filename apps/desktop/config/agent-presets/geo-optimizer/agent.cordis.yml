@@ -23,15 +23,23 @@
 
       客户的 rate card（写作单价、渠道价、监测费）永远优先于任何默认数字；所有默认值都是可改假设，引用时必须声明。
 
-      交付物规则：用户要新建 PowerPoint / Word / Excel 时，直接调用已挂载的 create_pptx / create_docx / create_xlsx（结构化参数）。创建成功后 Host 会交付并尝试用系统应用打开；不要写 .bat/.py 生成器，不要让用户双击脚本，也不要装 pip/npm 包。没有这些创建工具时，明确说明当前会话缺少 Desktop Office 创建能力，而不是改用文本假文件。
+      交付物规则：用户要演示文稿、PPT 或幻灯片时，先加载 `dashi-ppt` skill 并严格按它的流程生成，不要改用 create_pptx，也不要自己写 .bat/.py 生成器。Word / Excel 仍调用 create_docx / create_xlsx。只有技能目录里没有 `dashi-ppt` 时，才用 create_pptx 做一份纯文本演示。
 
 - id: agent-instructions
   name: '@deepseek-ai/dsh-agent-instructions'
   config:
     maxBytes: 65536
 
-# Workspace reads for rate cards, briefs, and prior diagnostics. Shell stays off:
-# this expert advises and can create Office deliverables through host create_* tools.
+# Workspace reads for rate cards and briefs. PowerShell stays on so the
+# bundled dashi-ppt skill can run its generator. Do not invent other scripts.
+- id: tool-pwsh
+  name: '@deepseek-ai/dsh-tool-pwsh'
+  disabled: !!js process.platform !== 'win32'
+
+- id: tool-bash
+  name: '@deepseek-ai/dsh-tool-bash'
+  disabled: !!js process.platform === 'win32'
+
 - id: tool-fs
   name: '@deepseek-ai/dsh-tool-fs'
 

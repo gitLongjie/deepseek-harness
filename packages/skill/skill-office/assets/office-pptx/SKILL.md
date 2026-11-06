@@ -5,7 +5,7 @@ description: Create, read, edit, and validate PowerPoint presentations (.pptx).
 
 # PowerPoint presentations
 
-For a **new** presentation, prefer `create_pptx` when that tool is available, then `present` the path. That tool already applies a built-in 16:9 theme. Use this skill to read or edit an existing `.pptx`, or to replace that theme.
+For a **new** presentation, load `dashi-ppt` when that skill is available. Use `create_pptx` only for a plain Office file when `dashi-ppt` is absent. Use this skill to read or edit an existing `.pptx`.
 
 Follow an explicit user or applicable AGENTS.md requirement for an environment or library. Otherwise call `load_workspace_dependencies` and use its Python executable and bundled presentation libraries. Do not install npm or pip packages or locate a system interpreter for the default workflow. If the tool is unavailable, use an already configured environment and report a missing dependency only when it prevents the requested operation.
 
