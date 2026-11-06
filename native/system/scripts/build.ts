@@ -16,7 +16,10 @@ const { values } = parseArgs({
   allowPositionals: false,
 })
 const hostAddonOnly = values['host-addon-only'] === true
-const arch = values.arch ?? process.arch
+// NARB_ARCH beats the flag so CI hosts cross-package through any pnpm
+// version: `pnpm run` consumers mangle bare `--arch` flags differently
+// per release, while an environment variable passes through verbatim.
+const arch = process.env.NARB_ARCH ?? values.arch ?? process.arch
 const clangArchitectures: Record<string, string> = { arm64: 'arm64', x64: 'x86_64' }
 const sources: Record<string, string> = {
   'landlock-run': 'packages/entry/src/main.c',
