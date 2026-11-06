@@ -104,9 +104,11 @@ export function usePackagedOfficeLayout(
  * Installed builds use `resources/runtime`; development prefers the prepared
  * `.desktop-build` payload, then the Harness-home install tree.
  * @param options - Packaged flag and Electron path anchors.
- * @returns Absolute payload directories for create tools and optional skills.
+ * @returns Absolute payload directories for create tools and optional skills,
+ *   or `undefined` when no payload exists on this machine — the Office engine
+ *   is an optional payload, and a build without it stays bootable.
  */
-export function resolveDesktopOfficePaths(options: DesktopOfficeMountOptions): DesktopOfficePaths {
+export function resolveDesktopOfficePaths(options: DesktopOfficeMountOptions): DesktopOfficePaths | undefined {
   const installRoot = join(resolveDshHome(), 'dsh-runtimes', 'dsh-primary-runtime')
   if (usePackagedOfficeLayout(options.packaged)) {
     const source = join(options.resourcesPath, 'runtime', 'primary-runtime')
@@ -147,9 +149,7 @@ export function resolveDesktopOfficePaths(options: DesktopOfficeMountOptions): D
       skillsAvailable: existsSync(join(dirname(installRoot), 'office-skills')),
     }
   }
-  throw new Error(
-    'desktop office: primary-runtime is missing; run `pnpm --filter @deepseek-ai/dsh-desktop run prepare:primary-runtime`',
-  )
+  return undefined
 }
 
 /**
@@ -159,6 +159,12 @@ export function resolveDesktopOfficePaths(options: DesktopOfficeMountOptions): D
  */
 export async function mountDesktopOffice(ctx: Context, options: DesktopOfficeMountOptions): Promise<void> {
   const paths = resolveDesktopOfficePaths(options)
+  if (paths === undefined) {
+    // The engine ships beside installers produced by the packaging pipeline;
+    // a payload-less build stays fully bootable and just offers no Office tools.
+    ctx.logger.warn('desktop office: no primary-runtime payload found; Office create tools stay unavailable (prepare one with pnpm --filter @deepseek-ai/dsh-desktop run prepare:primary-runtime)')
+    return
+  }
   if (!existsSync(paths.source)) {
     throw new Error(`desktop office: primary-runtime source missing at ${paths.source}`)
   }
