@@ -36,6 +36,15 @@ export const UNPACKED_DEPENDENCY_PACKAGES: readonly string[] = [
   // The runner chain's sandbox config loader reads YAML documents at its
   // plain-Node load time.
   'yaml',
+  // The builtin-module require bridge and its platform bindings: the sandbox
+  // runner dlopens the binding, and the runner boot path requires the bridge
+  // — both at plain-Node load time. Each platform variant package ships as
+  // real files too, so the finder's optional-package require sees the whole
+  // package regardless of which platform the payload was built on.
+  'node-addon-require-builtin',
+  'node-addon-require-builtin-darwin-arm64',
+  'node-addon-require-builtin-darwin-x64',
+  'node-addon-require-builtin-win32-x64-msvc',
 ]
 
 /** electron-builder `asarUnpack` globs covering every required unpacked package. */

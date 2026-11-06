@@ -1646,6 +1646,16 @@ importers:
       zod:
         specifier: 4.4.3
         version: 4.4.3
+    optionalDependencies:
+      node-addon-require-builtin-darwin-arm64:
+        specifier: 0.1.9
+        version: 0.1.9
+      node-addon-require-builtin-darwin-x64:
+        specifier: 0.1.9
+        version: 0.1.9
+      node-addon-require-builtin-win32-x64-msvc:
+        specifier: 0.1.9
+        version: 0.1.9
 
   apps/desktop-host:
     dependencies:

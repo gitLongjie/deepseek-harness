@@ -380,5 +380,10 @@
     "@deepseek-ai/dsh-util-file-drag": "workspace:*",
     "@deepseek-ai/dsh-client-ui-file-actions": "workspace:*",
     "tencentcloud-sdk-nodejs-teo": "4.1.330"
+  },
+  "optionalDependencies": {
+    "node-addon-require-builtin-darwin-arm64": "0.1.9",
+    "node-addon-require-builtin-darwin-x64": "0.1.9",
+    "node-addon-require-builtin-win32-x64-msvc": "0.1.9"
   }
 }

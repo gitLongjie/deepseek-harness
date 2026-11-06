@@ -129,3 +129,15 @@ patchedDependencies:
   mdast-util-gfm-autolink-literal@2.0.1: patches/mdast-util-gfm-autolink-literal@2.0.1.patch
   micromark-extension-gfm-autolink-literal@2.1.0: patches/micromark-extension-gfm-autolink-literal@2.1.0.patch
   node-pty@1.2.0-beta.15: patches/node-pty@1.2.0-beta.15.patch
+
+# The desktop release cross-packages macOS (arm64 + x64) and Windows (x64)
+# installers from whichever host runs the build; the platform-variant native
+# packages (node-addon-require-builtin-*, napi bindings) must therefore be
+# installed on every host, not only the host-matching ones.
+supportedArchitectures:
+  os:
+    - darwin
+    - win32
+  cpu:
+    - arm64
+    - x64
