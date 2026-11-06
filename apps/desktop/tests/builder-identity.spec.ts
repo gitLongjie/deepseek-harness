@@ -9,10 +9,12 @@ import {
   readDesktopOemConfig,
   syncDesktopOemIcons,
 } from '../scripts/desktop-oem-config.mjs'
+import { DESKTOP_APP_USER_MODEL_ID, resolveAppUserModelId } from '../src/main/desktop/app-user-model-id.ts'
 
 const BUILDER_CONFIG = fileURLToPath(new URL('../electron-builder.yml', import.meta.url))
 const DEV_LAUNCHER = fileURLToPath(new URL('../scripts/dev.ts', import.meta.url))
 const DEPLOY_LAUNCHER = fileURLToPath(new URL('../scripts/deploy-app.mjs', import.meta.url))
+const MAIN_ENTRY = fileURLToPath(new URL('../src/main/index.ts', import.meta.url))
 const UPDATER = fileURLToPath(new URL('../src/main/updater.ts', import.meta.url))
 const DESKTOP_MANIFEST = fileURLToPath(new URL('../package.json', import.meta.url))
 const roots: string[] = []
@@ -30,6 +32,14 @@ describe('desktop builder identity', () => {
     expect(config).toMatch(/^  shortcutName:\s*\$\{productName\}\s*$/m)
     expect(config).toMatch(/^  uninstallDisplayName:\s*\$\{productName\}\s*$/m)
     expect(config).not.toContain('miaoWorks')
+  })
+
+  it('gives installed launches the electron-builder appId and checkout launches their own id', () => {
+    const appId = /^appId:\s*(\S+)\s*$/m.exec(config)?.[1]
+    expect(DESKTOP_APP_USER_MODEL_ID).toBe(appId)
+    expect(resolveAppUserModelId({})).toBe(appId)
+    expect(resolveAppUserModelId({ DSH_DESKTOP_DEV: '1' })).toBe(`${appId}.dev`)
+    expect(readFileSync(MAIN_ENTRY, 'utf8')).toContain('app.setAppUserModelId(resolveAppUserModelId())')
   })
 
   it('pins the application icon instead of Electron default artwork', () => {

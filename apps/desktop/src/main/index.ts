@@ -28,6 +28,7 @@ import { installSingleInstanceLock } from './desktop/single-instance.ts'
 import { installTray, type TrayHandle } from './desktop/tray.ts'
 import { copy, normalizeLocale, type DesktopLocaleId, type DesktopTextKey } from './desktop/locales.ts'
 import { pinWindowTitle, resolveDesktopWindowTitle } from './desktop/window-title.ts'
+import { resolveAppUserModelId } from './desktop/app-user-model-id.ts'
 import { installApplicationMenu, registerMenuPopupIpc } from './desktop/menu.ts'
 import { resolveWindowChrome } from './desktop/window-chrome.ts'
 import { initUpdater, registerUpdateIpc, setUpdaterLocale } from './updater.ts'
@@ -65,14 +66,12 @@ protocol.registerSchemesAsPrivileged([
 ])
 
 // Windows keys the taskbar entry, Alt+Tab label, and Task Manager's Apps row off
-// the app name and AppUserModelId; a dev launch runs the literal electron.exe, so
-// without these it presents as "electron" with Electron's atom icon. The id must
-// match electron-builder.yml's appId so dev and packaged share one identity. The
-// name must be set before any userData path (the single-instance lock below).
+// the app name and AppUserModelId (desktop/app-user-model-id.ts owns the id).
+// The name must be set before any userData path (the single-instance lock below).
 const DESKTOP_PRODUCT_NAME = resolveDesktopWindowTitle(app.getName())
 const DESKTOP_UPDATE_URL: string | undefined = readDesktopUpdateUrl()
 app.setName(DESKTOP_PRODUCT_NAME)
-if (process.platform === 'win32') app.setAppUserModelId('ai.deepagens.worker')
+if (process.platform === 'win32') app.setAppUserModelId(resolveAppUserModelId())
 // The userData directory stays on the ASCII file-system id, not the localized
 // display name `setName` installs: users and support scripts navigate
 // %APPDATA% (and macOS Application Support) by the product's file-system id
