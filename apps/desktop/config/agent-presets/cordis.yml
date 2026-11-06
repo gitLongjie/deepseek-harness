@@ -11,7 +11,10 @@
   name: '@deepseek-ai/cordis-plugin-include'
   config:
     path: ./geo-admin/preset.yml
+# Development-only until the installed product exposes video direction. The
+# branded desktop launcher sets `DSH_DESKTOP_DEV=1`; installed builds hide it.
 - id: expert-h3-video-director
   name: '@deepseek-ai/cordis-plugin-include'
+  disabled: !!js process.env.DSH_DESKTOP_DEV !== '1'
   config:
     path: ./h3-video-director/preset.yml

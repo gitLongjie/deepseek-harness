@@ -11,9 +11,11 @@ const contexts: Context[] = []
 afterEach(async () => {
   for (const ctx of contexts.splice(0)) await ctx.fiber.dispose()
   vi.restoreAllMocks()
+  vi.unstubAllEnvs()
 })
 
-it('loads all four desktop experts with their card metadata and preset-local compositions', async () => {
+/** Load the shipped expert include with tool providers stubbed out. */
+async function loadShippedExperts(): Promise<{ presets: Awaited<ReturnType<Context['agentPresets']['remoteExportList']>>['presets']; skillRoots: string[] }> {
   const ctx = await harness()
   contexts.push(ctx)
   ctx.loader.builtins.include = Include
@@ -33,6 +35,14 @@ it('loads all four desktop experts with their card metadata and preset-local com
   await ctx.loader.create({ name: 'cordis:include', config: { path: new URL('../config/agent-presets/cordis.yml', import.meta.url).href } })
   await ctx.loader.await()
   const { presets } = await ctx.agentPresets.remoteExportList()
+  return { presets, skillRoots }
+}
+
+it('loads all four desktop experts with their card metadata and preset-local compositions', async () => {
+  // The H3 director stays development-only; this source check runs under the
+  // same switch the branded desktop launcher sets for checkout sessions.
+  vi.stubEnv('DSH_DESKTOP_DEV', '1')
+  const { presets, skillRoots } = await loadShippedExperts()
   expect(presets.filter(isExpertPreset).map(row => row.id))
     .toEqual(['geo-optimizer', 'article-publisher', 'geo-admin', 'h3-video-director'])
   expect(presets.map(row => ({ id: row.id, broken: row.broken })))
@@ -42,4 +52,11 @@ it('loads all four desktop experts with their card metadata and preset-local com
   expect(skillRoots).toContain(fileURLToPath(new URL('../config/agent-presets/geo-optimizer/skills/', import.meta.url)))
   expect(skillRoots).toContain(fileURLToPath(new URL('../config/agent-presets/h3-video-director/skills/', import.meta.url)))
   expect(presets).toMatchSnapshot()
+})
+
+it('hides the H3 video director on installed desktop launches', async () => {
+  vi.stubEnv('DSH_DESKTOP_DEV', '')
+  const { presets } = await loadShippedExperts()
+  expect(presets.filter(isExpertPreset).map(row => row.id))
+    .toEqual(['geo-optimizer', 'article-publisher', 'geo-admin'])
 })

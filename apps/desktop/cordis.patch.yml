@@ -26,3 +26,10 @@
 # page, and the model catalog.
 - id: llm-deepseek-account
   disabled: true
+# The video workbench sidebar and its host routes stay development-only until
+# the shipped product is ready to expose them. The branded desktop launcher
+# sets `DSH_DESKTOP_DEV=1`; installed builds leave it unset and hide both rows.
+- id: video-workbench
+  disabled: !!js process.env.DSH_DESKTOP_DEV !== '1'
+- id: ui-video-workbench
+  disabled: !!js process.env.DSH_DESKTOP_DEV !== '1'

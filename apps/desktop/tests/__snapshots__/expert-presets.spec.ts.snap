@@ -53,7 +53,7 @@ exports[`loads all four desktop experts with their card metadata and preset-loca
     "avatar": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%230ea5e9'/%3E%3Cstop offset='1' stop-color='%236366f1'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' fill='url(%23g)'/%3E%3Ctext x='32' y='41' font-family='sans-serif' font-size='15' font-weight='700' fill='%23ffffff' text-anchor='middle'%3EGEO%3C/text%3E%3C/svg%3E",
     "badge": "深度云海",
     "category": "marketing",
-    "description": "用配置好的账号查询、核对并修改 GEO 多站点内容后台的文章数据。",
+    "description": "用配置好的账号查询、核对并修改 GEO 多站点内容后台的文章数据；按客户画像找海外买家并以客户品牌口吻发开发信。",
     "icon": "🛰️",
     "id": "geo-admin",
     "isDefault": false,
@@ -63,6 +63,7 @@ exports[`loads all four desktop experts with their card metadata and preset-loca
       "列出我账号能操作的站点",
       "查一下 XX 站点最近的草稿",
       "把 id=123 这篇文章改成上线",
+      "按客户画像找海外买家，核实邮箱后以品牌口吻发开发信",
     ],
     "subtitle": "深度云海",
     "tags": [
@@ -71,6 +72,8 @@ exports[`loads all four desktop experts with their card metadata and preset-loca
       "后台数据",
       "多站点",
       "文章管理",
+      "外贸获客",
+      "开发信",
     ],
   },
   {
