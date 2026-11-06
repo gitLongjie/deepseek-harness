@@ -42,6 +42,9 @@ export async function runOfficeGenerator(
           PYTHONPATH: runtime.pythonPackages,
           PYTHONNOUSERSITE: '1',
           PYTHONDONTWRITEBYTECODE: '1',
+          // stdin carries UTF-8 JSON and stderr is decoded as UTF-8, independent of the Windows ANSI code page.
+          PYTHONUTF8: '1',
+          PYTHONIOENCODING: 'utf-8',
         },
         stdio: ['pipe', 'pipe', 'pipe'],
         windowsHide: true,

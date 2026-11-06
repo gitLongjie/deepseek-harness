@@ -126,7 +126,8 @@ export function apply(ctx: Context, config: Config): void {
     name: 'create_pptx',
     kind: 'pptx',
     description: 'Create a new PowerPoint presentation (.pptx) with the bundled Office runtime. '
-      + 'Use for new decks only. Do not install packages or write Python scripts. '
+      + 'The tool applies a built-in 16:9 theme: a dark cover and light content slides with accent bars. '
+      + 'Use for new decks only. Do not install packages or write Python scripts to restyle it. '
       + 'A successful create declares the file as a deliverable. Edit existing PPTX files through the office-pptx skill.',
     pending,
     parameters: {

@@ -45,7 +45,7 @@ kind: "package-reference"
 
 | 工具 | 参数 | 行为 |
 |---|---|---|
-| `read` | `file_path`、`offset?`、`limit?` | 带行号的 UTF-8 内容与分页 footer；`offset` 从 1 开始，`limit` 默认为配置的 `readLimit`，上限也为该值 |
+| `read` | `file_path`、`offset?`、`limit?` | 带行号的 UTF-8 内容（含从 `.pptx`、`.docx`、`.xlsx` 抽取的文本）与分页 footer；`offset` 从 1 开始，`limit` 默认为配置的 `readLimit`，上限也为该值 |
 | `read_image` | `file_path` | 读取并持久保存 PNG/JPEG/WebP/GIF 源图；无扩展名路径（包括规范化附件对象路径）按文件签名识别格式；规范化可在下一次模型请求前缩小图片，因此模型无需先创建缩略图 |
 | `write` | `file_path`、`content` | 创建或完整替换文件；有策略插件时，覆盖要求先在未变版本上执行 `read`，创建不需要 |
 | `edit` | `file_path`、`old_string`、`new_string`、`replace_all?` | 字面量替换，除非 `replace_all` 为 true 否则要求唯一匹配；有策略插件时，要求先执行 `read` 且文件未变 |
@@ -83,7 +83,7 @@ kind: "package-reference"
 
 `apply_patch` 的语法与预检拒绝在磁盘变更前抛错，结果为 `isError: true`。`FsError` 保留文件系统错误码；`PatchToolError extends HarnessError` 携带 `PATCH_SYNTAX` 和 `PATCH_SYMLINK_SOURCE`。进入提交后，即使失败或结果不确定也返回 `isError: false` 的值，确保已知部分效果的 diff 元数据得以保留；提交期间被取消的调用与其他工具一样收到工具注册表的中止结果，已完成的变更仍可通过 Review 查看。`phase`、`cancelled`、有序 `operations` 与 `affectedPaths` 描述提交；每条操作保留索引、种类、展示路径、补丁行号、状态、诊断与已知变更。完整 `before`/`after` 文本供渲染和 PTC 使用；Session 保存渲染文本以及 `meta.diffs` 与 `meta.stopped`。新建与 `write` 一样不保存 diff；删除与移动源仅在提供方返回有界基线时保存删除 diff，并使用 `newText: ''`，因为 `FileDiff.newText` 不可为 null。
 
-失败被规范化为 `Error: <message>`，并为调用方保留结构化错误码。稳定消息包括 `file_path must be a non-empty string`、`limit must be less than or equal to <max>`、`cannot read "<path>": not found`、`cannot read "<path>": not a regular file`，以及图像路由拒绝 `cannot read "<path>" as an image: model "<model>" does not declare image input; switch to an image-capable model to read images`。无论拒绝来自策略还是提供方，`FS_NOT_OBSERVED` 都规范化为 `cannot modify "<path>": file has not been read — read the file, then retry`；`FS_STALE_VERSION` 保留提供方原因并追加 `— re-read the file, then retry`。该次重新读取确认缺失后，`edit` 报告 `FS_NOT_FOUND` 而不会重复陈旧恢复指令，`write` 则使用防护创建。
+失败被规范化为 `Error: <message>`，并为调用方保留结构化错误码。稳定消息包括 `file_path must be a non-empty string`、`limit must be less than or equal to <max>`、`cannot read "<path>": not found`、`cannot read "<path>": not a regular file`、`cannot read "<path>": not a readable Office file`，以及图像路由拒绝 `cannot read "<path>" as an image: model "<model>" does not declare image input; switch to an image-capable model to read images`。无论拒绝来自策略还是提供方，`FS_NOT_OBSERVED` 都规范化为 `cannot modify "<path>": file has not been read — read the file, then retry`；`FS_STALE_VERSION` 保留提供方原因并追加 `— re-read the file, then retry`。该次重新读取确认缺失后，`edit` 报告 `FS_NOT_FOUND` 而不会重复陈旧恢复指令，`write` 则使用防护创建。
 
 -----
 
@@ -190,7 +190,7 @@ Read a file before editing it (the default fs-observation-policy requires it), u
 
 #### 模型看到的内容
 
-模型会看到已生成的 [`read`、`read_image`、`write` 和 `edit` schema](../../../docs/tool-catalog.zh.md#deepseek-aidsh-tool-fs)，参数使用 snake_case。图片工具只在持久附件存储已挂载时出现；schema 本身与路由无关，严格门禁在执行时拒绝。作用域工具限制可以为某个 agent 移除任一定义。
+模型会看到已生成的 [`read`、`read_image`、`write` 和 `edit` schema](../../../docs/tool-catalog.zh.md#deepseek-aidsh-tool-fs)，参数使用 snake_case。`read` 的执行还会从不超过 50 MiB 的 `.pptx`、`.docx` 和 `.xlsx` 包中抽取文本；该行为不是单独的 schema 字段。图片工具只在持久附件存储已挂载时出现；schema 本身与路由无关，严格门禁在执行时拒绝。作用域工具限制可以为某个 agent 移除任一定义。
 
 #### Token 影响
 
@@ -204,7 +204,7 @@ Read a file before editing it (the default fs-observation-policy requires it), u
 
 #### 模型看到的内容
 
-成功读取结果精确为 `<path><resolvedPath></path>`、换行、`<type>file</type>`、换行、`<content>`、形如 `<lineNumber>: <text>` 的编号行、一个空行、一条 footer 和 `</content>`。footer 精确为 `(Output capped. Showing lines <start>-<end>. Use offset=<next> to continue.)`、`(Showing lines <start>-<end> of <total>. Use offset=<next> to continue.)` 或 `(End of file - total <total> lines)`。长行结尾精确为 `... (line truncated to <max> chars)`。读取缺失目标仍返回 `FS_NOT_FOUND`，但会为调用会话记录确认缺失；外部删除的文件被重新读取后，重试的 `write` 可以通过提供方的不替换防护安全地重新创建该文件。
+成功读取结果精确为 `<path><resolvedPath></path>`、换行、`<type>file</type>`、换行、`<content>`、形如 `<lineNumber>: <text>` 的编号行、一个空行、一条 footer 和 `</content>`。footer 精确为 `(Output capped. Showing lines <start>-<end>. Use offset=<next> to continue.)`、`(Showing lines <start>-<end> of <total>. Use offset=<next> to continue.)` 或 `(End of file - total <total> lines)`。长行结尾精确为 `... (line truncated to <max> chars)`。`.pptx`、`.docx` 和 `.xlsx` 使用同一信封；编号行分别是抽取的幻灯片文本（含演讲者备注）、文档段落或工作表单元格。无法读取的 Office Open XML 包报告 `cannot read "<path>": not a readable Office file`，超过 50 MiB 的包报告提供方的字节上限错误。读取缺失目标仍返回 `FS_NOT_FOUND`，但会为调用会话记录确认缺失；外部删除的文件被重新读取后，重试的 `write` 可以通过提供方的不替换防护安全地重新创建该文件。
 
 #### Token 影响
 
@@ -246,7 +246,7 @@ Read a file before editing it (the default fs-observation-policy requires it), u
 
 #### 模型看到的内容
 
-失败会规范化为 `Error: <message>`。本包稳定的校验和读取消息是 `file_path must be a non-empty string`、`limit must be less than or equal to <max>`、`old_string must be a non-empty string`、`old_string and new_string must differ`、`cannot read "<path>": not found`、`cannot read "<path>": not a regular file`、`offset <offset> is out of range for "<path>" (<total> lines)`、`cannot read "<path>": the <ext> extension does not declare a supported image format; read_image accepts PNG/JPEG/WebP/GIF files, including extension-less files in those formats`、`cannot read "<path>": the file content is not a supported image format; read_image accepts PNG/JPEG/WebP/GIF`、`cannot read "<path>": the bytes do not decode as a supported PNG/JPEG/WebP/GIF image; the file may be truncated or corrupt`、`cannot read "<path>" as an image: model "<model>" does not declare image input; switch to an image-capable model to read images`，以及类型不匹配的修复消息 `cannot read "<path>": the <ext> extension declares <type>, but the bytes use a different image format; rename the file to match its actual format if it is PNG/JPEG/WebP/GIF, or convert it to one of those formats`（无扩展名路径的不匹配报告 `cannot read "<path>": the file signature claims <type>, but the bytes decode as a different image format; the file may be corrupt`）。16-bit 转换失败会报告 `cannot read "<path>": the 16-bit PNG could not be converted to the normalized 8-bit sRGB form; convert it to an 8-bit PNG/JPEG/WebP and retry`。提供方和策略模板在各自包的 README 中逐字列出。模型侧错误包装把所有 `FS_NOT_OBSERVED` 来源规范化为 `cannot modify "<path>": file has not been read — read the file, then retry`；`FS_STALE_VERSION` 保留提供方原因并追加 `— re-read the file, then retry`。两者都保留结构化错误码和原始原因。该次重新读取确认缺失后，`edit` 会报告 `FS_NOT_FOUND`，而不会重复陈旧恢复指令；`write` 则使用带防护的创建。
+失败会规范化为 `Error: <message>`。本包稳定的校验和读取消息是 `file_path must be a non-empty string`、`limit must be less than or equal to <max>`、`old_string must be a non-empty string`、`old_string and new_string must differ`、`cannot read "<path>": not found`、`cannot read "<path>": not a regular file`、`cannot read "<path>": not a readable Office file`、`offset <offset> is out of range for "<path>" (<total> lines)`、`cannot read "<path>": the <ext> extension does not declare a supported image format; read_image accepts PNG/JPEG/WebP/GIF files, including extension-less files in those formats`、`cannot read "<path>": the file content is not a supported image format; read_image accepts PNG/JPEG/WebP/GIF`、`cannot read "<path>": the bytes do not decode as a supported PNG/JPEG/WebP/GIF image; the file may be truncated or corrupt`、`cannot read "<path>" as an image: model "<model>" does not declare image input; switch to an image-capable model to read images`，以及类型不匹配的修复消息 `cannot read "<path>": the <ext> extension declares <type>, but the bytes use a different image format; rename the file to match its actual format if it is PNG/JPEG/WebP/GIF, or convert it to one of those formats`（无扩展名路径的不匹配报告 `cannot read "<path>": the file signature claims <type>, but the bytes decode as a different image format; the file may be corrupt`）。16-bit 转换失败会报告 `cannot read "<path>": the 16-bit PNG could not be converted to the normalized 8-bit sRGB form; convert it to an 8-bit PNG/JPEG/WebP and retry`。提供方和策略模板在各自包的 README 中逐字列出。模型侧错误包装把所有 `FS_NOT_OBSERVED` 来源规范化为 `cannot modify "<path>": file has not been read — read the file, then retry`；`FS_STALE_VERSION` 保留提供方原因并追加 `— re-read the file, then retry`。两者都保留结构化错误码和原始原因。该次重新读取确认缺失后，`edit` 会报告 `FS_NOT_FOUND`，而不会重复陈旧恢复指令；`write` 则使用带防护的创建。
 
 #### Token 影响
 
@@ -306,7 +306,7 @@ Patch rejected before any change (1 problems):
 
 - **补丁提交不回滚**——后续失败后，先前成功操作和已发布的移动目标仍保留在磁盘上，`unknown` 结果要求重读受影响文件后再重试。
 - **未交付面向模型的目录列表工具**：`ctx.fs.listDir` 服务于 skill（技能）发现等提供方代码，同级 `dsh-tool-fs-search` 包则提供基于 ripgrep 的 `glob` 与 `grep`，而不是扩展文件系统 seam。
-- **`read` 只处理 UTF-8 文本文件**：图像使用独立的 `read_image` 工具；PDF、音频和视频仍延期处理。目录目标为 `FS_NOT_REGULAR_FILE`。
+- **`read` 会抽取 Office Open XML 的文本**——`.pptx` 幻灯片（含演讲者备注）、`.docx` 段落和 `.xlsx` 单元格以同一带行号信封返回，包体上限 50 MiB。图像使用 `read_image`。PDF、音频、视频以及旧版 `.ppt`、`.doc`、`.xls` 仍不支持。`edit` 和 `apply_patch` 仍要求 UTF-8 文本。目录目标为 `FS_NOT_REGULAR_FILE`。
 - **媒体类型按扩展名声明**：扩展名选择声明类型，附件存储的魔数校验保持权威；扩展名错误但格式正确的图像会得到改名修复提示，而不是被嗅探接受。只有没有扩展名的路径按文件签名识别格式。
 - **对象路径重新走源准入**：对规范化附件对象调用 `read_image` 会把其字节作为新来源重新准入，因此把 `maxImageBytes`/`maxMessageImageBytes` 配置得低于规范化图片字节预算的部署可能拒绝 `ctx.attachments.readImage` 仍可读取的对象路径；默认配置下规范化预算（4 MiB）远低于源上限（50 MiB）。
 - **内嵌图像预览依赖 UI 组合**：工具结果卡片经由浏览器的 `tool.call.images` 槽位渲染图像，由附件呈现插件填充；未组合该插件的 UI 改为显示结果的信封文本。

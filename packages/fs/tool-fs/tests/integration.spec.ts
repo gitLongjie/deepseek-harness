@@ -10,6 +10,7 @@ import * as PtcToolExecutor from '@deepseek-ai/dsh-tool-executor-ptc'
 import * as NativeToolExecutor from '@deepseek-ai/dsh-tool-executor-native'
 import { mountAgentLoopTestDependencies, provideWorkingDirectoryFixture } from '@deepseek-ai/dsh-agent-loop-testkit'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { strToU8, zipSync } from 'fflate'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -153,6 +154,29 @@ describe('default deployment (with dsh-fs-observation-policy)', () => {
       await writeFile(join(dir, 'bin'), Buffer.from([0x00, 0x01, 0x02]))
       const result = await call('read', { file_path: 'bin' })
       expect(result.isError).toBe(true)
+      expect(result.error).toMatchObject({ info: { code: 'FS_NOT_TEXT' } })
+    })
+
+    it('returns extracted slide text for a PowerPoint file', async () => {
+      await writeFile(join(dir, 'deck.pptx'), zipSync({
+        'ppt/slides/slide1.xml': strToU8('<a:p><a:t>让 AI 说出品牌</a:t></a:p>'),
+        'ppt/notesSlides/notesSlide1.xml': strToU8('<a:p><a:t>封面备注</a:t></a:p>'),
+        'ppt/slides/_rels/slide1.xml.rels': strToU8(
+          '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesSlide" Target="../notesSlides/notesSlide1.xml"/>',
+        ),
+      }))
+      const result = await call('read', { file_path: 'deck.pptx', limit: 2 })
+      expect(result.isError).toBe(false)
+      expect(text(result)).toContain('1: Slide 1')
+      expect(text(result)).toContain('2: 让 AI 说出品牌')
+      expect(text(result)).toContain('Use offset=3 to continue.')
+    })
+
+    it('reports a corrupt Office package instead of a generic binary file', async () => {
+      await writeFile(join(dir, 'bad.pptx'), Buffer.from([0x00, 0x01, 0x02]))
+      const result = await call('read', { file_path: 'bad.pptx' })
+      expect(result.isError).toBe(true)
+      expect(text(result)).toContain('not a readable Office file')
       expect(result.error).toMatchObject({ info: { code: 'FS_NOT_TEXT' } })
     })
 

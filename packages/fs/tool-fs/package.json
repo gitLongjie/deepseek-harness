@@ -30,6 +30,7 @@
   "license": "MIT",
   "dependencies": {
     "diff": "^9.0.0",
+    "fflate": "^0.8.2",
     "@deepseek-ai/schemastery": "workspace:~",
     "@deepseek-ai/dsh-util-code-language": "workspace:*",
     "@deepseek-ai/dsh-fs-patch": "workspace:*",
