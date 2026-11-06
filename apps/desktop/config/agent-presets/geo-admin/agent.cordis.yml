@@ -71,16 +71,19 @@
 
 # Optional local email integration; install and configure plugins/sina-email first.
 # The private environment file is shared with the host integration; no secrets enter this preset.
+# Packaged Electron has no `node` on PATH, so spawn the host binary under
+# ELECTRON_RUN_AS_NODE (plain Node ignores that flag).
 - id: mcp-sina-email
   name: '@deepseek-ai/dsh-mcp-client'
-  disabled: !!js "!process.getBuiltinModule('node:fs').existsSync(process.getBuiltinModule('node:path').join(process.env.DSH_HOME || process.getBuiltinModule('node:os').homedir() + '/.dsh', 'integrations/sina-email/.env'))"
+  disabled: !!js "(() => { const fs = process.getBuiltinModule('node:fs'); const path = process.getBuiltinModule('node:path'); const home = process.env.DSH_HOME || path.join(process.getBuiltinModule('node:os').homedir(), '.dsh'); const root = path.join(home, 'integrations/sina-email'); return !(fs.existsSync(path.join(root, '.env')) && fs.existsSync(path.join(root, 'node_modules/email-smtp-imap-mcp/build/index.js'))); })()"
   config:
     serverName: sina_email
     transport: stdio
-    command: node
+    command: !!js process.execPath
     args:
       - !!js "process.getBuiltinModule('node:path').join(process.env.DSH_HOME || process.getBuiltinModule('node:os').homedir() + '/.dsh', 'integrations/sina-email/node_modules/email-smtp-imap-mcp/build/index.js')"
     cwd: !!js "process.getBuiltinModule('node:path').join(process.env.DSH_HOME || process.getBuiltinModule('node:os').homedir() + '/.dsh', 'integrations/sina-email')"
     env:
+      ELECTRON_RUN_AS_NODE: '1'
       EMAIL_ENV_FILE: !!js "process.getBuiltinModule('node:path').join(process.env.DSH_HOME || process.getBuiltinModule('node:os').homedir() + '/.dsh', 'integrations/sina-email/.env')"
     failOnStartupError: true

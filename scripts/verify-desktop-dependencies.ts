@@ -1,19 +1,21 @@
 /**
  * Desktop composition-dependency gate: every package the desktop composition
- * names (base bundle + web-app bundle + the desktop overlay) must be reachable
- * from `apps/desktop`'s production dependency closure, because electron-builder
- * ships exactly that closure — a composition row naming a package outside it
- * boots as a dead row on the packaged desktop (the plugin loader cannot
- * resolve the package), which surfaces as a silently missing feature.
+ * names (base bundle + web-app bundle + the desktop overlay + shipped agent
+ * presets) must be reachable from `apps/desktop`'s production dependency
+ * closure, because electron-builder ships exactly that closure — a composition
+ * row naming a package outside it boots as a dead row on the packaged desktop
+ * (the plugin loader cannot resolve the package), which surfaces as a silently
+ * missing feature or an `agent-preset/invalid` refusal when that preset mounts.
  *
  * Exemptions: rows disabled in a patch (the shipped disabled `ui-schedule`
  * pair) and the two staged non-workspace plugins (`@xmanrui/dsh-im`,
  * `business-entry`) that `apps/desktop/scripts/deploy-app.mjs` copies beside
- * the bundle instead of through node_modules.
+ * the bundle instead of through node_modules. Preset rows with `disabled: !!js`
+ * stay required: the expression can enable them at runtime.
  * @module scripts/verify-desktop-dependencies
  */
 
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import process from 'node:process'
 
@@ -25,6 +27,9 @@ const COMPOSITION_PATCHES = [
   'packages/bundle/web-app/cordis.patch.yml',
   'apps/desktop/cordis.patch.yml',
 ]
+
+/** Shipped agent-preset directory packaged beside the desktop config. */
+const AGENT_PRESETS_ROOT = 'apps/desktop/config/agent-presets'
 
 /**
  * Packages staged by deploy-app.mjs beside the bundle instead of shipping
@@ -45,14 +50,21 @@ interface CompositionRow {
 }
 
 /**
- * Extract every `name:` package from one patch file. A row block's `name:`
- * sits on its own indented line; a following `disabled: true` (scanned a few
- * lines down) keeps the row out of the packaged composition.
- * @param patch - Repository-relative patch path.
+ * Extract every `name:` package from one composition YAML file. A row block's
+ * `name:` sits on its own indented line; a following literal `disabled: true`
+ * (scanned a few lines down) keeps a host-composition row out of the packaged
+ * tree. Preset files pass `requireDisabledLiteral: false` so a `!!js` gate
+ * cannot hide a package the packaged closure still must carry.
+ * @param relativePath - Repository-relative YAML path.
+ * @param options - Whether a literal `disabled: true` exempts the row.
  * @returns the named rows with their disabled flags.
  */
-function compositionRows(patch: string): CompositionRow[] {
-  const lines = readFileSync(join(repoRoot, patch), 'utf8').split(/\r?\n/)
+function compositionRows(
+  relativePath: string,
+  options: { requireDisabledLiteral?: boolean } = {},
+): CompositionRow[] {
+  const requireDisabledLiteral = options.requireDisabledLiteral !== false
+  const lines = readFileSync(join(repoRoot, relativePath), 'utf8').split(/\r?\n/)
   const rows: CompositionRow[] = []
   for (let index = 0; index < lines.length; index += 1) {
     const match = (lines[index] ?? '').match(ROW_NAME)
@@ -60,11 +72,31 @@ function compositionRows(patch: string): CompositionRow[] {
     const rest = lines.slice(index + 1, index + 1 + DISABLED_SCAN_LINES).join('\n')
     rows.push({
       pkg: packageRoot(match[1]),
-      patch,
-      disabled: /^\s*disabled: true/m.test(rest),
+      patch: relativePath,
+      disabled: requireDisabledLiteral && /^\s*disabled: true/m.test(rest),
     })
   }
   return rows
+}
+
+/**
+ * Recursively list repository-relative YAML files under a directory.
+ * @param relativeDir - Repository-relative directory.
+ * @returns YAML paths under that directory.
+ */
+function listYamlFiles(relativeDir: string): string[] {
+  const absolute = join(repoRoot, relativeDir)
+  if (!existsSync(absolute)) return []
+  const found: string[] = []
+  for (const entry of readdirSync(absolute, { withFileTypes: true })) {
+    const child = join(relativeDir, entry.name).replaceAll('\\', '/')
+    if (entry.isDirectory()) {
+      found.push(...listYamlFiles(child))
+      continue
+    }
+    if (entry.name.endsWith('.yml') || entry.name.endsWith('.yaml')) found.push(child)
+  }
+  return found
 }
 
 /**
@@ -113,7 +145,10 @@ function packagingClosure(): Set<string> {
   return closure
 }
 
-const rows = COMPOSITION_PATCHES.flatMap(compositionRows)
+const rows = [
+  ...COMPOSITION_PATCHES.flatMap(patch => compositionRows(patch)),
+  ...listYamlFiles(AGENT_PRESETS_ROOT).flatMap(path => compositionRows(path, { requireDisabledLiteral: false })),
+]
 const closure = packagingClosure()
 const isExempt = (pkg: string): boolean => STAGED_EXEMPTIONS.has(pkg)
 const missing = new Map<string, string[]>()

@@ -2,6 +2,8 @@
  * Build this host's declared system binaries. Landlock is a static musl
  * executable; flock uses stable Node-API with separate Linux libc builds.
  * Node headers come from the Node installation running this script.
+ * `--arch <arch>` selects another CPU architecture of the host platform; only
+ * macOS cross-compiles, through `cc -arch`.
  */
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync } from 'node:fs'
@@ -9,8 +11,13 @@ import { basename, dirname, join, resolve } from 'node:path'
 import { parseArgs } from 'node:util'
 
 const root = resolve(import.meta.dirname, '..')
-const { values } = parseArgs({ options: { 'host-addon-only': { type: 'boolean' } }, allowPositionals: false })
+const { values } = parseArgs({
+  options: { 'host-addon-only': { type: 'boolean' }, arch: { type: 'string' } },
+  allowPositionals: false,
+})
 const hostAddonOnly = values['host-addon-only'] === true
+const arch = values.arch ?? process.arch
+const clangArchitectures: Record<string, string> = { arm64: 'arm64', x64: 'x86_64' }
 const sources: Record<string, string> = {
   'landlock-run': 'packages/entry/src/main.c',
   flock: 'packages/entry/src/flock.c',
@@ -28,7 +35,11 @@ if (process.platform !== 'linux' && process.platform !== 'darwin') {
   if (hostAddonOnly) process.exit(0)
   throw new Error('build: system binaries are built on Linux or macOS; no native target for this host')
 }
-const host = `${process.platform}-${process.arch}`
+if (arch !== process.arch && process.platform !== 'darwin') {
+  throw new Error(`build: --arch ${arch} cross-compiles only on macOS; build on a ${process.platform}-${arch} host`)
+}
+const clangArchitecture = clangArchitectures[arch]
+const host = `${process.platform}-${arch}`
 const libc = process.platform === 'linux'
   ? ((process.report.getReport() as { header: { glibcVersionRuntime?: string } }).header.glibcVersionRuntime ? 'glibc' : 'musl')
   : undefined
@@ -62,7 +73,8 @@ for (const name of readdirSync(join(root, 'packages')).sort()) {
       flags = ['-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', '-fPIC', '-fvisibility=hidden', '-DNAPI_VERSION=8', '-I', headers]
       if (process.platform === 'darwin') {
         if (binary.libc !== undefined) throw new Error('build: macOS flock does not select a Linux libc')
-        flags.push('-bundle', '-undefined', 'dynamic_lookup', '-mmacosx-version-min=11.0')
+        if (clangArchitecture === undefined) throw new Error(`build: macOS has no clang architecture for ${arch}`)
+        flags.push('-arch', clangArchitecture, '-bundle', '-undefined', 'dynamic_lookup', '-mmacosx-version-min=11.0')
       } else {
         if (binary.libc !== 'glibc' && binary.libc !== 'musl') {
           throw new Error('build: Linux flock must select glibc or musl')
