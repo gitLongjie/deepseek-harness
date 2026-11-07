@@ -23,13 +23,13 @@ kind: "package-reference"
 
 ## Token 额度
 
-已登录密钥的 token 额度从 new-api 系网关的令牌用量端点读取，以会话密钥为 Bearer 凭据：`GET /api/usage/token` 的 `data.total_used` 是已使用 token 数，`data.total_available` 是剩余 token 数。这两个数是网关的 token 额度，不是显示美元。`data.unlimited_quota` 为 true 时密钥不设剩余上限，页面显示不限额而不是剩余数字。每次登录与每次启动时的会话采纳会安排一次读取；网关账号页在每次进入设置时重读。重读失败保留上一次的好值而不降级；首次读取失败提供重试入口；读取进行中退出登录则丢弃过期结果。
+已登录密钥的 token 额度从 new-api 系网关的令牌用量端点读取，以会话密钥为 Bearer 凭据：`GET /api/usage/token/` 的 `data.total_used` 是已使用 token 数，`data.total_available` 是剩余 token 数。这两个数是网关的 token 额度，不是显示美元。`data.unlimited_quota` 为 true 时密钥不设剩余上限，页面显示不限额而不是剩余数字。每次登录与每次启动时的会话采纳会安排一次读取；网关账号页在每次进入设置时重读。重读失败保留上一次的好值而不降级；首次读取失败提供重试入口；读取进行中退出登录则丢弃过期结果。
 
 每次启动都会在界面定着前用一次 `GET /v1/models` 复核存储的密钥。密钥被接受则直接进入主界面、不显示登录卡片，也不发出账号服务器会计收一次登录会话的 `POST`；目录同步仍在该密钥上运行。密钥被拒（吊销、过期、额度耗尽）则用存储的账号密码对重放登录端点，并存入该次登录签发的新密钥。账号密码对被拒时保留记录供下次启动重试，并回退到登录卡片、展示失败原因；键重用之前写入的记录（只有账号密码对、没有密钥）会重放一次并补上密钥。
 
 端点必须允许来自应用源的跨域调用（带 JSON content-type 的 CORS）；fetch 失败路径报告服务不可达而不是破坏页面。
 
-模型设置页的 Deepagens 卡片提供"跟随登录网关的模型目录"开关，对应 `llm-deepagens` 的 `followGatewayCatalog` 字段（默认开启）。显式设为 `false` 后路由交还用户管理：登录不再改写 `baseURL`、替换 `models`、接管默认模型，卡片上的手工配置在每次启动的目录同步中得以保留。
+模型设置页的 Deepagens 卡片提供"跟随登录网关的模型目录"开关，对应 `llm-deepagens` 的 `followGatewayCatalog` 字段（默认开启）。显式设为 `false` 后路由交还用户管理：登录不再改写 `baseURL`、替换 `models`、写入 `imageModel`、接管默认模型，卡片上的手工配置在每次启动的目录同步中得以保留。跟随开启时，`supported_endpoint_types` 含 `image-generation` 的目录行会以 `endpoint: image-generation` 存储，且不会被接管为默认对话模型。登录会让 `imageModel` 指向带该标签的模型：已存的带标签 id 保留，其他值替换为第一个带标签的 id；目录中没有带标签的模型时，保留已存 id，或写入 `gpt-image-2`（内置基础组合的默认值）。
 
 ## 模型体验
 

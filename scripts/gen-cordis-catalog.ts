@@ -99,6 +99,7 @@ export const SERVICE_PAGE: Record<string, string> = {
   goals: 'goal.md',
   h3Video: 'tools.md',
   h3VideoSettings: 'settings.md',
+  image: 'image.md',
   schedule: 'schedule.md',
   inspector: 'extensions.md',
   webServer: 'web-server.md',
@@ -232,6 +233,7 @@ export const SERVICE_WALK_EXEMPTIONS: Record<string, string> = {
   sidebarRight: 'client-side right-Sidebar navigation face — packages/client/ui-sidebar-right/README.md owns the API',
   sidebarRightTabs: 'client-side right-Sidebar tab-type registry — packages/client/ui-sidebar-right/README.md owns the API',
   documentPreviews: 'client-side document renderer registry — docs/subsystems/sidebar-right.md owns the API',
+  videoWorkbenchStudio: 'Host-owned studio store provided by packages/video/video-workbench; not a Cordis Service class the catalog projector renders',
 }
 
 /**
@@ -569,6 +571,11 @@ export const LINK_MAP: Readonly<Record<string, string>> = {
   SaveFileStreamAttachment: 'attachment.md',
   ImageAttachmentAccess: 'llm-streaming.md',
   ImageAttachmentRef: 'attachment.md',
+  ImageError: 'image.md',
+  ImageErrorCode: 'image.md',
+  ImageGenerationProvider: 'image.md',
+  ImageGenerationRequest: 'image.md',
+  GeneratedImage: 'image.md',
   ImageRequestTarget: 'attachment.md',
   ProjectedDimensions: 'attachment.md',
   PromptContentPart: 'attachment.md',

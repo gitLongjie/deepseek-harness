@@ -51,6 +51,13 @@ export interface LoginSession {
  */
 export const GATEWAY_CREDENTIAL_REF = 'DEEPAGENS_API_KEY'
 
+/**
+ * Default `llm-deepagens.imageModel` when settings omit one and the gateway
+ * listing tags no image-generation model. Matches the shipped base composition
+ * so `generate_image` works after sign-in without a Models edit.
+ */
+export const DEFAULT_GATEWAY_IMAGE_MODEL = 'gpt-image-2'
+
 /** The launch-time login record: the pair a refused key is replaced from, plus the last session facts. */
 export interface StoredLogin {
   /** Account identifier as typed at the sign-in that stored it. */
@@ -214,7 +221,9 @@ export class LoginStore {
 
   /**
    * Read the signed-in key's token quota from the gateway. Wire contract
-   * (new-api lineage, `GET /api/usage/token`, the Deepagens Claw gateway):
+   * (new-api lineage, `GET /api/usage/token/`, the Deepagens Claw gateway).
+   * The trailing slash is required: the bare path answers 301 without a CORS
+   * header, and the desktop origin then rejects the redirect.
    * `{code: true, data: {total_used, total_available, unlimited_quota}}`.
    * `total_used` and `total_available` are token counts, not display dollars.
    * `unlimited_quota` true means the key has no remaining cap.
@@ -224,7 +233,7 @@ export class LoginStore {
    */
   private async readGatewayBalance(apiKey: string): Promise<GatewayBalance> {
     const origin = this.baseUrl()
-    const response = await fetch(`${origin}/api/usage/token`, { headers: { authorization: `Bearer ${apiKey}` } })
+    const response = await fetch(`${origin}/api/usage/token/`, { headers: { authorization: `Bearer ${apiKey}` } })
     const raw = await response.text()
     let body: unknown = null
     try {
@@ -242,9 +251,11 @@ export class LoginStore {
   /**
    * Fetch the token-scoped model list from the gateway, persist it into the
    * Deepagens provider settings (endpoint base plus catalog) so the selector
-   * and the Models page see the live gateway models as their own group, and
-   * point the default model at the first pulled model when the current
-   * default is not one they serve; an unchanged catalog is left alone.
+   * and the Models page see the live gateway models as their own group, keep
+   * `imageModel` on a gateway image-generation model (see `imageModelSeedOp`)
+   * so `generate_image` is usable without a Models-page edit, and point the
+   * default model at the first pulled chat model when the current default is
+   * not one they serve; an unchanged catalog and image model are left alone.
    * Failures — a refused read or an unreachable gateway — keep whatever is
    * already stored.
    * @param apiKey - the API key the sign-in just issued.
@@ -257,7 +268,12 @@ export class LoginStore {
     }
     const namespaces = described.value.namespaces
     const ns = namespaces.find(view => view.ns === 'llm-deepagens')
-    const stored = (ns?.value as { baseURL?: unknown; models?: unknown; followGatewayCatalog?: unknown } | undefined)
+    const stored = (ns?.value as {
+      baseURL?: unknown
+      models?: unknown
+      followGatewayCatalog?: unknown
+      imageModel?: unknown
+    } | undefined)
     // An explicit `false` hands the route to the user: the Models page's edits
     // to the endpoint and catalog are this deployment's own facts now, so a
     // sign-in must not re-point them at the gateway it happened to log into.
@@ -288,7 +304,8 @@ export class LoginStore {
     // defaultContextWindow and maxTokens, and the Models page shows its
     // provider-default placeholder. Input types follow the same rule: image
     // is stored only when the listing declares it, otherwise the row stays
-    // text-only and the composer refuses image prompts.
+    // text-only and the composer refuses image prompts. A row the listing tags
+    // as image generation is served from the images endpoint, not chat.
     let catalogModels: GatewayCatalogRow[] | undefined
     let modelsOp: Array<{ op: 'set'; path: string[]; value: GatewayCatalogRow[] }> = []
     if (discovered.ok) {
@@ -299,6 +316,7 @@ export class LoginStore {
         ...m.contextWindow === undefined ? {} : { contextWindow: m.contextWindow },
         ...m.maxTokens === undefined ? {} : { maxTokens: m.maxTokens },
         inputModalities: catalogInputModalities(m.inputModalities),
+        ...m.imageGeneration === true ? { endpoint: 'image-generation' as const } : {},
       }))
       if (modelsEquivalent(stored?.models, catalogModels)) {
         console.warn(`[ui-login] gateway catalog unchanged (${catalogModels.length} models); keeping stored`)
@@ -306,19 +324,26 @@ export class LoginStore {
         modelsOp = [{ op: 'set', path: ['models'], value: catalogModels }]
       }
     }
-    const operations = [...baseURLOp, ...modelsOp]
+    const imageModelOp = imageModelSeedOp(
+      stored?.imageModel,
+      catalogModels?.filter(model => model.endpoint === 'image-generation').map(model => model.id),
+    )
+    const operations = [...baseURLOp, ...modelsOp, ...imageModelOp]
     if (operations.length > 0) {
       const written = await this.api.settings.mutate('llm-deepagens', operations, ns?.revision)
       if (!written.ok) {
         console.warn(`[ui-login] deepagens catalog write refused: ${written.error.message}`)
       } else if (modelsOp.length > 0) {
         console.warn(`[ui-login] refreshed deepagens catalog from gateway: ${catalogModels?.length ?? 0} models`)
+      } else if (imageModelOp.length > 0) {
+        console.warn(`[ui-login] seeded deepagens imageModel: ${imageModelOp[0]?.value}`)
       } else {
         console.warn(`[ui-login] re-pointed the deepagens endpoint at ${gatewayBase}; catalog kept`)
       }
     }
-    if (catalogModels !== undefined && catalogModels.length > 0) {
-      await this.adoptFirstGatewayModel(namespaces, catalogModels)
+    const chatModels = catalogModels?.filter(model => model.endpoint === undefined)
+    if (chatModels !== undefined && chatModels.length > 0) {
+      await this.adoptFirstGatewayModel(namespaces, chatModels)
     }
   }
 
@@ -559,6 +584,13 @@ export class LoginStore {
   }
 }
 
+/**
+ * Cap a raw reply excerpt for the console log: an HTML error page or a large
+ * JSON dump must not flood it, while enough of the body survives to compare
+ * against the wire contract above.
+ * @param raw - the unprocessed response body text.
+ * @returns the trimmed body, truncated past 2000 characters.
+ */
 /** Token counts taken from a `GET /api/usage/token` success body. */
 interface TokenUsageCounts {
   /** Tokens already spent on this key. */
@@ -587,7 +619,7 @@ function tokenUsageOf(body: unknown): TokenUsageCounts | null {
 }
 
 /**
- * Accept a non-negative quota count.
+ * Accept a non-negative finite quota count.
  * @param value - one token-usage number field.
  * @returns the rounded count, or undefined when the field is not a usable count.
  */
@@ -596,13 +628,6 @@ function quotaCount(value: unknown): number | undefined {
   return Math.round(value)
 }
 
-/**
- * Cap a raw reply excerpt for the console log: an HTML error page or a large
- * JSON dump must not flood it, while enough of the body survives to compare
- * against the wire contract above.
- * @param raw - the unprocessed response body text.
- * @returns the trimmed body, truncated past 2000 characters.
- */
 function replyExcerpt(raw: string): string {
   const trimmed = raw.trim()
   return trimmed.length <= 2000 ? trimmed : `${trimmed.slice(0, 2000)}...(truncated)`
@@ -628,6 +653,8 @@ type GatewayCatalogRow = {
   readonly contextWindow?: number
   readonly maxTokens?: number
   readonly inputModalities: ('text' | 'image')[]
+  /** Present when the gateway tags the model as image generation. */
+  readonly endpoint?: 'image-generation'
 }
 
 /**
@@ -648,6 +675,30 @@ function catalogInputModalities(
   }
   if (!ordered.includes('text')) ordered.unshift('text')
   return ordered
+}
+
+/**
+ * Build the settings write that keeps `imageModel` on a model the gateway can
+ * generate images with. When the listing tags image-generation models, a stored
+ * id among them stays and any other value is replaced with the first tagged id.
+ * Without tagged models (or without a listing), a non-empty stored id stays and
+ * an absent one becomes {@link DEFAULT_GATEWAY_IMAGE_MODEL}.
+ * @param stored - the `imageModel` value currently in settings, when present.
+ * @param taggedIds - image-generation model ids in gateway order, when discovery succeeded.
+ * @returns zero or one `set` operation for `imageModel`.
+ */
+function imageModelSeedOp(
+  stored: unknown,
+  taggedIds: readonly string[] | undefined,
+): Array<{ op: 'set'; path: string[]; value: string }> {
+  const current = typeof stored === 'string' && stored.length > 0 ? stored : undefined
+  const [firstTagged] = taggedIds ?? []
+  if (firstTagged !== undefined) {
+    return current !== undefined && taggedIds?.includes(current) === true
+      ? []
+      : [{ op: 'set', path: ['imageModel'], value: firstTagged }]
+  }
+  return current !== undefined ? [] : [{ op: 'set', path: ['imageModel'], value: DEFAULT_GATEWAY_IMAGE_MODEL }]
 }
 
 /**

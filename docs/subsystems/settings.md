@@ -30,6 +30,13 @@ Live view of the `geo-admin` settings section, published on the host plane.
 
 ```ts cordis-catalog
 /**
+ * Persist supplied fields in the active profile.
+ * @param patch Fields to save.
+ * @returns Settlement after the profile edit is committed.
+ */
+update(patch: GeoAdminSettingsSection): Promise<void>
+
+/**
  * Read the currently committed section value.
  * @returns the committed settings section.
  */

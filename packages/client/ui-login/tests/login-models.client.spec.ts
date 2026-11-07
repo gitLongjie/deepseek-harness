@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { LlmDiscoveredModel } from '@deepseek-ai/dsh-llm'
 import {
+  DEFAULT_GATEWAY_IMAGE_MODEL,
   LoginStore,
   type LoginApi,
   type LoginCredentialAdapter,
@@ -35,6 +36,11 @@ interface ApiMockOptions {
    * leaves the field absent (the login flow's default, `true`, applies).
    */
   storedFollowGateway?: boolean
+  /**
+   * The `imageModel` value the settings read reports; `undefined` leaves the
+   * field absent so login seeds {@link DEFAULT_GATEWAY_IMAGE_MODEL}.
+   */
+  storedImageModel?: unknown
   /**
    * The `agent-default-model` descriptor's resolved value the settings read
    * reports; `undefined` omits the namespace.
@@ -77,12 +83,14 @@ function mockApi(options: ApiMockOptions = {}): {
           namespaces: [
             ...(options.storedModels !== undefined || options.storedBaseURL !== undefined
               || options.storedFollowGateway !== undefined
+              || options.storedImageModel !== undefined
               ? [{
                 ns: 'llm-deepagens',
                 value: {
                   ...options.storedBaseURL === undefined ? {} : { baseURL: options.storedBaseURL },
                   ...options.storedModels === undefined ? {} : { models: options.storedModels },
                   ...options.storedFollowGateway === undefined ? {} : { followGatewayCatalog: options.storedFollowGateway },
+                  ...options.storedImageModel === undefined ? {} : { imageModel: options.storedImageModel },
                 },
                 revision: 0,
               }]
@@ -179,6 +187,7 @@ describe('LoginStore model handling', () => {
       [
         { op: 'set', path: ['baseURL'], value: 'https://claw.deepagens.com/v1' },
         { op: 'set', path: ['models'], value: expectedModels },
+        { op: 'set', path: ['imageModel'], value: DEFAULT_GATEWAY_IMAGE_MODEL },
       ],
       undefined,
     )
@@ -210,13 +219,18 @@ describe('LoginStore model handling', () => {
           path: ['models'],
           value: [{ id: 'silent-model', name: 'silent-model', description: '', inputModalities: ['text'] }],
         },
+        { op: 'set', path: ['imageModel'], value: DEFAULT_GATEWAY_IMAGE_MODEL },
       ],
       undefined,
     )
   })
 
   it('writes when the stored catalog differs', async () => {
-    const mock = mockApi({ models: discovered, storedModels: [{ id: 'old-model' }] })
+    const mock = mockApi({
+      models: discovered,
+      storedModels: [{ id: 'old-model' }],
+      storedImageModel: DEFAULT_GATEWAY_IMAGE_MODEL,
+    })
     okLogin()
 
     const store = new LoginStore(AUTH_URL, adapter(), mock.api)
@@ -232,11 +246,100 @@ describe('LoginStore model handling', () => {
     )
   })
 
-  it('skips the write when the endpoint and catalog are unchanged', async () => {
+  it('skips the write when the endpoint, catalog, and imageModel are unchanged', async () => {
     const mock = mockApi({
       models: discovered,
       storedModels: expectedModels,
       storedBaseURL: 'https://claw.deepagens.com/v1',
+      storedImageModel: DEFAULT_GATEWAY_IMAGE_MODEL,
+    })
+    okLogin()
+
+    const store = new LoginStore(AUTH_URL, adapter(), mock.api)
+    await expect(store.login('u', 'p')).resolves.toBe(true)
+
+    expect(mock.mutate).not.toHaveBeenCalled()
+  })
+
+  it('seeds imageModel when settings omit it and the catalog is otherwise unchanged', async () => {
+    const mock = mockApi({
+      models: discovered,
+      storedModels: expectedModels,
+      storedBaseURL: 'https://claw.deepagens.com/v1',
+    })
+    okLogin()
+
+    const store = new LoginStore(AUTH_URL, adapter(), mock.api)
+    await expect(store.login('u', 'p')).resolves.toBe(true)
+
+    expect(mock.mutate).toHaveBeenCalledWith(
+      'llm-deepagens',
+      [{ op: 'set', path: ['imageModel'], value: DEFAULT_GATEWAY_IMAGE_MODEL }],
+      0,
+    )
+  })
+
+  it('stores tagged image-generation rows and points imageModel at the first one', async () => {
+    const mock = mockApi({
+      models: [
+        { id: 'flux-1', name: 'Flux 1', imageGeneration: true },
+        ...discovered,
+        { id: 'seedream-4', name: 'Seedream 4', imageGeneration: true },
+      ],
+      storedBaseURL: 'https://claw.deepagens.com/v1',
+      storedImageModel: DEFAULT_GATEWAY_IMAGE_MODEL,
+      storedDefault: { provider: 'deepseek-official', model: 'deepseek-flash' },
+    })
+    okLogin()
+
+    const store = new LoginStore(AUTH_URL, adapter(), mock.api)
+    await expect(store.login('u', 'p')).resolves.toBe(true)
+
+    expect(mock.mutate).toHaveBeenCalledWith(
+      'llm-deepagens',
+      [
+        {
+          op: 'set',
+          path: ['models'],
+          value: [
+            { id: 'flux-1', name: 'Flux 1', description: '', inputModalities: ['text'], endpoint: 'image-generation' },
+            ...expectedModels,
+            { id: 'seedream-4', name: 'Seedream 4', description: '', inputModalities: ['text'], endpoint: 'image-generation' },
+          ],
+        },
+        { op: 'set', path: ['imageModel'], value: 'flux-1' },
+      ],
+      0,
+    )
+    expect(mock.replace).toHaveBeenCalledWith(
+      'agent-default-model',
+      { provider: 'deepagens', model: 'gpt-4o' },
+      2,
+    )
+  })
+
+  it('keeps a stored imageModel the gateway still tags', async () => {
+    const tagged = { id: 'seedream-4', name: 'Seedream 4', description: '', inputModalities: ['text'], endpoint: 'image-generation' }
+    const mock = mockApi({
+      models: [...discovered, { id: 'seedream-4', name: 'Seedream 4', imageGeneration: true }],
+      storedModels: [...expectedModels, tagged],
+      storedBaseURL: 'https://claw.deepagens.com/v1',
+      storedImageModel: 'seedream-4',
+    })
+    okLogin()
+
+    const store = new LoginStore(AUTH_URL, adapter(), mock.api)
+    await expect(store.login('u', 'p')).resolves.toBe(true)
+
+    expect(mock.mutate).not.toHaveBeenCalled()
+  })
+
+  it('keeps a stored imageModel instead of reseeding', async () => {
+    const mock = mockApi({
+      models: discovered,
+      storedModels: expectedModels,
+      storedBaseURL: 'https://claw.deepagens.com/v1',
+      storedImageModel: 'custom-image',
     })
     okLogin()
 
@@ -252,6 +355,7 @@ describe('LoginStore model handling', () => {
       discoverRefused: true,
       storedModels: expectedModels,
       storedBaseURL: 'http://localhost:31000/v1',
+      storedImageModel: DEFAULT_GATEWAY_IMAGE_MODEL,
     })
     okLogin()
 
@@ -266,11 +370,31 @@ describe('LoginStore model handling', () => {
     expect(mock.replace).not.toHaveBeenCalled()
   })
 
+  it('seeds imageModel when discovery is refused and settings omit it', async () => {
+    const mock = mockApi({
+      models: discovered,
+      discoverRefused: true,
+      storedModels: expectedModels,
+      storedBaseURL: 'https://claw.deepagens.com/v1',
+    })
+    okLogin()
+
+    const store = new LoginStore(AUTH_URL, adapter(), mock.api)
+    await expect(store.login('u', 'p')).resolves.toBe(true)
+
+    expect(mock.mutate).toHaveBeenCalledWith(
+      'llm-deepagens',
+      [{ op: 'set', path: ['imageModel'], value: DEFAULT_GATEWAY_IMAGE_MODEL }],
+      0,
+    )
+  })
+
   it('keeps the sign-in when discovery rejects', async () => {
     const mock = mockApi({
       models: discovered,
       discoverReject: new Error('boom'),
       storedBaseURL: 'https://claw.deepagens.com/v1',
+      storedImageModel: DEFAULT_GATEWAY_IMAGE_MODEL,
     })
     okLogin()
 
@@ -305,6 +429,7 @@ describe('LoginStore model handling', () => {
       models: discovered,
       storedModels: expectedModels,
       storedBaseURL: 'https://claw.deepagens.com/v1',
+      storedImageModel: DEFAULT_GATEWAY_IMAGE_MODEL,
       storedDefault: { provider: 'deepseek-official', model: 'deepseek-flash' },
     })
     okLogin()
@@ -324,6 +449,7 @@ describe('LoginStore model handling', () => {
     const mock = mockApi({
       models: discovered,
       storedModels: expectedModels,
+      storedImageModel: DEFAULT_GATEWAY_IMAGE_MODEL,
       storedDefault: { provider: 'deepseek-official', model: 'deepseek-flash' },
     })
     okLogin()
@@ -337,6 +463,7 @@ describe('LoginStore model handling', () => {
   it('keeps a default the pulled catalog already serves', async () => {
     const mock = mockApi({
       models: discovered,
+      storedImageModel: DEFAULT_GATEWAY_IMAGE_MODEL,
       storedDefault: { provider: 'deepagens', model: 'gpt-3.5', reasoningEffort: 'high' },
     })
     okLogin()
@@ -350,6 +477,7 @@ describe('LoginStore model handling', () => {
   it('re-points a same-id default served under another provider route', async () => {
     const mock = mockApi({
       models: discovered,
+      storedImageModel: DEFAULT_GATEWAY_IMAGE_MODEL,
       storedDefault: { provider: 'deepseek-official', model: 'gpt-4o' },
     })
     okLogin()
@@ -367,6 +495,7 @@ describe('LoginStore model handling', () => {
   it('keeps the sign-in when the default write is refused', async () => {
     const mock = mockApi({
       models: discovered,
+      storedImageModel: DEFAULT_GATEWAY_IMAGE_MODEL,
       storedDefault: { provider: 'deepseek-official', model: 'deepseek-flash' },
       replaceRefused: true,
     })

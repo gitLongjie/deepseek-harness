@@ -490,6 +490,12 @@ interface LlmConfigurableProvider {
    */
   settingsPath: readonly string[]
   /**
+   * Editor family the configuration surfaces render this provider's section
+   * with (the OEM gateway reuses the DeepSeek form); absent means the default
+   * editor. Only meaningful for providers shown in the models settings UI.
+   */
+  editorFamily?: string
+  /**
    * Whether the owning adapter knows this route only because configuration
    * declared it — a gateway or self-hosted server it ships nothing about.
    * Absent means the adapter draws no such distinction; false means it does
@@ -508,13 +514,6 @@ interface LlmConfigurableProvider {
   baseURLEnv?: readonly string[]
   /** Authentication the adapter performs when the profile names no credential reference; absent when it reports none. */
   nativeAuth?: LlmNativeAuth
-  /**
-   * Which hand-curated settings-editor family renders this route's card, as
-   * the owning adapter names it. Absent means the adapter claims no curated
-   * card, and a configuration surface renders its advanced-fields hint for
-   * the route instead of guessing a family from the namespace id.
-   */
-  editorFamily?: string
   /** Configuration diagnostic for repair; unaffected models may remain serviceable. */
   error?: string
 }
@@ -798,6 +797,8 @@ interface LlmDiscoveredModel {
   maxTokens?: number
   /** Accepted input types when disclosed by the catalog or endpoint; absent means unknown. */
   inputModalities?: readonly ModelModality[]
+  /** `true` when the listing tags the model as served by the image-generation endpoint; absent means untagged. */
+  imageGeneration?: boolean
 }
 ```
 

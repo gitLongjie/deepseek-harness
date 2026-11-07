@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-与 `@deepseek-ai/dsh-image`、至少一个可用的图片提供方以及附件存储一起加载本包。内置基础组合会挂载该服务、本工具与 `attachment-local`；Web `standard` 预设会把工具加到每个 agent。在内置组合中，为 `llm-deepagens` 设置 `imageModel` 即可让 `deepagens` 提供方可用。
+与 `@deepseek-ai/dsh-image`、至少一个可用的图片提供方以及附件存储一起加载本包。内置基础组合会挂载该服务、本工具与 `attachment-local`；Web `standard` 预设会把工具加到每个 agent。内置组合会在 `llm-deepagens` 写入 `imageModel: gpt-image-2`，因此无需改设置即可让 `deepagens` 提供方可用。
 
 ### 何时选择
 

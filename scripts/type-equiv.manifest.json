@@ -1017,6 +1017,31 @@
       "source": "packages/interaction/user-approval/src/index.ts"
     },
     {
+      "doc": "docs/subsystems/image.md",
+      "symbol": "ImageGenerationRequest",
+      "source": "packages/image/image/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/image.md",
+      "symbol": "GeneratedImage",
+      "source": "packages/image/image/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/image.md",
+      "symbol": "ImageGenerationProvider",
+      "source": "packages/image/image/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/image.md",
+      "symbol": "ImageErrorCode",
+      "source": "packages/image/image/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/image.md",
+      "symbol": "ImageError",
+      "source": "packages/image/image/src/types.ts"
+    },
+    {
       "doc": "docs/subsystems/attachment.md",
       "symbol": "ImageMediaType",
       "source": "packages/attachment/attachment/src/types.ts"

@@ -273,6 +273,52 @@ Types: [SessionId](core.zh.md)
 
 Source: [`packages/schedule/schedule/src/index.ts`](../../packages/schedule/schedule/src/index.ts)
 
+<a id="ctxscheduleworkgateway--scheduleworkgateway"></a>
+
+### `ctx.scheduleWorkGateway` — `ScheduleWorkGateway`
+
+Remote-only schedule-work gateway. The Context key `scheduleWorkGateway` names this service registration; the wire namespace stays `scheduleWork`.
+
+```ts cordis-catalog
+/**
+ * List every task with its computed next occurrence.
+ * @returns tasks newest-first by creation.
+ */
+@Remote('list') list(): Promise<ScheduleWorkTaskList>
+
+/**
+ * List run records, newest first.
+ * @param request - Optional task filter.
+ * @returns the run records of the requested task, or every task's.
+ */
+@Remote('listRuns') listRuns(request: { taskId?: string }): Promise<ScheduleWorkRunList>
+
+/**
+ * Create one task.
+ * @param input - Task fields; validated host-side.
+ * @returns the stored task view.
+ */
+@Remote('create') async create(input: ScheduleWorkTaskInput): Promise<ScheduleWorkTaskView>
+
+/**
+ * Edit one task.
+ * @param request - Task identity and the fields to replace.
+ * @returns the updated task view.
+ */
+@Remote('update') async update(request: { id: string; patch: Partial<ScheduleWorkTaskInput> }): Promise<ScheduleWorkTaskView>
+
+/**
+ * Remove tasks and their run records. The wire method avoids the reserved
+ * `remove` name: it collides with the Remote namespace service's own
+ * members and the client API refuses the whole namespace over it.
+ * @param request - Task identities; unknown ids are skipped.
+ * @returns how many tasks were removed.
+ */
+@Remote('removeTasks') removeTasks(request: { ids: readonly string[] }): Promise<{ removed: number }>
+```
+
+Source: [`packages/schedule/schedule-work/src/index.ts`](../../packages/schedule/schedule-work/src/index.ts)
+
 <a id="schedule-events"></a>
 
 ### `schedule/*` events

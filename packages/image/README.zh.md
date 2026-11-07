@@ -32,6 +32,7 @@ image 分组让对话模型在对话中生成图片。一个服务能力缝负�
 <a id="related-documentation"></a>
 ## 相关文档
 
+- [图片生成子系统](../../docs/subsystems/image.zh.md) — `ctx.image` 词汇、提供方协议与生成的 Cordis API。
 - [Web 能力缝决策](../../.agents/notes/implemented/architecture/2026-06-24-web-capability-seam.zh.md) — 本能力缝沿用的注册与选择规则。
 - [`llm-deepagens` 配置](../llm/llm-deepagens/src/config.ts) — 通过 `imageModel` 设置提供内置图片后端的网关路由。
 
@@ -43,6 +44,6 @@ image 分组让对话模型在对话中生成图片。一个服务能力缝负�
 <details>
 <summary>维护者工作上下文 — 点击展开</summary>
 
-该分组暂无 `docs/subsystems/` 页面；服务契约位于 `image` 包 README。H3 视频工具仍调用各自的图片后端，把它们迁移到 `ctx.image` 是待办工作。
+H3 视频工具仍调用各自的图片后端，把它们迁移到 `ctx.image` 是待办工作。
 
 </details>

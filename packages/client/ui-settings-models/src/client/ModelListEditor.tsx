@@ -135,7 +135,10 @@ function capacitySpelling(value: number | undefined): string {
   return value === undefined ? '' : formatCapacity(value)
 }
 
-/** Adopt a candidate, preserving disclosed capacities and input types. */
+/**
+ * Adopt a candidate, preserving disclosed capacities, input types, and the
+ * image-generation endpoint tag when the listing carries one.
+ */
 function adopt(candidate: LlmDiscoveredModel): ModelDraft {
   return {
     id: candidate.id,
@@ -143,6 +146,7 @@ function adopt(candidate: LlmDiscoveredModel): ModelDraft {
     ...candidate.contextWindow === undefined ? {} : { contextWindow: candidate.contextWindow },
     ...candidate.maxTokens === undefined ? {} : { maxTokens: candidate.maxTokens },
     ...candidate.inputModalities === undefined ? {} : { input: [...candidate.inputModalities] },
+    ...candidate.imageGeneration === true ? { endpoint: 'image-generation' } : {},
   }
 }
 

@@ -486,8 +486,8 @@
         fetch: true
         searchTimeoutMs: 60000
 
-    # Image generation seam. `llm-deepagens` registers the `deepagens` provider,
-    # usable once its `imageModel` setting names a gateway image model.
+    # Image generation seam. `llm-deepagens` registers the `deepagens` provider;
+    # the route's default `imageModel` below makes it usable without a settings edit.
     - id: image
       name: '@deepseek-ai/dsh-image'
 
@@ -531,12 +531,16 @@
 
     # Deepagens Claw gateway route (login-seeded `llm-deepagens` section). Listed
     # before the official DeepSeek route so gateway models lead provider directories.
+    # `imageModel` seeds the shipped `ctx.image` / `generate_image` backend so a
+    # fresh install can generate images without a Models-page edit; login
+    # replaces it with the first model the gateway tags `image-generation`.
     - id: llm-deepagens
       name: '@deepseek-ai/dsh-llm-deepagens'
       config:
         models: []
         protocol: chat-completions
         apiKeyEnv: DEEPAGENS_API_KEY
+        imageModel: gpt-image-2
 
     # The native DeepSeek adapter. No key or endpoint is inlined: both resolve per
     # request from the `llm-deepseek:` settings section over this entry, with the

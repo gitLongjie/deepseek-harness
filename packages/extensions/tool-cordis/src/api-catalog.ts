@@ -808,10 +808,16 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [],
       },
       {
-        signature: 'createSharedFetchHandler(channel: \'/api\'): ConnectionFetchHandler',
+        signature: 'createSharedFetchHandler(channel: \'/api\', fallback?: ConnectionFetchHandler): ConnectionFetchHandler',
         description: 'Compose exact Fetch routes and the shared-channel RPC interceptor.',
-        parameters: [{ name: 'channel', description: 'shared channel mounted by Connection.' }],
+        parameters: [{ name: 'channel', description: 'shared channel mounted by Connection.' }, { name: 'fallback', description: 'handler for endpoints neither the routes nor the interceptor claim; defaults to a 404 response.' }],
         returns: 'Fetch handler for trusted, authenticated requests.',
+      },
+      {
+        signature: 'createChannelsFetchHandler(fallback: ConnectionFetchHandler): ConnectionFetchHandler',
+        description: 'Compose one channel-dispatch Fetch handler covering every generic channel registered through `handle`, so an in-process carrier (the desktop IPC transport) reaches them without the HTTP route table. Paths no registered channel claims fall through to `fallback`.',
+        parameters: [{ name: 'fallback', description: 'handler for paths no registered channel claims.' }],
+        returns: 'Fetch handler that selects exactly one target for each request.',
       },
       {
         signature: 'requestRejection(request: ConnectionTrustRequest): ConnectionRequestRejection',
@@ -1167,6 +1173,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'List file and directory candidates for one agent\'s working directory.',
         parameters: [{ name: 'agent', description: 'target agent whose session cwd bounds discovery.' }, { name: 'query', description: 'path text following `@` or `@"`.' }, { name: 'signal', description: 'caller cancellation.' }],
         returns: 'deterministic path-only candidates.',
+      },
+      {
+        signature: 'abstract import( agent: Agent, request: FileImportRequest, signal: AbortSignal, ): Promise<FileImportValue>',
+        description: 'Store one externally sourced file inside the target agent\'s workspace so `@` mentions and the filesystem tools can address it. Implementations never overwrite an existing file and answer with a workspace-relative path regardless of host platform.',
+        parameters: [{ name: 'agent', description: 'target agent whose session cwd receives the copy.' }, { name: 'request', description: 'proposed bare file name and canonical base64 bytes.' }, { name: 'signal', description: 'caller cancellation; aborting removes the partial copy.' }],
+        returns: 'the stored copy\'s workspace-relative forward-slash path.',
       },
     ],
   },
@@ -1615,6 +1627,31 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'geoAdminSettings',
+    summary: 'Live view of the `geo-admin` settings section, published on the host plane.',
+    description: 'Live view of the `geo-admin` settings section, published on the host plane.',
+    methods: [
+      {
+        signature: 'update(patch: GeoAdminSettingsSection): Promise<void>',
+        description: 'Persist supplied fields in the active profile.',
+        parameters: [{ name: 'patch', description: 'Fields to save.' }],
+        returns: 'Settlement after the profile edit is committed.',
+      },
+      {
+        signature: 'get(): GeoAdminSettingsSection',
+        description: 'Read the currently committed section value.',
+        parameters: [],
+        returns: 'the committed settings section.',
+      },
+      {
+        signature: 'watch(callback: (next: GeoAdminSettingsSection) => void): () => void',
+        description: 'Observe committed changes to the section.',
+        parameters: [{ name: 'callback', description: 'invoked with the next committed value.' }],
+        returns: 'the disposer removing this observer.',
+      },
+    ],
+  },
+  {
     key: 'goals',
     summary: 'Goal service (`ctx.goals`) backed exclusively by the owning session log.',
     description: 'Goal service (`ctx.goals`) backed exclusively by the owning session log.',
@@ -1679,6 +1716,97 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Create one Goal through the remote boundary.',
         parameters: [{ name: 'agent', description: 'exact live Agent resolved from the wire identity.' }, { name: 'request', description: 'objective and optional round cap.' }],
         returns: 'the created Goal identity.',
+      },
+    ],
+  },
+  {
+    key: 'h3Video',
+    summary: 'Video-generation service surface consumed by tool plugins.',
+    description: 'Video-generation service surface consumed by tool plugins. Every operation takes the caller\'s explicit backend choice; no call path receives an implicit default.',
+    methods: [
+      {
+        signature: 'abstract diskFreeMegabytes(): Promise<number | undefined>',
+        description: 'Query the free space on the volume holding the output directory.',
+        parameters: [],
+        returns: 'free megabytes, or `undefined` when the volume cannot be queried.',
+      },
+      {
+        signature: 'abstract capabilities(choice: Exclude<BackendChoice, \'auto\'>): ProviderCapabilities | undefined',
+        description: 'Static limits of one configured backend.',
+        parameters: [{ name: 'choice', description: 'routing label.' }],
+        returns: 'the backend\'s declared capabilities, or `undefined` when that backend is not configured.',
+      },
+      {
+        signature: 'abstract canServe(choice: BackendChoice, request: SegmentRequest): boolean',
+        description: 'Validate one request against one backend without submitting it.',
+        parameters: [{ name: 'choice', description: 'routing policy to check.' }, { name: 'request', description: 'candidate segment request.' }],
+        returns: 'whether that backend can serve the request as written.',
+      },
+      {
+        signature: 'abstract submit( choice: BackendChoice, request: SegmentRequest, signal: AbortSignal, ): Promise<{ readonly target: RoutedProvider; readonly ref: H3TaskRef }>',
+        description: 'Route by the caller\'s policy, validate, and submit one segment.',
+        parameters: [{ name: 'choice', description: 'explicit backend policy.' }, { name: 'request', description: 'the segment to generate.' }, { name: 'signal', description: 'submission cancellation.' }],
+        returns: 'the chosen backend and its task reference.',
+      },
+      {
+        signature: 'abstract poll(target: RoutedProvider, ref: H3TaskRef, signal: AbortSignal): Promise<TaskStatus>',
+        description: 'Observe a submitted task once through its owning backend.',
+        parameters: [{ name: 'target', description: 'the routed provider returned by {@link submit}.' }, { name: 'ref', description: 'the task reference.' }, { name: 'signal', description: 'observation cancellation.' }],
+        returns: 'the task\'s current state, including the local file once it succeeds.',
+      },
+      {
+        signature: 'abstract cancel(target: RoutedProvider, ref: H3TaskRef): Promise<void>',
+        description: 'Best-effort cancel on the owning backend.',
+        parameters: [{ name: 'target', description: 'routed provider.' }, { name: 'ref', description: 'task reference.' }],
+      },
+      {
+        signature: 'abstract keyframe(request: KeyframeRequest, signal: AbortSignal): Promise<string>',
+        description: 'Generate one still keyframe for a shot, establishing the scene before video generation. Uses the hosted image model; local ComfyUI has no H3 text-to-image node.',
+        parameters: [{ name: 'request', description: 'shot description, aspect ratio, optional seed, and an optional character reference that keeps the still on the confirmed character.' }, { name: 'signal', description: 'cancellation of the keyframe generation.' }],
+        returns: 'the absolute path of the downloaded keyframe file.',
+      },
+      {
+        signature: 'abstract assemble(segments: readonly AssemblySegment[], options: AssemblyOptions): Promise<string>',
+        description: 'Concatenate ordered segment files into one mp4.',
+        parameters: [{ name: 'segments', description: 'ordered files.' }, { name: 'options', description: 'output location and optional ffmpeg override.' }],
+        returns: 'the absolute path of the assembled mp4.',
+      },
+      {
+        signature: 'abstract gpuStatus(): Promise<GpuStatus>',
+        description: 'Read the cloud GPU backing the local backend. With a tracked instance the vendor state is re-read; otherwise the cached lifecycle view answers immediately.',
+        parameters: [],
+        returns: 'the lifecycle view; `configured: false` when the composition carries no GPU row.',
+      },
+      {
+        signature: 'abstract gpuUp(): Promise<GpuStatus>',
+        description: 'Boot or reuse the cloud GPU and wait until ComfyUI answers. A routable local submission does this implicitly; calling it first surfaces boot failures before a render is submitted.',
+        parameters: [],
+        returns: 'the lifecycle view once the instance is running.',
+      },
+      {
+        signature: 'abstract gpuDown(mode: \'stop\' | \'release\'): Promise<GpuStatus>',
+        description: 'Power the cloud GPU off, or release it and its disk. Cloud GPU time is billed while it runs.',
+        parameters: [{ name: 'mode', description: '`stop` keeps the instance for a later boot; `release` deletes it.' }],
+        returns: 'the lifecycle view after the operation.',
+      },
+    ],
+  },
+  {
+    key: 'h3VideoSettings',
+    summary: 'Live view of the `h3-video` settings section, published on the host plane.',
+    description: 'Live view of the `h3-video` settings section, published on the host plane.',
+    methods: [
+      {
+        signature: 'get(): H3VideoSettingsSection',
+        description: 'Read the currently committed section value.',
+        parameters: [],
+        returns: 'the committed settings section.',
+      },
+      {
+        signature: 'watch(callback: (next: H3VideoSettingsSection) => void): () => void',
+        description: 'Observe committed changes to the section.',
+        parameters: [{ name: 'callback', description: 'invoked with the next committed value.' }],
+        returns: 'the disposer removing this observer.',
       },
     ],
   },
@@ -1759,6 +1887,25 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'requiredIds', description: 'Entry ids whose inactive state is reported as a failure even when it predates this call.' }],
         returns: 'Inactive-entry diagnostics, the changed modules that load after a restart, and a profile-wide restart reason.',
         throws: ['The patch read, publication, preparation, apply, or activation failure of the recomposition, including a replacement plugin that fails to load or start, whose previous code no longer runs.'],
+      },
+    ],
+  },
+  {
+    key: 'image',
+    summary: 'The image-generation service, registered as `ctx.image`.',
+    description: 'The image-generation service, registered as `ctx.image`.\n\nSelection semantics (resolved at execution time, never order-dependent):\n\n- A configured id that is registered and `available()` → that provider.\n- A configured id not registered → `IMAGE_PROVIDER_CONFIGURED_MISSING`.\n- A configured id registered but unavailable → `IMAGE_PROVIDER_CONFIGURED_UNAVAILABLE`.\n- No id configured, exactly one usable provider → that provider.\n- No id configured, several usable providers → `IMAGE_PROVIDER_AMBIGUOUS`.\n- No id configured, no usable provider → `IMAGE_PROVIDER_UNAVAILABLE`.',
+    methods: [
+      {
+        signature: 'register(provider: ImageGenerationProvider): () => void',
+        description: 'Register an image provider. Throws ImageError `IMAGE_DUPLICATE_PROVIDER` if its id is already registered. The registration is disposed with the calling fiber.',
+        parameters: [{ name: 'provider', description: 'the provider; its `id` is the registry key.' }],
+        returns: 'the disposer that unregisters the provider.',
+      },
+      {
+        signature: 'async generate(request: ImageGenerationRequest, signal?: AbortSignal): Promise<GeneratedImage>',
+        description: 'Generate one image through the selected provider. Throws ImageError when no provider can run; provider failures propagate unchanged.',
+        parameters: [{ name: 'request', description: 'the visual description.' }, { name: 'signal', description: 'cancellation forwarded to the provider.' }],
+        returns: 'the encoded image bytes and their media type.',
       },
     ],
   },
@@ -1866,6 +2013,37 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Attach an effect-scoped controller that can read and stop jobs. It serves the owners its registering context\'s scope covers, and start refuses an owner no attached controller serves.',
         parameters: [{ name: 'name', description: 'diagnostic label; duplicate names remain independent.' }],
         returns: 'disposer that detaches this controller.',
+      },
+    ],
+  },
+  {
+    key: 'knowledgeBase',
+    summary: 'The knowledge-base capability.',
+    description: 'The knowledge-base capability. Base ids are backend-assigned and opaque to consumers; visibility follows the credential the provider resolves, so the listed bases are exactly what the configured deployment may read.',
+    methods: [
+      {
+        signature: 'abstract list(): Promise<readonly KnowledgeBaseView[]>',
+        description: 'List the knowledge bases the configured credential can see.',
+        parameters: [],
+        returns: 'the bases in the backend\'s own order.',
+      },
+      {
+        signature: 'abstract webUi(): string | null',
+        description: 'The deployment\'s browser-openable console for client manage actions, or null when the deployment exposes none.',
+        parameters: [],
+        returns: 'the console URL, or null.',
+      },
+      {
+        signature: 'abstract listDocuments(baseId: KnowledgeBaseId, query?: { keyword?: string }): Promise<KnowledgeDocumentPage>',
+        description: 'List one knowledge base\'s documents, newest-backend-order first page.',
+        parameters: [{ name: 'baseId', description: 'the opaque base identity from a previous {@link list} read.' }, { name: 'query', description: 'optional keyword filter matched by the backend against document titles and content.' }],
+        returns: 'one page of documents with the backend\'s total count.',
+      },
+      {
+        signature: 'abstract readDocument(documentId: KnowledgeDocumentId, query?: { page?: number }): Promise<KnowledgeDocumentContent>',
+        description: 'Read one document\'s assembled content, one page of blocks at a time.',
+        parameters: [{ name: 'documentId', description: 'the opaque document identity from a previous {@link listDocuments} read.' }, { name: 'query', description: 'optional 1-based page number; omission reads the first page.' }],
+        returns: 'the page\'s blocks with the document\'s identity facts and totals.',
       },
     ],
   },
@@ -2068,6 +2246,77 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Select a provider by the file\'s extension and run one query. Selection is per-query and order-independent; no match throws `LspError` `LSP_UNAVAILABLE`.',
         parameters: [{ name: 'request', description: 'the normalized query.' }, { name: 'signal', description: 'optional cancellation forwarded to the selected provider.' }],
         returns: 'the normalized, closed-union result.',
+      },
+    ],
+  },
+  {
+    key: 'market',
+    summary: 'The market capability.',
+    description: 'The market capability. All identity arguments are host-validated: clients submit opaque ids and the service resolves every package name, version, and command itself. Catalog data is untrusted provider content; only entries this service normalized can install, and the npm registry is the sole version authority at install time.',
+    methods: [
+      {
+        signature: 'abstract listSources(): Promise<readonly MarketSource[]>',
+        description: 'List the configured sources in registry order.',
+        parameters: [],
+        returns: 'the configured sources in registry order.',
+      },
+      {
+        signature: 'abstract selectedSource(): Promise<MarketSourceId | null>',
+        description: 'The selected source\'s id, or null when no source is selected.',
+        parameters: [],
+        returns: 'the selected source id, or null when nothing is selected.',
+      },
+      {
+        signature: 'abstract selectSource(id: MarketSourceId): Promise<void>',
+        description: 'Select the source subsequent browsing reads. Selection is durable, user-owned state.',
+        parameters: [{ name: 'id', description: 'the source to select; must be configured.' }],
+      },
+      {
+        signature: 'abstract addSource(input: MarketSourceInput): Promise<MarketSource>',
+        description: 'Register a new source and select nothing (selection changes only through selectSource).',
+        parameters: [{ name: 'input', description: 'the source\'s display name, transport kind, and HTTPS URL.' }],
+        returns: 'the registered source with its assigned identity.',
+      },
+      {
+        signature: 'abstract removeSource(id: MarketSourceId): Promise<void>',
+        description: 'Remove a configured source. Removing the selected source clears the selection and drops that source\'s cached catalog.',
+        parameters: [{ name: 'id', description: 'the source to remove.' }],
+      },
+      {
+        signature: 'abstract browse(query: MarketBrowseQuery): Promise<MarketCatalogPage>',
+        description: 'Read one page from the selected source. Server-side sources translate the query into their endpoint call; bounded-projection sources filter their cached list client-side. Failures name the source and stage.',
+        parameters: [{ name: 'query', description: 'free-text query, category filter, cursor, and page size.' }],
+        returns: 'one page of normalized entries with an opaque next cursor.',
+      },
+      {
+        signature: 'abstract entryDetail(ref: MarketEntryRef): Promise<MarketCatalogEntry | undefined>',
+        description: 'Resolve one entry through its source: cache-first, with a catalog source searched for the id when the cache has not observed it. Undefined means the source does not list the id — never an error, so callers can probe.',
+        parameters: [{ name: 'ref', description: 'the source and entry to resolve.' }],
+        returns: 'the observed entry, or undefined when the source does not know it.',
+      },
+      {
+        signature: 'abstract installability(ref: MarketEntryRef): Promise<MarketInstallability>',
+        description: 'Validate one entry\'s installability against the npm registry: exactly one declared npm package, whose registry `latest` manifest carries the same name, an exact stable version, and a `dsh.bundle.patch` declaration.',
+        parameters: [{ name: 'ref', description: 'the source and entry to validate.' }],
+        returns: 'the installability verdict with one reason per unmet requirement.',
+      },
+      {
+        signature: 'abstract install(ref: MarketEntryRef): Promise<MarketInstallOutcome>',
+        description: 'Install one entry into the managed profile: validate installability, then run the profile package manager with the exact resolved version and reconcile `dsh.profile.bundles`. The new layer activates on the next host start.',
+        parameters: [{ name: 'ref', description: 'the source and entry to install.' }],
+        returns: 'the discriminated install outcome with the exact added version on success.',
+      },
+      {
+        signature: 'abstract installed(): Promise<readonly MarketInstalledPlugin[]>',
+        description: 'List the managed profile\'s direct plugin dependencies with their bundle state. Every install route appears — this market, another market, or the CLI — because the profile manifest is the only truth read.',
+        parameters: [],
+        returns: 'the profile\'s plugin dependencies, dependencies first.',
+      },
+      {
+        signature: 'abstract uninstall(bundleId: MarketBundleId): Promise<MarketUninstallOutcome>',
+        description: 'Uninstall one dependency-managed plugin from the managed profile. The bundle id is revalidated against the live profile manifest; installation owned template layers refuse.',
+        parameters: [{ name: 'bundleId', description: 'the opaque handle from a previous {@link installed} read.' }],
+        returns: 'the discriminated uninstall outcome naming the removed package.',
       },
     ],
   },
@@ -2664,6 +2913,43 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'scheduleWorkGateway',
+    summary: 'Remote-only schedule-work gateway.',
+    description: 'Remote-only schedule-work gateway. The Context key `scheduleWorkGateway` names this service registration; the wire namespace stays `scheduleWork`.',
+    methods: [
+      {
+        signature: '@Remote(\'list\') list(): Promise<ScheduleWorkTaskList>',
+        description: 'List every task with its computed next occurrence.',
+        parameters: [],
+        returns: 'tasks newest-first by creation.',
+      },
+      {
+        signature: '@Remote(\'listRuns\') listRuns(request: { taskId?: string }): Promise<ScheduleWorkRunList>',
+        description: 'List run records, newest first.',
+        parameters: [{ name: 'request', description: 'Optional task filter.' }],
+        returns: 'the run records of the requested task, or every task\'s.',
+      },
+      {
+        signature: '@Remote(\'create\') async create(input: ScheduleWorkTaskInput): Promise<ScheduleWorkTaskView>',
+        description: 'Create one task.',
+        parameters: [{ name: 'input', description: 'Task fields; validated host-side.' }],
+        returns: 'the stored task view.',
+      },
+      {
+        signature: '@Remote(\'update\') async update(request: { id: string; patch: Partial<ScheduleWorkTaskInput> }): Promise<ScheduleWorkTaskView>',
+        description: 'Edit one task.',
+        parameters: [{ name: 'request', description: 'Task identity and the fields to replace.' }],
+        returns: 'the updated task view.',
+      },
+      {
+        signature: '@Remote(\'removeTasks\') removeTasks(request: { ids: readonly string[] }): Promise<{ removed: number }>',
+        description: 'Remove tasks and their run records. The wire method avoids the reserved `remove` name: it collides with the Remote namespace service\'s own members and the client API refuses the whole namespace over it.',
+        parameters: [{ name: 'request', description: 'Task identities; unknown ids are skipped.' }],
+        returns: 'how many tasks were removed.',
+      },
+    ],
+  },
+  {
     key: 'sessionController',
     summary: 'Host service backing the generated `ctx.remote.session` namespace.',
     description: 'Host service backing the generated `ctx.remote.session` namespace.',
@@ -2851,6 +3137,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'List file and directory candidates for one Agent\'s working directory.',
         parameters: [{ name: 'agent', description: 'target Agent resolved from the Session identity on the wire.' }, { name: 'query', description: 'path text following `@` or `@"`.' }, { name: 'signal', description: 'caller cancellation.' }],
         returns: 'deterministic path-only candidates from the composed provider.',
+      },
+      {
+        signature: '@Remote import( agent: Agent, request: FileImportRequest, signal: AbortSignal, ): Promise<FileImportValue>',
+        description: 'Store one externally sourced file inside the Agent\'s workspace so `@` mentions and the filesystem tools can address it.',
+        parameters: [{ name: 'agent', description: 'target Agent resolved from the Session identity on the wire.' }, { name: 'request', description: 'proposed bare file name and canonical base64 bytes.' }, { name: 'signal', description: 'caller cancellation; aborting removes the partial copy.' }],
+        returns: 'the stored copy\'s workspace-relative forward-slash path.',
       },
     ],
   },
@@ -4564,7 +4856,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     methods: [
       {
         signature: '@Remote async read( workspaceFileScope: WorkspaceFileScope, path: string, range: WorkspaceFileRange, signal: AbortSignal, ): Promise<WorkspaceFileText>',
-        description: 'Read one page of lines from a UTF-8 file readable by the filesystem backend.',
+        description: 'Read one page of lines from a file readable by the filesystem backend.\n\nA suffix document text extraction covers reads as its converted plain text, produced by the platform converter and decoded as strict UTF-8; every other file reads as UTF-8 bytes and fails as not-text otherwise.',
         parameters: [{ name: 'workspaceFileScope', description: 'header-derived workspace root for the Session identity on the wire.' }, { name: 'path', description: 'absolute path or path relative to the workspace root; files outside it are allowed.' }, { name: 'range', description: 'the line window; omitted fields take the page defaults.' }, { name: 'signal', description: 'caller cancellation.' }],
         returns: 'the page, the file\'s version at the stat before it, and whether it reaches the last line.',
       },
@@ -5525,7 +5817,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'AgentPresetRow',
-    declaration: 'export interface AgentPresetRow {\n    readonly id: string;\n    readonly isDefault: boolean;\n    readonly name?: string;\n    readonly description?: string;\n    readonly broken?: string;\n}',
+    declaration: 'export interface AgentPresetRow {\n    readonly id: string;\n    readonly isDefault: boolean;\n    readonly name?: string;\n    readonly description?: string;\n    readonly category?: string;\n    readonly tags?: readonly string[];\n    readonly quickPrompts?: readonly string[];\n    readonly icon?: string;\n    readonly subtitle?: string;\n    readonly badge?: string;\n    readonly avatar?: string;\n    readonly broken?: string;\n}',
   },
   {
     name: 'AgentResolver',
@@ -5636,6 +5928,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface AssembledSection {\n    name: string;\n    text: string;\n    interpolate?: boolean;\n}',
   },
   {
+    name: 'AssemblyOptions',
+    declaration: 'export interface AssemblyOptions {\n    ffmpegPath?: string;\n    outputFile: string;\n    workDir?: string;\n    signal?: AbortSignal;\n    transition?: {\n        kind: \'cut\' | \'dip\' | \'crossfade\';\n        seconds: number;\n    };\n    durations?: readonly number[];\n}',
+  },
+  {
+    name: 'AssemblySegment',
+    declaration: 'export interface AssemblySegment {\n    readonly file: string;\n}',
+  },
+  {
     name: 'AssistantMessage',
     declaration: 'export interface AssistantMessage extends MessageBase {\n    readonly role: \'assistant\';\n    readonly source: ModelMessageSource;\n}',
   },
@@ -5722,6 +6022,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'AuthorizationStatus',
     declaration: 'export type AuthorizationStatus = \'authorized\' | \'cancelled\';',
+  },
+  {
+    name: 'BackendChoice',
+    declaration: 'export type BackendChoice = \'local\' | \'remote\' | \'auto\';',
   },
   {
     name: 'BackendRegistry',
@@ -5824,6 +6128,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ClientArtifactBaseline {\n    readonly path: string;\n    readonly mtimeMs: number;\n    readonly ctimeMs: number;\n    readonly size: number;\n}',
   },
   {
+    name: 'ClockTime',
+    declaration: 'export type ClockTime = Branded<\'clock-time\'>;',
+  },
+  {
     name: 'CollectedOutput',
     declaration: 'export interface CollectedOutput {\n    text: string;\n    truncated: boolean;\n    spillPath?: string;\n}',
   },
@@ -5913,7 +6221,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ConfinedArgv',
-    declaration: 'export interface ConfinedArgv {\n    argv: string[];\n    enforcement: SandboxEnforcement;\n    denialSignatures: readonly string[];\n    runnerFailureRules: readonly RunnerFailureRule[];\n}',
+    declaration: 'export interface ConfinedArgv {\n    argv: string[];\n    enforcement: SandboxEnforcement;\n    denialSignatures: readonly string[];\n    runnerFailureRules: readonly RunnerFailureRule[];\n    env?: Readonly<Record<string, string>>;\n}',
   },
   {
     name: 'ConfinedSandboxMode',
@@ -5954,6 +6262,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ConnectionRpcAttachment',
     declaration: 'export interface ConnectionRpcAttachment {\n    readonly path: readonly (string | number)[];\n    readonly bytes: Uint8Array;\n}',
+  },
+  {
+    name: 'ConnectionRpcAuthority',
+    declaration: 'export type ConnectionRpcAuthority = \'loopback\' | \'trusted-host\';',
   },
   {
     name: 'ConnectionRpcEndpointMatcher',
@@ -6360,6 +6672,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface FileDiff {\n    path: string;\n    oldText: string | null;\n    newText: string;\n}',
   },
   {
+    name: 'FileImportRequest',
+    declaration: 'export interface FileImportRequest {\n    readonly name: string;\n    readonly data: string;\n}',
+  },
+  {
+    name: 'FileImportValue',
+    declaration: 'export interface FileImportValue {\n    readonly path: string;\n}',
+  },
+  {
     name: 'FileLocation',
     declaration: 'export interface FileLocation {\n    path: string;\n    line?: number;\n}',
   },
@@ -6572,6 +6892,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface FsWriteOutcome {\n    operation: \'create\' | \'update\';\n    version: FsVersion;\n    before: string | null;\n    after: string;\n}',
   },
   {
+    name: 'GeneratedImage',
+    declaration: 'export interface GeneratedImage {\n    readonly data: Uint8Array;\n    readonly mediaType: string;\n    readonly model?: string;\n}',
+  },
+  {
     name: 'GenerateOptions',
     declaration: 'export interface GenerateOptions<Purpose extends string = LlmRequestPurpose> {\n    provider: string;\n    model: string;\n    reasoningEffort?: ReasoningEffortId;\n    messages: RequestMessage[];\n    system?: string;\n    tools?: ToolSchema[];\n    toolHistory?: ToolHistory;\n    temperature?: number;\n    maxTokens?: number;\n    stop?: string[];\n    signal?: AbortSignal;\n    sessionId?: Branded<\'SessionId\'>;\n    purpose?: Purpose;\n}',
   },
@@ -6582,6 +6906,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'GenericResultView',
     declaration: 'export interface GenericResultView {\n    card: \'generic\';\n    title?: string;\n    content?: ContentBlock[];\n}',
+  },
+  {
+    name: 'GeoAdminSettingsSection',
+    declaration: 'export interface GeoAdminSettingsSection {\n    baseUrl?: string;\n    username?: string;\n}',
   },
   {
     name: 'GoalActivation',
@@ -6624,8 +6952,28 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface GoalView extends GoalSnapshot {\n    readonly roundsStarted: number;\n    readonly createdAt: number;\n    readonly updatedAt: number;\n    readonly activation: GoalActivation;\n}',
   },
   {
+    name: 'GpuInstanceState',
+    declaration: 'export type GpuInstanceState = \'absent\' | \'starting\' | \'running\' | \'stopping\' | \'stopped\' | \'releasing\' | \'failed\';',
+  },
+  {
+    name: 'GpuStatus',
+    declaration: 'export interface GpuStatus {\n    readonly configured: boolean;\n    readonly vendor?: string;\n    readonly instanceId?: string;\n    readonly state: GpuInstanceState;\n    readonly serviceUrl?: string;\n    readonly idleTimeoutMs?: number;\n    readonly idleAction?: \'power_off\' | \'release\';\n    readonly error?: string;\n}',
+  },
+  {
     name: 'GrantRecord',
     declaration: 'export interface GrantRecord {\n    readonly kind: \'grant\';\n    readonly payload: unknown;\n}',
+  },
+  {
+    name: 'H3TaskRef',
+    declaration: 'export type H3TaskRef = Branded<\'H3TaskRef\'>;',
+  },
+  {
+    name: 'H3VideoProvider',
+    declaration: 'export interface H3VideoProvider {\n    readonly capabilities: ProviderCapabilities;\n    submit(request: SegmentRequest, signal: AbortSignal): Promise<H3TaskRef>;\n    poll(ref: H3TaskRef, signal: AbortSignal): Promise<TaskStatus>;\n    cancel(ref: H3TaskRef): Promise<void>;\n}',
+  },
+  {
+    name: 'H3VideoSettingsSection',
+    declaration: 'export interface H3VideoSettingsSection {\n    comfyUrl?: string;\n    comfyWorkflowPath?: string;\n    comfyInputDir?: string;\n    comfyPollIntervalMs?: number;\n    comfyTaskTimeoutMs?: number;\n    comfyMaxConcurrency?: number;\n    comfyResolutions?: string[];\n    comfyMinDurationSeconds?: number;\n    comfyMaxDurationSeconds?: number;\n    minimaxBaseUrl?: string;\n    minimaxModel?: string;\n    minimaxResolutions?: string[];\n    minimaxMinDurationSeconds?: number;\n    minimaxMaxDurationSeconds?: number;\n    minimaxApiKeyRef?: string;\n    gpuApiTokenRef?: string;\n    minimaxPollIntervalMs?: number;\n    minimaxTaskTimeoutMs?: number;\n    minimaxMaxConcurrency?: number;\n    outputDir?: string;\n    minFreeSpaceMb?: number;\n    estimatedBytesPerSecond?: number;\n}',
   },
   {
     name: 'HookBudget',
@@ -6657,7 +7005,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'HostConnectionRpc',
-    declaration: 'export interface HostConnectionRpc {\n    handle(channel: string, handler: ConnectionRpcHandler): () => Promise<void>;\n    intercept(channel: \'/api\', matches: ConnectionRpcEndpointMatcher, handler: ConnectionRpcHandler): () => Promise<void>;\n}',
+    declaration: 'export interface HostConnectionRpc {\n    handle(channel: string, handler: ConnectionRpcHandler, options?: {\n        authority?: ConnectionRpcAuthority;\n    }): () => Promise<void>;\n    intercept(channel: \'/api\', matches: ConnectionRpcEndpointMatcher, handler: ConnectionRpcHandler): () => Promise<void>;\n}',
   },
   {
     name: 'ImageAttachmentLimits',
@@ -6670,6 +7018,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ImageBlock',
     declaration: 'export interface ImageBlock {\n    type: \'image\';\n    attachment: ImageAttachmentRef;\n    offloaded?: true;\n}',
+  },
+  {
+    name: 'ImageGenerationProvider',
+    declaration: 'export interface ImageGenerationProvider {\n    readonly id: string;\n    available(): boolean;\n    generate(request: ImageGenerationRequest, signal?: AbortSignal): Promise<GeneratedImage>;\n}',
   },
   {
     name: 'ImageMediaType',
@@ -6872,6 +7224,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type JsonValue = null | boolean | number | string | JsonValue[] | {\n    [key: string]: JsonValue;\n};',
   },
   {
+    name: 'KeyframeRequest',
+    declaration: 'export interface KeyframeRequest {\n    prompt: string;\n    ratio: \'21:9\' | \'16:9\' | \'4:3\' | \'1:1\' | \'3:4\' | \'9:16\';\n    seed?: number;\n    subjectReference?: string;\n}',
+  },
+  {
     name: 'KvFacet',
     declaration: 'export interface KvFacet {\n    open(descriptor: KvUnitDescriptor): Promise<KvUnit>;\n}',
   },
@@ -6913,11 +7269,11 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'LlmConfigurableProvider',
-    declaration: 'export interface LlmConfigurableProvider {\n    provider: string;\n    displayName: string;\n    settingsNs: string;\n    settingsPath: readonly string[];\n    declared?: boolean;\n    defaultBaseURL?: string;\n    baseURLEnv?: readonly string[];\n    nativeAuth?: LlmNativeAuth;\n    error?: string;\n}',
+    declaration: 'export interface LlmConfigurableProvider {\n    provider: string;\n    displayName: string;\n    settingsNs: string;\n    settingsPath: readonly string[];\n    editorFamily?: string;\n    declared?: boolean;\n    defaultBaseURL?: string;\n    baseURLEnv?: readonly string[];\n    nativeAuth?: LlmNativeAuth;\n    error?: string;\n}',
   },
   {
     name: 'LlmDiscoveredModel',
-    declaration: 'export interface LlmDiscoveredModel {\n    id: string;\n    name?: string;\n    contextWindow?: number;\n    maxTokens?: number;\n    inputModalities?: readonly ModelModality[];\n}',
+    declaration: 'export interface LlmDiscoveredModel {\n    id: string;\n    name?: string;\n    contextWindow?: number;\n    maxTokens?: number;\n    inputModalities?: readonly ModelModality[];\n    imageGeneration?: boolean;\n}',
   },
   {
     name: 'LlmFailure',
@@ -7110,10 +7466,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'MarketSortKeyDeclaration',
     declaration: 'export interface MarketSortKeyDeclaration {\n    readonly title: LocalizedText;\n    readonly order: \'asc\' | \'desc\';\n}',
-  },
-  {
-    name: 'MarketSource',
-    declaration: 'export type MarketSource = {\n    readonly type: \'npm\';\n    readonly registry?: string;\n} | {\n    readonly type: \'git\';\n    readonly url: string;\n    readonly commit: string;\n    readonly path?: string;\n};',
   },
   {
     name: 'MarketVersion',
@@ -7573,7 +7925,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'PresetDefinition',
-    declaration: 'export interface PresetDefinition {\n    readonly id: string;\n    readonly name?: string;\n    readonly description?: string;\n    readonly order?: number;\n    readonly plugins: readonly (Omit<EntryOptions, \'id\' | \'disabled\'> & {\n        id?: string;\n        disabled?: EntryOptions[\'disabled\'] | JsExpr;\n    })[];\n}',
+    declaration: 'export interface PresetDefinition extends Omit<AgentPreset, \'broken\'> {\n    readonly plugins: readonly (Omit<EntryOptions, \'id\' | \'disabled\'> & {\n        id?: string;\n        disabled?: EntryOptions[\'disabled\'] | JsExpr;\n    })[];\n}',
   },
   {
     name: 'PresetOption',
@@ -7690,6 +8042,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'PromptSubmitResult',
     declaration: 'export type PromptSubmitResult = {\n    text: string;\n    context?: readonly string[];\n    drop?: undefined;\n} | {\n    drop: string;\n    text?: undefined;\n    context?: undefined;\n};',
+  },
+  {
+    name: 'ProviderCapabilities',
+    declaration: 'export interface ProviderCapabilities {\n    readonly name: string;\n    readonly resolutions: readonly SegmentRequest[\'resolution\'][];\n    readonly minDurationSeconds: number;\n    readonly maxDurationSeconds: number;\n    readonly multimodalInputs: boolean;\n    readonly maxConcurrency: number;\n}',
   },
   {
     name: 'ProviderRequestId',
@@ -7972,6 +8328,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type ReviewDecision = \'approved\' | \'changes-requested\' | \'review-required\' | \'none\';',
   },
   {
+    name: 'RoutedProvider',
+    declaration: 'export interface RoutedProvider {\n    readonly choice: \'local\' | \'remote\';\n    readonly provider: H3VideoProvider;\n}',
+  },
+  {
     name: 'RpcId',
     declaration: 'export type RpcId = Branded<\'rpc-id\'>;',
   },
@@ -8132,6 +8492,46 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type ScheduleViewResult = ScheduleCatalogEntry | ScheduleNotFoundResult;',
   },
   {
+    name: 'ScheduleWorkRule',
+    declaration: 'export type ScheduleWorkRule = {\n    readonly kind: \'once\';\n    readonly at: string;\n} | {\n    readonly kind: \'daily\';\n    readonly time: ClockTime;\n} | {\n    readonly kind: \'weekly\';\n    readonly weekdays: readonly number[];\n    readonly time: ClockTime;\n} | {\n    readonly kind: \'monthly\';\n    readonly days: readonly number[];\n    readonly time: ClockTime;\n} | {\n    readonly kind: \'interval\';\n    readonly everySeconds: number;\n};',
+  },
+  {
+    name: 'ScheduleWorkRunId',
+    declaration: 'export type ScheduleWorkRunId = Branded<\'schedule-work-run-id\'>;',
+  },
+  {
+    name: 'ScheduleWorkRunList',
+    declaration: 'export interface ScheduleWorkRunList {\n    readonly runs: readonly ScheduleWorkRunRecord[];\n}',
+  },
+  {
+    name: 'ScheduleWorkRunRecord',
+    declaration: 'export interface ScheduleWorkRunRecord {\n    readonly id: ScheduleWorkRunId;\n    readonly taskId: ScheduleWorkTaskId;\n    readonly sessionId?: SessionId | undefined;\n    readonly startedAt: string;\n    readonly finishedAt?: string | undefined;\n    readonly status: ScheduleWorkRunStatus;\n    readonly error?: string | undefined;\n}',
+  },
+  {
+    name: 'ScheduleWorkRunStatus',
+    declaration: 'export type ScheduleWorkRunStatus = \'running\' | \'succeeded\' | \'failed\';',
+  },
+  {
+    name: 'ScheduleWorkTaskId',
+    declaration: 'export type ScheduleWorkTaskId = Branded<\'schedule-work-task-id\'>;',
+  },
+  {
+    name: 'ScheduleWorkTaskInput',
+    declaration: 'export type ScheduleWorkTaskInput = {\n    readonly name: string;\n    readonly prompt: string;\n    readonly workspaceId?: WorkspaceId | null;\n    readonly fullAccess?: boolean;\n    readonly rule: ScheduleWorkRule;\n    readonly validUntil?: string | null;\n    readonly enabled?: boolean;\n};',
+  },
+  {
+    name: 'ScheduleWorkTaskList',
+    declaration: 'export interface ScheduleWorkTaskList {\n    readonly tasks: readonly ScheduleWorkTaskView[];\n}',
+  },
+  {
+    name: 'ScheduleWorkTaskRecord',
+    declaration: 'export interface ScheduleWorkTaskRecord {\n    readonly id: ScheduleWorkTaskId;\n    readonly name: string;\n    readonly prompt: string;\n    readonly workspaceId?: WorkspaceId | undefined;\n    readonly fullAccess: boolean;\n    readonly rule: ScheduleWorkRule;\n    readonly validUntil?: string | undefined;\n    readonly enabled: boolean;\n    readonly createdAt: string;\n    readonly updatedAt: string;\n    readonly lastRunAt?: string | undefined;\n}',
+  },
+  {
+    name: 'ScheduleWorkTaskView',
+    declaration: 'export type ScheduleWorkTaskView = ScheduleWorkTaskRecord & {\n    readonly nextRunAt: string | null;\n};',
+  },
+  {
     name: 'Scoped',
     declaration: 'export type Scoped<T extends object> = object & {\n    readonly [ScopedBrand]: T;\n};',
   },
@@ -8158,6 +8558,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SearchResultView',
     declaration: 'export type SearchResultView = SearchMatchesResultView | SearchPathsResultView;',
+  },
+  {
+    name: 'SegmentInput',
+    declaration: 'export type SegmentInput = {\n    readonly type: \'text\';\n    readonly text: string;\n} | {\n    readonly type: \'image\';\n    readonly url: string;\n    readonly role: \'first_frame\' | \'last_frame\' | \'reference_image\';\n} | {\n    readonly type: \'video\';\n    readonly url: string;\n    readonly role: \'reference_video\';\n} | {\n    readonly type: \'audio\';\n    readonly url: string;\n    readonly role: \'reference_audio\';\n};',
+  },
+  {
+    name: 'SegmentRequest',
+    declaration: 'export interface SegmentRequest {\n    readonly inputs: readonly SegmentInput[];\n    readonly resolution: \'480P\' | \'768P\' | \'2K\';\n    readonly durationSeconds: number;\n    readonly ratio: \'adaptive\' | \'21:9\' | \'16:9\' | \'4:3\' | \'1:1\' | \'3:4\' | \'9:16\';\n    readonly seed?: number;\n}',
   },
   {
     name: 'SendTeamMessageRequest',
@@ -8501,7 +8909,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SessionOpenWorkspacePathRequest',
-    declaration: 'export interface SessionOpenWorkspacePathRequest {\n    readonly action?: \'reveal\';\n    readonly application?: string;\n    readonly path: string;\n}',
+    declaration: 'export interface SessionOpenWorkspacePathRequest {\n    readonly action?: \'reveal\' | \'directory\';\n    readonly application?: string;\n    readonly path: string;\n}',
   },
   {
     name: 'SessionOpenWorkspacePathValue',

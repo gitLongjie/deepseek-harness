@@ -214,7 +214,7 @@ describe('LoginStore restore', () => {
     await store.restore()
     // One read of the model list, and no POST to the login endpoint: the
     // server charges a login session for that call alone. (The token-quota
-    // read hits /api/usage/token, not this one.)
+    // read hits /api/usage/token/, not this one.)
     const modelReads = fetchMock.mock.calls.filter(([url]) => url === MODELS_URL)
     expect(modelReads).toHaveLength(1)
     expect(fetchMock).toHaveBeenCalledWith(MODELS_URL, { headers: { authorization: 'Bearer sk-1' } })
@@ -278,7 +278,7 @@ describe('LoginStore restore', () => {
     const store = new LoginStore(AUTH_URL, credentials, dummyApi)
     await store.restore()
     // One POST to the login endpoint; the token-quota read hits
-    // /api/usage/token instead of creating a second login session.
+    // /api/usage/token/ instead of creating a second login session.
     const authPosts = fetchMock.mock.calls.filter(([url]) => url === AUTH_URL)
     expect(authPosts).toHaveLength(1)
     expect(fetchMock).toHaveBeenCalledWith(AUTH_URL, expect.objectContaining({ method: 'POST' }))
@@ -301,7 +301,7 @@ describe('LoginStore restore', () => {
 })
 
 describe('LoginStore balance', () => {
-  const TOKEN_USAGE_URL = 'https://claw.deepagens.com/api/usage/token'
+  const TOKEN_USAGE_URL = 'https://claw.deepagens.com/api/usage/token/'
 
   /** A token-usage success body: used and remaining counts, optional unlimited flag. */
   function tokenUsage(used: number, remaining: number, unlimited = false): unknown {

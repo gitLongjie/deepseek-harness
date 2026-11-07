@@ -125,9 +125,21 @@ Host `ctx.connection` members consumed by transport-independent adapters.
 /**
  * Compose exact Fetch routes and the shared-channel RPC interceptor.
  * @param channel - shared channel mounted by Connection.
+ * @param fallback - handler for endpoints neither the routes nor the
+ * interceptor claim; defaults to a 404 response.
  * @returns Fetch handler for trusted, authenticated requests.
  */
-createSharedFetchHandler(channel: '/api'): ConnectionFetchHandler
+createSharedFetchHandler(channel: '/api', fallback?: ConnectionFetchHandler): ConnectionFetchHandler
+
+/**
+ * Compose one channel-dispatch Fetch handler covering every generic channel
+ * registered through `handle`, so an in-process carrier (the desktop IPC
+ * transport) reaches them without the HTTP route table. Paths no registered
+ * channel claims fall through to `fallback`.
+ * @param fallback - handler for paths no registered channel claims.
+ * @returns Fetch handler that selects exactly one target for each request.
+ */
+createChannelsFetchHandler(fallback: ConnectionFetchHandler): ConnectionFetchHandler
 
 /**
  * Apply Connection's Host/Origin checks and browser authentication to

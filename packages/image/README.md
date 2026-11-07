@@ -32,6 +32,7 @@ The image group lets the chat model create pictures during a conversation. One s
 <a id="related-documentation"></a>
 ## Related documentation
 
+- [Image generation subsystem](../../docs/subsystems/image.md) — `ctx.image` vocabulary, provider protocol, and generated Cordis API.
 - [Web capability seam decision](../../.agents/notes/implemented/architecture/2026-06-24-web-capability-seam.md) — the registry and selection rules this seam follows.
 - [`llm-deepagens` configuration](../llm/llm-deepagens/src/config.ts) — the gateway route that provides the shipped image backend through its `imageModel` setting.
 
@@ -43,6 +44,6 @@ The image group lets the chat model create pictures during a conversation. One s
 <details>
 <summary>Working context for maintainers — click to expand</summary>
 
-The group has no `docs/subsystems/` page yet; its service contract lives in the `image` package README. The H3 video tools still call their own image backends; moving them onto `ctx.image` is open work.
+The H3 video tools still call their own image backends; moving them onto `ctx.image` is open work.
 
 </details>

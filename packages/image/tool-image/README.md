@@ -25,7 +25,7 @@ This package registers `generate_image`, which lets the chat model create one im
 <a id="use-this-package"></a>
 ## Use this package
 
-Load this package with `@deepseek-ai/dsh-image`, at least one usable image provider, and an attachment store. The shipped base composition mounts the service, this tool, and `attachment-local`; the Web `standard` preset adds the tool to each agent. In the shipped composition, set `imageModel` on `llm-deepagens` to make the `deepagens` provider usable.
+Load this package with `@deepseek-ai/dsh-image`, at least one usable image provider, and an attachment store. The shipped base composition mounts the service, this tool, and `attachment-local`; the Web `standard` preset adds the tool to each agent. The shipped composition seeds `imageModel: gpt-image-2` on `llm-deepagens`, so the `deepagens` provider is usable without a settings edit.
 
 ### When to choose it
 

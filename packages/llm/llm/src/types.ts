@@ -355,6 +355,8 @@ export interface LlmDiscoveredModel {
   maxTokens?: number
   /** Accepted input types when disclosed by the catalog or endpoint; absent means unknown. */
   inputModalities?: readonly ModelModality[]
+  /** `true` when the listing tags the model as served by the image-generation endpoint; absent means untagged. */
+  imageGeneration?: boolean
 }
 
 /**

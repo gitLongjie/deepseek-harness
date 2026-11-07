@@ -81,6 +81,29 @@ it('inherits catalog inputs once an incomplete draft has a model id', async () =
   expect(onChange).toHaveBeenCalledTimes(1)
 })
 
+it('adopts a gateway image-generation tag as the catalog endpoint', async () => {
+  const onChange = vi.fn()
+  render(<ModelListEditor
+    models={[]} onChange={onChange} catalogProvider="deepagens"
+    probe={{ settingsNs: 'llm-deepagens', provider: 'deepagens', baseURL: 'https://gateway.test/v1' }}
+    disabled={false} t={key => en[key]} onBusyChange={() => {}}
+    operations={operations(() => Promise.resolve({
+      kind: 'found',
+      models: [
+        { id: 'chat', name: 'Chat' },
+        { id: 'flux-1', name: 'Flux 1', imageGeneration: true },
+      ],
+    }))}
+  />)
+  fireEvent.click(screen.getByRole('button', { name: en.fetchModels }))
+  const picker = await screen.findByRole('dialog', { name: en.fetchTitle })
+  fireEvent.click(within(picker).getByRole('button', { name: en.fetchAdopt }))
+  expect(onChange).toHaveBeenCalledWith([
+    { id: 'chat', name: 'Chat' },
+    { id: 'flux-1', name: 'Flux 1', endpoint: 'image-generation' },
+  ])
+})
+
 it('restores inherited image input after a failed catalog read is retried manually', async () => {
   const discover = vi.fn<ModelsOperations['discoverModels']>()
     .mockResolvedValueOnce({ kind: 'refused', message: 'Catalog unavailable' })

@@ -33,7 +33,7 @@ kind: "package-reference"
 
 ### 最小配置
 
-加载服务并让唯一可用的提供方自动选中，或用 `provider` 固定一个。在内置组合中，`llm-deepagens` 注册 `deepagens` 提供方，当其 `imageModel` 设置指定了网关图片模型后即可用。
+加载服务并让唯一可用的提供方自动选中，或用 `provider` 固定一个。在内置组合中，`llm-deepagens` 注册 `deepagens` 提供方并写入 `imageModel: gpt-image-2`，因此无需改设置即可生图；登录时会把该 id 替换为网关目录中第一个带 `image-generation` 标签的模型。
 
 ```yaml
 - name: '@deepseek-ai/dsh-image'

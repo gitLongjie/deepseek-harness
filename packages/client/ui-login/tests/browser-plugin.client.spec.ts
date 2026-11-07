@@ -129,7 +129,7 @@ describe('ui-login apply', () => {
           { status: 200 },
         ))
       }
-      if (url.endsWith('/api/usage/token')) {
+      if (url.endsWith('/api/usage/token/')) {
         return Promise.resolve(new Response(JSON.stringify({
           code: true, data: { total_used: 1, total_available: 2, unlimited_quota: false },
         }), { status: 200 }))

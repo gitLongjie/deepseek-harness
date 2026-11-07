@@ -33,7 +33,7 @@ Choose the service when a plugin or tool must generate images without hard-codin
 
 ### Minimal configuration
 
-Load the service and let a single usable provider auto-select, or pin one with `provider`. In the shipped composition, `llm-deepagens` registers the `deepagens` provider, which becomes usable once its `imageModel` setting names a gateway image model.
+Load the service and let a single usable provider auto-select, or pin one with `provider`. In the shipped composition, `llm-deepagens` registers the `deepagens` provider and seeds `imageModel: gpt-image-2` so generation works without a settings edit; sign-in replaces that id with the first model the gateway listing tags `image-generation`.
 
 ```yaml
 - name: '@deepseek-ai/dsh-image'

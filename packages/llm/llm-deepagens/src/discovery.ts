@@ -40,7 +40,12 @@ interface ListingEntry {
   max_output_tokens?: unknown
   /** Catalog input types. Token-api publishes this from model metadata; official listings omit it. */
   input_modalities?: unknown
+  /** Token-api endpoint tags; `image-generation` marks a model served by `POST /images/generations`. */
+  supported_endpoint_types?: unknown
 }
+
+/** Token-api endpoint tag for models served by the OpenAI-compatible images endpoint. */
+const IMAGE_GENERATION_ENDPOINT = 'image-generation'
 
 /** Input types this build can send. Other listed values, such as audio, are ignored. */
 const SUPPORTED_INPUT_MODALITIES = ['text', 'image'] as const satisfies readonly ModelModality[]
@@ -157,12 +162,15 @@ function readListing(body: unknown): LlmDiscoveredModel[] {
     const contextWindow = capacity(entry?.context_window, entry?.context_length)
     const maxTokens = capacity(entry?.max_output_tokens, entry?.max_tokens)
     const inputModalities = listedInputModalities(entry?.input_modalities)
+    const endpointTypes = entry?.supported_endpoint_types
+    const imageGeneration = Array.isArray(endpointTypes) && endpointTypes.includes(IMAGE_GENERATION_ENDPOINT)
     models.push({
       id,
       ...name === undefined ? {} : { name },
       ...contextWindow === undefined ? {} : { contextWindow },
       ...maxTokens === undefined ? {} : { maxTokens },
       ...inputModalities === undefined ? {} : { inputModalities },
+      ...imageGeneration ? { imageGeneration: true } : {},
     })
   }
   return models
