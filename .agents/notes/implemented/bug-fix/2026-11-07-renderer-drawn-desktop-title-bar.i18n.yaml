@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-11-07-renderer-drawn-desktop-title-bar.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-11-07-renderer-drawn-desktop-title-bar.md
+/agent-note-the-desktop-title-bar-is-drawn-by-the-renderer-on-windows-and-macos:
+  en: 977fca6e9eb0900c
+  zh: bb2b4dd3029e1274
+/agent-note-the-desktop-title-bar-is-drawn-by-the-renderer-on-windows-and-macos/problem:
+  en: 3296ff54be4af7cd
+  zh: a7e513c34ecd95c0
+/agent-note-the-desktop-title-bar-is-drawn-by-the-renderer-on-windows-and-macos/decision:
+  en: 1c67b63aa4fcdb6c
+  zh: 099eb323b6208e97
+/agent-note-the-desktop-title-bar-is-drawn-by-the-renderer-on-windows-and-macos/alternatives-considered:
+  en: 1893731178d87255
+  zh: d6f5c52b63079d50
+/agent-note-the-desktop-title-bar-is-drawn-by-the-renderer-on-windows-and-macos/consequences:
+  en: 5e6951093c26b264
+  zh: fce3a2447aa2e997
+/agent-note-the-desktop-title-bar-is-drawn-by-the-renderer-on-windows-and-macos/verification:
+  en: 665731c4bc890cab
+  zh: ff3e0f61bb738dc4

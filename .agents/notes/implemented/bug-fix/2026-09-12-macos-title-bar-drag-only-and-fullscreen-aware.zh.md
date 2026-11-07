@@ -1,4 +1,4 @@
-# Agent Note：macOS 标题栏只保留拖拽区，并跟随原生全屏
+# Agent Note：macOS 标题栏跟随原生全屏
 
 Status: implemented
 
@@ -10,7 +10,7 @@ Status: implemented
 
 ## 决策
 
-`apps/desktop/src/render/title-bar.ts` 在平台为 darwin 时不再绘制品牌图标（也不再解析图标来源）：标题栏收缩为拖拽区加更新位，整体位于 80px 红绿灯内缩之后；Windows 与 Linux 保留带品牌的栏。`apps/desktop/src/main/index.ts` 的 createWindow 通过新频道 `dsh:window:fullscreen-change` 转发 `enter-full-screen`/`leave-full-screen`，渲染端切换 `body[data-dsh-fullscreen]`，对应样式规则隐藏标题栏、清零 body 顶部内边距与已发布的 `--dsh-shell-top-inset`，使固定定位的客户端浮层在全屏期间填满整个窗口高度。
+`apps/desktop/src/render/title-bar.ts` 在平台为 darwin 时不绘制品牌图标。红绿灯画在页面里，不再留成一条空的内缩；这套外观记在[渲染进程绘制的标题栏](2026-11-07-renderer-drawn-desktop-title-bar.zh.md)。`apps/desktop/src/main/index.ts` 的 createWindow 通过 `dsh:window:fullscreen-change` 转发 `enter-full-screen`/`leave-full-screen`，渲染端切换 `body[data-dsh-fullscreen]` 和 `html[data-fullscreen]`。这些规则隐藏标题栏、清零 body 顶部内边距和已发布的顶部内缩，使固定定位的客户端浮层在全屏期间填满窗口。macOS 的缩放灯调用 `setFullScreen`，因此走的就是这条路径。
 
 ## 已考虑的替代方案
 
@@ -20,8 +20,8 @@ Status: implemented
 
 ## 验证
 
-`apps/desktop/tests/title-bar.spec.ts` 断言 darwin 安装不渲染 `.dsh-titlebar-brand`，全屏载荷切换 `data-dsh-fullscreen`，且注入的样式文本包含隐藏与清零规则。`pnpm --filter @deepseek-ai/dsh-desktop run test`（106 个测试）与 `run typecheck` 通过。
+`apps/desktop/tests/title-bar.spec.ts` 断言 darwin 安装渲染红绿灯且没有菜单按钮，全屏载荷切换 `data-dsh-fullscreen` 和 `data-fullscreen`，且注入的样式文本包含隐藏与清零规则。
 
 ## 后果
 
-macOS 标题栏除更新位外为空，OEM favicon 解析器不再在 macOS 上运行——favicon 链接缺失在 macOS 不再大声失败，而文档本身仍消费该链接。全屏推送在所有平台接线，未来 Windows/Linux 上的 `win.setFullScreen` 调用方会免费获得同样的标题栏隐藏。
+macOS 标题栏绘制红绿灯、拖拽区和更新位，不解析品牌图标。全屏推送在所有平台接线。macOS 的缩放控件调用 `setFullScreen`，Windows 或 Linux 上的 `win.setFullScreen` 调用方会得到同样的标题栏隐藏。

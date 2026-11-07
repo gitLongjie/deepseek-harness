@@ -1,22 +1,17 @@
 /**
  * Desktop-only custom title bar, installed by the render entry before the web
- * app boots. The window runs frameless on Windows and Linux; there this module draws
- * the bar with the 编辑/视图/窗口/帮助 menu buttons leading at the left edge (no
- * brand mark — the sidebar owns the product identity), the drag region, and the
- * window controls; macOS draws only the bare drag bar
- * (see the platform branch below); it shifts the app below it through a body
- * top padding and publishes that inset for fixed client overlays; routes menu clicks to the main-process
- * application menu over IPC and drives the window controls over the existing
- * generic bridge. The chrome branches on the preload bridge's platform:
- * macOS draws none of that — no menus, no window controls: the
- * native traffic lights (main/desktop/window-chrome.ts hiddenInset) own
- * minimize/maximize/close, the system menu bar owns the menus, and the bar is
- * the drag region and the update slot past the lights inset; Linux keeps the
- * menu buttons and swaps the Windows control stack for Adwaita-style circular
- * controls without the red close fill. The main process pushes native
- * fullscreen state over dsh:window:fullscreen-change and the bar hides itself,
- * with the body shift and the published top inset, while the window is
- * fullscreen.
+ * app boots. The window is frameless on every platform, so this module draws
+ * the bar inside the page: Windows and Linux lead with the 编辑/视图/窗口/帮助
+ * menu buttons (no brand mark — the sidebar owns the product identity), the
+ * drag region, and the window controls; macOS draws traffic-light controls on
+ * the left (the system menu bar owns the menus) and the same drag region.
+ * The bar sits below portaled menus, toasts, and modal layers, and it publishes
+ * the top inset those overlays already clear, so popup content is not trapped
+ * under a native caption. Linux keeps the menu buttons and swaps the Windows
+ * control stack for Adwaita-style circular controls without the red close
+ * fill. The main process pushes native fullscreen state over
+ * dsh:window:fullscreen-change and the bar hides itself, with the body shift
+ * and the published insets, while the window is fullscreen.
  * @module @deepseek-ai/dsh-desktop/render/title-bar
  */
 
@@ -24,11 +19,14 @@
 export const TITLE_BAR_HEIGHT_PX = 36
 
 /**
- * Left inset (px) the macOS bar reserves for the native traffic lights that
- * main/desktop/window-chrome.ts pins at x=12 — three 12px lights with 8px gaps
- * end at 64px, and the bar content starts past that.
+ * Stacking level of the bar. Modal backdrops, portaled menus, and toasts start
+ * at 1000, and the sidebar column is 30, so popup content paints over the bar
+ * while ordinary page chrome stays under it.
  */
-export const MACOS_TRAFFIC_LIGHTS_INSET_PX = 80
+const TITLE_BAR_Z_INDEX = 40
+
+/** Extra air overlays keep below the bar, matching the frame's overlay inset. */
+const OVERLAY_CLEARANCE_GAP_PX = 20
 
 /** The platforms the title bar styles for. */
 export type TitleBarPlatform = 'darwin' | 'win32' | 'linux'
@@ -77,6 +75,7 @@ const TITLE_BAR_LOCALES = {
     'menu.help': '帮助',
     'control.minimize': '最小化',
     'control.maximize': '最大化',
+    'control.zoom': '全屏',
     'control.close': '关闭',
   },
   en: {
@@ -86,6 +85,7 @@ const TITLE_BAR_LOCALES = {
     'menu.help': 'Help',
     'control.minimize': 'Minimize',
     'control.maximize': 'Maximize',
+    'control.zoom': 'Full screen',
     'control.close': 'Close',
   },
 } as const
@@ -116,12 +116,16 @@ type IpcSender = {
 }
 
 /** Control button metadata: accessible-label key and its 10x10 glyph path. */
-const CONTROLS: ReadonlyArray<{
+interface TitleBarControl {
   channel: string
-  labelKey: 'control.minimize' | 'control.maximize' | 'control.close'
+  labelKey: 'control.minimize' | 'control.maximize' | 'control.zoom' | 'control.close'
   glyph: string
   danger?: boolean
-}> = [
+  light?: 'close' | 'minimize' | 'zoom'
+}
+
+/** Windows and Linux controls, trailing the bar: minimize, maximize, close. */
+const CONTROLS: ReadonlyArray<TitleBarControl> = [
   {
     channel: WINDOW_CHANNELS.minimize,
     labelKey: 'control.minimize',
@@ -140,13 +144,40 @@ const CONTROLS: ReadonlyArray<{
   },
 ]
 
+/**
+ * macOS traffic lights, leading the bar. Close, minimize, then zoom — the
+ * green light toggles fullscreen through the shared zoom channel.
+ */
+const MACOS_CONTROLS: ReadonlyArray<TitleBarControl> = [
+  {
+    channel: WINDOW_CHANNELS.close,
+    labelKey: 'control.close',
+    glyph: 'M0 0l10 10M10 0L0 10',
+    light: 'close',
+  },
+  {
+    channel: WINDOW_CHANNELS.minimize,
+    labelKey: 'control.minimize',
+    glyph: 'M0 5h10',
+    light: 'minimize',
+  },
+  {
+    channel: WINDOW_CHANNELS.toggleMaximize,
+    labelKey: 'control.zoom',
+    glyph: 'M5 1v8M1 5h8',
+    light: 'zoom',
+  },
+]
+
 /** Re-render the localized text of the menu buttons and window controls. */
 function applyTitleBarLocale(locale: TitleBarLocale, doc: Document): void {
   doc.querySelectorAll<HTMLButtonElement>('#dsh-desktop-titlebar .dsh-titlebar-menu-btn').forEach((button) => {
     const key = button.dataset.labelKey as TitleBarKey
     button.textContent = TITLE_BAR_LOCALES[locale][key]
   })
-  doc.querySelectorAll<HTMLButtonElement>('#dsh-desktop-titlebar .dsh-titlebar-controls button').forEach((button) => {
+  doc.querySelectorAll<HTMLButtonElement>(
+    '#dsh-desktop-titlebar .dsh-titlebar-controls button, #dsh-desktop-titlebar .dsh-titlebar-traffic button',
+  ).forEach((button) => {
     const key = button.dataset.labelKey as TitleBarKey
     button.setAttribute('aria-label', TITLE_BAR_LOCALES[locale][key])
   })
@@ -155,10 +186,14 @@ function applyTitleBarLocale(locale: TitleBarLocale, doc: Document): void {
 /** The injected stylesheet: app shift, bar chrome, drag regions, hover states. */
 const SHARED_STYLE_TEXT = `
 html, body { height: 100%; }
+html {
+  --dsh-shell-top-inset: ${TITLE_BAR_HEIGHT_PX}px;
+  --dsh-frame-chrome-top: ${TITLE_BAR_HEIGHT_PX}px;
+  --dsh-frame-overlay-top: ${TITLE_BAR_HEIGHT_PX + OVERLAY_CLEARANCE_GAP_PX}px;
+}
 body {
   box-sizing: border-box;
   padding-top: ${TITLE_BAR_HEIGHT_PX}px;
-  --dsh-shell-top-inset: ${TITLE_BAR_HEIGHT_PX}px;
 }
 #dsh-desktop-titlebar {
   position: fixed;
@@ -166,7 +201,7 @@ body {
   left: 0;
   right: 0;
   height: ${TITLE_BAR_HEIGHT_PX}px;
-  z-index: 2147483647;
+  z-index: ${TITLE_BAR_Z_INDEX};
   display: flex;
   align-items: center;
   box-sizing: border-box;
@@ -179,6 +214,15 @@ body {
   user-select: none;
   -webkit-app-region: drag;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+/* Portaled overlays follow the bar in document order. no-drag on them wins
+   the overlap, so a popup that paints over the bar still receives the click. */
+body > :not(#root):not(#dsh-desktop-titlebar) {
+  -webkit-app-region: no-drag;
+}
+html body #dsh-desktop-titlebar,
+html[data-platform='darwin'] body #dsh-desktop-titlebar {
+  -webkit-app-region: drag;
 }
 #dsh-desktop-titlebar .dsh-titlebar-menubar {
   display: inline-flex;
@@ -239,7 +283,11 @@ body {
 }
 body[data-dsh-fullscreen='true'] {
   padding-top: 0;
+}
+html:has(body[data-dsh-fullscreen='true']) {
   --dsh-shell-top-inset: 0px;
+  --dsh-frame-chrome-top: 0px;
+  --dsh-frame-overlay-top: ${OVERLAY_CLEARANCE_GAP_PX}px;
 }
 body[data-dsh-fullscreen='true'] #dsh-desktop-titlebar {
   display: none;
@@ -274,11 +322,40 @@ const LINUX_STYLE_TEXT = `
 }
 `
 
-/** macOS inset: the bar keeps its drag role but starts past the traffic lights. */
+/**
+ * macOS traffic lights: 12px circles inside a 20px hit target, leading the bar.
+ * The glyph stays hidden until hover, matching the system lights.
+ */
 const MACOS_STYLE_TEXT = `
-#dsh-desktop-titlebar {
-  padding-left: ${MACOS_TRAFFIC_LIGHTS_INSET_PX}px;
+#dsh-desktop-titlebar .dsh-titlebar-traffic {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  height: 100%;
+  gap: 8px;
+  margin-left: 8px;
+  margin-right: 4px;
+  -webkit-app-region: no-drag;
 }
+#dsh-desktop-titlebar .dsh-titlebar-traffic button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 4px;
+  border: none;
+  border-radius: 50%;
+  background-clip: content-box;
+  color: transparent;
+  cursor: default;
+}
+#dsh-desktop-titlebar .dsh-titlebar-traffic button:hover {
+  color: rgb(0 0 0 / 0.55);
+}
+#dsh-desktop-titlebar .dsh-titlebar-traffic button[data-light='close'] { background-color: #ff5f57; }
+#dsh-desktop-titlebar .dsh-titlebar-traffic button[data-light='minimize'] { background-color: #febc2e; }
+#dsh-desktop-titlebar .dsh-titlebar-traffic button[data-light='zoom'] { background-color: #28c840; }
 `
 
 /**
@@ -292,6 +369,23 @@ function titleBarStyleText(platform: TitleBarPlatform): string {
   if (platform === 'darwin') return SHARED_STYLE_TEXT + MACOS_STYLE_TEXT
   if (platform === 'win32') return SHARED_STYLE_TEXT + WINDOWS_STYLE_TEXT
   return SHARED_STYLE_TEXT + LINUX_STYLE_TEXT
+}
+
+/** Append one platform's window-control buttons and wire each to its IPC channel. */
+function appendWindowButtons(doc: Document, parent: HTMLElement, controls: ReadonlyArray<TitleBarControl>, ipc: IpcSender): void {
+  for (const control of controls) {
+    const button = doc.createElement('button')
+    button.type = 'button'
+    button.dataset.labelKey = control.labelKey
+    button.setAttribute('aria-label', TITLE_BAR_LOCALES.zh[control.labelKey])
+    if (control.danger === true) button.className = 'dsh-titlebar-close'
+    if (control.light !== undefined) button.dataset.light = control.light
+    button.innerHTML = `<svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="${control.glyph}" stroke="currentColor" stroke-width="1"/></svg>`
+    button.addEventListener('click', () => {
+      ipc.send(control.channel)
+    })
+    parent.append(button)
+  }
 }
 
 /**
@@ -315,9 +409,14 @@ export function installTitleBar(doc: Document, ipc: IpcSender): void {
   const bar = doc.createElement('div')
   bar.id = 'dsh-desktop-titlebar'
 
-  // macOS renders neither the menu buttons (the system menu bar owns them) nor
-  // the window controls (the native traffic lights own them).
-  if (platform !== 'darwin') {
+  // macOS keeps menus in the system menu bar and draws traffic lights here.
+  // Windows and Linux draw the in-window menus because they have no system bar.
+  if (platform === 'darwin') {
+    const traffic = doc.createElement('span')
+    traffic.className = 'dsh-titlebar-traffic'
+    appendWindowButtons(doc, traffic, MACOS_CONTROLS, ipc)
+    bar.append(traffic)
+  } else {
     const menubar = doc.createElement('span')
     menubar.className = 'dsh-titlebar-menubar'
     for (const menu of MENUS) {
@@ -348,22 +447,15 @@ export function installTitleBar(doc: Document, ipc: IpcSender): void {
   if (platform !== 'darwin') {
     const controlsWrap = doc.createElement('span')
     controlsWrap.className = 'dsh-titlebar-controls'
-
-    for (const control of CONTROLS) {
-      const button = doc.createElement('button')
-      button.type = 'button'
-      button.dataset.labelKey = control.labelKey
-      button.setAttribute('aria-label', TITLE_BAR_LOCALES.zh[control.labelKey])
-      if (control.danger === true) button.className = 'dsh-titlebar-close'
-      button.innerHTML = `<svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="${control.glyph}" stroke="currentColor" stroke-width="1"/></svg>`
-      button.addEventListener('click', () => {
-        ipc.send(control.channel)
-      })
-      controlsWrap.append(button)
-    }
-
+    appendWindowButtons(doc, controlsWrap, CONTROLS, ipc)
     bar.append(controlsWrap)
   }
+
+  bar.addEventListener('dblclick', (event) => {
+    const target = event.target
+    if (target instanceof Element && target.closest('button') !== null) return
+    ipc.send(WINDOW_CHANNELS.toggleMaximize)
+  })
 
   // The declared DOM types keep `body` non-null, but a head-phase script
   // really observes it before parse; the omitted-property view keeps the
@@ -389,7 +481,12 @@ export function installTitleBar(doc: Document, ipc: IpcSender): void {
   // body shift and the published top inset follow so client overlays fill the
   // full height. Read at event time: the head-phase install precedes <body>.
   ipc.on?.(FULLSCREEN_CHANGE_CHANNEL, (payload: unknown) => {
-    if (payload === true) doc.body.dataset.dshFullscreen = 'true'
-    else delete doc.body.dataset.dshFullscreen
+    if (payload === true) {
+      doc.body.dataset.dshFullscreen = 'true'
+      doc.documentElement.setAttribute('data-fullscreen', '')
+    } else {
+      delete doc.body.dataset.dshFullscreen
+      doc.documentElement.removeAttribute('data-fullscreen')
+    }
   })
 }

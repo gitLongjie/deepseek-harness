@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   FULLSCREEN_CHANGE_CHANNEL,
   installTitleBar,
-  MACOS_TRAFFIC_LIGHTS_INSET_PX,
   MENU_POPUP_CHANNEL,
   normalizeTitleBarPlatform,
   TITLE_BAR_HEIGHT_PX,
@@ -39,6 +38,10 @@ describe('desktop title bar', () => {
     const style = document.getElementById('dsh-desktop-titlebar-style')
     expect(style?.textContent).toContain(`padding-top: ${TITLE_BAR_HEIGHT_PX}px`)
     expect(style?.textContent).toContain(`--dsh-shell-top-inset: ${TITLE_BAR_HEIGHT_PX}px`)
+    expect(style?.textContent).toContain(`--dsh-frame-chrome-top: ${TITLE_BAR_HEIGHT_PX}px`)
+    expect(style?.textContent).toContain(`--dsh-frame-overlay-top: ${TITLE_BAR_HEIGHT_PX + 20}px`)
+    expect(style?.textContent).toContain('z-index: 40')
+    expect(style?.textContent).not.toContain('2147483647')
     expect(document.body.firstElementChild?.id).toBe('dsh-desktop-titlebar')
 
     // The menus lead the bar: no brand mark precedes them.
@@ -58,15 +61,21 @@ describe('desktop title bar', () => {
     expect(bar.querySelector('.dsh-titlebar-update-slot + .dsh-titlebar-controls')).not.toBeNull()
   })
 
-  it('renders the macOS chrome: drag-only bar past the traffic-light inset, no menus or controls', () => {
+  it('renders the macOS chrome: traffic lights on the left, no in-window menus', () => {
     const bar = installedBar('darwin')
 
     expect(bar.querySelector('.dsh-titlebar-menu-btn')).toBeNull()
     expect(bar.querySelector('.dsh-titlebar-controls')).toBeNull()
-    expect(bar.querySelector('.dsh-titlebar-spacer + .dsh-titlebar-update-slot')).not.toBeNull()
+    expect(bar.firstElementChild?.className).toBe('dsh-titlebar-traffic')
+    expect(bar.querySelector('.dsh-titlebar-traffic + .dsh-titlebar-spacer + .dsh-titlebar-update-slot')).not.toBeNull()
+
+    const lights = [...bar.querySelectorAll<HTMLButtonElement>('.dsh-titlebar-traffic button')]
+    expect(lights.map(button => button.getAttribute('aria-label'))).toEqual(['关闭', '最小化', '全屏'])
+    expect(lights.map(button => button.dataset.light)).toEqual(['close', 'minimize', 'zoom'])
 
     const style = document.getElementById('dsh-desktop-titlebar-style')
-    expect(style?.textContent).toContain(`padding-left: ${MACOS_TRAFFIC_LIGHTS_INSET_PX}px`)
+    expect(style?.textContent).toContain('#ff5f57')
+    expect(style?.textContent).toContain('#28c840')
     expect(style?.textContent).not.toContain('#e81123')
   })
 
@@ -88,8 +97,10 @@ describe('desktop title bar', () => {
 
     listeners.get(FULLSCREEN_CHANGE_CHANNEL)!(true)
     expect(document.body.getAttribute('data-dsh-fullscreen')).toBe('true')
+    expect(document.documentElement.hasAttribute('data-fullscreen')).toBe(true)
     listeners.get(FULLSCREEN_CHANGE_CHANNEL)!(false)
     expect(document.body.hasAttribute('data-dsh-fullscreen')).toBe(false)
+    expect(document.documentElement.hasAttribute('data-fullscreen')).toBe(false)
   })
 
   it('renders the Linux chrome: menus kept and circular controls without the red close fill', () => {
@@ -103,6 +114,29 @@ describe('desktop title bar', () => {
     const style = document.getElementById('dsh-desktop-titlebar-style')
     expect(style?.textContent).toContain('border-radius: 50%')
     expect(style?.textContent).not.toContain('#e81123')
+  })
+
+  it('routes each macOS traffic light over its own IPC channel', () => {
+    const ipc = ipcMock('darwin')
+    installTitleBar(document, ipc)
+    const buttons = [...document.querySelectorAll<HTMLButtonElement>('.dsh-titlebar-traffic button')]
+    buttonAt(buttons, 0).click()
+    buttonAt(buttons, 1).click()
+    buttonAt(buttons, 2).click()
+    expect(ipc.send).toHaveBeenNthCalledWith(1, WINDOW_CHANNELS.close)
+    expect(ipc.send).toHaveBeenNthCalledWith(2, WINDOW_CHANNELS.minimize)
+    expect(ipc.send).toHaveBeenNthCalledWith(3, WINDOW_CHANNELS.toggleMaximize)
+  })
+
+  it('toggles zoom from a double-click on the drag region and ignores control buttons', () => {
+    const ipc = ipcMock('win32')
+    installTitleBar(document, ipc)
+    const bar = document.getElementById('dsh-desktop-titlebar')!
+    bar.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))
+    const button = bar.querySelector('button')!
+    button.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))
+    expect(ipc.send).toHaveBeenCalledTimes(1)
+    expect(ipc.send).toHaveBeenCalledWith(WINDOW_CHANNELS.toggleMaximize)
   })
 
   it('routes each control click over its own IPC channel', () => {

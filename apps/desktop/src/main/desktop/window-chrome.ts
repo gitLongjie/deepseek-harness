@@ -1,44 +1,45 @@
 /**
- * Per-platform frame chrome for the main BrowserWindow. Windows and Linux go
- * fully frameless — the renderer draws every control (render/title-bar.ts) and
- * drives them over the window-control IPC channels — while macOS keeps the
- * native traffic lights over the same custom bar via `hiddenInset`, because
- * macOS windows are identified by those lights and they carry the platform's
- * native close/minimize/zoom behaviors.
+ * Frame chrome for the main BrowserWindow. Every platform is frameless: the
+ * renderer draws the title bar (render/title-bar.ts) and drives it over the
+ * window-control IPC channels. A native caption, including macOS
+ * `hiddenInset` traffic lights, composites above the page, so popup content
+ * that reaches the top of the window stays covered.
  * @module @deepseek-ai/dsh-desktop/main/desktop/window-chrome
  */
 
-/**
- * The renderer's custom title bar height (render/title-bar.ts
- * TITLE_BAR_HEIGHT_PX); the traffic lights center in it. tests/window-chrome.spec.ts
- * fails when one side moves without the other.
- */
-const CUSTOM_TITLE_BAR_HEIGHT_PX = 36
+/** The frame options spread into `new BrowserWindow(...)`. */
+export type WindowChromeOptions = { readonly frame: false }
 
-/** The native traffic-light button diameter macOS renders. */
-export const TRAFFIC_LIGHT_DIAMETER_PX = 12
-
-/** Where `hiddenInset` pins the traffic lights inside the custom title bar. */
-export const TRAFFIC_LIGHT_POSITION = {
-  x: 12,
-  y: (CUSTOM_TITLE_BAR_HEIGHT_PX - TRAFFIC_LIGHT_DIAMETER_PX) / 2,
-} as const
-
-/** The frame-related BrowserWindow options for one platform. */
-export type WindowChromeOptions =
-  | { frame: false }
-  | { titleBarStyle: 'hiddenInset'; trafficLightPosition: { x: number; y: number } }
+/** The zoom operations a frameless window exposes to the title bar. */
+export interface WindowZoomHost {
+  isFullScreen(): boolean
+  setFullScreen(flag: boolean): void
+  isMaximized(): boolean
+  maximize(): void
+  unmaximize(): void
+}
 
 /**
- * Resolve the frame chrome for a platform. macOS returns the `hiddenInset`
- * pair (native traffic lights over the renderer's bar); every other platform
- * returns fully frameless and leans on the renderer-drawn controls.
+ * Resolve the frame chrome for a platform. Every platform is frameless; the
+ * argument stays so a native caption has to be an explicit branch here.
  * @param platform - the main process's `process.platform`.
  * @returns the options object to spread into `new BrowserWindow(...)`.
  */
-export function resolveWindowChrome(platform: NodeJS.Platform): WindowChromeOptions {
-  if (platform === 'darwin') {
-    return { titleBarStyle: 'hiddenInset', trafficLightPosition: { ...TRAFFIC_LIGHT_POSITION } }
-  }
+export function resolveWindowChrome(_platform: NodeJS.Platform): WindowChromeOptions {
   return { frame: false }
+}
+
+/**
+ * Toggle the platform zoom control. macOS enters or leaves fullscreen (the
+ * green light); every other platform toggles maximized bounds.
+ * @param win - the window that owns the control.
+ * @param platform - the main process's `process.platform`.
+ */
+export function toggleWindowZoom(win: WindowZoomHost, platform: NodeJS.Platform): void {
+  if (platform === 'darwin') {
+    win.setFullScreen(!win.isFullScreen())
+    return
+  }
+  if (win.isMaximized()) win.unmaximize()
+  else win.maximize()
 }

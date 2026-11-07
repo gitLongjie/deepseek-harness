@@ -30,7 +30,7 @@ import { copy, normalizeLocale, type DesktopLocaleId, type DesktopTextKey } from
 import { pinWindowTitle, resolveDesktopWindowTitle } from './desktop/window-title.ts'
 import { resolveAppUserModelId } from './desktop/app-user-model-id.ts'
 import { installApplicationMenu, registerMenuPopupIpc } from './desktop/menu.ts'
-import { resolveWindowChrome } from './desktop/window-chrome.ts'
+import { resolveWindowChrome, toggleWindowZoom } from './desktop/window-chrome.ts'
 import { initUpdater, registerUpdateIpc, setUpdaterLocale } from './updater.ts'
 import { installNotificationActivation, notifyTurnCompletion } from './desktop/completion-notification.ts'
 import {
@@ -517,10 +517,10 @@ function createWindow(): BrowserWindow {
     // taskbar hover tooltip and alt-tab label; page-title-updated must not
     // leak session projections there (pinWindowTitle blocks adoption).
     title: DESKTOP_PRODUCT_NAME,
-    // Per-platform frame chrome (desktop/window-chrome.ts): Windows and Linux
-    // draw the whole bar in the renderer (render/title-bar.ts) over the
-    // window-control IPC channels below; macOS keeps the native traffic lights
-    // over the same bar via hiddenInset.
+    // Frameless on every platform (desktop/window-chrome.ts). The renderer
+    // draws the title bar (render/title-bar.ts) and drives it over the
+    // window-control IPC channels below, so popup content can paint over the
+    // bar instead of sitting under a native caption.
     ...resolveWindowChrome(process.platform),
     backgroundColor: '#ffffff',
     webPreferences: {
@@ -546,19 +546,13 @@ function createWindow(): BrowserWindow {
 
 /**
  * Window-control channels the renderer's title bar sends over the generic IPC
- * bridge (Windows/Linux only; macOS renders no custom controls). Each targets
- * the sender's own window, so a malicious page can only affect the window it
- * lives in.
+ * bridge. Each targets the sender's own window, so a malicious page can only
+ * affect the window it lives in. The zoom channel is fullscreen on macOS and
+ * maximize elsewhere (toggleWindowZoom).
  */
 const WINDOW_CONTROL_CHANNELS: ReadonlyArray<{ channel: string; action: (win: BrowserWindow) => void }> = [
   { channel: 'dsh:window:minimize', action: (win) => { win.minimize() } },
-  {
-    channel: 'dsh:window:toggle-maximize',
-    action: (win) => {
-      if (win.isMaximized()) win.unmaximize()
-      else win.maximize()
-    },
-  },
+  { channel: 'dsh:window:toggle-maximize', action: (win) => { toggleWindowZoom(win, process.platform) } },
   { channel: 'dsh:window:close', action: (win) => { win.close() } },
 ]
 
