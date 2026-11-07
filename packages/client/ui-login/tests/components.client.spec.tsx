@@ -124,33 +124,52 @@ describe('LoginGate', () => {
 })
 
 describe('GatewayAccountSection', () => {
-  /** Sign in against per-URL billing stubs: total and used quota configurable. */
-  async function signInWithBilling(controller: LoginStore, total: number, used: number, status = 200): Promise<void> {
+  /** Sign in against a token-usage stub: used and remaining counts, or a refusal. */
+  async function signInWithTokens(
+    controller: LoginStore,
+    used: number,
+    remaining: number,
+    status = 200,
+    unlimited = false,
+    avatar: string | null = null,
+  ): Promise<void> {
     vi.stubGlobal('fetch', vi.fn((url: string) => {
       if (url === 'https://claw.deepagens.com/api') {
         return Promise.resolve(new Response(
-          JSON.stringify({ success: true, data: { display_name: '杰哥', avatar: null, api_key: 'sk-1' } }),
+          JSON.stringify({ success: true, data: { display_name: '杰哥', avatar, api_key: 'sk-1' } }),
           { status: 200 },
         ))
       }
-      if (url.includes('billing/subscription')) {
-        return Promise.resolve(new Response(JSON.stringify({ hard_limit_usd: total }), { status }))
-      }
-      return Promise.resolve(new Response(JSON.stringify({ object: 'billing_usage', total_usage: used }), { status }))
+      return Promise.resolve(new Response(JSON.stringify({
+        code: true,
+        data: { total_used: used, total_available: remaining, unlimited_quota: unlimited },
+      }), { status }))
     }))
     await act(async () => { await controller.login('jiege', 'pw') })
   }
 
-  it('renders the gateway identity and the computed balance', async () => {
+  it('renders the gateway identity and the used and remaining token counts', async () => {
     const controller = new LoginStore('https://claw.deepagens.com/api', inertAdapter, dummyApi)
-    await signInWithBilling(controller, 10, 2.5)
-    render(<GatewayAccountSection close={() => {}} controller={controller} t={t} />)
+    await signInWithTokens(controller, 12345, 987655, 200, false, 'https://claw.deepagens.com/a.png')
+    const { container } = render(<GatewayAccountSection close={() => {}} controller={controller} t={t} />)
+    expect(container.querySelector('img')?.getAttribute('src')).toBe('https://claw.deepagens.com/a.png')
     expect(screen.getByText('杰哥')).toBeDefined()
     expect(screen.getByText('已登录网关')).toBeDefined()
-    await waitFor(() => { expect(screen.getByText('$7.50')).toBeDefined() })
-    expect(screen.getByText('余额')).toBeDefined()
+    await waitFor(() => { expect(screen.getByText('12,345')).toBeDefined() })
+    expect(screen.getByText('987,655')).toBeDefined()
+    expect(screen.getByText('已使用 token')).toBeDefined()
+    expect(screen.getByText('剩余 token')).toBeDefined()
     expect(screen.getByRole('link', { name: '控制台' }).getAttribute('href')).toBe('https://claw.deepagens.com/console')
     expect(screen.getByRole('link', { name: '充值' }).getAttribute('href')).toBe('https://claw.deepagens.com/console/topup')
+  })
+
+  it('shows an unlimited remaining quota instead of a zero count', async () => {
+    const controller = new LoginStore('https://claw.deepagens.com/api', inertAdapter, dummyApi)
+    await signInWithTokens(controller, 80, 0, 200, true)
+    render(<GatewayAccountSection close={() => {}} controller={controller} t={t} />)
+    await waitFor(() => { expect(screen.getByText('80')).toBeDefined() })
+    expect(screen.getByText('不限额')).toBeDefined()
+    expect(screen.queryByText('$')).toBeNull()
   })
 
   it('renders nothing while signed out', () => {
@@ -161,14 +180,15 @@ describe('GatewayAccountSection', () => {
 
   it('offers a retry affordance after a failed read and recovers on click', async () => {
     const controller = new LoginStore('https://claw.deepagens.com/api', inertAdapter, dummyApi)
-    await signInWithBilling(controller, 10, 2.5, 500)
+    await signInWithTokens(controller, 12345, 987655, 500)
     render(<GatewayAccountSection close={() => {}} controller={controller} t={t} />)
     await waitFor(() => { expect(screen.getByRole('button', { name: '重新加载' })).toBeDefined() })
-    // The retry path reads the same endpoints; the stub keeps answering 500,
-    // so the affordance stays and no number is invented.
+    expect(screen.getByText('暂不可用')).toBeDefined()
+    // The retry path reads the same endpoint; the stub keeps answering 500,
+    // so the affordance stays and no count is invented.
     fireEvent.click(screen.getByRole('button', { name: '重新加载' }))
     await waitFor(() => { expect(screen.getByRole('button', { name: '重新加载' })).toBeDefined() })
-    expect(screen.queryByText('$7.50')).toBeNull()
+    expect(screen.queryByText('12,345')).toBeNull()
   })
 })
 

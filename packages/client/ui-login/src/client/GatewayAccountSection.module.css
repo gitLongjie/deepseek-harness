@@ -144,6 +144,8 @@
   font-size: 18px;
   line-height: 28px;
   font-weight: 510;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .retry {

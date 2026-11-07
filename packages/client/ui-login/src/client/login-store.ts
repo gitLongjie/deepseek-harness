@@ -110,12 +110,16 @@ function writeStoredLogin(record: StoredLogin | null): void {
   }
 }
 
-/** One gateway balance read outcome as the account section renders it. */
+/** One gateway token-quota read outcome as the account section renders it. */
 export type GatewayBalance =
   /** A read is in flight and no value is available yet. */
   | { status: 'loading' }
-  /** Remaining quota in the gateway's display dollars, read at `checkedAt`. */
-  | { status: 'ready'; remainingUsd: number; checkedAt: number }
+  /**
+   * Token counts from the gateway, read at `checkedAt`.
+   * `unlimited` means the key has no remaining cap; `remainingTokens` is then 0
+   * and the page shows the unlimited label instead of that count.
+   */
+  | { status: 'ready'; usedTokens: number; remainingTokens: number; unlimited: boolean; checkedAt: number }
   /** The last read failed and no earlier value survives. */
   | { status: 'unavailable' }
 
@@ -209,48 +213,30 @@ export class LoginStore {
   }
 
   /**
-   * Read the signed-in account's remaining quota from the gateway's billing
-   * endpoints. Wire contract (new-api lineage, the Deepagens Claw gateway):
-   * `GET /v1/dashboard/billing/subscription` answers
-   * `{hard_limit_usd}` — total quota, remaining plus used, in display dollars;
-   * `GET /v1/dashboard/billing/usage` answers `{total_usage}` — used quota in
-   * the same unit. The difference is the remaining balance, both for a key
-   * capped below the account quota and for an unlimited one.
+   * Read the signed-in key's token quota from the gateway. Wire contract
+   * (new-api lineage, `GET /api/usage/token`, the Deepagens Claw gateway):
+   * `{code: true, data: {total_used, total_available, unlimited_quota}}`.
+   * `total_used` and `total_available` are token counts, not display dollars.
+   * `unlimited_quota` true means the key has no remaining cap.
    * @param apiKey - the signed-in session's key.
-   * @returns the ready balance fact.
-   * @throws when either endpoint refuses, answers non-JSON, or omits its number.
+   * @returns the ready token-quota fact.
+   * @throws when the endpoint refuses, answers non-JSON, or omits a count.
    */
   private async readGatewayBalance(apiKey: string): Promise<GatewayBalance> {
     const origin = this.baseUrl()
-    // The usage read covers the account's lifetime: the endpoint clips to the
-    // requested window, and this deployment reports no reset period.
-    const end = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10)
-    const readField = async (path: string, field: 'hard_limit_usd' | 'total_usage'): Promise<number> => {
-      const response = await fetch(`${origin}${path}`, { headers: { authorization: `Bearer ${apiKey}` } })
-      const raw = await response.text()
-      let body: unknown = null
-      try {
-        body = JSON.parse(raw)
-      } catch {
-        body = null
-      }
-      const value = typeof body === 'object' && body !== null
-        ? (body as Record<string, unknown>)[field]
-        : undefined
-      if (!response.ok || typeof value !== 'number' || !Number.isFinite(value)) {
-        throw new Error(`HTTP ${response.status}: ${replyExcerpt(raw)}`)
-      }
-      return value
+    const response = await fetch(`${origin}/api/usage/token`, { headers: { authorization: `Bearer ${apiKey}` } })
+    const raw = await response.text()
+    let body: unknown = null
+    try {
+      body = JSON.parse(raw)
+    } catch {
+      body = null
     }
-    const [total, used] = await Promise.all([
-      readField('/v1/dashboard/billing/subscription', 'hard_limit_usd'),
-      readField(`/v1/dashboard/billing/usage?start_date=2000-01-01&end_date=${end}`, 'total_usage'),
-    ])
-    return {
-      status: 'ready',
-      remainingUsd: Math.round((total - used) * 100) / 100,
-      checkedAt: Date.now(),
+    const usage = tokenUsageOf(body)
+    if (!response.ok || usage === null) {
+      throw new Error(`HTTP ${response.status}: ${replyExcerpt(raw)}`)
     }
+    return { status: 'ready', ...usage, checkedAt: Date.now() }
   }
 
   /**
@@ -571,6 +557,43 @@ export class LoginStore {
       state.balance = null
     })
   }
+}
+
+/** Token counts taken from a `GET /api/usage/token` success body. */
+interface TokenUsageCounts {
+  /** Tokens already spent on this key. */
+  usedTokens: number
+  /** Tokens still available; 0 when `unlimited` is true. */
+  remainingTokens: number
+  /** The key has no remaining cap. */
+  unlimited: boolean
+}
+
+/**
+ * Read token counts from a token-usage body.
+ * @param body - the parsed JSON value, or null when the body was not JSON.
+ * @returns the counts, or null when the body omits a required count.
+ */
+function tokenUsageOf(body: unknown): TokenUsageCounts | null {
+  if (typeof body !== 'object' || body === null) return null
+  const record = body as Record<string, unknown>
+  if (record.code !== true || typeof record.data !== 'object' || record.data === null) return null
+  const data = record.data as Record<string, unknown>
+  const unlimited = data.unlimited_quota === true
+  const usedTokens = quotaCount(data.total_used)
+  const remainingTokens = unlimited ? 0 : quotaCount(data.total_available)
+  if (usedTokens === undefined || remainingTokens === undefined) return null
+  return { usedTokens, remainingTokens, unlimited }
+}
+
+/**
+ * Accept a non-negative quota count.
+ * @param value - one token-usage number field.
+ * @returns the rounded count, or undefined when the field is not a usable count.
+ */
+function quotaCount(value: unknown): number | undefined {
+  if (typeof value !== 'number' || value < 0) return undefined
+  return Math.round(value)
 }
 
 /**
