@@ -1,5 +1,5 @@
 ---
-description: "miaoWork 专家包：把miao云海文章专家作为可安装的专家卡片发布到 dsh 专家市场。"
+description: "miaoWork 专家包：把深度云海文章专家作为可安装的专家卡片发布到 dsh 专家市场。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`@xmanrui/expert-article-publisher` 把「miao云海文章专家」发布为 dsh 专家市场里可下载、可聘用的专家卡片。包内 `experts/article-publisher/` 是完整的专家目录（`preset.yml` 卡片元数据、`agent.cordis.yml` 组合、`skills/` 工具箱——`geo-article-publish` 工作流、API 参考与一次性账号创建脚本），随包附带一个微同步插件，宿主每次启动把专家目录同步进 harness home 的用户预设根（`.agent-presets`），预设名单的用户根在下一次读取时即发现它（trust: user）。专家页对其的展示与聘用经由既有的 agentPresets 投影与暂存机制，本包不新增任何模型侧机制。
+`@xmanrui/expert-article-publisher` 把「深度云海文章专家」发布为 dsh 专家市场里可下载、可聘用的专家卡片。包内 `experts/article-publisher/` 是完整的专家目录（`preset.yml` 卡片元数据、`agent.cordis.yml` 组合、`skills/` 工具箱——`geo-article-publish` 工作流、API 参考与一次性账号创建脚本），随包附带一个微同步插件，宿主每次启动把专家目录同步进 harness home 的用户预设根（`.agent-presets`），预设名单的用户根在下一次读取时即发现它（trust: user）。专家页对其的展示与聘用经由既有的 agentPresets 投影与暂存机制，本包不新增任何模型侧机制。
 
 该专家生成文章或接收用户提供的文章，经 `geo_*` 工具（`@deepseek-ai/dsh-tool-geo-admin`）发布到运行中的 `web-admin-go` 多站点后台，落到选定的 `website_id`。后台地址与账号来自设置 → 插件 → 深度云海卡片，密码保存在 DSH 凭据存储的 `GEO_ADMIN_PASSWORD` 名下、每次调用时解析，工具结果不返回已保存的密码。`skills/geo-article-publish/scripts/setup-account.ps1` 每个后台跑一次，创建最小权限的发文账号（角色「内容编辑」）并把账号密码打印出来，供填入那张卡片。
 

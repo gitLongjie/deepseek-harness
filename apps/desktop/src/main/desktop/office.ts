@@ -8,7 +8,6 @@
 import { cpSync, existsSync, mkdirSync, realpathSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { shell } from 'electron'
 import type { Context } from '@deepseek-ai/cordis'
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import * as officeSkills from '@deepseek-ai/dsh-skill-office'
@@ -16,8 +15,6 @@ import * as officeCreate from '@deepseek-ai/dsh-tool-office-create'
 import * as workspaceDependencies from '@deepseek-ai/dsh-tool-workspace-dependencies'
 import type {} from '@deepseek-ai/dsh-tools'
 import { installOfficeEngineResolution, runtimeArchivePath } from './office-engine.ts'
-
-const CREATE_TOOL_NAMES = new Set(['create_pptx', 'create_docx', 'create_xlsx'])
 
 /** Absolute apps/desktop root (works from both `src/main/desktop` and `dist/main/desktop`). */
 const DESKTOP_ROOT = fileURLToPath(new URL('../../..', import.meta.url))
@@ -174,18 +171,8 @@ export async function mountDesktopOffice(ctx: Context, options: DesktopOfficeMou
     : { source: paths.source, root: paths.root }
   await ctx.plugin(workspaceDependencies, payload)
   await ctx.plugin(officeCreate, payload)
-  // Open created Office files in the OS default app. Diff review cannot show
-  // binary PPTX/DOCX/XLSX contents; opening is the useful completion path.
-  ctx.on('tools/result', (exec, result) => {
-    if (result.isError || !CREATE_TOOL_NAMES.has(exec.name)) return
-    const value = result.value
-    if (typeof value !== 'object' || value === null || !('path' in value)) return
-    const outputPath = value.path
-    if (typeof outputPath !== 'string' || outputPath === '') return
-    void shell.openPath(outputPath).then((error) => {
-      if (error !== '') console.error(`desktop office: failed to open ${outputPath}: ${error}`)
-    })
-  })
+  // Created files stay closed. The right Sidebar document preview reads them;
+  // opening Word, PowerPoint, or Excel here locks the file before that read.
   if (!paths.skillsAvailable) return
   const archive = runtimeArchivePath(paths.runtimeDir) === undefined
     ? undefined

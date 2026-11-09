@@ -102,7 +102,17 @@
 }
 
 .body:has([data-pdf-preview]) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  white-space: normal;
   background: var(--dsw-alias-bg-document-preview);
+}
+
+.body:has([data-pdf-preview]) > * {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
 }
 
 .wrap {

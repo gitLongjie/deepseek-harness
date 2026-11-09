@@ -72,6 +72,8 @@ it('passes configured limits to the kit, reuses the converter, and removes all s
     timeoutMs: 321, fontDirectories: [], fontFallbacks: [['sans-serif', 'Arial'], ['serif', 'Times New Roman']],
     maxFontFiles: 12, maxFontFileBytes: 4096, maxLoadedFontBytes: 8192 })
   const provider = await mount(config)
+  expect(kit.create).toHaveBeenCalledOnce()
+  expect(render).not.toHaveBeenCalled()
   let scratch = ''
   render.mockImplementation(async ({ inputPath, outputPath }) => {
     scratch = dirname(inputPath)
@@ -96,10 +98,12 @@ it('passes configured limits to the kit, reuses the converter, and removes all s
   expect(result.pdf).toEqual(Uint8Array.from(pdf))
 })
 
-it('refuses an oversized input before allocating a converter', async () => {
+it('refuses an oversized input without starting another converter', async () => {
   const provider = await mount({ maxInputBytes: 3 })
+  const started = kit.create.mock.calls.length
   await expect(provider.convert(request)).rejects.toMatchObject({ code: 'input-too-large' })
-  expect(kit.create).not.toHaveBeenCalled()
+  expect(kit.create).toHaveBeenCalledTimes(started)
+  expect(render).not.toHaveBeenCalled()
 })
 
 it.each(['missing', 'directory', 'not-pdf', 'incomplete', 'too-large'] as const)('rejects %s kit output and removes its directory', async (kind) => {
@@ -118,8 +122,10 @@ it.each(['missing', 'directory', 'not-pdf', 'incomplete', 'too-large'] as const)
 })
 
 it('retries initialization after a failed kit factory and reports unclassified errors', async () => {
-  const provider = await mount()
+  kit.create.mockReset()
+  kit.create.mockImplementation(async () => ({ ...converter }))
   kit.create.mockRejectedValueOnce(Object.assign(new Error('absent asset'), { code: 'unavailable' }))
+  const provider = await mount()
   await expect(provider.convert(request)).rejects.toMatchObject({ code: 'unavailable' })
   expect(await provider.convert(request)).toMatchObject({ pdf: Uint8Array.from(pdf), missingFonts: ['Missing Serif'] })
   expect(kit.create).toHaveBeenCalledTimes(2)
@@ -213,10 +219,10 @@ it.each(['caller', 'provider'] as const)('joins late kit completion and scratch 
 })
 
 it('joins initialization during disposal and never starts a render after cancellation', async () => {
-  const provider = await mount()
   const entered = Promise.withResolvers<undefined>()
   const release = Promise.withResolvers<Converter>()
   kit.create.mockImplementationOnce(() => { entered.resolve(undefined); return release.promise })
+  const provider = await mount()
   const work = provider.convert(request)
   const rejected = expect(work).rejects.toMatchObject({ code: 'unavailable' })
   await entered.promise
@@ -229,11 +235,13 @@ it('joins initialization during disposal and never starts a render after cancell
   await expect(provider.convert(request)).rejects.toMatchObject({ code: 'unavailable' })
 })
 
-it('rejects caller cancellation before allocating any conversion resources', async () => {
+it('rejects caller cancellation without starting another converter', async () => {
   const provider = await mount()
+  const started = kit.create.mock.calls.length
   const reason = new Error('caller cancelled')
   await expect(provider.convert(request, AbortSignal.abort(reason))).rejects.toBe(reason)
-  expect(kit.create).not.toHaveBeenCalled()
+  expect(kit.create).toHaveBeenCalledTimes(started)
+  expect(render).not.toHaveBeenCalled()
 })
 
 it('rejects relative font directories during provider configuration', async () => {
@@ -248,7 +256,6 @@ it('rejects source capacity below one permitted input before allocating a conver
 })
 
 it('joins every converter disposal before reporting an engine cleanup failure', async () => {
-  const provider = await mount({ maxConcurrentConversions: 2 })
   const entered = Promise.withResolvers<undefined>()
   const released = Promise.withResolvers<undefined>()
   const cleanupEntered = Promise.withResolvers<undefined>()
@@ -264,6 +271,7 @@ it('joins every converter disposal before reporting an engine cleanup failure', 
   kit.create.mockReset()
     .mockResolvedValueOnce({ ...converter, dispose: async () => { throw failed } })
     .mockResolvedValueOnce({ ...converter, dispose: async () => { cleanupEntered.resolve(undefined); await cleanupRelease.promise } })
+  const provider = await mount({ maxConcurrentConversions: 2 })
   const work = [provider.convert(distinct(1)), provider.convert(distinct(2))]
   try { await entered.promise } finally { released.resolve(undefined); await Promise.all(work) }
   let disposed = false

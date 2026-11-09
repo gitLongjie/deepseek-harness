@@ -252,6 +252,9 @@ export class CardForm<T> {
    * validators own the constraints no schema can express — so the outcome is
    * read back from the section rather than predicted here. A save that did not
    * land keeps its drafts, so the user can correct them instead of retyping.
+   * A write that rejects is the same outcome: the card reports failure and
+   * leaves the saving state, so the button does not stay on "Saving…" with
+   * discard disabled.
    * @returns settlement after every write and the read-back.
    */
   async save(): Promise<void> {
@@ -261,14 +264,19 @@ export class CardForm<T> {
     this.saving = true
     this.failed = false
     this.publish()
-    let landed = true
-    for (const write of writes) {
-      landed = await write() && landed
+    try {
+      let landed = true
+      for (const write of writes) {
+        landed = await write() && landed
+      }
+      if (landed) this.staged.clear()
+      this.failed = !landed
+    } catch (_rejected) {
+      this.failed = true
+    } finally {
+      this.saving = false
+      this.publish()
     }
-    if (landed) this.staged.clear()
-    this.saving = false
-    this.failed = !landed
-    this.publish()
   }
 
   /**

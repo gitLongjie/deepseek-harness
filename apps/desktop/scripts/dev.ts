@@ -26,6 +26,10 @@ const electronEnvironment: NodeJS.ProcessEnv = {
   // flag is what lets the updater tell the two apart (development never
   // checks the OEM feed).
   DSH_DESKTOP_DEV: '1',
+  // Windows binds the taskbar icon and toast app name to the shortcut that
+  // carries this process's AppUserModelId. The id includes this checkout
+  // root so another clone cannot use the same id.
+  DSH_DESKTOP_DEV_ROOT: repoRoot,
 }
 pinDesktopProductDataRoots(desktopAppDataDir(process.platform, electronEnvironment), electronEnvironment)
 

@@ -163,25 +163,31 @@ function PdfPage({ document, page, requested: initiallyRequested, onVisible, sig
       renderSignal.throwIfAborted()
       const buffer = node.ownerDocument.createElement('canvas')
       try {
+        const show = (painted: { readonly width: number; readonly height: number }): void => {
+          renderSignal.throwIfAborted()
+          const context = node.getContext('2d')
+          if (context === null) throw new Error('PDF canvas has no 2D context')
+          node.width = buffer.width
+          node.height = buffer.height
+          node.style.setProperty('--pdf-page-width', `${painted.width}px`)
+          node.style.setProperty('--pdf-page-height', `${painted.height}px`)
+          context.drawImage(buffer, 0, 0)
+          renderedZoom.current = zoom
+          setWidth(painted.width)
+          onWidth?.(painted.width)
+          setState('ready')
+        }
+        let shown = false
         const size = await renderPdfPage(document, page, buffer, renderSignal, window.devicePixelRatio * zoom,
           textTask.current === undefined ? (pdfPage, viewport) => {
             newText = pdfTextRenderer(text.current as HTMLDivElement)(pdfPage, viewport)
             return newText
-          } : undefined)
+          } : undefined,
+          (painted) => { show(painted); shown = true })
+        if (!shown) show(size)
         renderSignal.throwIfAborted()
-        const context = node.getContext('2d')
-        if (context === null) throw new Error('PDF canvas has no 2D context')
-        node.width = buffer.width
-        node.height = buffer.height
-        node.style.setProperty('--pdf-page-width', `${size.width}px`)
-        node.style.setProperty('--pdf-page-height', `${size.height}px`)
-        context.drawImage(buffer, 0, 0)
         textTask.current ??= newText
         newText = undefined
-        renderedZoom.current = zoom
-        setWidth(size.width)
-        onWidth?.(size.width)
-        setState('ready')
       } finally {
         buffer.width = buffer.height = 0
         newText?.cancel()

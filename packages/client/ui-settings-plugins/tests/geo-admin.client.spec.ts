@@ -86,6 +86,26 @@ describe('GeoAdminCardController', () => {
     await vi.waitFor(() => { expect(host.set).toHaveBeenCalledWith('baseUrl', 'http://10.0.0.2:8001') })
   })
 
+  it('leaves the saving state when a settings write rejects', async () => {
+    const host = acceptingHost()
+    host.set.mockImplementationOnce(() => Promise.reject(new Error('disconnected')))
+    const credentials = credentialsApi(false)
+    const controller = new GeoAdminCardController(host.scope, credentials.ctx)
+    const face = controller.inject()
+    face.edit('baseUrl', 'http://10.0.0.2:8001')
+    face.edit('password', 's3cret')
+
+    face.save()
+
+    await vi.waitFor(() => { expect(face.hooks.geoAdminCard.getSnapshot().saving).toBe(false) })
+    const state = face.hooks.geoAdminCard.getSnapshot()
+    expect(state.failed).toBe(true)
+    expect(state.dirty).toBe(true)
+    expect(state.fields.baseUrl?.text).toBe('http://10.0.0.2:8001')
+    expect(state.password.text).toBe('s3cret')
+    expect(credentials.set).not.toHaveBeenCalled()
+  })
+
   it('writes the staged password through the credentials domain and re-reads it', async () => {
     const host = acceptingHost()
     const credentials = credentialsApi(false)

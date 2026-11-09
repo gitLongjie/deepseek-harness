@@ -3,7 +3,7 @@ name: geo-article-publish
 description: 编写或接收文章并自动发布到 GEO 多站点内容后台（web-admin-go）。Use when 用户提到发文、发布文章、写文章并发布、投稿、把文章发到站点/后台、推送内容到 web-admin-go、批量发文、内容发布 — even if they only say "帮我发一篇"、"写篇文章发上去" or "把这篇文章发到 XX 站点".
 ---
 
-# miao云海文章专家：文章发布技能
+# 深度云海文章专家：文章发布技能
 
 把一篇（生成或用户提供的）文章发布到 GEO 多站点内容后台。核心动作：确定输入 → 列站点 → 发布 → 回执。发布走 `geo_*` 工具，不在 shell 里拼 HTTP 请求，配置缺失时先用 `geo_configure` 检查并请求补充。
 

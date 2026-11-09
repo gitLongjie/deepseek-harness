@@ -613,6 +613,24 @@ describe('ChangedFiles card', () => {
     expect(props.openChangesReview).not.toHaveBeenCalled()
   })
 
+  it('opens a Word or Excel file in the document preview when the summary did not mark it binary', () => {
+    const t = makeTranslate(en)
+    const files = [
+      changedFile('notes/brief.docx', 3, 1),
+      changedFile('notes/budget.xlsx', 2, 0),
+      changedFile('src/example.ts', 1, 0),
+    ]
+    const card = servedStore({ turn: 1, files, total: 3, added: 6, deleted: 1 })
+    const { props, openFile, view } = renderCard(new PresentedOpenController(), en, { changes, presented: [] }, card)
+    fireEvent.click(view.getByRole('button', { name: t('changes.viewDiff', { name: 'notes/brief.docx' }) }))
+    fireEvent.click(view.getByRole('button', { name: t('changes.viewDiff', { name: 'notes/budget.xlsx' }) }))
+    fireEvent.click(view.getByRole('button', { name: t('changes.viewDiff', { name: 'src/example.ts' }) }))
+    expect(openFile).toHaveBeenCalledTimes(2)
+    expect(openFile).toHaveBeenNthCalledWith(1, 'notes/brief.docx')
+    expect(openFile).toHaveBeenNthCalledWith(2, 'notes/budget.xlsx')
+    expect(props.openChangesReview).toHaveBeenCalledExactlyOnceWith({ sessionId: 'child-session', seq: 5, turn: 1 }, 2)
+  })
+
   it('hides changed files and avoids summary reads when developer tools are off', () => {
     const props = openProps(new PresentedOpenController(), servedStore())
     const base = { ...props, matched: { changes, presented: [] }, openFile: vi.fn(), sessionId: SessionId('child-session'), t: makeTranslate(en) }

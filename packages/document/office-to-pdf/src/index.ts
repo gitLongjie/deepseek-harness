@@ -124,12 +124,13 @@ export class OfficeToPdf extends TypertRemoteService {
       ...(fontFallbacks === undefined ? {} : { fontFallbacks }),
     }
     this.queue = new ConversionQueue(config, this.generation, (bytes, extension, signal) => this.convertBytes(bytes, extension, signal))
+    this.warmConverter()
     ctx.effect(() => async () => {
       this.remoteLifetime.abort()
       await this.queue.dispose()
       await Promise.allSettled(this.remoteRequests)
       const results = await Promise.allSettled(this.slots.map(async (slot) => {
-        const converter = await slot.converter
+        const converter = await slot.converter?.catch(() => undefined)
         await converter?.dispose()
       }))
       const failures = results.filter(result => result.status === 'rejected')
@@ -230,6 +231,26 @@ export class OfficeToPdf extends TypertRemoteService {
     }
   }
 
+  /** Load the first engine during provider startup so the first preview skips that wait. */
+  private warmConverter(): void {
+    const slot: Slot = { busy: false }
+    this.slots.push(slot)
+    this.startConverter(slot)
+  }
+
+  /**
+   * Start one kit converter and keep its rejection on the slot until a conversion observes it.
+   * A startup failure stays observable without becoming an unhandled rejection.
+   * @param slot - idle or newly admitted converter slot.
+   * @returns the same promise stored on the slot.
+   */
+  private startConverter(slot: Slot): Promise<Converter> {
+    const pending = createConverter(this.options)
+    slot.converter = pending
+    void pending.catch(() => undefined)
+    return pending
+  }
+
   private async convertBytes(bytes: Uint8Array, extension: OfficeExtension, signal: AbortSignal): Promise<Pick<OfficeToPdfResult, 'pdf' | 'missingFonts'>> {
     signal.throwIfAborted()
     let slot = this.slots.find(candidate => !candidate.busy)
@@ -237,13 +258,11 @@ export class OfficeToPdf extends TypertRemoteService {
     slot.busy = true
     let directory: string | undefined
     try {
-      if (slot.converter === undefined) {
-        slot.converter = createConverter(this.options).catch((error: unknown) => {
-          delete slot.converter
-          throw error
-        })
-      }
-      const converter = await slot.converter
+      const pending = slot.converter ?? this.startConverter(slot)
+      const converter = await pending.catch((cause: unknown) => {
+        if (slot.converter === pending) delete slot.converter
+        throw cause
+      })
       signal.throwIfAborted()
       directory = await mkdtemp(join(tmpdir(), 'dsh-office-to-pdf-'))
       const inputPath = join(directory, `source.${extension}`)

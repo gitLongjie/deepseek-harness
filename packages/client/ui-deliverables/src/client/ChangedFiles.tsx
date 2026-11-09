@@ -17,6 +17,22 @@ type PreviewProps = Pick<InjectFace<DeliverablesInjected>, 'useChangesDiff' | 'l
 /** Rows shown before the fold; the design's summary height for a closing message. */
 const COLLAPSED_ROWS = 4
 
+/** Office files have a document preview and no useful text comparison. */
+const DOCUMENT_PREVIEW_EXTENSIONS = new Set(['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'])
+
+/**
+ * Whether a changed file should open the document preview.
+ * @param file - one summary row.
+ * @returns true for a binary file or a Word, PowerPoint, or Excel path.
+ */
+function opensDocumentPreview(file: { path: string; binary?: true }): boolean {
+  if (file.binary === true) return true
+  const name = file.path.replaceAll('\\', '/').toLowerCase()
+  const base = name.slice(name.lastIndexOf('/') + 1)
+  const dot = base.lastIndexOf('.')
+  return dot > 0 && DOCUMENT_PREVIEW_EXTENSIONS.has(base.slice(dot + 1))
+}
+
 const GROUPED = new Intl.NumberFormat('en-US')
 
 /** Added and deleted line counts in the card's colors. */
@@ -28,10 +44,11 @@ function Counts({ added, deleted, t }: { added: number; deleted: number } & Prop
 }
 
 /**
- * Render one turn's changed files. The header opens the turn's review in the
- * right Sidebar on its first file. A single file uses only the header; it and
- * multi-file rows preview their comparison after a 500ms hover. A binary file
- * has no text comparison, so its click opens the file's document preview instead.
+ * Render one turn's changed files. A multi-file header opens the turn's review
+ * on its first file. A single file uses only the header and follows the row
+ * click rule; rows preview their comparison after a 500ms hover. A binary file,
+ * and a Word, PowerPoint, or Excel file, has no text comparison, so its click
+ * opens the file's document preview instead.
  * @param props - the recorded summary, the review and file openers, and localized copy.
  * @returns the card.
  */
@@ -52,7 +69,7 @@ export function ChangedFiles({ changes, cwd, openReview, openFile, t, sessionId,
   const rows = foldable && !expanded ? changes.files.slice(0, COLLAPSED_ROWS) : changes.files
   const open = (index: number): void => {
     const file = changes.files[index]
-    if (file?.binary === true) openFile(file.path)
+    if (file !== undefined && opensDocumentPreview(file)) openFile(file.path)
     else openReview(index)
   }
   const header = <button type="button" className={css.header}

@@ -37,7 +37,8 @@ export type RenderPdfText = (page: PDFPageProxy, viewport: PageViewport) => {
  * @param signal - render lifetime.
  * @param pixelRatio - device pixel ratio multiplied by the settled document zoom.
  * @param renderText - optional selectable text layer sharing this page and viewport.
- * @returns the page's CSS dimensions after rendering completes.
+ * @param onBitmap - called after the canvas bitmap is ready and before the text layer settles.
+ * @returns the page's CSS dimensions after the bitmap and text layer settle.
  */
 export async function renderPdfPage(
   document: PdfDocument,
@@ -46,6 +47,7 @@ export async function renderPdfPage(
   signal: AbortSignal,
   pixelRatio: number,
   renderText?: RenderPdfText,
+  onBitmap?: (size: PdfPageSize) => void,
 ): Promise<PdfPageSize> {
   signal.throwIfAborted()
   const page: PDFPageProxy = await document.getPage(pageNumber)
@@ -72,12 +74,16 @@ export async function renderPdfPage(
       text?.cancel()
     }
     signal.addEventListener('abort', cancel, { once: true })
+    const size = { width: viewport.width, height: viewport.height }
     try {
+      await task.promise
+      signal.throwIfAborted()
+      if (!cancelled) onBitmap?.(size)
       text = renderText?.(page, viewport)
       if (signal.aborted) cancel()
-      await Promise.all([task.promise, text?.promise])
+      await text?.promise
       signal.throwIfAborted()
-      return { width: viewport.width, height: viewport.height }
+      return size
     } catch (error) {
       cancel()
       await Promise.allSettled([task.promise, text?.promise])

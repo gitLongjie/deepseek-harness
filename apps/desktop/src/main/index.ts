@@ -7,11 +7,11 @@
  * @module @deepseek-ai/dsh-desktop/main
  */
 
-import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { dirname, join, resolve } from 'node:path'
-import { app, BrowserWindow, dialog, ipcMain, protocol } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, protocol, shell } from 'electron'
 import type { Context } from '@deepseek-ai/cordis'
 import { loadLayeredEnv } from '@deepseek-ai/dsh-app-boot'
 import type { TypertGateway } from '@deepseek-ai/dsh-api-gateway/types'
@@ -72,7 +72,7 @@ protocol.registerSchemesAsPrivileged([
 const DESKTOP_PRODUCT_NAME = resolveDesktopWindowTitle(app.getName())
 const DESKTOP_UPDATE_URL: string | undefined = readDesktopUpdateUrl()
 app.setName(DESKTOP_PRODUCT_NAME)
-if (process.platform === 'win32') app.setAppUserModelId(resolveAppUserModelId())
+if (process.platform === 'win32') app.setAppUserModelId(resolveAppUserModelId(process.env, app.getAppPath()))
 // The userData directory stays on the ASCII file-system id, not the localized
 // display name `setName` installs: users and support scripts navigate
 // %APPDATA% (and macOS Application Support) by the product's file-system id
@@ -84,6 +84,26 @@ app.setPath('userData', join(app.getPath('appData'), DESKTOP_PRODUCT_DATA_DIR))
 // own directory. Must run before installSingleInstanceLock() below.
 const smokeUserData = process.env.DSH_PACKAGED_SMOKE_USER_DATA
 if (smokeUserData !== undefined && smokeUserData !== '') app.setPath('userData', smokeUserData)
+
+/**
+ * Point this checkout's Start Menu shortcut at its own AppUserModelId.
+ * Electron leaves an existing shortcut in place, so a second checkout would
+ * keep publishing the shared id. The update preserves the toast activator.
+ * A missing shortcut is left for Electron to create with the id set above.
+ */
+function syncWindowsDevTaskbarShortcut(): void {
+  if (process.platform !== 'win32' || process.env.DSH_DESKTOP_DEV !== '1') return
+  const shortcut = join(app.getPath('appData'), 'Microsoft', 'Windows', 'Start Menu', 'Programs', `${DESKTOP_PRODUCT_NAME}.lnk`)
+  if (!existsSync(shortcut)) return
+  const wrote = shell.writeShortcutLink(shortcut, 'update', {
+    target: process.execPath,
+    appUserModelId: resolveAppUserModelId(process.env, app.getAppPath()),
+    description: DESKTOP_PRODUCT_NAME,
+    icon: process.execPath,
+    iconIndex: 0,
+  })
+  if (!wrote) console.warn('desktop: failed to refresh the dev taskbar shortcut')
+}
 
 /** Directory of the built frontend dist under the desktop package root. */
 const WEB_DIST_DIR = desktopWebDistDir(import.meta.url)
@@ -309,6 +329,7 @@ async function main(): Promise<void> {
 
     // Protocol handlers and the menu must register after the app is ready.
     await app.whenReady()
+    syncWindowsDevTaskbarShortcut()
     registerWebProtocol(log)
     currentLocale = readLocalePreference()
     registerMenuPopupIpc()

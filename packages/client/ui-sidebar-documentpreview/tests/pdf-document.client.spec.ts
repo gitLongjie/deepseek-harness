@@ -5,30 +5,33 @@ import type { PDFPageProxy } from 'pdfjs-dist'
 import { renderPdfPage } from '../src/client/pdf/document.ts'
 
 describe('PDF canvas rendering', () => {
-  it('joins canvas cancellation before cleanup when text rendering fails', async () => {
+  it('shows the bitmap before the text layer finishes and still cleans up when text rendering fails', async () => {
     const rendered = Promise.withResolvers<undefined>()
-    const textStarted = Promise.withResolvers<undefined>()
     const textFailed = Promise.withResolvers<undefined>()
     const cleanup = vi.fn()
     const cancelText = vi.fn()
     const cancelCanvas = vi.fn()
+    const onBitmap = vi.fn()
     const page = {
       getViewport: () => ({ width: 100, height: 80 }),
       render: () => ({ promise: rendered.promise, cancel: cancelCanvas }), cleanup,
     } as unknown as PDFPageProxy
+    let textStarted = false
     const pending = renderPdfPage({ numPages: 1, getPage: async () => page }, 1,
       document.createElement('canvas'), new AbortController().signal, 1, () => {
-        textStarted.resolve(undefined)
+        textStarted = true
         return { promise: textFailed.promise, cancel: cancelText }
-      })
-    const failure = expect(pending).rejects.toThrow('text failed')
-    await textStarted.promise
-    textFailed.reject(new Error('text failed'))
-    await vi.waitFor(() => { expect(cancelText).toHaveBeenCalledOnce() })
-    expect(cancelCanvas).toHaveBeenCalledOnce()
-    expect(cleanup).not.toHaveBeenCalled()
+      }, onBitmap)
+    expect(textStarted).toBe(false)
     rendered.resolve(undefined)
+    await vi.waitFor(() => { expect(onBitmap).toHaveBeenCalledWith({ width: 100, height: 80 }) })
+    expect(textStarted).toBe(true)
+    expect(cleanup).not.toHaveBeenCalled()
+    const failure = expect(pending).rejects.toThrow('text failed')
+    textFailed.reject(new Error('text failed'))
     await failure
+    expect(cancelText).toHaveBeenCalledOnce()
+    expect(cancelCanvas).toHaveBeenCalledOnce()
     expect(cleanup).toHaveBeenCalledOnce()
   })
 
