@@ -71,7 +71,7 @@ loopback 始终被绕过——`localhost`、整个 `127.0.0.0/8` 段、`::1`、`
 | 文件 | 承载 |
 |---|---|
 | `src/policy.ts` | 解析与绕过匹配；诊断只点名变量，从不带出它的值。不引入任何传输实现，因此在没有 undici 的环境中仍可加载。 |
-| `src/install.ts` | 全局 dispatcher、生效策略记录、路由与子进程环境。动态引入 undici。 |
+| `src/install.ts` | 全局 dispatcher、生效策略记录、路由、子进程环境，以及操作系统证书信任。动态引入 undici。 |
 | `src/index.ts` | 本包的对外接口：四个函数与一个类型。 |
 
 ### 绕过匹配
@@ -105,7 +105,7 @@ loopback 始终被绕过——`localhost`、整个 `127.0.0.0/8` 段、`::1`、`
 这些限制界定了本包不适用的场景，属于当前的包级约束。
 
 - **不支持 SOCKS、PAC 或操作系统代理探测**——只接受来自环境的 `http(s)://` 代理 URL。不会读取 macOS 或 Windows 的系统代理设置，因此仅在代理软件里拨了开关的用户仍须导出环境变量；SOCKS URL 会被报告，且该协议保持直连，不会借用另一协议的代理。
-- **不支持自定义证书颁发机构**——做 TLS 拦截的企业代理需要在启动前为进程设置 `NODE_EXTRA_CA_CERTS`，本包既不设置也不校验它。
+- **操作系统的证书颁发机构并入 Node 的默认信任**——安装策略时（包括直连策略）会把操作系统信任库加到当前默认列表上。该列表已经包含 Node 自带的 Mozilla 根证书，以及进程启动时读入的 `NODE_EXTRA_CA_CERTS`。操作系统已经信任其 CA 的 TLS 拦截代理因此可以通过校验。证书校验保持开启，请求保留其 URL scheme。两边都不在的 CA 仍须在启动前导出 `NODE_EXTRA_CA_CERTS`。这次加入只覆盖本线程；子 Node 继承 `NODE_USE_SYSTEM_CA=1`，并在自己启动时加载同一信任库。worker 线程仍使用自己的默认列表。
 - **spawn 出的子进程只在足够新的运行时上遵循策略，且仅当它继承的每个值都是 Node 接受的**——它通过 Node 的 `NODE_USE_ENV_PROXY` 读取已发布的环境（22.21+、24+）；使用更旧 Node 启动的子进程保持直连。若用户环境里还有 SOCKS 或其他被拒的代理，所有子 Node 都保持直连：不设置该标志，子进程才起得来。子进程还会按 Node 自己的 `NO_PROXY` 规则匹配绕过条目，其分隔符与 IPv4 区间处理与本包不同。本进程内不依赖任何 Node 版本：每一次进程内请求都会落到全局 dispatcher。
 - **遥测按设计直连**——OTLP 导出器通过 `node:http` 投递，全局 dispatcher 触及不到。要让它走代理，要么依赖 `http.Agent` 的 `proxyEnv`，而该选项晚于本项目支持的最低 Node 版本；要么改用 SDK 的 `fetch` 传输，但它没有压缩能力，而随附配置启用了 gzip。遥测是唯一一条丢失后不会让用户付出任何代价的通道，因此维持原状；`DSH_TELEMETRY_MODE=DISABLED` 可关闭它。
 - **模型编写的程序不接收代理配置**——Node ptc-runtime 进程与 workflow worker 不继承可能含有 `user:password` 的代理 URL。其直接请求需要自行配置，并继续受到执行沙箱的约束。

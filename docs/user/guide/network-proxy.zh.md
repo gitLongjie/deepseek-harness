@@ -49,7 +49,7 @@ export NO_PROXY=internal.example.com,.corp.example.com,registry.local
 
 **只设 `ALL_PROXY` 也够用。** DSH 会用它为两种协议兜底，尽管 Node 与 curl 在这一点上并不一致。显式设置 `HTTPS_PROXY` 仍然更清楚。
 
-**做 TLS 拦截的企业代理需要它的证书。** 如果代理已经可达但请求仍报证书错误，请在启动前把 Node 指向你所在组织的 CA 包：
+**使用操作系统的信任库。** profile 启动时，DSH 把该信任库加入 Node 自带的证书颁发机构，因此操作系统已经信任其 CA 的 TLS 拦截代理可以通过校验。证书校验保持开启，请求继续使用原来的 `https:` scheme。若 CA 不在操作系统信任库中，请在启动前把 Node 指向证书包：
 
 ```sh
 export NODE_EXTRA_CA_CERTS=/path/to/corporate-ca.pem

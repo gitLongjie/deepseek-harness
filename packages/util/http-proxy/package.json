@@ -33,6 +33,7 @@
     "undici": "8.11.2"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "workspace:~"
+    "@deepseek-ai/cordis": "workspace:~",
+    "selfsigned": "^4.0.1"
   }
 }

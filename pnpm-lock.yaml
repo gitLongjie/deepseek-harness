@@ -19090,6 +19090,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: workspace:~
         version: link:../../../vendor/cordis
+      selfsigned:
+        specifier: ^4.0.1
+        version: 4.0.1
 
   packages/util/launch-environment:
     devDependencies:

@@ -49,7 +49,7 @@ You do not need to list `localhost` or `127.0.0.1`. DSH always bypasses loopback
 
 **`ALL_PROXY` alone is enough.** DSH falls back to it for both schemes, even though Node and curl differ on this. Setting `HTTPS_PROXY` explicitly is still clearer.
 
-**A TLS-intercepting corporate proxy needs its certificate.** If requests fail with a certificate error once the proxy is reachable, point Node at your organisation's CA bundle before launching:
+**The operating-system trust store is used.** DSH adds that store to Node's bundled certificate authorities when a profile starts, so a TLS-intercepting proxy whose CA the operating system already trusts verifies. Certificate verification stays enabled, and the request keeps its `https:` scheme. When the CA is not in the operating-system store, point Node at the bundle before launching:
 
 ```sh
 export NODE_EXTRA_CA_CERTS=/path/to/corporate-ca.pem

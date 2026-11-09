@@ -1,12 +1,13 @@
 /**
- * Proxy installation: the transport half of this package. It owns undici's global dispatcher and the
- * process-wide record of which policy is active.
+ * Proxy installation: the transport half of this package. It owns undici's global dispatcher, the
+ * process-wide record of which policy is active, and this thread's operating-system CA trust.
  *
  * `undici` is imported dynamically so the pure {@link ProxyPolicy} half stays loadable where no Node
  * transport exists, matching how `dsh-web-fetch-http` defers its own transport import.
  * @module @deepseek-ai/dsh-http-proxy/install
  */
 
+import { getCACertificates, setDefaultCACertificates } from 'node:tls'
 import type { Dispatcher, Pool } from 'undici'
 import {
   isSupportedProxyUrl,
@@ -279,11 +280,33 @@ export function proxyEnvironmentForChild(): Readonly<Record<string, string | und
 }
 
 /**
+ * Add CA certificates to this thread's default trust and publish `NODE_USE_SYSTEM_CA` for a later
+ * child Node.
+ *
+ * The default argument is the operating-system trust store. Those certificates are appended to
+ * Node's current default list — the bundled Mozilla roots plus any `NODE_EXTRA_CA_CERTS` loaded at
+ * process start — and an empty list leaves both the list and the environment unchanged. Certificate
+ * verification stays enabled, and this function does not open a connection or change a URL's scheme.
+ * Call it before the first TLS handshake: an agent that has already cached a session keeps that
+ * session's trust. The change covers this thread only; disposing a proxy policy does not undo it.
+ *
+ * @param system - PEM certificates to add. Defaults to the operating-system trust store.
+ */
+export function trustSystemCertificateAuthorities(
+  system: readonly string[] = getCACertificates('system'),
+): void {
+  if (system.length === 0) return
+  setDefaultCACertificates([...getCACertificates('default'), ...system])
+  process.env.NODE_USE_SYSTEM_CA = '1'
+}
+
+/**
  * Resolve this process's proxy policy from `env` and install it.
  *
  * Resolution, reporting, and installation are one operation because no caller needs them apart: the
  * launcher does all three in sequence before the first plugin mounts, and a policy resolved but not
- * installed routes nothing.
+ * installed routes nothing. The same call trusts the operating-system CA store before any dispatcher
+ * exists, including when every request stays direct.
  *
  * A value the environment supplies but this package cannot use is reported and skipped rather than
  * thrown: the variable may have been exported for another tool, and a proxy the harness cannot use
@@ -291,12 +314,14 @@ export function proxyEnvironmentForChild(): Readonly<Record<string, string | und
  *
  * @param env - the launch environment, whose own layering already prefers real variables over `.env` files.
  * @param report - receives one message per rejected value, in the order the values were considered.
- * @returns a disposer restoring the previous dispatcher, policy, and environment.
+ * @returns a disposer restoring the previous dispatcher, policy, and environment. It leaves CA trust
+ * in place: trust is a property of this thread, not of one policy layer.
  */
 export async function installProxyFromEnvironment(
   env: EnvLookup,
   report: (message: string) => void,
 ): Promise<() => Promise<void>> {
+  trustSystemCertificateAuthorities()
   const { policy, diagnostics } = resolveProxyPolicy(env)
   for (const diagnostic of diagnostics) report(diagnostic.message)
   return await installGlobalProxy(policy)

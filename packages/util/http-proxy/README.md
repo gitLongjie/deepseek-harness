@@ -71,7 +71,7 @@ A proxy value the package cannot use — a SOCKS or PAC URL, an unparseable stri
 | File | Holds |
 |---|---|
 | `src/policy.ts` | Resolution and bypass matching; a diagnostic names the variable, never its value. Imports no transport, so it stays loadable where undici is absent. |
-| `src/install.ts` | The global dispatcher, the active-policy record, the route, and the child environment. Imports undici dynamically. |
+| `src/install.ts` | The global dispatcher, the active-policy record, the route, the child environment, and operating-system CA trust. Imports undici dynamically. |
 | `src/index.ts` | The package face: four functions and one type. |
 
 ### Bypass matching
@@ -105,7 +105,7 @@ No direct invalidation: the package contributes no request tokens and never muta
 These limits define when the package is a poor fit. They are current package constraints.
 
 - **No SOCKS, PAC, or operating-system proxy detection** — only `http(s)://` proxy URLs from the environment. A macOS or Windows system-proxy setting is not read, so a user who only toggled it in a proxy application must still export the variables; a SOCKS URL is reported and that scheme stays direct rather than borrowing another scheme's proxy.
-- **No custom certificate authority** — a TLS-intercepting corporate proxy needs `NODE_EXTRA_CA_CERTS` set on the process before launch, which this package neither sets nor validates.
+- **Operating-system certificate authorities join Node's default trust** — installing a policy, including a direct one, adds the operating-system trust store to the current default list. That list already holds the bundled Mozilla roots and any `NODE_EXTRA_CA_CERTS` Node read at process start. A TLS-intercepting proxy whose CA is already in the operating-system store then verifies. Certificate verification stays enabled, and the request keeps its URL scheme. A CA in neither store still needs `NODE_EXTRA_CA_CERTS` exported before launch. The addition covers this thread; a child Node inherits `NODE_USE_SYSTEM_CA=1` and loads the same store when it starts. A worker thread keeps its own default list.
 - **A spawned child honors the policy only on a new enough runtime, and only when every value it inherits is one Node accepts** — it reads the published environment through Node's `NODE_USE_ENV_PROXY` (22.21+, 24+); a child launched with an older Node stays direct. A user whose environment also names a SOCKS or otherwise refused proxy leaves every child Node direct: the flag is withheld so the child can start at all. A child also matches bypass entries with Node's own `NO_PROXY` rules, which differ from this package's in their separators and IPv4-range support. Nothing in this process depends on a Node version: every in-process request reaches the global dispatcher.
 - **Telemetry is direct by design** — the OTLP exporter posts through `node:http`, which no global dispatcher reaches. Routing it would need either an `http.Agent` whose `proxyEnv` option post-dates the lowest supported Node, or the SDK's `fetch` transport, which has no compression while the shipped profile enables gzip. Telemetry is the one channel whose loss costs the user nothing, so it stays where it was; `DSH_TELEMETRY_MODE=DISABLED` turns it off.
 - **Model-authored programs receive no proxy settings** — the Node ptc-runtime process and workflow worker do not inherit a proxy URL that may contain `user:password`. Their direct requests need their own configuration and remain subject to the execution sandbox.

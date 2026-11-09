@@ -5,6 +5,8 @@
  * directly no matter what the user exported. The launcher resolves one policy from the launch
  * environment and installs it as undici's global dispatcher, which is what `fetch` resolves — so
  * LLM adapters, web search, MCP over HTTP, and telemetry are covered without touching their code.
+ * That install also adds the operating-system trust store to this thread's default CA list.
+ * Certificate verification stays enabled, and a request keeps the scheme of its URL.
  *
  * This is a library, not a plugin: transport policy has one answer per process, so there is nothing
  * for a composition to mount, swap, or scope.
