@@ -53,6 +53,7 @@ import {
 } from './desktop/packaged-resources.ts'
 import { runPackagedSmoke } from './desktop/packaged-smoke.ts'
 import { desktopWebDistDir, resolveDesktopPreloadPath } from './desktop-paths.ts'
+import { DESKTOP_PRODUCT_DATA_DIR, pinDesktopProductDataRoots } from './product-data-home.ts'
 
 /** Absolute path of this desktop app's package.json (the OEM resolution anchor). */
 const INSTALL_ANCHOR = fileURLToPath(new URL('../../package.json', import.meta.url))
@@ -77,7 +78,7 @@ if (process.platform === 'win32') app.setAppUserModelId(resolveAppUserModelId())
 // %APPDATA% (and macOS Application Support) by the product's file-system id
 // (DeepWorker), and the display name belongs to the window and tray, not the
 // disk layout.
-app.setPath('userData', join(app.getPath('appData'), 'DeepWorker'))
+app.setPath('userData', join(app.getPath('appData'), DESKTOP_PRODUCT_DATA_DIR))
 // The smoke harness must never contend with a real instance's lock: the
 // single-instance lock is scoped to userData, so the harness points it at its
 // own directory. Must run before installSingleInstanceLock() below.
@@ -234,6 +235,9 @@ async function main(): Promise<void> {
     // platform-view headers, product analytics `serviceVersion`) the way the
     // official build's inlined value would; an explicit build value wins.
     process.env.DSH_CLIENT_VERSION ??= app.getVersion()
+    // Publish product data roots before bundled-skill install and the layered
+    // environment snapshot read DSH_HOME.
+    pinDesktopProductDataRoots(app.getPath('appData'), process.env)
     const bundledSkills = resolveBundledSkillDir({
       packaged: app.isPackaged,
       resourcesPath: process.resourcesPath,
@@ -241,6 +245,7 @@ async function main(): Promise<void> {
     })
     if (bundledSkills !== undefined) process.env.DSH_BUNDLED_SKILL_DIR ??= bundledSkills
     const environment = loadLayeredEnv('desktop')
+    log(`desktop: product home ${process.env.DSH_HOME ?? ''} agents ${process.env.DSH_AGENTS_HOME ?? ''}`)
     log(`desktop: booting (packaged=${String(app.isPackaged)}) execArgv=${JSON.stringify(process.execArgv)} node=${process.versions.node}`)
     const result = await runDesktopBoot({
       environment,

@@ -11,13 +11,14 @@ import { fileURLToPath } from 'node:url'
 import { dirname, resolve, basename } from 'node:path'
 import { Data, NtExecutable, NtExecutableResource, Resource } from 'resedit'
 import { readDesktopOemConfig, syncDesktopOemIcons } from './desktop-oem-config.mjs'
+import { desktopAppDataDir, pinDesktopProductDataRoots } from '../src/main/product-data-home.ts'
 import { discoverLibraryDirs, discoverPluginDirs } from '../../../scripts/dev-web.ts'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 const repoRoot = resolve(root, '../..')
 const require = createRequire(import.meta.url)
 const { productName: DESKTOP_PRODUCT_NAME, updateUrl: DESKTOP_UPDATE_URL } = readDesktopOemConfig(repoRoot)
-const electronEnvironment = {
+const electronEnvironment: NodeJS.ProcessEnv = {
   ...process.env,
   DSH_DESKTOP_PRODUCT_NAME: DESKTOP_PRODUCT_NAME,
   DSH_DESKTOP_UPDATE_URL: DESKTOP_UPDATE_URL,
@@ -25,6 +26,14 @@ const electronEnvironment = {
   // flag is what lets the updater tell the two apart (development never
   // checks the OEM feed).
   DSH_DESKTOP_DEV: '1',
+}
+pinDesktopProductDataRoots(desktopAppDataDir(process.platform, electronEnvironment), electronEnvironment)
+
+/** Product home this launch publishes to Electron and to local plugin copies. */
+function productHome(): string {
+  const home = electronEnvironment.DSH_HOME
+  if (home === undefined || home.trim() === '') throw new Error('desktop dev: product home was not pinned')
+  return home
 }
 
 function run(cmd: string, cmdArgs: readonly string[], opts: { cwd?: string; env?: NodeJS.ProcessEnv } = {}): void {
@@ -48,7 +57,7 @@ function run(cmd: string, cmdArgs: readonly string[], opts: { cwd?: string; env?
 function refreshLocalImPlugin(): void {
   const source = resolve(root, '..', '..', 'dsh-im', 'dsh-im-main')
   run('npm', ['run', 'build'], { cwd: source })
-  const packageDir = resolve(process.env.DSH_HOME ?? `${process.env.USERPROFILE ?? ''}\\.dsh`, 'profiles', 'web', 'node_modules', '@xmanrui', 'dsh-im')
+  const packageDir = resolve(productHome(), 'profiles', 'web', 'node_modules', '@xmanrui', 'dsh-im')
   const target = resolve(packageDir, 'lib')
   mkdirSync(target, { recursive: true })
   for (const file of ['client.js', 'index.js']) copyFileSync(resolve(source, 'lib', file), resolve(target, file))
@@ -62,11 +71,11 @@ function refreshLocalImPlugin(): void {
 function refreshLocalBusinessEntryPlugin(): void {
   const source = resolve(root, '..', '..', 'business-entry')
   run('node', ['build.mjs'], { cwd: source })
-  const target = resolve(process.env.DSH_HOME ?? `${process.env.USERPROFILE ?? ''}\\.dsh`, 'profiles', 'web', 'node_modules', '@xmanrui', 'dsh-business-entry', 'lib')
+  const target = resolve(productHome(), 'profiles', 'web', 'node_modules', '@xmanrui', 'dsh-business-entry', 'lib')
   mkdirSync(target, { recursive: true })
   for (const file of ['client.js', 'index.js']) copyFileSync(resolve(source, 'lib', file), resolve(target, file))
   // Also copy cordis.patch.yml so the profile can discover the plugin's patch layer.
-  const patchTarget = resolve(process.env.DSH_HOME ?? `${process.env.USERPROFILE ?? ''}\\.dsh`, 'profiles', 'web', 'node_modules', '@xmanrui', 'dsh-business-entry')
+  const patchTarget = resolve(productHome(), 'profiles', 'web', 'node_modules', '@xmanrui', 'dsh-business-entry')
   copyFileSync(resolve(source, 'cordis.patch.yml'), resolve(patchTarget, 'cordis.patch.yml'))
   // Copy package.json so the Loader can read dsh.bundle.patch and dsh.client metadata.
   copyFileSync(resolve(source, 'package.json'), resolve(patchTarget, 'package.json'))
