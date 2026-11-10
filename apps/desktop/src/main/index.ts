@@ -17,6 +17,7 @@ import { loadLayeredEnv } from '@deepseek-ai/dsh-app-boot'
 import type { TypertGateway } from '@deepseek-ai/dsh-api-gateway/types'
 import { runDesktopBoot } from './boot.ts'
 import { mountDesktopOffice, resolveBundledSkillDir } from './desktop/office.ts'
+import { installOfficeEngineResolution } from './desktop/office-engine.ts'
 import { comfyuiLocalDir, deployBundledComfyUI } from './desktop/comfyui-bootstrap.ts'
 import type { ProcessShutdown } from './process-shutdown.ts'
 import { dispatchTransportFetch, registerTransportIpc, transportRequestBytes, type TransportFetchRequest } from './ipc/transport.ts'
@@ -267,6 +268,11 @@ async function main(): Promise<void> {
     const environment = loadLayeredEnv('desktop')
     log(`desktop: product home ${process.env.DSH_HOME ?? ''} agents ${process.env.DSH_AGENTS_HOME ?? ''}`)
     log(`desktop: booting (packaged=${String(app.isPackaged)}) execArgv=${JSON.stringify(process.execArgv)} node=${process.versions.node}`)
+    // Office preview spawns the native helper. electron-builder leaves that helper
+    // in app.asar.unpacked, and the kit resolves it while the host profile loads.
+    if (app.isPackaged && installOfficeEngineResolution(app.getAppPath()) !== undefined) {
+      log('desktop: office preview engine resolver installed')
+    }
     const result = await runDesktopBoot({
       environment,
       args: ['--no-open', '--port', '0'],
