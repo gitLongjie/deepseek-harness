@@ -46,7 +46,7 @@ import {
   applyGatewayProviderNameEnvironment, resolveDesktopGatewayProviderName,
   type DesktopProviderNameManifest,
 } from './desktop/provider-name.ts'
-import { resolveDesktopHelpDocsUrl, type DesktopHelpManifest } from './desktop/help-links.ts'
+import { resolveDesktopContactUrl, resolveDesktopHelpDocsUrl, type DesktopHelpManifest } from './desktop/help-links.ts'
 import {
   findMissingPackagedResources,
   type MissingPackagedResource,
@@ -121,6 +121,9 @@ let currentLocale: DesktopLocaleId = 'zh'
 /** The Help menu's documentation URL, resolved once at startup. */
 let helpDocsUrl: string | undefined
 
+/** The Help menu's contact page, resolved once at startup. Absent keeps the QR popup. */
+let contactUrl: string | undefined
+
 /** The locale-bound translate function for the shell surfaces. */
 function shellT(locale: DesktopLocaleId): (key: DesktopTextKey) => string {
   const strings = copy(locale, DESKTOP_PRODUCT_NAME)
@@ -161,7 +164,7 @@ function waitForTransportGateway(): Promise<TypertGateway> {
 function rebuildShell(win?: BrowserWindow): void {
   currentLocale = readLocalePreference()
   const t = shellT(currentLocale)
-  installApplicationMenu(t, helpDocsUrl)
+  installApplicationMenu(t, helpDocsUrl, contactUrl)
   trayHandle?.rebuild(t)
   setUpdaterLocale(t)
   if (win !== undefined && !win.isDestroyed()) {
@@ -246,12 +249,12 @@ async function main(): Promise<void> {
     if (gatewayProviderName !== undefined) {
       applyGatewayProviderNameEnvironment(process.env, gatewayProviderName)
     }
-    // The Help menu's documentation link follows the same dual route: the
-    // source oem.config.json in a checkout, the packaged manifest otherwise.
-    helpDocsUrl = resolveDesktopHelpDocsUrl(
-      INSTALL_ANCHOR,
-      JSON.parse(readFileSync(join(app.getAppPath(), 'package.json'), 'utf8')) as DesktopHelpManifest,
-    )
+    // The Help menu's documentation and contact links follow the same dual
+    // route: the source oem.config.json in a checkout, the packaged manifest
+    // otherwise.
+    const helpManifest = JSON.parse(readFileSync(join(app.getAppPath(), 'package.json'), 'utf8')) as DesktopHelpManifest
+    helpDocsUrl = resolveDesktopHelpDocsUrl(INSTALL_ANCHOR, helpManifest)
+    contactUrl = resolveDesktopContactUrl(INSTALL_ANCHOR, helpManifest)
     // The running release version backs every client-identity reader (the
     // platform-view headers, product analytics `serviceVersion`) the way the
     // official build's inlined value would; an explicit build value wins.
@@ -368,7 +371,7 @@ async function main(): Promise<void> {
       await host.shutdown?.prepare()
       updateInstallPrepared = true
     })
-    installApplicationMenu(shellT(currentLocale), helpDocsUrl)
+    installApplicationMenu(shellT(currentLocale), helpDocsUrl, contactUrl)
     host.ctx?.on('session/event', (session, event) => {
       notifyTurnCompletion(win, currentLocale, DESKTOP_PRODUCT_NAME, String(session.id), event)
     })

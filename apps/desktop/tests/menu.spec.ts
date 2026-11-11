@@ -158,6 +158,16 @@ describe('application menu template', () => {
     expect(state.openExternal).toHaveBeenCalledWith(HELP_DOCS_URL)
   })
 
+  it('opens the configured contact page instead of the QR popup', () => {
+    const contactPage = 'https://support.acme.test/contact'
+    installApplicationMenu(key => copy('zh', 'miaoWorker')[key], HELP_DOCS_URL, contactPage)
+    const items = findItem(state.template, 'help')?.submenu ?? []
+    const contact = items.find(item => item.label === copy('zh', 'miaoWorker')['menu.contact'])
+    contact?.click?.({}, undefined)
+    expect(state.openExternal).toHaveBeenCalledWith(contactPage)
+    expect(state.showContactQr).not.toHaveBeenCalled()
+  })
+
   it('opens only the real product surfaces from the help menu', () => {
     const items = findItem(state.template, 'help')?.submenu ?? []
     for (const item of items) {

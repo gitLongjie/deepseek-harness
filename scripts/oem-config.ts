@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 
 const GREETING_SLOTS = ['morning', 'noon', 'afternoon', 'evening', 'night'] as const
 const REQUIRED_CONFIG_KEYS = ['brandIcon', 'greetings', 'knowledgeBase', 'loginTagline', 'loginUrl', 'productName'] as const
-const OPTIONAL_CONFIG_KEYS = ['gatewayProviderName', 'helpDocsUrl', 'updateUrl'] as const
+const OPTIONAL_CONFIG_KEYS = ['contactUrl', 'gatewayProviderName', 'helpDocsUrl', 'updateUrl'] as const
 const KNOWLEDGE_BASE_KEYS = ['apiKeyEnv', 'baseUrl', 'tenantId', 'webUiUrl'] as const
 
 /** One complete locale-specific set of blank-panel greetings. */
@@ -38,6 +38,11 @@ export interface OemConfig {
    * deployments that publish no documentation site (the menu entry is omitted).
    */
   readonly helpDocsUrl?: string
+  /**
+   * The contact page the desktop Help menu opens, or undefined when Contact Us
+   * keeps the bundled QR popup.
+   */
+  readonly contactUrl?: string
   readonly loginTagline: { readonly zh: string; readonly en: string }
   readonly greetings: { readonly zh: OemGreetings; readonly en: OemGreetings }
   readonly knowledgeBase: OemKnowledgeBase
@@ -58,12 +63,8 @@ export function parseOemConfig(value: unknown, source: string): OemConfig {
   const gatewayProviderName = root.gatewayProviderName === undefined
     ? undefined
     : nonEmptyString(root.gatewayProviderName, `${source}.gatewayProviderName`)
-  const helpDocsUrl = root.helpDocsUrl === undefined
-    ? undefined
-    : nonEmptyString(root.helpDocsUrl, `${source}.helpDocsUrl`)
-  if (helpDocsUrl !== undefined && !isHttpsUrl(helpDocsUrl)) {
-    throw new Error(`${source}.helpDocsUrl must be an HTTPS URL`)
-  }
+  const helpDocsUrl = optionalHttpsUrl(root.helpDocsUrl, `${source}.helpDocsUrl`)
+  const contactUrl = optionalHttpsUrl(root.contactUrl, `${source}.contactUrl`)
   const loginTagline = objectWithKeys(root.loginTagline, ['en', 'zh'], `${source}.loginTagline`)
   const greetings = objectWithKeys(root.greetings, ['en', 'zh'], `${source}.greetings`)
   return {
@@ -73,6 +74,7 @@ export function parseOemConfig(value: unknown, source: string): OemConfig {
     ...(gatewayProviderName === undefined ? {} : { gatewayProviderName }),
     ...(updateUrl === undefined ? {} : { updateUrl }),
     ...(helpDocsUrl === undefined ? {} : { helpDocsUrl }),
+    ...(contactUrl === undefined ? {} : { contactUrl }),
     loginTagline: {
       zh: nonEmptyString(loginTagline.zh, `${source}.loginTagline.zh`),
       en: nonEmptyString(loginTagline.en, `${source}.loginTagline.en`),
@@ -217,6 +219,14 @@ function isHttpsUrl(value: string): boolean {
   } catch {
     return false
   }
+}
+
+/** Read one optional HTTPS field; absence stays absence. */
+function optionalHttpsUrl(value: unknown, subject: string): string | undefined {
+  if (value === undefined) return undefined
+  const url = nonEmptyString(value, subject)
+  if (!isHttpsUrl(url)) throw new Error(`${subject} must be an HTTPS URL`)
+  return url
 }
 
 function assertLocalBrandIcon(value: string, subject: string): void {

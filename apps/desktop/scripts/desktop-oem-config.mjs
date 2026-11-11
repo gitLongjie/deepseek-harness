@@ -29,7 +29,8 @@ export function readDesktopOemConfig(repoRoot, environment = process.env) {
   }
   const knowledgeBase = readOemKnowledgeBase(oemConfig.knowledgeBase)
   const gatewayProviderName = readOemGatewayProviderName(oemConfig.gatewayProviderName)
-  const helpDocsUrl = readOemHelpDocsUrl(oemConfig.helpDocsUrl)
+  const helpDocsUrl = readOemHttpsUrl(oemConfig.helpDocsUrl, 'helpDocsUrl')
+  const contactUrl = readOemHttpsUrl(oemConfig.contactUrl, 'contactUrl')
   return {
     productName,
     brandIcon,
@@ -37,16 +38,17 @@ export function readDesktopOemConfig(repoRoot, environment = process.env) {
     knowledgeBase,
     gatewayProviderName,
     ...(helpDocsUrl === undefined ? {} : { helpDocsUrl }),
+    ...(contactUrl === undefined ? {} : { contactUrl }),
   }
 }
 
-/** Read the Help-menu documentation URL for packaging: absent stays absent. */
-function readOemHelpDocsUrl(value) {
+/** Read one optional Help-menu HTTPS URL for packaging: absent stays absent. */
+function readOemHttpsUrl(value, field) {
   if (value === undefined) return undefined
   if (typeof value !== 'string' || value.trim() === '') {
-    throw new Error('oem.config.json.helpDocsUrl must be a non-empty string')
+    throw new Error(`oem.config.json.${field} must be a non-empty string`)
   }
-  if (!isHttpsUrl(value)) throw new Error('oem.config.json.helpDocsUrl must be an HTTPS URL')
+  if (!isHttpsUrl(value)) throw new Error(`oem.config.json.${field} must be an HTTPS URL`)
   return value
 }
 
@@ -146,6 +148,7 @@ export function createElectronBuilderOemConfig(productName, updateUrl, options =
         ...(options.knowledgeBase === undefined ? {} : { knowledgeBase: options.knowledgeBase }),
         ...(options.gatewayProviderName === undefined ? {} : { gatewayProviderName: options.gatewayProviderName }),
         ...(options.helpDocsUrl === undefined ? {} : { helpDocsUrl: options.helpDocsUrl }),
+        ...(options.contactUrl === undefined ? {} : { contactUrl: options.contactUrl }),
       },
     },
   }

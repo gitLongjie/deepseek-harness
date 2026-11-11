@@ -7,6 +7,7 @@ export interface DesktopOemConfig {
   knowledgeBase?: unknown
   gatewayProviderName?: string
   helpDocsUrl?: string
+  contactUrl?: string
 }
 
 export function readDesktopOemConfig(repoRoot: string, environment?: NodeJS.ProcessEnv): DesktopOemConfig
@@ -19,6 +20,7 @@ export interface ElectronBuilderOemOptions {
   knowledgeBase?: unknown
   gatewayProviderName?: string
   helpDocsUrl?: string
+  contactUrl?: string
   version?: string
   output?: string
   asarUnpack?: readonly string[]

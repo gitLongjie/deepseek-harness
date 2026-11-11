@@ -10,9 +10,9 @@ The OEM desktop shell's Help menu offered repository links, feedback, an update 
 
 ## Decision
 
-- **联系我们 (Contact Us)** is the first Help entry. It opens a small modal window over the focused window showing the bundled `apps/desktop/build/contact-qr.png` at 320px, with a scan hint and a close button; Escape and the button close it. The image rides electron-builder's existing `build/**` file glob into app.asar, so a deployment swaps that one file to change the QR.
+- **联系我们 (Contact Us)** is the first Help entry. When `oem.config.json.contactUrl` is set, the entry opens that HTTPS page through `shell.openExternal`. Otherwise it opens a small modal window over the focused window showing the bundled `apps/desktop/build/contact-qr.png` at 320px, with a scan hint and a close button; Escape and the button close it. The image rides electron-builder's existing `build/**` file glob into app.asar, so a deployment swaps that one file to change the QR. `contactUrl` is an OEM deployment fact: optional, HTTPS-only, baked into `extraMetadata.dsh.contactUrl` at packaging time.
 - **帮助文档 (Documentation)** follows it and opens `helpDocsUrl` through `shell.openExternal`. The URL is an OEM deployment fact: optional, HTTPS-only `oem.config.json.helpDocsUrl` is baked into `extraMetadata.dsh.helpDocsUrl` at packaging time; a source run reads the repository file and an installed app reads the manifest, mirroring the update feed, knowledge base, and gateway display name.
-- **Absent configuration omits the entry.** A deployment without `helpDocsUrl` drops the documentation item rather than rendering a dead link, the same rule the update entry uses. The contact entry always exists because the shell ships its image.
+- **Absent configuration omits the documentation entry.** A deployment without `helpDocsUrl` drops the documentation item rather than rendering a dead link, the same rule the update entry uses. The contact entry always exists: a configured `contactUrl` is the jump target, and the bundled image remains the fallback.
 - **Copy is locale-owned.** Both labels and the popup strings live in `desktop/locales.ts` (联系我们 / 帮助文档 and their English counterparts), so the existing locale rebuild refreshes them.
 
 ## Alternatives considered
@@ -24,7 +24,7 @@ The OEM desktop shell's Help menu offered repository links, feedback, an update 
 
 ## Consequences
 
-- The shipped `oem.config.json` points `helpDocsUrl` at [the company support page](https://www.deepagens.com/faq); a deployment with its own manual changes that one field, and packaging bakes it into the manifest.
+- The shipped `oem.config.json` points `helpDocsUrl` at the DeepWork help wiki and `contactUrl` at the DeepWork staffed-support wiki. A deployment with its own pages changes those fields, and packaging bakes them into the manifest.
 - Contact and documentation are one click away for end users, while the repository, feedback, update, and About entries stay for maintainers.
 - Changing the contact QR means replacing `apps/desktop/build/contact-qr.png`. A missing file reports a localized error dialog instead of opening an empty window, and a load failure destroys the popup before reporting.
 - The shipped `apps/desktop/build/contact-qr.png` is the company's official contact QR — the 深度云海 public-account card published on deepagens.com. Swapping it for a different support card means replacing that one file; the popup itself needs no change.

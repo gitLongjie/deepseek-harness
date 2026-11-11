@@ -158,9 +158,11 @@ describe('desktop builder identity', () => {
     })
     expect(createElectronBuilderOemConfig('Worker', 'https://updates.example.test/desktop', {
       helpDocsUrl: 'https://docs.acme.test/',
+      contactUrl: 'https://support.acme.test/contact',
     }).extraMetadata.dsh).toEqual({
       updateUrl: 'https://updates.example.test/desktop',
       helpDocsUrl: 'https://docs.acme.test/',
+      contactUrl: 'https://support.acme.test/contact',
     })
   })
 
@@ -194,15 +196,19 @@ describe('desktop builder identity', () => {
     })
   })
 
-  it('reads the Help documentation URL from the OEM file and rejects non-HTTPS values', () => {
+  it('reads the Help documentation and contact URLs from the OEM file and rejects non-HTTPS values', () => {
     const repoRoot = mkdtempSync(join(tmpdir(), 'dsh-oem-help-'))
     roots.push(repoRoot)
     writeFileSync(join(repoRoot, 'oem.config.json'), JSON.stringify({
       productName: 'Acme Agent',
       brandIcon: '/brand/acme.ico',
       helpDocsUrl: 'https://docs.acme.test/',
+      contactUrl: 'https://support.acme.test/contact',
     }))
-    expect(readDesktopOemConfig(repoRoot, {})).toMatchObject({ helpDocsUrl: 'https://docs.acme.test/' })
+    expect(readDesktopOemConfig(repoRoot, {})).toMatchObject({
+      helpDocsUrl: 'https://docs.acme.test/',
+      contactUrl: 'https://support.acme.test/contact',
+    })
 
     writeFileSync(join(repoRoot, 'oem.config.json'), JSON.stringify({
       productName: 'Acme Agent',
@@ -210,6 +216,13 @@ describe('desktop builder identity', () => {
       helpDocsUrl: 'http://docs.acme.test/',
     }))
     expect(() => readDesktopOemConfig(repoRoot, {})).toThrow(/helpDocsUrl/)
+
+    writeFileSync(join(repoRoot, 'oem.config.json'), JSON.stringify({
+      productName: 'Acme Agent',
+      brandIcon: '/brand/acme.ico',
+      contactUrl: 'http://support.acme.test/',
+    }))
+    expect(() => readDesktopOemConfig(repoRoot, {})).toThrow(/contactUrl/)
   })
 
   it('projects one configured Web icon into both native desktop icon files', () => {

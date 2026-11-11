@@ -27,8 +27,14 @@ type MenuId = (typeof MENU_IDS)[number]
  * @param t - locale-bound copy resolver (desktop/locales.ts).
  * @param helpDocsUrl - the documentation URL the Help menu opens; undefined
  *   omits the entry for deployments that publish no documentation site.
+ * @param contactUrl - the contact page the Help menu opens; undefined keeps
+ *   the bundled QR popup.
  */
-export function installApplicationMenu(t: (key: DesktopTextKey) => string, helpDocsUrl?: string): void {
+export function installApplicationMenu(
+  t: (key: DesktopTextKey) => string,
+  helpDocsUrl?: string,
+  contactUrl?: string,
+): void {
   const darwinAppMenu: MenuItemConstructorOptions[] = process.platform === 'darwin'
     ? [{ role: 'appMenu' }]
     : []
@@ -85,6 +91,10 @@ export function installApplicationMenu(t: (key: DesktopTextKey) => string, helpD
         {
           label: t('menu.contact'),
           click: () => {
+            if (contactUrl !== undefined) {
+              void shell.openExternal(contactUrl)
+              return
+            }
             const parent = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
             void showContactQr(parent, t)
           },

@@ -10,9 +10,9 @@ OEM 桌面壳的帮助菜单只提供仓库链接、反馈、检查更新与关�
 
 ## Decision
 
-- **联系我们**是帮助菜单的第一项。它在当前聚焦窗口上弹出一个模态小窗，以 320px 显示随包分发的 `apps/desktop/build/contact-qr.png`，并附扫码提示与关闭按钮；Escape 和按钮都能关闭。图片沿用 electron-builder 既有的 `build/**` 文件闭包进入 app.asar，因此部署方只替换这一个文件就能更换二维码。
+- **联系我们**是帮助菜单的第一项。配置了 `oem.config.json.contactUrl` 时，该项通过 `shell.openExternal` 打开该 HTTPS 页面；否则在当前聚焦窗口上弹出一个模态小窗，以 320px 显示随包分发的 `apps/desktop/build/contact-qr.png`，并附扫码提示与关闭按钮；Escape 和按钮都能关闭。图片沿用 electron-builder 既有的 `build/**` 文件闭包进入 app.asar，因此部署方只替换这一个文件就能更换二维码。`contactUrl` 是 OEM 部署事实：可选、仅接受 HTTPS，打包时写入 `extraMetadata.dsh.contactUrl`。
 - **帮助文档**紧随其后，通过 `shell.openExternal` 打开 `helpDocsUrl`。该 URL 是 OEM 部署事实：可选的、仅接受 HTTPS 的 `oem.config.json.helpDocsUrl` 在打包时写入 `extraMetadata.dsh.helpDocsUrl`；源码运行读取仓库文件，安装后的应用读取清单，与更新源、知识库和网关显示名走同一条双路径。
-- **未配置即省略该项。** 没有 `helpDocsUrl` 的部署不渲染帮助文档项，而不是留下死链接，与检查更新项遵循同一规则。联系我们项始终存在，因为壳自带了图片。
+- **未配置文档地址即省略该项。** 没有 `helpDocsUrl` 的部署不渲染帮助文档项，而不是留下死链接，与检查更新项遵循同一规则。联系我们项始终存在：配置了 `contactUrl` 就跳转该页，否则回退到随包图片。
 - **文案归 locale 所有。** 两个菜单标签与弹窗文案都放在 `desktop/locales.ts`（联系我们 / 帮助文档及对应英文），既有的语言切换重建会一并刷新。
 
 ## Alternatives considered
@@ -24,7 +24,7 @@ OEM 桌面壳的帮助菜单只提供仓库链接、反馈、检查更新与关�
 
 ## Consequences
 
-- 随包的 `oem.config.json` 把 `helpDocsUrl` 指向[公司服务支持页](https://www.deepagens.com/faq)；若部署方有自己的手册，只改这一个字段，打包时会烘入清单。
+- 随包的 `oem.config.json` 把 `helpDocsUrl` 指向 DeepWork 帮助文档 wiki，把 `contactUrl` 指向 DeepWork 人工通道 wiki。部署方若有自己的页面，改这两个字段即可，打包时会烘入清单。
 - 最终用户一键即可联系或查看文档，仓库、反馈、更新与关于入口仍为维护者保留。
 - 更换联系二维码意味着替换 `apps/desktop/build/contact-qr.png`。文件缺失时显示本地化错误对话框而不是打开空窗口；加载失败会先销毁弹窗再报告。
 - 随包的 `apps/desktop/build/contact-qr.png` 是公司官方联系二维码——发布在 deepagens.com 上的「深度云海」公众号名片。若要换成其他客服名片，只替换该文件即可，弹窗本身无需改动。
