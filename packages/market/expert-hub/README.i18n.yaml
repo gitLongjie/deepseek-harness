@@ -1,0 +1,43 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/market/expert-hub/README.md
+/:
+  en: 5215942344ae5816
+  zh: 1f79ad00007ca7ef
+/deepseek-ai-dsh-expert-hub:
+  en: d785c1585f896f00
+  zh: 1e74302182bfa483
+/deepseek-ai-dsh-expert-hub/summary:
+  en: d2bdf1fc6d7b291e
+  zh: 5223bed72ba2a6c1
+/deepseek-ai-dsh-expert-hub/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 9f0a46ca555d0bb9
+/deepseek-ai-dsh-expert-hub/use-this-package:
+  en: 23b1fc9cbfcdaf5b
+  zh: fe330f2cd330d5b0
+/deepseek-ai-dsh-expert-hub/use-this-package/minimal-configuration:
+  en: 67c7557e10328cbd
+  zh: 09550af4428eaabd
+/deepseek-ai-dsh-expert-hub/use-this-package/what-can-go-wrong:
+  en: bd05bdf024fdd076
+  zh: e701404db11c39e4
+/deepseek-ai-dsh-expert-hub/understand-the-implementation:
+  en: 505f7aad566f2ef9
+  zh: a54562fadd9ef00a
+/deepseek-ai-dsh-expert-hub/further-exploration:
+  en: 03adb4ef9c75e82a
+  zh: 5658ff276f2cadb7
+/deepseek-ai-dsh-expert-hub/model-experience:
+  en: 1571b22d72798a2e
+  zh: 18cf34db6bd7ead8
+/deepseek-ai-dsh-expert-hub/model-experience/kv-cache-effect:
+  en: ac5eab643fb85a0b
+  zh: 5c0a6578f58765b2
+/deepseek-ai-dsh-expert-hub/known-limitations-and-deferred-work:
+  en: 0e8b6ba99d42883a
+  zh: 6907ac6ee98934fb
+/deepseek-ai-dsh-expert-hub/known-limitations-and-deferred-work/dev-note:
+  en: e67f633dc6fe7773
+  zh: 4545eda38a068f8d

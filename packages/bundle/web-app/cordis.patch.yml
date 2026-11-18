@@ -134,6 +134,12 @@
     - id: market-gateway
       name: '@deepseek-ai/dsh-market-gateway'
 
+    # The expert-hub Remote surface over Typert (the `expertHub` namespace):
+    # the expert page's installable catalog filtered from the market's
+    # `expert` category.
+    - id: expert-hub
+      name: '@deepseek-ai/dsh-expert-hub'
+
     # Enterprise knowledge base: the WeKnora provider lists the bases the
     # configured credential can see, and the Remote gateway projects them for
     # the client's knowledge page. The connection stays deliberately unset

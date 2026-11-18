@@ -585,6 +585,7 @@
     { "path": "./packages/kb/kb-gateway" },
     { "path": "./packages/market/market" },
     { "path": "./packages/market/market-local" },
+    { "path": "./packages/market/expert-hub" },
     { "path": "./packages/market/market-gateway" },
     { "path": "./packages/mcp/mcp-resources" },
     { "path": "./packages/host/directory-picker" },
