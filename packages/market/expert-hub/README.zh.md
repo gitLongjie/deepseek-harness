@@ -48,12 +48,12 @@ kind: "package-reference"
 <details>
 <summary>实现内部 — 点击展开</summary>
 
-插件以 wire 命名空间 `expertHub` 与同名服务键扩展 `TypertRemoteService`。它投影三个方法：`catalog` 以 `category: 'expert'` 浏览市场，`installEntry` 转发来源本地条目引用，`remove` 按 bundle id 卸载。
+插件以 wire 命名空间 `expertHub` 与同名服务键扩展 `TypertRemoteService`。它投影三个方法：`catalog` 以 `category: 'expert'` 浏览市场，`install` 转发来源本地条目引用，`remove` 按 bundle id 卸载。
 
 | 文件 | 职责 |
 |---|---|
 | `src/index.ts` | `ExpertHubGateway`，对 `ctx.market` 的 Typert remote 投影 |
-| `src/types.ts` | `expertHub` 命名空间的 wire 请求/响应类型 |
+| `src/types.ts` | wire 请求/响应类型；`package.json` 的 `exports["./types"].types` 指向此处，使 Client 类型检查在 `lib/types` 写出前即可解析 |
 
 </details>
 

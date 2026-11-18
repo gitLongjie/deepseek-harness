@@ -10,7 +10,7 @@ The expert page needs installable store entries (`category: "expert"`) as a type
 
 ## Decision
 
-Ship `@deepseek-ai/dsh-expert-hub` as a Typert Remote projection of the market's `expert` category under the `expertHub` namespace (`catalog`, `installEntry`, `remove`). Re-export `./types` from `dsh-api-remotes`, merge hub rows into `dsh-client-ui-expert` beside roster experts, classify the three endpoints in LiveShare, and mount the gateway next to `market-gateway` in the web-app patch.
+Ship `@deepseek-ai/dsh-expert-hub` as a Typert Remote projection of the market's `expert` category under the `expertHub` namespace (`catalog`, `install`, `remove`). Re-export `./types` from `dsh-api-remotes`, merge hub rows into `dsh-client-ui-expert` beside roster experts, classify the three endpoints in LiveShare, and mount the gateway next to `market-gateway` in the web-app patch. The `./types` export's `types` condition points at `src/types.ts` so Client typecheck can resolve `ExpertHubCatalog` before the package's `lib/types` emit exists.
 
 ## Alternatives considered
 
@@ -21,9 +21,9 @@ Ship `@deepseek-ai/dsh-expert-hub` as a Typert Remote projection of the market's
 ## Verification
 
 - `packages/market/expert-hub/tests/gateway.spec.ts` projects catalog/install/remove through a mocked `ctx.market`.
-- Client-face LiveShare completeness includes `expertHub/catalog|installEntry|remove`.
+- Client-face LiveShare completeness includes `expertHub/catalog|install|remove`.
 - `ui-expert` typechecks against `ExpertHubCatalog` from `@deepseek-ai/dsh-expert-hub/types`.
 
 ## Consequences
 
-The expert page can merge installable hub rows with the roster without importing market wire types. Install and remove stay owned by `ctx.market`; the hub only filters the `expert` category and renames the wire for that UI. The install wire is `installEntry` for the same Remote-client `install` helper conflict that `market-gateway` documents.
+The expert page can merge installable hub rows with the roster without importing market wire types. Install and remove stay owned by `ctx.market`; the hub only filters the `expert` category and renames the wire for that UI.

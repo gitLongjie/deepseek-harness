@@ -10,7 +10,7 @@ Status: implemented
 
 ## 决策
 
-交付 `@deepseek-ai/dsh-expert-hub`，作为市场 `expert` 分类在 `expertHub` 命名空间下的 Typert Remote 投影（`catalog`、`installEntry`、`remove`）。由 `dsh-api-remotes` 再导出 `./types`，在 `dsh-client-ui-expert` 中与 roster 专家合并 hub 行，在 LiveShare 中为这三个端点分类，并在 web-app patch 中与 `market-gateway` 并列挂载该网关。
+交付 `@deepseek-ai/dsh-expert-hub`，作为市场 `expert` 分类在 `expertHub` 命名空间下的 Typert Remote 投影（`catalog`、`install`、`remove`）。由 `dsh-api-remotes` 再导出 `./types`，在 `dsh-client-ui-expert` 中与 roster 专家合并 hub 行，在 LiveShare 中为这三个端点分类，并在 web-app patch 中与 `market-gateway` 并列挂载该网关。`./types` 导出的 `types` 条件指向 `src/types.ts`，以便在包尚未写出 `lib/types` 时 Client 类型检查仍能解析 `ExpertHubCatalog`。
 
 ## 考虑过的替代方案
 
@@ -21,9 +21,9 @@ Status: implemented
 ## 验证
 
 - `packages/market/expert-hub/tests/gateway.spec.ts` 通过 mock 的 `ctx.market` 投影 catalog/install/remove。
-- Client 面 LiveShare 完整性包含 `expertHub/catalog|installEntry|remove`。
+- Client 面 LiveShare 完整性包含 `expertHub/catalog|install|remove`。
 - `ui-expert` 能对 `@deepseek-ai/dsh-expert-hub/types` 的 `ExpertHubCatalog` 通过类型检查。
 
 ## 后果
 
-专家页可以在不导入市场 wire 类型的情况下，把可安装 hub 行与 roster 合并。install 与 remove 仍由 `ctx.market` 拥有；中心只过滤 `expert` 分类，并为该 UI 重命名 wire。安装 wire 名为 `installEntry`，原因与 `market-gateway` 记录的 Remote-client `install` 助手冲突相同。
+专家页可以在不导入市场 wire 类型的情况下，把可安装 hub 行与 roster 合并。install 与 remove 仍由 `ctx.market` 拥有；中心只过滤 `expert` 分类，并为该 UI 重命名 wire。

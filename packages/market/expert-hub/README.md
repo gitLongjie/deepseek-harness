@@ -48,12 +48,12 @@ The gateway is a pure projection: a call whose underlying service rejects propag
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The plugin extends `TypertRemoteService` with the wire namespace `expertHub` and the same service key. It projects three methods: `catalog` browses the market with `category: 'expert'`, `installEntry` forwards a source-local entry ref, and `remove` uninstalls by bundle id.
+The plugin extends `TypertRemoteService` with the wire namespace `expertHub` and the same service key. It projects three methods: `catalog` browses the market with `category: 'expert'`, `install` forwards a source-local entry ref, and `remove` uninstalls by bundle id.
 
 | File | Owns |
 |---|---|
 | `src/index.ts` | The `ExpertHubGateway` Typert remote projection of `ctx.market` |
-| `src/types.ts` | The wire request/response types generated for the `expertHub` namespace |
+| `src/types.ts` | The wire request/response types; `package.json` `exports["./types"].types` points here so Client typecheck resolves before `lib/types` exists |
 
 </details>
 
