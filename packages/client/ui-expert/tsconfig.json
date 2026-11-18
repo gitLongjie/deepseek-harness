@@ -19,6 +19,9 @@
       "path": "../../preset/agent-preset-registry"
     },
     {
+      "path": "../../market/expert-hub"
+    },
+    {
       "path": "../../../vendor/cordis"
     },
     {

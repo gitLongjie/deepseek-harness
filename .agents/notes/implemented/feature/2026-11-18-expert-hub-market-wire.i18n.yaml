@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-11-18-expert-hub-market-wire.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-11-18-expert-hub-market-wire.md
+/agent-note-expert-hub-market-wire:
+  en: 6e420982f0c8f9e6
+  zh: 49a0ac33822be02e
+/agent-note-expert-hub-market-wire/problem:
+  en: 812a77c534454eb0
+  zh: 4fee9d63f03cc924
+/agent-note-expert-hub-market-wire/decision:
+  en: 05f7b9471d956186
+  zh: f4fce07adec12db8
+/agent-note-expert-hub-market-wire/alternatives-considered:
+  en: e58fe806b93cbd81
+  zh: 5550ab8bdf98dc49
+/agent-note-expert-hub-market-wire/verification:
+  en: d5b7192a6aae0ff3
+  zh: cb945602dc94f672
+/agent-note-expert-hub-market-wire/consequences:
+  en: 4b1e7e6c3ef506c0
+  zh: c5b876362d94cebc

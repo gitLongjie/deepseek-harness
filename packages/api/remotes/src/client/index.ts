@@ -20,6 +20,7 @@ import pluginMarketRemote from '@deepseek-ai/dsh-plugin-market/remote'
 import pluginInventoryRemote from '@deepseek-ai/dsh-host-plugin-inventory/remote'
 import kbGatewayRemote from '@deepseek-ai/dsh-kb-gateway/remote'
 import marketRemote from '@deepseek-ai/dsh-market-gateway/remote'
+import expertHubRemote from '@deepseek-ai/dsh-expert-hub/remote'
 import messageFeedbackRemote from '@deepseek-ai/dsh-message-feedback/remote'
 import permissionPresetsRemote from '@deepseek-ai/dsh-permission-presets/remote'
 import sessionFeedbackRemote from '@deepseek-ai/dsh-command-feedback/remote'
@@ -66,6 +67,8 @@ export type {} from '@deepseek-ai/dsh-kb-gateway/remote'
 export type * from '@deepseek-ai/dsh-kb-gateway/types'
 export type {} from '@deepseek-ai/dsh-market-gateway/remote'
 export type * from '@deepseek-ai/dsh-market-gateway/types'
+export type {} from '@deepseek-ai/dsh-expert-hub/remote'
+export type * from '@deepseek-ai/dsh-expert-hub/types'
 export type {} from '@deepseek-ai/dsh-message-feedback/remote'
 export type {} from '@deepseek-ai/dsh-permission-presets/remote'
 export type {} from '@deepseek-ai/dsh-command-feedback/remote'
@@ -206,7 +209,7 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
       fileUploadsRemote, sessionReferencesRemote,
       permissionPresetsRemote, subagentsRemote, sessionRemote, jobRemote, workspaceRemote, workspaceFilesRemote, terminalRemote,
       officeToPdfRemote, userQuestionsRemote,
-      kbGatewayRemote, marketRemote, scheduleWorkRemote,
+      kbGatewayRemote, marketRemote, expertHubRemote, scheduleWorkRemote,
     ]) {
       disposers.push(await ctx.remote.$mount(contribution))
     }

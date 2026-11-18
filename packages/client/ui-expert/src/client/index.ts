@@ -17,10 +17,12 @@ import type { ISessions } from '@deepseek-ai/dsh-api-session-controller/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 // Type-only: pulls the SlotRegistry service merge (ctx.slots).
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
-// Type-only: pulls the Remote namespaces (ctx.remote.agentPresets).
+// Type-only: pulls the Remote namespaces (ctx.remote.agentPresets / expertHub).
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 // Type-only: the shipped roster row shape the market admits experts from.
 import type { AgentPresetRow } from '@deepseek-ai/dsh-agent-preset-registry/types'
+// Type-only: installable hub rows merged beside the roster.
+import type { ExpertHubCatalog } from '@deepseek-ai/dsh-expert-hub/types'
 // The expert marker the market admits by — the same predicate the mode
 // surfaces exclude by, so the two rules cannot drift. The display fold is
 // the shared inline-safe home a client bundle may inline.
@@ -60,7 +62,7 @@ export const NS = 'expert'
  * hire action forwards to.
  */
 export const inject = [
-  'slots', 'locale', 'remote', 'remote.agentPresets', 'sessions', 'layout', 'uiWorkspace', 'uiAgentPreset',
+  'slots', 'locale', 'remote', 'remote.agentPresets', 'remote.expertHub', 'sessions', 'layout', 'uiWorkspace', 'uiAgentPreset',
 ]
 
 /**
@@ -123,8 +125,9 @@ export function apply(ctx: Context): void {
     load: async (): Promise<{ experts: readonly ExpertRecord[] }> => {
       // The market admits rows the shared expert predicate matches, including
       // shipped presets that publish `category`. Names for those ids come from
-      // the agent-preset dictionaries. A refused or absent roster read degrades
-      // to an empty market; the page never fails on the market read.
+      // the agent-preset dictionaries. Hub catalog rows whose ids are not already
+      // on the roster appear beside them as installable cards. A refused or
+      // absent read degrades to an empty half; the page never fails on either.
       const label = ctx.locale.bind('settings.agentPreset')
       const shipped = await ctx.remote.agentPresets.list().then(
         (result): readonly ExpertRecord[] => (result.ok
@@ -132,7 +135,23 @@ export function apply(ctx: Context): void {
           : []),
         (): readonly ExpertRecord[] => [],
       )
-      return { experts: shipped }
+      const present = new Set(shipped.map(expert => expert.id))
+      const hub: ExpertHubCatalog = await ctx.remote.expertHub.catalog().then(
+        (result): ExpertHubCatalog => (result.ok ? result.value : []),
+        (): ExpertHubCatalog => [],
+      )
+      const fromHub = hub
+        .filter(item => !present.has(item.id))
+        .map((item): ExpertRecord => ({
+          id: item.id,
+          name: item.name,
+          trust: 'user',
+          ...(item.description !== undefined ? { description: item.description } : {}),
+          ...(item.subtitle !== undefined ? { subtitle: item.subtitle } : {}),
+          ...(item.category !== undefined ? { category: item.category } : {}),
+          ...(item.tags !== undefined ? { tags: item.tags } : {}),
+        }))
+      return { experts: [...shipped, ...fromHub] }
     },
     hire: (id: string) => {
       // Stage BEFORE closing the page. A refused stage means nothing will
