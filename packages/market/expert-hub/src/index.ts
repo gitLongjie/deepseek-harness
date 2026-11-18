@@ -67,14 +67,10 @@ export class ExpertHubGateway extends TypertRemoteService {
 
   /**
    * Install one expert catalog entry into the managed profile.
-   *
-   * The wire name is `installEntry`, not `install`: the Remote client's
-   * namespace service carries its own `install` helper, and a method of that
-   * name is rejected as conflicting with its namespace service.
    * @param request - the source-local identity of the entry to install.
    * @returns the discriminated install outcome with the exact added version on success.
    */
-  @Remote('installEntry')
+  @Remote('install')
   async install(request: { sourceId: ExpertHubSourceId; id: ExpertHubEntryId }): Promise<ExpertHubInstallOutcome> {
     const ref: MarketEntryRef = { sourceId: request.sourceId, entryId: request.id }
     return this.market.install(ref)

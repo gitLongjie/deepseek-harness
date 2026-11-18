@@ -249,7 +249,7 @@ export const VIEWER_ENDPOINT_CLASSES = {
   'market/uninstall': 'owner-only', // the OEM market panel manages installs and sources
   'market/selectSource': 'owner-only', // the OEM market panel manages installs and sources
   'market/removeSource': 'owner-only', // the OEM market panel manages installs and sources
-  'expertHub/installEntry': 'owner-only', // the expert page installs an expert package
+  'expertHub/install': 'owner-only', // the expert page installs an expert package
   'expertHub/remove': 'owner-only', // the expert page removes an installed expert package
   'liveshareShares/audit': 'owner-only',
   'liveshareShares/capabilities': 'owner-only',
