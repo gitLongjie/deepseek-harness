@@ -467,6 +467,16 @@ export async function runDesktopBoot(options: DesktopBootOptions): Promise<Deskt
   )
   if (businessEntryPatch !== undefined) overlays.push(...businessEntryPatch)
 
+  // The skin plugin ships inside the desktop installation and is not part of
+  // the web profile template. Its Host registers the stylesheet tap and the
+  // /_skin routes; the shell proxies those routes onto this web server.
+  const skinPatch = resolveOptionalBundlePatch(
+    INSTALL_ANCHOR,
+    'dsh-skin',
+    [...bundlePatches, ...profile.patches, ...homePatches, ...overlays],
+  )
+  if (skinPatch !== undefined) overlays.push(...skinPatch)
+
   const app: { current?: Context } = {}
   const shutdown = createProcessShutdown(
     async () => { await app.current?.fiber.dispose() },

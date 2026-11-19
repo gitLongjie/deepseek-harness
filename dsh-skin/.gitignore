@@ -1,0 +1,68 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Theme backgrounds (large binaries, use git-lfs or separate storage)
+themes/*/background.jpg
+themes/*/background.png
+themes/*/background.webp
+!themes/cyndi-sugarhigh-2.0/background.jpg
+!themes/gothic-void-crusade/background.jpg
+!themes/arina-hashimoto/
+!themes/arina-hashimoto/**
+!themes/rei-blue-pencil/
+!themes/rei-blue-pencil/**
+
+# Source-only upstream reference. Its portrait asset is not cleared for public
+# redistribution; keep the local checkout available without publishing it.
+/Codex-Dream-Skin/
+
+# Gallery artwork is materialized locally from the pinned catalog. Only the
+# explicit release selection below is committed and shipped.
+gallery/themes/*
+!gallery/themes/120458/
+!gallery/themes/120458/**
+!gallery/themes/123456/
+!gallery/themes/123456/**
+!gallery/themes/annapurna-peak-v0.1.1/
+!gallery/themes/annapurna-peak-v0.1.1/**
+!gallery/themes/anye/
+!gallery/themes/anye/**
+!gallery/themes/astral-tidev2/
+!gallery/themes/astral-tidev2/**
+!gallery/themes/character-01/
+!gallery/themes/character-01/**
+!gallery/themes/custom-1785220478580/
+!gallery/themes/custom-1785220478580/**
+!gallery/themes/deepseek/
+!gallery/themes/deepseek/**
+!gallery/themes/hx24007-2026-08-012-0001/
+!gallery/themes/hx24007-2026-08-012-0001/**
+!gallery/themes/ikun-red/
+!gallery/themes/ikun-red/**
+!gallery/themes/lucy-moon/
+!gallery/themes/lucy-moon/**
+!gallery/themes/milky-way/
+!gallery/themes/milky-way/**
+!gallery/themes/mingchao/
+!gallery/themes/mingchao/**
+!gallery/themes/moonlight-kiss/
+!gallery/themes/moonlight-kiss/**
+!gallery/themes/usr-49e16299682ecef4aa46.prosperity-mode/
+!gallery/themes/usr-49e16299682ecef4aa46.prosperity-mode/**
+gallery/.gallery-vendor-*/
+.cache/dreamskin-gallery/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log

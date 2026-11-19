@@ -12,6 +12,9 @@ packages:
   # Bundled business-entry sidebar plugin, staged into the desktop release the
   # same way; the workspace install supplies the esbuild its build script needs.
   - business-entry
+  # Bundled skin plugin. Desktop stages its host, client, and theme files
+  # into the app and proxies /_skin to the in-process Host.
+  - dsh-skin
   # Private package owning repository-level benchmark dependencies.
   - benchmarks
   - website

@@ -56,6 +56,18 @@ files:
       - lib/**
       - cordis.patch.yml
       - package.json
+  # The skin plugin's Host reads themes beside src/index.js and the client
+  # bundle from lib/client.js. Stage that runtime tree; electron-builder does
+  # not follow the workspace junction.
+  - from: dist/dsh-skin-package
+    to: node_modules/dsh-skin
+    filter:
+      - src/**
+      - lib/**
+      - themes/**
+      - gallery/**
+      - cordis.patch.yml
+      - package.json
   # Drop the app's own sources/tests/sourcemaps to keep the bundle slim. Keep
   # the globs app-relative (!src/**) so dependency sources that their package
   # main points at (e.g. debug -> src/index.js) are NOT excluded from node_modules.

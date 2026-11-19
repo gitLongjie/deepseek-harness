@@ -5,7 +5,7 @@
  * imports against the built workspace libs.
  */
 import { spawn, spawnSync } from 'node:child_process'
-import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { cpSync, copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve, basename } from 'node:path'
@@ -71,6 +71,24 @@ function refreshLocalImPlugin(): void {
   copyFileSync(resolve(source, 'package.json'), resolve(packageDir, 'package.json'))
 }
 
+/** Top-level runtime entries the skin package needs beside its manifest. */
+const SKIN_RUNTIME_ROOTS = new Set(['src', 'lib', 'themes', 'gallery', 'package.json', 'cordis.patch.yml'])
+
+/** Build the checked-out skin plugin and refresh the active Web profile copy. */
+function refreshLocalSkinPlugin(): void {
+  const source = resolve(root, '..', '..', 'dsh-skin')
+  run('pnpm', ['run', 'build'], { cwd: source })
+  const packageDir = resolve(productHome(), 'profiles', 'web', 'node_modules', 'dsh-skin')
+  rmSync(packageDir, { recursive: true, force: true })
+  mkdirSync(packageDir, { recursive: true })
+  cpSync(source, packageDir, {
+    recursive: true,
+    filter: candidate => candidate === source || SKIN_RUNTIME_ROOTS.has(
+      candidate.slice(source.length).replaceAll('\\', '/').replace(/^\//, '').split('/')[0] ?? '',
+    ),
+  })
+}
+
 /** Build the checked-out business-entry plugin and refresh the active Web profile copy. */
 function refreshLocalBusinessEntryPlugin(): void {
   const source = resolve(root, '..', '..', 'business-entry')
@@ -92,6 +110,7 @@ function refreshLocalBusinessEntryPlugin(): void {
 // old hashed chunks otherwise; stale assets linger and confuse diagnosis.
 refreshLocalImPlugin()
 refreshLocalBusinessEntryPlugin()
+refreshLocalSkinPlugin()
 // The Client-face tsdown bundles every plugin from its tsc emit under
 // lib/types, not its sources, so the emit must be refreshed for all client
 // packages before bundling: a stale emit ships the previous logic with no

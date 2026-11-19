@@ -66,6 +66,7 @@
     "@deepseek-ai/cosmokit": "workspace:~",
     "@deepseek-ai/schemastery": "workspace:~",
     "@xmanrui/dsh-im": "file:../../dsh-im/dsh-im-main",
+    "dsh-skin": "workspace:*",
     "@deepseek-ai/dsh-agent": "workspace:*",
     "@deepseek-ai/dsh-agent-default-model": "workspace:*",
     "@deepseek-ai/dsh-agent-instructions": "workspace:*",

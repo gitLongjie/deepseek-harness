@@ -9,11 +9,13 @@ import { renderDesktopIndex } from '../src/main/ipc/index-html.ts'
 
 /** A minimal host context carrying webServer + clientModules stubs. */
 function makeCtx(rows: IndexInjection[], bundlePath?: string, bundled: string[] = []): Context {
+  const webServer = {
+    collectIndexInjections: () => rows,
+    applyIndexTaps: (html: string) => html,
+  }
   return {
     get(service: string): unknown {
-      if (service === 'webServer') {
-        return { collectIndexInjections: () => rows }
-      }
+      if (service === 'webServer') return webServer
       if (service === 'connection') {
         return { browserPeer: { principal: { kind: 'owner' } } }
       }
@@ -129,6 +131,19 @@ describe('renderDesktopIndex', () => {
     writeFileSync(iifeFile, 'window.__DSH_TRANSPORT__ = {}')
     const html = await renderDesktopIndex(makeCtx([]), dir, iifeFile, bundleFile)
     expect(html).toContain('id: "@deepseek-ai/dsh-client-modules"')
+  })
+
+  it('applies Host index taps after the injection table', async () => {
+    const dir = makeWebDist()
+    const iifeFile = join(dir, 'render-transport.js')
+    writeFileSync(iifeFile, 'window.__DSH_TRANSPORT__ = {}')
+    const ctx = makeCtx([])
+    const server = ctx.get('webServer') as { applyIndexTaps(html: string): string }
+    server.applyIndexTaps = html => html.replace('</head>', '<link data-dsh-skin="1" href="/_skin/active.css"></head>')
+    const html = await renderDesktopIndex(ctx, dir, iifeFile)
+    expect(html).toContain('data-dsh-skin="1"')
+    expect(html).toContain('href="/_skin/active.css"')
+    expect(html).toContain('window.__DSH_TRANSPORT__')
   })
 
   it('rejects when the transport IIFE is missing', async () => {

@@ -20,6 +20,7 @@ const root = fileURLToPath(new URL('../', import.meta.url))
 const repoRoot = resolve(root, '../..')
 const dshImRoot = resolve(repoRoot, 'dsh-im', 'dsh-im-main')
 const businessEntryRoot = resolve(repoRoot, 'business-entry')
+const skinRoot = resolve(repoRoot, 'dsh-skin')
 const { productName, updateUrl, knowledgeBase, gatewayProviderName, helpDocsUrl, contactUrl } = readDesktopOemConfig(repoRoot)
 // pnpm 11's deps-status check aborts in a non-interactive shell unless CI is
 // set; stamp it so every pnpm invocation here inherits it.
@@ -28,6 +29,21 @@ const args = process.argv.slice(2)
 const dirMode = args.includes('--dir')
 const publish = args.includes('--publish')
 const localUpdateTest = process.env.DSH_DESKTOP_LOCAL_UPDATE_TEST === '1'
+
+/** Top-level runtime entries the skin package needs beside its manifest. */
+const SKIN_RUNTIME_ROOTS = new Set(['src', 'lib', 'themes', 'gallery', 'package.json', 'cordis.patch.yml'])
+
+/**
+ * Keep one path when it is part of the skin runtime tree.
+ * @param root - absolute skin package directory.
+ * @param source - path cpSync is considering.
+ * @returns the relative path when it should be staged, otherwise undefined.
+ */
+function skinRuntimeRelative(root, source) {
+  const relative = source.slice(root.length).replaceAll('\\', '/').replace(/^\//, '')
+  const top = relative.split('/')[0]
+  return SKIN_RUNTIME_ROOTS.has(top) ? relative : undefined
+}
 
 function run(cmd, cmdArgs, opts = {}) {
   // shell:true lets Node resolve `.cmd` shims on Windows.
@@ -78,6 +94,7 @@ syncDesktopOemIcons(repoRoot, root)
 // through their workspace installs before staging them for electron-builder.
 run('pnpm', ['--dir', dshImRoot, 'run', 'build'])
 run('pnpm', ['--dir', businessEntryRoot, 'run', 'build'])
+run('pnpm', ['--dir', skinRoot, 'run', 'build'])
 run('pnpm', ['build:main'], { cwd: root })
 run('node', ['scripts/build-render-transport.mjs'], { cwd: root })
 // The built module is the asar-unpack manifest's single source of truth, shared
@@ -110,6 +127,13 @@ cpSync(businessEntryRoot, businessEntryStage, {
   recursive: true,
   filter: (source) => source === businessEntryRoot
     || /(?:[\\/](?:lib|package\.json|cordis\.patch\.yml))(?:$|[\\/])/.test(source),
+})
+// Stage the skin plugin. The Host entry is src/index.js and it reads themes
+// and gallery images from the package root; the client bundle is lib/client.js.
+const skinStage = resolve(root, 'dist', 'dsh-skin-package')
+cpSync(skinRoot, skinStage, {
+  recursive: true,
+  filter: (source) => source === skinRoot || skinRuntimeRelative(skinRoot, source) !== undefined,
 })
 // 3. Package from apps/desktop itself. electron-builder follows the pnpm
 // workspace symlinks in node_modules, excludes devDependencies by the manifest,

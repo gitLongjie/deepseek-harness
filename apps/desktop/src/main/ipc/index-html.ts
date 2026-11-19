@@ -58,7 +58,8 @@ async function readPluginBundle(modules: ClientModuleRegistry, src: string): Pro
 /**
  * Compose the injected index.html the desktop shell loads. Collects the live
  * injection table, inlines every script-src row from its source bytes, prepends
- * the render-transport IIFE, and renders the table into the built dist index.
+ * the render-transport IIFE, renders the table into the built dist index, then
+ * applies the Host's raw index taps (the skin stylesheet link).
  * @param ctx - the settled boot context carrying webServer and clientModules.
  * @param webDistDir - directory containing the built frontend index.html.
  * @param transportIifePath - absolute path of the built render-transport IIFE.
@@ -78,6 +79,7 @@ export async function renderDesktopIndex(
 ): Promise<string> {
   const server = ctx.get('webServer') as {
     collectIndexInjections(peer: object): IndexInjection[]
+    applyIndexTaps(html: string): string
   } | undefined
   if (server === undefined) {
     throw new Error('desktop: no webServer service to collect index injections')
@@ -139,5 +141,7 @@ export async function renderDesktopIndex(
     text: escapeInlineScript(stripSourceMappingUrl(readFileSync(transportIifePath, 'utf8'))),
   }
   const raw = readFileSync(join(webDistDir, 'index.html'), 'utf8')
-  return renderIndexInjections(raw, [transport, ...inlined])
+  // Structured rows are the desktop injection table. tapIndex transforms
+  // (the skin stylesheet link) still run, matching the served web document.
+  return server.applyIndexTaps(renderIndexInjections(raw, [transport, ...inlined]))
 }

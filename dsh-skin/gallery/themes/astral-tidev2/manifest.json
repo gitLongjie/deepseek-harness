@@ -1,0 +1,46 @@
+{
+  "packageVersion": 1,
+  "themeId": "astral-tidev2",
+  "version": "0.1.0",
+  "skinApiVersion": 1,
+  "minClientVersion": "0.1.0",
+  "platforms": [
+    "windows",
+    "macos"
+  ],
+  "capabilities": [
+    "background",
+    "tokens",
+    "safe-css"
+  ],
+  "publisher": {
+    "id": "kevin-carney",
+    "displayName": "kevin carney"
+  },
+  "license": "MIT",
+  "provenance": {
+    "aiGenerated": false,
+    "summary": "wallpaper"
+  },
+  "files": [
+    {
+      "path": "theme.json",
+      "mediaType": "application/json",
+      "bytes": 520,
+      "sha256": "212ba88f86fea19d4876336259976e3426089b7405f677afa3f628aba0311cad"
+    },
+    {
+      "path": "background.webp",
+      "mediaType": "image/webp",
+      "bytes": 172050,
+      "sha256": "5a14965b4386c2762f118dbb1eb8ceedc96d0b8cb69d76a59dc8f63175d09393"
+    },
+    {
+      "path": "theme.css",
+      "mediaType": "text/css",
+      "bytes": 3077,
+      "sha256": "d4a7174382e60d6c802cf56eb9670f4139e9a4284768f06a419707289debd0c3"
+    }
+  ],
+  "createdAt": "2026-08-13T16:26:05.083Z"
+}

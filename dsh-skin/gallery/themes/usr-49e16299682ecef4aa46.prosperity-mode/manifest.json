@@ -1,0 +1,46 @@
+{
+  "packageVersion": 1,
+  "themeId": "usr-49e16299682ecef4aa46.prosperity-mode",
+  "version": "0.1.1",
+  "skinApiVersion": 1,
+  "minClientVersion": "0.1.0",
+  "platforms": [
+    "macos",
+    "windows"
+  ],
+  "capabilities": [
+    "background",
+    "tokens",
+    "safe-css"
+  ],
+  "publisher": {
+    "id": "usr_49e16299682ecef4aa46",
+    "displayName": "axdlee"
+  },
+  "license": "CC BY 4.0",
+  "provenance": {
+    "aiGenerated": true,
+    "summary": "AI 生成背景；基于原创视觉方向创建，并经过人工构图、配色与可读性筛选。"
+  },
+  "files": [
+    {
+      "path": "theme.json",
+      "mediaType": "application/json",
+      "bytes": 810,
+      "sha256": "9d466533345ed0a9f41dc97736c0240a462d5fcff52f478b13f7c246e431d4b3"
+    },
+    {
+      "path": "background.webp",
+      "mediaType": "image/webp",
+      "bytes": 128190,
+      "sha256": "aac5974db9a2ffbd50d2933876df412b124fb47a47273594ea6a1560c933f42a"
+    },
+    {
+      "path": "theme.css",
+      "mediaType": "text/css",
+      "bytes": 273,
+      "sha256": "3f5401920639e102d2e3871057f2bb68d290a5ca5f5a14c9e01cb2ff7be088e3"
+    }
+  ],
+  "createdAt": "2026-07-30T01:34:02.982Z"
+}

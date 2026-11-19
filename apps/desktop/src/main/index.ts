@@ -24,6 +24,7 @@ import { dispatchTransportFetch, registerTransportIpc, transportRequestBytes, ty
 import { registerBundleIpc } from './ipc/bundle.ts'
 import { registerPluginToggleIpc } from './ipc/plugin-toggle.ts'
 import { renderDesktopIndex } from './ipc/index-html.ts'
+import { isWebHostProxyPath } from './web-host-proxy.ts'
 import { LOOPBACK_AUTHORITY } from './ipc/loopback-authority.ts'
 import { installSingleInstanceLock } from './desktop/single-instance.ts'
 import { installTray, type TrayHandle } from './desktop/tray.ts'
@@ -742,10 +743,11 @@ function registerWebProtocol(writeLog: (line: string) => void): void {
           { method: request.method },
         ))
       }
-      // Host web-server routes (open-in-app availability, icons, launches) are
-      // live on the profile's ephemeral loopback listener; the shell proxies
-      // them there, completing that server's token→cookie trust handshake once.
-      if (pathname.startsWith('/open-in-app/')) {
+      // Host web-server routes (open-in-app, skin CSS, previews, and the
+      // skin API) live on the profile's ephemeral loopback listener. The
+      // page is dshapp://, so the shell proxies those paths and completes
+      // that server's token→cookie handshake once.
+      if (isWebHostProxyPath(pathname)) {
         return await proxyToWebHost(request, writeLog)
       }
       const data = await readFile(filePath)
