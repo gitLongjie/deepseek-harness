@@ -8,9 +8,9 @@
 
 import { useId, useState, useSyncExternalStore } from 'react'
 import type { ReactNode } from 'react'
-import { Button, IconEyeOffOutline16, IconEyeOutline16, Input } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, Checkbox, IconEyeOffOutline16, IconEyeOutline16, Input } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { LoginKey } from './locales.ts'
-import type { LoginStore } from './login-store.ts'
+import { readStoredLogin, type LoginStore } from './login-store.ts'
 import css from './LoginGate.module.css'
 
 /** Inject face the registration supplies to the gate component. */
@@ -39,14 +39,38 @@ export function LoginGate({ controller, brandIcon, t }: LoginGateProps): ReactNo
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [rememberPassword, setRememberPassword] = useState(true)
+  const [autoLogin, setAutoLogin] = useState(true)
+  const [hydrated, setHydrated] = useState(false)
   const usernameId = useId()
   const passwordId = useId()
+  // The first time the card is shown, adopt a stored pair so a launch that
+  // declined automatic sign-in still prefills. A later sign-out keeps whatever
+  // the card already holds.
+  if (!hydrated && !state.restoring && state.session === null) {
+    setHydrated(true)
+    const stored = readStoredLogin()
+    if (stored !== null) {
+      setUsername(stored.username)
+      setPassword(stored.password)
+      setRememberPassword(stored.rememberPassword !== false)
+      setAutoLogin(stored.autoLogin !== false)
+    }
+  }
   if (state.restoring) return <div className={css.backdrop} role="presentation" />
   if (state.session !== null) return null
+  const onRememberPassword = (next: boolean): void => {
+    setRememberPassword(next)
+    if (!next) setAutoLogin(false)
+  }
+  const onAutoLogin = (next: boolean): void => {
+    setAutoLogin(next)
+    if (next) setRememberPassword(true)
+  }
   const onSubmit = (event: React.FormEvent): void => {
     event.preventDefault()
     if (state.busy || username === '' || password === '') return
-    void controller.login(username, password)
+    void controller.login(username, password, { rememberPassword, autoLogin })
   }
   return (
     <div className={css.backdrop} role="presentation">
@@ -91,6 +115,20 @@ export function LoginGate({ controller, brandIcon, t }: LoginGateProps): ReactNo
               {showPassword ? <IconEyeOffOutline16 /> : <IconEyeOutline16 />}
             </button>
           </span>
+        </div>
+        <div className={css.options}>
+          <Checkbox
+            checked={rememberPassword}
+            onChange={onRememberPassword}
+            label={t('rememberPassword')}
+            disabled={state.busy}
+          />
+          <Checkbox
+            checked={autoLogin}
+            onChange={onAutoLogin}
+            label={t('autoLogin')}
+            disabled={state.busy}
+          />
         </div>
         {state.error !== null && <p className={css.error} role="alert">{state.error}</p>}
         <Button

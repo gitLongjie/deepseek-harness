@@ -9,6 +9,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ScheduleWorkRunRecord, ScheduleWorkTaskInput, ScheduleWorkTaskView } from '@deepseek-ai/dsh-schedule-work/types'
 import { IconAlarmClockOutline16, Button, Input, StateDot } from '@deepseek-ai/dsh-client-ui-primitives'
+// Type-only: pulls the main-slot and useWorkspaces prop merges this page's props read.
+import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import { NS } from './locales.ts'
 import { formatDateTime, formatTime, ruleSummary, taskStatus } from './task-format.ts'

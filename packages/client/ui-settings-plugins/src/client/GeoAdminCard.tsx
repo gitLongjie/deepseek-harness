@@ -17,21 +17,20 @@ export type GeoAdminCardProps =
   & PropsLocale<'settings.plugins'>
   & InjectFace<GeoAdminCardFace>
 
-/** Locale keys addressing one field's label and hint. */
-type GeoLabelKey = 'geoBaseUrl' | 'geoBaseUrlHint' | 'geoUsername' | 'geoUsernameHint'
+/** Locale keys addressing one field's label and, when present, its hint. */
+type GeoLabelKey = 'geoBaseUrl' | 'geoUsername' | 'geoUsernameHint'
 
 /** One rendered section field: its DOM id, copy keys, and form field name. */
 interface FieldSpec {
   id: string
   labelKey: GeoLabelKey
-  hintKey: GeoLabelKey
+  hintKey?: GeoLabelKey
   field: string
-  placeholderKey?: 'geoBaseUrlPlaceholder'
 }
 
 /** Every section field in display order. */
 const FIELDS: readonly FieldSpec[] = [
-  { id: 'geo-admin-base-url', labelKey: 'geoBaseUrl', hintKey: 'geoBaseUrlHint', field: 'baseUrl', placeholderKey: 'geoBaseUrlPlaceholder' },
+  { id: 'geo-admin-base-url', labelKey: 'geoBaseUrl', field: 'baseUrl' },
   { id: 'geo-admin-username', labelKey: 'geoUsername', hintKey: 'geoUsernameHint', field: 'username' },
 ]
 
@@ -60,12 +59,11 @@ export function GeoAdminCard(props: GeoAdminCardProps) {
             key={spec.id}
             id={`plugin-config-${spec.id}`}
             label={t(spec.labelKey)}
-            hint={t(spec.hintKey)}
+            hint={spec.hintKey === undefined ? '' : t(spec.hintKey)}
             overriddenLabel={t('overridden')}
             resetLabel={t('reset')}
             invalidLabel={t('invalidNumber')}
             disabled={!state.writable}
-            {...spec.placeholderKey === undefined ? {} : { placeholder: t(spec.placeholderKey) }}
             {...field}
             onEdit={(text) => { props.edit(spec.field, text) }}
             onReset={() => { props.resetField(spec.field) }}
@@ -83,6 +81,8 @@ export function GeoAdminCard(props: GeoAdminCardProps) {
         text={state.password.text}
         configured={state.passwordConfigured}
         stateLabel={state.passwordConfigured ? t('geoPasswordSet') : t('geoPasswordUnset')}
+        showLabel={t('showPassword')}
+        hideLabel={t('hidePassword')}
         onEdit={(text) => { props.edit('password', text) }}
       />
     </PluginCard>

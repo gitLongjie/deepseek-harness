@@ -67,10 +67,14 @@ export class ExpertHubGateway extends TypertRemoteService {
 
   /**
    * Install one expert catalog entry into the managed profile.
+   *
+   * The wire name is `installEntry`, not `install`: the Remote client's
+   * namespace service carries its own `install` helper, and a method of that
+   * name is rejected as conflicting with its namespace service.
    * @param request - the source-local identity of the entry to install.
    * @returns the discriminated install outcome with the exact added version on success.
    */
-  @Remote('install')
+  @Remote('installEntry')
   async install(request: { sourceId: ExpertHubSourceId; id: ExpertHubEntryId }): Promise<ExpertHubInstallOutcome> {
     const ref: MarketEntryRef = { sourceId: request.sourceId, entryId: request.id }
     return this.market.install(ref)
@@ -78,10 +82,14 @@ export class ExpertHubGateway extends TypertRemoteService {
 
   /**
    * Remove one installed expert bundle from the managed profile.
+   *
+   * The wire name is `uninstall`, not `remove`: the Remote client's namespace
+   * service carries its own `remove` helper, and a method of that name is
+   * rejected as conflicting with its namespace service.
    * @param request - the bundle id (npm package name) to remove.
    * @returns the discriminated remove outcome naming the removed package.
    */
-  @Remote('remove')
+  @Remote('uninstall')
   async remove(request: { bundleId: ExpertHubBundleId }): Promise<ExpertHubRemoveOutcome> {
     return this.market.uninstall(request.bundleId as MarketBundleId)
   }

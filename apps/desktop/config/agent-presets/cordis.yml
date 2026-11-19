@@ -11,6 +11,11 @@
   name: '@deepseek-ai/cordis-plugin-include'
   config:
     path: ./geo-admin/preset.yml
+# 上线前 GEO 布局专家：读 RAG 切片报告出策略、场景词与排期。
+- id: expert-geo-pre-launch
+  name: '@deepseek-ai/cordis-plugin-include'
+  config:
+    path: ./geo-pre-launch/preset.yml
 # Development-only until the installed product exposes video direction. The
 # branded desktop launcher sets `DSH_DESKTOP_DEV=1`; installed builds hide it.
 - id: expert-h3-video-director

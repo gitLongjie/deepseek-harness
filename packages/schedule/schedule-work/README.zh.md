@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-Schedule-work 是桌面端"定时工作"页面背后的宿主能力：应用级定时任务按计划运行一条提示词，每次触发都会在绑定的工作空间里打开一个新会话。规则覆盖一次性时刻、每天/每周/每月的本地日历时间以及固定间隔；任务可以暂停、可以设置有效期截止，还可以把新会话切换到 danger-full-access 权限预设。每次触发都会写入关联会话的持久运行记录。状态存放在 `schedule_work` 存储域，宿主侧通过 Typert Remote 的 `scheduleWork` 命名空间访问。
+Schedule-work 是应用级定时任务的宿主能力：任务按计划运行一条提示词，每次触发都会在绑定的工作空间里打开一个新会话。它的管理页面不挂载。规则覆盖一次性时刻、每天/每周/每月的本地日历时间以及固定间隔；任务可以暂停、可以设置有效期截止，还可以把新会话切换到 danger-full-access 权限预设。每次触发都会写入关联会话的持久运行记录。状态存放在 `schedule_work` 存储域，宿主侧通过 Typert Remote 的 `scheduleWork` 命名空间访问。
 
 ## 目录
 
@@ -84,7 +84,7 @@ Remote 命名空间 `scheduleWork` 暴露 `list`、`listRuns`、`create`、`upda
 ## 延伸阅读
 
 - [Schedule 包](../schedule/README.zh.md) —— 会话内提醒，是另一种能力：提醒绑定单个会话并投递到其中，而 schedule-work 任务打开自己的会话。
-- [客户端定时工作页面](../../client/ui-schedule-work/README.zh.md) —— 消费本 Remote 命名空间的侧边栏入口、任务目录与编辑器。
+- [客户端定时工作页面](../../client/ui-schedule-work/README.zh.md) —— 消费本 Remote 命名空间、但未挂载的页面组件。侧栏入口是自动化任务。
 - [存储域数据形态](../../../packages/storage/storage-domain/README.zh.md) —— 本包声明表所用的持久介质。
 - [权限预设](../../../docs/subsystems/permission-presets.zh.md) —— 完全访问开关指向的预设表。
 

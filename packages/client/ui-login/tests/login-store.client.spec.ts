@@ -78,8 +78,13 @@ describe('readStoredLogin', () => {
   })
 
   it('drops optional fields of the wrong type and keeps a usable pair', () => {
-    storeRecord({ username: 'jiege', password: 'pw', apiKey: 3, account: '', avatar: 7 })
+    storeRecord({ username: 'jiege', password: 'pw', apiKey: 3, account: '', avatar: 7, rememberPassword: 'yes', autoLogin: 1 })
     expect(readStoredLogin()).toEqual({ username: 'jiege', password: 'pw' })
+  })
+
+  it('keeps remember-password and auto-login when they are booleans', () => {
+    storeRecord({ username: 'jiege', password: 'pw', rememberPassword: true, autoLogin: false })
+    expect(readStoredLogin()).toEqual({ username: 'jiege', password: 'pw', rememberPassword: true, autoLogin: false })
   })
 
   it('treats absent, corrupted, and malformed values as absent', () => {
@@ -122,6 +127,36 @@ describe('LoginStore', () => {
     await expect(store.login('jiege', 'pw')).resolves.toBe(true)
     expect(readStoredLogin()).toEqual(storedRecord)
     expect(localStorage.getItem('dsh.login.session')).toBeNull()
+  })
+
+  it('records both choices when the sign-in asks to remember and sign in automatically', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(respond(okBody)))
+    const store = new LoginStore(AUTH_URL, adapter(), dummyApi)
+    await expect(store.login('jiege', 'pw', { rememberPassword: true, autoLogin: true })).resolves.toBe(true)
+    expect(readStoredLogin()).toEqual({ ...storedRecord, rememberPassword: true, autoLogin: true })
+  })
+
+  it('keeps the pair for prefill and skips the next launch when auto-login is off', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(respond(okBody)))
+    const store = new LoginStore(AUTH_URL, adapter(), dummyApi)
+    await expect(store.login('jiege', 'pw', { rememberPassword: true, autoLogin: false })).resolves.toBe(true)
+    expect(readStoredLogin()).toEqual({ ...storedRecord, rememberPassword: true, autoLogin: false })
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    const next = new LoginStore(AUTH_URL, adapter(), dummyApi)
+    await next.restore()
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(next.store.getSnapshot().session).toBeNull()
+    expect(next.store.getSnapshot().restoring).toBe(false)
+  })
+
+  it('drops any stored pair when remember-password is off', async () => {
+    storeRecord(storedRecord)
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(respond(okBody)))
+    const store = new LoginStore(AUTH_URL, adapter(), dummyApi)
+    await expect(store.login('jiege', 'pw', { rememberPassword: false, autoLogin: true })).resolves.toBe(true)
+    expect(readStoredLogin()).toBeNull()
+    expect(store.store.getSnapshot().session?.account).toBe('杰哥')
   })
 
   it('falls back to the username and a null avatar when the server omits them', async () => {

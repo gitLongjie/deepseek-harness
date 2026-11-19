@@ -1,5 +1,5 @@
 ---
-description: "The scheduled-work management surface: the sidebar panel row, the task catalog with batch management, the editor dialog, and run records, for users and maintainers of the page."
+description: "Scheduled-work page components that are not mounted. Automation tasks is the sidebar scheduling entry."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package renders the 定时工作 (scheduled work) management surface: a clock-icon sidebar row that switches the central column to a full-page task catalog beside a run-records tab. The catalog lists tasks with their rule summary, derived status, and next run; it filters by status, searches, refreshes, and supports batch pause, resume, and removal. The add/edit dialog covers the name, prompt, workspace binding, full access, schedule rule, and validity. All data flows through the Host's `scheduleWork` Remote face; the page holds no schedule state of its own.
+This package does not mount a sidebar row or a main page. Automation tasks is the left-sidebar scheduling entry, including More, so the 定时工作 row is not registered. The page component remains: a task catalog beside a run-records tab, with rule summaries, derived status, next run, status filter, search, refresh, and batch pause, resume, and removal. The add/edit dialog covers the name, prompt, workspace binding, full access, schedule rule, and validity. All data flows through the Host's `scheduleWork` Remote face; the page holds no schedule state of its own.
 
 ## Table of Contents
 
@@ -25,9 +25,9 @@ This package renders the 定时工作 (scheduled work) management surface: a clo
 <a id="use-this-package"></a>
 ## Use this package
 
-The shipped Web and desktop rosters enable this plugin together with the Host `schedule-work` row; no overlay is needed. In the expanded sidebar the row shows the clock icon and the localized 定时工作 label; in the collapsed rail it is the icon alone, with the label as its tooltip and accessible name. Selecting the row navigates through the layout service (`ctx.layout.selectPanel`), so the conversation stays intact behind it — returning to the conversation is the shell's own navigation.
+The shipped Web and desktop rosters load this plugin, and `apply` registers only the `scheduleWork` dictionaries. It does not register `sidebar.panellist` or a `main` panel, so 定时工作 does not appear in the sidebar or in More.
 
-The two tabs share one toolbar: status filter and search apply to the task catalog; refresh re-reads both lists. Row actions (edit, pause or resume, delete) appear on hover outside batch mode. Batch mode replaces them with checkboxes and one action bar. The editor dialog validates locally (non-empty name and prompt, a complete rule) and disables submission until the form is complete; a refused submit surfaces the Host's diagnostic under the form.
+The unmounted `ScheduleWorkPage` still behaves as follows. The two tabs share one toolbar: status filter and search apply to the task catalog; refresh re-reads both lists. Row actions (edit, pause or resume, delete) appear on hover outside batch mode. Batch mode replaces them with checkboxes and one action bar. The editor dialog validates locally (non-empty name and prompt, a complete rule) and disables submission until the form is complete; a refused submit surfaces the Host's diagnostic under the form.
 
 ### Status and summaries
 
@@ -41,13 +41,13 @@ A task's displayed status is derived: `active` when enabled with a next occurren
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The plugin makes two slot registrations whose declarations it depends on but does not own, each through `ctx.slots.inject` so activation order is irrelevant: a `sidebar.panellist` list entry (id `schedule-work`, order 60, label thunk) whose cell renders the alarm-clock icon, and a keyed `main` entry under the same key rendering `ScheduleWorkPage`. The layout service validates panel selection against the live main registry, so the pair is the whole contract. The page component receives the injected `scheduleWork` face (thin RemoteResult-unwrapping wrappers over `ctx.remote.scheduleWork`), the global `useWorkspaces` hook for the editor's workspace picker, and the namespace's `t` seat. Local state is presentation only: tab, filter, search, selection, dialog state, and the loaded lists.
+`apply` registers the `scheduleWork` dictionaries and no slots. `ScheduleWorkPage` is not mounted. The component still takes a `scheduleWork` callback face, the global `useWorkspaces` hook for the editor's workspace picker, and the namespace's `t` seat. Local state is presentation only: tab, filter, search, selection, dialog state, and the loaded lists.
 
 ### Source map
 
 | File | Role |
 |---|---|
-| [`src/client/index.ts`](src/client/index.ts) | Browser entry: dictionaries, sidebar panel row, and keyed main-page registration |
+| [`src/client/index.ts`](src/client/index.ts) | Browser entry: `scheduleWork` dictionaries only |
 | [`src/client/ScheduleWorkPage.tsx`](src/client/ScheduleWorkPage.tsx) | Catalog tabs, toolbar, batch management, and run-records list |
 | [`src/client/TaskEditor.tsx`](src/client/TaskEditor.tsx) | The add/edit dialog and its rule editor |
 | [`src/client/task-format.ts`](src/client/task-format.ts) | Pure rule summaries, derived status, and time formatting |
@@ -63,7 +63,7 @@ The plugin makes two slot registrations whose declarations it depends on but doe
 ## Further Exploration
 
 - [Schedule-work package](../../schedule/schedule-work/README.md) — the durable tasks, dispatch loop, and run records behind this page.
-- [Sidebar shell](../ui-sidebar/README.md) — the global panel list this package's row registers into.
+- [Automation tasks page](../ui-schedule/README.md) — the sidebar scheduling entry, including More.
 - [Client package map](../README.md) — adjacent browser UI packages.
 
 -----

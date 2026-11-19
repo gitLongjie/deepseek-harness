@@ -48,7 +48,7 @@ kind: "package-reference"
 <details>
 <summary>实现内部 — 点击展开</summary>
 
-插件以 wire 命名空间 `expertHub` 与同名服务键扩展 `TypertRemoteService`。它投影三个方法：`catalog` 以 `category: 'expert'` 浏览市场，`install` 转发来源本地条目引用，`remove` 按 bundle id 卸载。
+插件以 wire 命名空间 `expertHub` 与同名服务键扩展 `TypertRemoteService`。它投影三个方法：`catalog` 以 `category: 'expert'` 浏览市场，`installEntry` 转发来源本地条目引用，`uninstall` 按 bundle id 卸载。线名不用 `install` 或 `remove`，因为这两个名字会与 Remote 客户端的命名空间服务冲突。
 
 | 文件 | 职责 |
 |---|---|

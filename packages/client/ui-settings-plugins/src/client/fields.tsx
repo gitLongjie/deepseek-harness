@@ -6,7 +6,8 @@
  * card's save is the single point where a draft becomes a document mutation.
  */
 
-import { Tag } from '@deepseek-ai/dsh-client-ui-primitives'
+import { useState } from 'react'
+import { IconEyeOffOutline16, IconEyeOutline16, Tag, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import css from './fields.module.css'
 
 /** What every field control needs regardless of its value type. */
@@ -50,6 +51,7 @@ export function ValueField(props: FieldProps & {
   /** Placeholder shown while the draft is empty. */
   placeholder?: string
 }) {
+  const note = props.invalid ? props.invalidLabel : props.hint
   return (
     <div className={css.field}>
       <div className={css.head}>
@@ -81,9 +83,9 @@ export function ValueField(props: FieldProps & {
         disabled={props.disabled}
         onChange={(event) => { props.onEdit(event.target.value) }}
       />
-      <p className={props.invalid ? css.invalid : css.hint}>
-        {props.invalid ? props.invalidLabel : props.hint}
-      </p>
+      {note === ''
+        ? null
+        : <p className={props.invalid ? css.invalid : css.hint}>{note}</p>}
     </div>
   )
 }
@@ -92,6 +94,7 @@ export function ValueField(props: FieldProps & {
  * A write-only credential control. The value never rides a response, so the
  * control reports only whether one is configured and starts blank; a blank
  * draft writes nothing, which keeps the stored key rather than clearing it.
+ * The reveal shows the staged draft only: the stored credential is not on the page.
  * @param props - the field's copy, its staged text, and the configured state.
  * @returns the labelled control.
  */
@@ -100,7 +103,13 @@ export function SecretField(props: Pick<FieldProps, 'id' | 'label' | 'hint' | 't
   configured: boolean
   /** Copy describing the configured state. */
   stateLabel: string
+  /** Copy for the control that reveals the staged draft. */
+  showLabel: string
+  /** Copy for the control that masks the staged draft again. */
+  hideLabel: string
 }) {
+  const [visible, setVisible] = useState(false)
+  const revealLabel = visible ? props.hideLabel : props.showLabel
   return (
     <div className={css.field}>
       <div className={css.head}>
@@ -109,15 +118,29 @@ export function SecretField(props: Pick<FieldProps, 'id' | 'label' | 'hint' | 't
           <Tag tone={props.configured ? 'neutral' : 'quiet'}>{props.stateLabel}</Tag>
         </span>
       </div>
-      <input
-        id={props.id}
-        className={css.input}
-        type="password"
-        autoComplete="off"
-        value={props.text}
-        disabled={props.disabled}
-        onChange={(event) => { props.onEdit(event.target.value) }}
-      />
+      <div className={css.secret}>
+        <input
+          id={props.id}
+          className={css.secretInput}
+          type={visible ? 'text' : 'password'}
+          autoComplete="off"
+          spellCheck={false}
+          value={props.text}
+          disabled={props.disabled}
+          onChange={(event) => { props.onEdit(event.target.value) }}
+        />
+        <Tooltip label={revealLabel} side="top" delayMs={500}>
+          <button
+            type="button"
+            className={css.reveal}
+            aria-label={revealLabel}
+            aria-pressed={visible}
+            onClick={() => { setVisible(shown => !shown) }}
+          >
+            <span aria-hidden="true">{visible ? <IconEyeOffOutline16 /> : <IconEyeOutline16 />}</span>
+          </button>
+        </Tooltip>
+      </div>
       <p className={css.hint}>{props.hint}</p>
     </div>
   )

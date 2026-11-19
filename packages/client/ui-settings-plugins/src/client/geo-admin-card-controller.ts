@@ -70,6 +70,14 @@ export class GeoAdminCardController {
   private readonly form: CardForm<GeoAdminSettings>
   private readonly store: SnapshotStore<GeoAdminCardState>
   private credential: CredentialState | undefined
+  /**
+   * How many status reads are queued. Saving the account publishes the settings
+   * scope and starts a read before the password write; that read must finish
+   * before the write's own read asks, so its answer cannot land afterwards.
+   */
+  private credentialReads = 0
+  /** Settlement of the latest queued status read. */
+  private credentialTail: Promise<void> = Promise.resolve()
 
   /**
    * @param scope - the bound settings scope for the `geo-admin` namespace.
@@ -120,10 +128,26 @@ export class GeoAdminCardController {
     }
   }
 
-  /** Ask the credentials domain whether the password reference is configured. */
-  private async readCredential(): Promise<void> {
+  /**
+   * Ask the credentials domain whether the password reference is configured.
+   * @returns settlement after this read has published, or been skipped because
+   *   the domain could not answer.
+   */
+  private readCredential(): Promise<void> {
+    const queued = this.credentialReads > 0
+    this.credentialReads += 1
+    const follow = queued ? this.credentialTail.then(() => this.fetchCredential()) : this.fetchCredential()
+    const run = follow.finally(() => { this.credentialReads -= 1 })
+    this.credentialTail = run.then(() => undefined)
+    return run
+  }
+
+  /** Publish one credential answer. A failure leaves the last published answer. */
+  private async fetchCredential(): Promise<void> {
+    // A failed status call keeps the last answer and must not reject the queue.
     const response = await this.ctx.remote.credentials.describe([GEO_ADMIN_PASSWORD_REF])
-    if (!response.ok) return
+      .catch((_unreachable: unknown) => undefined)
+    if (response === undefined || !response.ok) return
     const view = response.value[GEO_ADMIN_PASSWORD_REF]
     const configured = view?.configured ?? false
     // An unknown reference is treated as writable: the control stays usable

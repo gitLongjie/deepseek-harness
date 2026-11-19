@@ -1,5 +1,6 @@
 /** What the browser half registers, and that it all leaves with the fiber. */
 
+import { readFile } from 'node:fs/promises'
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it, vi } from 'vitest'
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
@@ -45,6 +46,8 @@ describe('ui-settings-plugins apply', () => {
       credentials: { describe },
       $on: () => () => {},
     } as never)
+    // The card fiber names this service; without it the nested inject never runs.
+    ctx.provide('remote.credentials', { describe })
     declareRoot(slots)
     const fiber = ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
@@ -62,6 +65,24 @@ describe('ui-settings-plugins apply', () => {
 
   it('declares the services it uses', () => {
     expect(inject).toEqual(['slots', 'locale'])
+  })
+
+  it('declares every Remote namespace the account card reads', async () => {
+    // Cordis throws `cannot get property "remote.<ns>" without inject` when a
+    // fiber reads a namespace it did not name. The unit bench's Remote double
+    // is a plain object, so that throw never happens there; the declaration is
+    // what the running client checks.
+    const source = await readFile(new URL('../src/client/index.ts', import.meta.url), 'utf8')
+    const declared = source.match(/ctx\.inject\(\[([^\]]+)\]/)?.[1] ?? ''
+    const controllers = await Promise.all([
+      readFile(new URL('../src/client/geo-admin-card-controller.ts', import.meta.url), 'utf8'),
+      readFile(new URL('../src/client/h3-video-card-controller.ts', import.meta.url), 'utf8'),
+    ])
+    const used = [...controllers.join('\n').matchAll(/\bremote\.([A-Za-z_$][\w$]*)/g)]
+      .map(match => match[1]!)
+      .filter(name => !name.startsWith('$'))
+    expect(used).toContain('credentials')
+    expect(used.filter(name => !declared.includes(`'remote.${name}'`))).toEqual([])
   })
 
   it('registers one Built-in plugins section and declares its tab slot, contributing no tab of its own', async () => {

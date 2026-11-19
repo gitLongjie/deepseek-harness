@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Schedule-work is the Host capability behind the desktop 定时工作 page: app-level tasks that run a prompt on a schedule, each dispatch opening a fresh Session in the bound workspace. Rules cover one-shot instants, daily, weekly, and monthly local calendar times, and fixed-rate intervals; tasks pause, carry a validity end, and can switch the created Session to the danger-full-access permission preset. Every dispatch writes a durable run record linking the Session. State lives in the `schedule_work` storage domain, and the Host exposes the Typert Remote `scheduleWork` namespace.
+Schedule-work is the Host capability for app-level tasks that run a prompt on a schedule, each dispatch opening a fresh Session in the bound workspace. Its management page is not mounted. Rules cover one-shot instants, daily, weekly, and monthly local calendar times, and fixed-rate intervals; tasks pause, carry a validity end, and can switch the created Session to the danger-full-access permission preset. Every dispatch writes a durable run record linking the Session. State lives in the `schedule_work` storage domain, and the Host exposes the Typert Remote `scheduleWork` namespace.
 
 ## Table of Contents
 
@@ -84,7 +84,7 @@ A dispatch writes its `running` run record, moves `lastRunAt` onto the occurrenc
 ## Further Exploration
 
 - [Schedule package](../schedule/README.md) — session-local reminders, a different capability: reminders bind to one conversation and deliver into it, while schedule-work tasks open their own Sessions.
-- [Client schedule-work page](../../client/ui-schedule-work/README.md) — the sidebar entry, task catalog, and editor that consume this Remote namespace.
+- [Client schedule-work page](../../client/ui-schedule-work/README.md) — unmounted page components over this Remote namespace. Automation tasks is the sidebar entry.
 - [Storage domain data form](../../../packages/storage/storage-domain/README.md) — the durable medium this package declares its tables in.
 - [Permission presets](../../../docs/subsystems/permission-presets.md) — the preset table the full-access switch addresses.
 

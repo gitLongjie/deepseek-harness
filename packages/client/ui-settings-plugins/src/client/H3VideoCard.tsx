@@ -103,6 +103,8 @@ export function H3VideoCard(props: H3VideoCardProps) {
           text={state.apiKey.text}
           configured={state.apiKeyConfigured ?? false}
           stateLabel={state.apiKeyConfigured === true ? t('h3MinimaxApiKeySet') : t('h3MinimaxApiKeyUnset')}
+          showLabel={t('showPassword')}
+          hideLabel={t('hidePassword')}
           onEdit={(text) => { props.edit('minimaxApiKey', text) }}
         />
       )}
@@ -115,6 +117,8 @@ export function H3VideoCard(props: H3VideoCardProps) {
           text={state.gpuApiToken.text}
           configured={state.gpuApiTokenConfigured ?? false}
           stateLabel={state.gpuApiTokenConfigured === true ? t('h3GpuApiTokenSet') : t('h3GpuApiTokenUnset')}
+          showLabel={t('showPassword')}
+          hideLabel={t('hidePassword')}
           onEdit={(text) => { props.edit('gpuApiToken', text) }}
         />
       )}

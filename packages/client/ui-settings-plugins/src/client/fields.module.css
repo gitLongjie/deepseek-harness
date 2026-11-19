@@ -73,6 +73,51 @@
   cursor: default;
 }
 
+.secret {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.secretInput {
+  composes: input;
+  width: 100%;
+  padding-right: 36px;
+}
+
+.secretInput::-ms-reveal,
+.secretInput::-ms-clear {
+  display: none;
+}
+
+.reveal {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary);
+  cursor: pointer;
+}
+
+.reveal:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-secondary);
+}
+
+.reveal:focus-visible {
+  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline-offset: -2px;
+}
+
 .inputInvalid {
   composes: input;
   border-color: var(--dsw-alias-label-error);

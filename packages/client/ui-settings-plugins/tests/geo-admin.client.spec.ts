@@ -121,6 +121,87 @@ describe('GeoAdminCardController', () => {
     await vi.waitFor(() => { expect(face.hooks.geoAdminCard.getSnapshot().passwordConfigured).toBe(true) })
   })
 
+  it('keeps a password saved with the account when an earlier status read settles afterwards', async () => {
+    const host = acceptingHost()
+    let configured = false
+    const pending: Array<() => void> = []
+    const describe = vi.fn(() => {
+      const seen = configured
+      return new Promise<{ ok: true; value: Record<string, { configured: boolean; writable: boolean }> }>((resolve) => {
+        pending.push(() => {
+          resolve({ ok: true, value: { [GEO_ADMIN_PASSWORD_REF]: { configured: seen, writable: true } } })
+        })
+      })
+    })
+    const set = vi.fn(() => {
+      configured = true
+      return Promise.resolve({ ok: true as const, value: undefined })
+    })
+    const controller = new GeoAdminCardController(host.scope, ctxWith({ credentials: { describe, set } }))
+    const face = controller.inject()
+    face.edit('username', 'editor')
+    face.edit('password', 's3cret')
+
+    face.save()
+    await vi.waitFor(() => { expect(set).toHaveBeenCalledWith(GEO_ADMIN_PASSWORD_REF, 's3cret') })
+
+    // Settle oldest-started reads last, so a status captured before the
+    // password write arrives after the write's own confirmation. A later
+    // read is not issued until the one ahead of it settles, and that issue
+    // is a microtask, so wait out the queue before deciding it is idle.
+    const drain = () => new Promise<void>((resolve) => { setTimeout(resolve, 0) })
+    for (let step = 0; step < 10; step += 1) {
+      if (pending.length === 0) {
+        await drain()
+        if (pending.length === 0) break
+        continue
+      }
+      for (const resolve of pending.splice(0).reverse()) resolve()
+    }
+    expect(pending).toEqual([])
+
+    await vi.waitFor(() => {
+      const state = face.hooks.geoAdminCard.getSnapshot()
+      expect(state.saving).toBe(false)
+      expect(state.failed).toBe(false)
+      expect(state.passwordConfigured).toBe(true)
+      expect(state.fields.username?.text).toBe('editor')
+      expect(state.password.text).toBe('')
+    })
+  })
+
+  it('keeps the password edit when the confirmation read cannot answer', async () => {
+    const host = acceptingHost()
+    const describe = vi.fn(() => Promise.resolve({ ok: false as const, error: new RemoteError('gateway/internal', 'down', {}) }))
+    const set = vi.fn(() => Promise.resolve({ ok: true as const, value: undefined }))
+    const controller = new GeoAdminCardController(host.scope, ctxWith({ credentials: { describe, set } }))
+    const face = controller.inject()
+    face.edit('password', 's3cret')
+
+    face.save()
+
+    await vi.waitFor(() => { expect(face.hooks.geoAdminCard.getSnapshot().failed).toBe(true) })
+    const state = face.hooks.geoAdminCard.getSnapshot()
+    expect(state.passwordConfigured).toBe(false)
+    expect(state.password.text).toBe('s3cret')
+  })
+
+  it('still confirms a password after a status read rejects', async () => {
+    const host = acceptingHost()
+    const describe = vi.fn()
+      .mockRejectedValueOnce(new Error('socket'))
+      .mockResolvedValue({ ok: true as const, value: { [GEO_ADMIN_PASSWORD_REF]: { configured: true, writable: true } } })
+    const set = vi.fn(() => Promise.resolve({ ok: true as const, value: undefined }))
+    const controller = new GeoAdminCardController(host.scope, ctxWith({ credentials: { describe, set } }))
+    const face = controller.inject()
+    face.edit('password', 's3cret')
+
+    face.save()
+
+    await vi.waitFor(() => { expect(face.hooks.geoAdminCard.getSnapshot().passwordConfigured).toBe(true) })
+    expect(face.hooks.geoAdminCard.getSnapshot().failed).toBe(false)
+  })
+
   it('retains a rejected password edit even if an older password is configured', async () => {
     const host = acceptingHost()
     const credentials = credentialsApi(true)

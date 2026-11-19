@@ -9,7 +9,7 @@ kind: "package-group"
 
 ## 概述
 
-创建投递到已有 Session 或新 Session 的 RFC 5545 重复任务，并在 Host 重启后保留它们。无需打开目标 Session，即可查看活动、已暂停和已结束的任务。Agent（智能体）使用 Schedule 工具、用户使用侧栏自动化任务页面创建、修改、暂停、恢复和删除任务；自动化任务页面还可以立即运行任务。到期任务作为普通 follow-up 消息进入其目标 Session，而不是电子邮件、短信或推送通知。`schedule-work` 包是"定时工作"页面背后的应用级能力：用户自己编写的任务按日历或固定频率规则打开自己的会话，支持暂停、有效期截止与运行记录。
+创建投递到已有 Session 或新 Session 的 RFC 5545 重复任务，并在 Host 重启后保留它们。无需打开目标 Session，即可查看活动、已暂停和已结束的任务。Agent（智能体）使用 Schedule 工具、用户使用侧栏自动化任务页面创建、修改、暂停、恢复和删除任务；自动化任务页面还可以立即运行任务。到期任务作为普通 follow-up 消息进入其目标 Session，而不是电子邮件、短信或推送通知。`schedule-work` 包是应用级投递器：用户自己编写的任务按日历或固定频率规则打开自己的会话，支持暂停、有效期截止与运行记录。它的管理页面不挂载；侧栏调度入口是自动化任务。
 
 ## 目录
 
@@ -39,7 +39,7 @@ kind: "package-group"
 - [生成的工具目录](../../docs/tool-catalog.zh.md#deepseek-aidsh-tool-schedule)——挂载 preset 所贡献的 `schedule_create`／`schedule_list`／`schedule_view`／`schedule_edit` schema。
 - [Schedule 用户指南](../../docs/user/guide/schedule.zh.md)——创建、查看、执行、修改和删除计划任务。
 - [自动化任务页面](../client/ui-schedule/README.zh.md)——在浏览器中管理宿主所有任务的侧栏页面。
-- [定时工作页面](../client/ui-schedule-work/README.zh.md)——应用级任务的侧边栏入口、任务目录、编辑器与运行记录。
+- [定时工作页面](../client/ui-schedule-work/README.zh.md)——未挂载的应用级任务页面组件。侧栏入口是自动化任务。
 
 -----
 

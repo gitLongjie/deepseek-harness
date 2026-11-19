@@ -70,6 +70,17 @@ export interface StoredLogin {
   account?: string
   /** Avatar URL the last sign-in reported, or null when the account has none. */
   avatar?: string | null
+  /**
+   * The sign-in that wrote this record asked to keep the password.
+   * Absent on records written before the choice existed; those still count as remembered.
+   */
+  rememberPassword?: boolean
+  /**
+   * The next launch signs in by itself.
+   * Absent on records written before the choice existed; those still sign in.
+   * `false` leaves the gate up and prefilled.
+   */
+  autoLogin?: boolean
 }
 
 /**
@@ -97,12 +108,14 @@ export function readStoredLogin(): StoredLogin | null {
     return null
   }
   if (typeof parsed !== 'object' || parsed === null) return null
-  const { username, password, apiKey, account, avatar } = parsed as Record<string, unknown>
+  const { username, password, apiKey, account, avatar, rememberPassword, autoLogin } = parsed as Record<string, unknown>
   if (typeof username !== 'string' || username === '' || typeof password !== 'string' || password === '') return null
   const record: StoredLogin = { username, password }
   if (typeof apiKey === 'string' && apiKey !== '') record.apiKey = apiKey
   if (typeof account === 'string' && account !== '') record.account = account
   if (typeof avatar === 'string' && avatar !== '') record.avatar = avatar
+  if (typeof rememberPassword === 'boolean') record.rememberPassword = rememberPassword
+  if (typeof autoLogin === 'boolean') record.autoLogin = autoLogin
   return record
 }
 
@@ -392,13 +405,14 @@ export class LoginStore {
    * accepts signs in without calling the login endpoint, so a launch costs no
    * login session; a refused key, and every record written before key reuse,
    * replays the stored pair through the sign-in path, which replaces the key.
-   * Without a stored record this is a no-op and the gate shows its card; a
-   * refused pair stays stored for the next launch and the gate shows the
-   * failure. The gate renders only its backdrop while this is in flight.
+   * Without a stored record, or when that record declined automatic sign-in,
+   * this is a no-op and the gate shows its card; a refused pair stays stored
+   * for the next launch and the gate shows the failure. The gate renders only
+   * its backdrop while this is in flight.
    */
   async restore(): Promise<void> {
     const stored = readStoredLogin()
-    if (stored === null) return
+    if (stored === null || stored.autoLogin === false) return
     this.store.update((state) => {
       state.restoring = true
     })
@@ -406,7 +420,7 @@ export class LoginStore {
       if (stored.apiKey !== undefined && await this.storedKeyAccepted(stored.apiKey)) {
         await this.adoptStoredSession(stored, stored.apiKey)
       } else {
-        await this.login(stored.username, stored.password)
+        await this.login(stored.username, stored.password, { rememberPassword: true, autoLogin: true })
       }
     } finally {
       this.store.update((state) => {
@@ -478,9 +492,18 @@ export class LoginStore {
    * `success: false` carries a `message` shown verbatim.
    * @param username - account identifier as typed.
    * @param password - account password as typed.
+   * @param options - whether this sign-in is stored and whether the next
+   *   launch signs in by itself. Omitted options write a record with no
+   *   flags, which the next launch still signs in from. `rememberPassword:
+   *   false` drops any stored record, so the password does not survive this
+   *   sign-in. `autoLogin: false` keeps the pair for the gate to prefill and
+   *   leaves the next launch on the gate.
    * @returns true when the session is now signed in.
    */
-  async login(username: string, password: string): Promise<boolean> {
+  async login(username: string, password: string, options?: {
+    rememberPassword?: boolean
+    autoLogin?: boolean
+  }): Promise<boolean> {
     this.store.update((state) => {
       state.busy = true
       state.error = null
@@ -556,14 +579,29 @@ export class LoginStore {
 
     // Store the pair for the next launch's silent sign-in and the key this
     // sign-in issued for its revalidation; a refused write only costs that
-    // launch its gate skip.
-    writeStoredLogin({
-      username,
-      password,
-      apiKey: session.apiKey,
-      account: session.account,
-      avatar: session.avatar,
-    })
+    // launch its gate skip. Declining remember-password drops the record so
+    // a previous password does not stay behind.
+    if (options?.rememberPassword === false) {
+      writeStoredLogin(null)
+    } else if (options === undefined) {
+      writeStoredLogin({
+        username,
+        password,
+        apiKey: session.apiKey,
+        account: session.account,
+        avatar: session.avatar,
+      })
+    } else {
+      writeStoredLogin({
+        username,
+        password,
+        apiKey: session.apiKey,
+        account: session.account,
+        avatar: session.avatar,
+        rememberPassword: true,
+        autoLogin: options.autoLogin !== false,
+      })
+    }
     this.store.update((state) => {
       state.busy = false
       state.session = session

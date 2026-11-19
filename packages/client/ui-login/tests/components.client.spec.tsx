@@ -110,6 +110,60 @@ describe('LoginGate', () => {
     await waitFor(() => { expect(screen.getByRole('alert').textContent).toBe('用户名或密码错误') })
   })
 
+  it('offers remember-password and auto-login, with auto-login inside remember', () => {
+    const controller = new LoginStore('https://claw.deepagens.com/api', inertAdapter, dummyApi)
+    render(<LoginGate controller={controller} brandIcon="/brand/acme.svg" t={t} />)
+    const remember = screen.getByRole('checkbox', { name: '记住密码' }) as HTMLInputElement
+    const auto = screen.getByRole('checkbox', { name: '自动登录' }) as HTMLInputElement
+    expect(remember.checked).toBe(true)
+    expect(auto.checked).toBe(true)
+    fireEvent.click(remember)
+    expect(remember.checked).toBe(false)
+    expect(auto.checked).toBe(false)
+    fireEvent.click(remember)
+    expect(remember.checked).toBe(true)
+    expect(auto.checked).toBe(false)
+    fireEvent.click(auto)
+    expect(remember.checked).toBe(true)
+    expect(auto.checked).toBe(true)
+    fireEvent.click(auto)
+    expect(remember.checked).toBe(true)
+    expect(auto.checked).toBe(false)
+  })
+
+  it('prefills a stored pair and restores the saved choices', () => {
+    localStorage.setItem('dsh.login.pair', JSON.stringify({
+      username: 'jiege', password: 'pw', rememberPassword: false, autoLogin: false,
+    }))
+    const controller = new LoginStore('https://claw.deepagens.com/api', inertAdapter, dummyApi)
+    render(<LoginGate controller={controller} brandIcon="/brand/acme.svg" t={t} />)
+    expect((screen.getByLabelText('用户名') as HTMLInputElement).value).toBe('jiege')
+    expect((screen.getByLabelText('密码') as HTMLInputElement).value).toBe('pw')
+    expect((screen.getByRole('checkbox', { name: '记住密码' }) as HTMLInputElement).checked).toBe(false)
+    expect((screen.getByRole('checkbox', { name: '自动登录' }) as HTMLInputElement).checked).toBe(false)
+  })
+
+  it('treats a stored pair without choices as remembered and automatic', () => {
+    localStorage.setItem('dsh.login.pair', JSON.stringify({ username: 'jiege', password: 'pw' }))
+    const controller = new LoginStore('https://claw.deepagens.com/api', inertAdapter, dummyApi)
+    render(<LoginGate controller={controller} brandIcon="/brand/acme.svg" t={t} />)
+    expect((screen.getByRole('checkbox', { name: '记住密码' }) as HTMLInputElement).checked).toBe(true)
+    expect((screen.getByRole('checkbox', { name: '自动登录' }) as HTMLInputElement).checked).toBe(true)
+  })
+
+  it('submits the two choices with the typed pair', async () => {
+    const controller = new LoginStore('https://claw.deepagens.com/api', inertAdapter, dummyApi)
+    const login = vi.spyOn(controller, 'login').mockResolvedValue(false)
+    const { container } = render(<LoginGate controller={controller} brandIcon="/brand/acme.svg" t={t} />)
+    fireEvent.click(screen.getByRole('checkbox', { name: '自动登录' }))
+    fireEvent.change(screen.getByLabelText('用户名'), { target: { value: 'jiege' } })
+    fireEvent.change(screen.getByLabelText('密码'), { target: { value: 'pw' } })
+    fireEvent.submit(container.querySelector('form')!)
+    await waitFor(() => {
+      expect(login).toHaveBeenCalledWith('jiege', 'pw', { rememberPassword: true, autoLogin: false })
+    })
+  })
+
   it('reveals and re-hides the password through the eye toggle', () => {
     const controller = new LoginStore('https://claw.deepagens.com/api', inertAdapter, dummyApi)
     render(<LoginGate controller={controller} brandIcon="/brand/acme.svg" t={t} />)

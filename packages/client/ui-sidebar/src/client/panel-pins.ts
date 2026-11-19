@@ -2,7 +2,7 @@
 import { createSnapshotStore, type ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 
 /** Secondary panel launchers shown in More by default. */
-const DEFAULT_UNPINNED: readonly string[] = ['plugins', 'schedule-work']
+const DEFAULT_UNPINNED: readonly string[] = ['plugins']
 
 /** Unpinned panel ids and their only mutation. */
 export interface PanelPins {

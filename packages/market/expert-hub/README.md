@@ -48,7 +48,7 @@ The gateway is a pure projection: a call whose underlying service rejects propag
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The plugin extends `TypertRemoteService` with the wire namespace `expertHub` and the same service key. It projects three methods: `catalog` browses the market with `category: 'expert'`, `install` forwards a source-local entry ref, and `remove` uninstalls by bundle id.
+The plugin extends `TypertRemoteService` with the wire namespace `expertHub` and the same service key. It projects three methods: `catalog` browses the market with `category: 'expert'`, `installEntry` forwards a source-local entry ref, and `uninstall` removes a bundle by id. The wire names are not `install` or `remove`, because those names collide with the Remote client's namespace service.
 
 | File | Owns |
 |---|---|

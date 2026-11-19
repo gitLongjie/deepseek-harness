@@ -472,8 +472,8 @@
     - id: ui-secret-mask
       name: '@deepseek-ai/dsh-client-ui-secret-mask'
 
-    # Scheduled-work management: the sidebar panel row plus the task catalog,
-    # editor dialog, and run records over the scheduleWork Remote.
+    # Dictionaries only. The 定时工作 sidebar row is not registered; Automation
+    # tasks (ui-schedule) is the left-sidebar scheduling entry, including More.
     - id: ui-schedule-work
       name: '@deepseek-ai/dsh-client-ui-schedule-work'
 

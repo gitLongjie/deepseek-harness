@@ -1,5 +1,5 @@
 ---
-description: "The scheduled-work management surface: the sidebar panel row, the task catalog with batch management, the editor dialog, and run records, for users and maintainers of the page."
+description: "Scheduled-work page components that are not mounted. Automation tasks is the sidebar scheduling entry."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-本包渲染"定时工作"管理界面：侧边栏的时钟图标行，点击后把中央栏切换为整页的定时任务目录与"运行记录"标签。任务目录列出每个任务的规则摘要、派生状态与下次触发时间；支持按状态筛选、搜索、刷新，以及批量暂停、恢复和删除。添加/编辑对话框覆盖名称、提示词、工作空间绑定、完全访问、调度规则与有效期。所有数据都经过宿主的 `scheduleWork` Remote 通道；页面自身不持有任何调度状态。
+本包不挂载侧边栏行，也不挂载主页面。左侧栏的调度入口是自动化任务，包括「更多」，因此不注册「定时工作」行。页面组件仍在：定时任务目录与「运行记录」标签，列出规则摘要、派生状态与下次触发时间，并支持按状态筛选、搜索、刷新，以及批量暂停、恢复和删除。添加/编辑对话框覆盖名称、提示词、工作空间绑定、完全访问、调度规则与有效期。所有数据都经过宿主的 `scheduleWork` Remote 通道；页面自身不持有任何调度状态。
 
 ## 目录
 
@@ -25,9 +25,9 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-桌面与 Web 名册默认连同宿主 `schedule-work` 行一起启用本插件，无需 overlay。侧边栏展开时该行显示时钟图标和本地化的"定时工作"标签；折叠成栏时只剩图标，标签作为悬停提示与无障碍名称。点击该行经布局服务（`ctx.layout.selectPanel`）导航，会话原样保留在其后——回到会话由外壳自己的导航完成。
+桌面与 Web 名册会加载本插件，`apply` 只注册 `scheduleWork` 词典。它不注册 `sidebar.panellist`，也不注册 `main` 面板，因此「定时工作」不会出现在侧边栏或「更多」里。
 
-两个标签共享一条工具栏：状态筛选与搜索作用于任务目录；刷新会同时重读两份列表。行内操作（编辑、暂停或恢复、删除）在非批量模式下悬停出现；批量模式以复选框和一条操作栏替代。编辑对话框在本地校验（名称与提示词非空、规则完整），表单未完整前禁用提交；提交被拒时在表单下方显示宿主诊断。
+未挂载的 `ScheduleWorkPage` 仍是这样：两个标签共享一条工具栏：状态筛选与搜索作用于任务目录；刷新会同时重读两份列表。行内操作（编辑、暂停或恢复、删除）在非批量模式下悬停出现；批量模式以复选框和一条操作栏替代。编辑对话框在本地校验（名称与提示词非空、规则完整），表单未完整前禁用提交；提交被拒时在表单下方显示宿主诊断。
 
 ### 状态与摘要
 
@@ -41,13 +41,13 @@ kind: "package-reference"
 <details>
 <summary>实现内部——点击展开</summary>
 
-插件做两次自己不拥有声明、但依赖其存在的槽位注册，均通过 `ctx.slots.inject` 完成，激活顺序无关：一条 `sidebar.panellist` 列表项（id `schedule-work`，order 60，标签为 thunk），单元渲染闹钟图标；以及在同一个键下的 keyed `main` 项，渲染 `ScheduleWorkPage`。布局服务会对照活动 main 注册表校验面板选择，这一对注册就是全部契约。页面组件接收注入的 `scheduleWork` 面（对 `ctx.remote.scheduleWork` 的薄 RemoteResult 解包封装）、编辑器工作空间选择器用的全局 `useWorkspaces` 钩子，以及命名空间的 `t` 席位。本地状态只有呈现：标签页、筛选、搜索、选择、对话框状态和已加载列表。
+`apply` 只注册 `scheduleWork` 词典，不注册槽位。`ScheduleWorkPage` 不挂载。组件仍接收 `scheduleWork` 回调面、编辑器工作空间选择器用的全局 `useWorkspaces` 钩子，以及命名空间的 `t` 席位。本地状态只有呈现：标签页、筛选、搜索、选择、对话框状态和已加载列表。
 
 ### 源码地图
 
 | 文件 | 职责 |
 |---|---|
-| [`src/client/index.ts`](src/client/index.ts) | 浏览器入口：词典、侧边栏面板行与 keyed 主页面注册 |
+| [`src/client/index.ts`](src/client/index.ts) | 浏览器入口：仅 `scheduleWork` 词典 |
 | [`src/client/ScheduleWorkPage.tsx`](src/client/ScheduleWorkPage.tsx) | 目录标签、工具栏、批量管理与运行记录列表 |
 | [`src/client/TaskEditor.tsx`](src/client/TaskEditor.tsx) | 添加/编辑对话框及其规则编辑器 |
 | [`src/client/task-format.ts`](src/client/task-format.ts) | 纯规则摘要、派生状态与时间格式化 |
@@ -63,7 +63,7 @@ kind: "package-reference"
 ## 延伸阅读
 
 - [Schedule-work 包](../../schedule/schedule-work/README.zh.md) —— 本页面背后的持久任务、触发循环与运行记录。
-- [侧边栏外壳](../ui-sidebar/README.zh.md) —— 本包行注册进的全局面板列表。
+- [自动化任务页面](../ui-schedule/README.zh.md) —— 侧栏调度入口，包括「更多」。
 - [客户端包地图](../README.zh.md) —— 相邻的浏览器 UI 包。
 
 -----

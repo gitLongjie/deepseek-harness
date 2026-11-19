@@ -37,7 +37,10 @@ export function apply(ctx: ClientContext): void {
   const t = ctx.locale.bind(NS)
   ctx.effect(() => ctx.locale.register(NS, { zh, en, ja, es, fr, de, ru, pt }), 'ui-settings-plugins: section dictionaries')
 
-  ctx.inject(['configForms', 'remote'], (ctx) => {
+  // Cordis resolves `ctx.remote.credentials` only for a fiber that names that
+  // service. `remote` alone throws on the first password read or write, and
+  // the card then reports the save as refused.
+  ctx.inject(['configForms', 'remote', 'remote.credentials'], (ctx) => {
     const card = new GeoAdminCardController(ctx.configForms.get<GeoAdminSettings>(GEO_ADMIN_NS), ctx)
     ctx.effect(() => ctx.remote.$on('credentials/reference-updated', (ref) => {
       card.refreshCredential(ref)
