@@ -72,6 +72,14 @@ function refreshLocalImPlugin(): void {
   symlinkSync(source, packageDir, 'junction')
 }
 
+/** Drop leftover business-entry farm copies from earlier desktop releases. */
+function purgeLocalBusinessEntryPlugin(): void {
+  rmSync(
+    resolve(productHome(), 'profiles', 'web', 'node_modules', '@xmanrui', 'dsh-business-entry'),
+    { recursive: true, force: true },
+  )
+}
+
 /** Top-level runtime entries the skin package needs beside its manifest. */
 const SKIN_RUNTIME_ROOTS = new Set(['src', 'lib', 'themes', 'gallery', 'package.json', 'cordis.patch.yml'])
 
@@ -96,6 +104,7 @@ function refreshLocalSkinPlugin(): void {
 // --emptyOutDir: the outDir is outside the web app's root, so vite would keep
 // old hashed chunks otherwise; stale assets linger and confuse diagnosis.
 refreshLocalImPlugin()
+purgeLocalBusinessEntryPlugin()
 refreshLocalSkinPlugin()
 // The Client-face tsdown bundles every plugin from its tsc emit under
 // lib/types, not its sources, so the emit must be refreshed for all client

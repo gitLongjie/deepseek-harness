@@ -96,13 +96,15 @@ describe('desktop builder identity', () => {
 
   it('points the web profile farm at the full IM package and stages its production deps', () => {
     const launcher = readFileSync(DEV_LAUNCHER, 'utf8')
+    const boot = readFileSync(fileURLToPath(new URL('../src/main/boot.ts', import.meta.url)), 'utf8')
     expect(launcher).toContain("symlinkSync(source, packageDir, 'junction')")
+    expect(launcher).toContain('purgeLocalBusinessEntryPlugin')
     expect(launcher).not.toContain('refreshLocalBusinessEntryPlugin')
-    expect(launcher).not.toContain('dsh-business-entry')
+    expect(boot).toContain("{ id: 'xmanrui-dsh-business-entry', disabled: true }")
+    expect(boot).toContain("'@xmanrui/dsh-im'")
     expect(config).toContain('node_modules/**')
     expect(config).toContain('dist/dsh-im-package')
     expect(config).not.toContain('business-entry-package')
-    expect(config).not.toContain('dsh-business-entry')
   })
 
   it('projects the OEM product name into electron-builder', () => {

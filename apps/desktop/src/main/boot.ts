@@ -467,6 +467,12 @@ export async function runDesktopBoot(options: DesktopBootOptions): Promise<Deskt
   )
   if (imPatch !== undefined) overlays.push(...imPatch)
 
+  // Retire the business-entry sidebar plugin for now: earlier desktop releases
+  // may still compose `xmanrui-dsh-business-entry` via a leftover profile/home
+  // patch or farm copy. Disable that row after every other overlay so the
+  // sidebar group stays empty until the plugin is explicitly re-enabled.
+  overlays.push({ id: 'xmanrui-dsh-business-entry', disabled: true })
+
   // The skin plugin ships inside the desktop installation and is not part of
   // the web profile template. Its Host registers the stylesheet tap and the
   // /_skin routes; the shell proxies those routes onto this web server.

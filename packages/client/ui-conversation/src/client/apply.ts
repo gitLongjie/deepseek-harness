@@ -37,7 +37,6 @@ import { ComposerSubmissionPolicy } from './input/submission-policy.ts'
 import { queueDockEntry } from './queue/QueueDock.tsx'
 import { EnterBehaviorRow } from './settings/EnterBehaviorRow.tsx'
 import type { EnterBehaviorRowInjected } from './settings/EnterBehaviorRow.tsx'
-import { BusinessSection } from './settings/BusinessSection.tsx'
 import { configuredGreetingCopy } from './oem-greetings.ts'
 import { ConversationRoot } from './skeleton/ConversationRoot.tsx'
 import { ConversationContent } from './skeleton/ConversationContent.tsx'
@@ -222,22 +221,6 @@ export function apply(ctx: Context, config: Config = Config({})): void {
       setBusyEnter: (behavior) => { submissionPolicy.setBusyEnter(behavior) },
     }),
   }, EnterBehaviorRow))
-
-  // Resident 业务入口 settings tab: shell-owned, so the section (and its
-  // visibility switch) stays reachable even while the business-entry plugin is
-  // disabled. Future business features land in this section. Desktop only —
-  // the switch drives the preload bridge, and pure web deployments have no
-  // plugin to toggle.
-  const desktopIpc = (window as { __DSH_IPC__?: unknown }).__DSH_IPC__
-  if (typeof window !== 'undefined' && desktopIpc !== undefined) {
-    ctx.slots.inject('settings.section', () => ctx.slots.register({
-      name: 'settings.section',
-      id: 'business-entries',
-      order: 30,
-      label: () => t('settings.business.title'),
-      locale: NS,
-    }, BusinessSection))
-  }
 
   const viewTabs = (): ViewTab[] => {
     const tabs: ViewTab[] = []
