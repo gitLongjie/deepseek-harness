@@ -85,20 +85,20 @@ describe('resolveOptionalBundlePatch', () => {
   function installAnchorWith(bundle: { manifest: object; patch?: string }): string {
     const anchorDir = mkdtempSync(join(tmpdir(), 'dsh-desktop-bundle-'))
     writeFileSync(join(anchorDir, 'package.json'), '{}')
-    const packageDir = join(anchorDir, 'node_modules', '@xmanrui', 'dsh-business-entry')
+    const packageDir = join(anchorDir, 'node_modules', '@xmanrui', 'dsh-im')
     mkdirSync(packageDir, { recursive: true })
     writeFileSync(join(packageDir, 'package.json'), JSON.stringify(bundle.manifest))
     if (bundle.patch !== undefined) writeFileSync(join(packageDir, 'cordis.patch.yml'), bundle.patch)
     return join(anchorDir, 'package.json')
   }
 
-  const DECLARED = { name: '@xmanrui/dsh-business-entry', dsh: { bundle: { patch: './cordis.patch.yml' } } }
-  const PATCH = '- insert:\n    - id: xmanrui-dsh-business-entry\n      name: \'@xmanrui/dsh-business-entry\'\n'
+  const DECLARED = { name: '@xmanrui/dsh-im', dsh: { bundle: { patch: './cordis.patch.yml' } } }
+  const PATCH = '- insert:\n    - id: xmanrui-dsh-im\n      name: \'@xmanrui/dsh-im\'\n'
 
   it('loads the declared patch of an installed bundle', () => {
     const anchor = installAnchorWith({ manifest: DECLARED, patch: PATCH })
-    expect(resolveOptionalBundlePatch(anchor, '@xmanrui/dsh-business-entry', []))
-      .toEqual([{ insert: [{ id: 'xmanrui-dsh-business-entry', name: '@xmanrui/dsh-business-entry' }] }])
+    expect(resolveOptionalBundlePatch(anchor, '@xmanrui/dsh-im', []))
+      .toEqual([{ insert: [{ id: 'xmanrui-dsh-im', name: '@xmanrui/dsh-im' }] }])
   })
 
   it('returns undefined when the bundle name resolves nowhere', () => {
@@ -111,31 +111,31 @@ describe('resolveOptionalBundlePatch', () => {
   })
 
   it('returns undefined when the installed bundle declares no patch layer', () => {
-    const anchor = installAnchorWith({ manifest: { name: '@xmanrui/dsh-business-entry' } })
-    expect(resolveOptionalBundlePatch(anchor, '@xmanrui/dsh-business-entry', [])).toBeUndefined()
+    const anchor = installAnchorWith({ manifest: { name: '@xmanrui/dsh-im' } })
+    expect(resolveOptionalBundlePatch(anchor, '@xmanrui/dsh-im', [])).toBeUndefined()
   })
 
   it('fails loudly when an installed bundle declares a broken patch layer', () => {
     const anchor = installAnchorWith({ manifest: DECLARED, patch: 'not: an array\n' })
-    expect(() => resolveOptionalBundlePatch(anchor, '@xmanrui/dsh-business-entry', [])).toThrow(/must be a top-level YAML array/)
+    expect(() => resolveOptionalBundlePatch(anchor, '@xmanrui/dsh-im', [])).toThrow(/must be a top-level YAML array/)
   })
 
   it('skips the injection when an existing layer disables the same plugin id', () => {
     const anchor = installAnchorWith({ manifest: DECLARED, patch: PATCH })
-    expect(resolveOptionalBundlePatch(anchor, '@xmanrui/dsh-business-entry', [{ id: 'xmanrui-dsh-business-entry', disabled: true }]))
+    expect(resolveOptionalBundlePatch(anchor, '@xmanrui/dsh-im', [{ id: 'xmanrui-dsh-im', disabled: true }]))
       .toBeUndefined()
   })
 
   it('skips the injection when an existing layer already inserts the same plugin id', () => {
     const anchor = installAnchorWith({ manifest: DECLARED, patch: PATCH })
-    const existing = [{ insert: [{ id: 'xmanrui-dsh-business-entry', name: '@xmanrui/dsh-business-entry' }] }]
-    expect(resolveOptionalBundlePatch(anchor, '@xmanrui/dsh-business-entry', existing)).toBeUndefined()
+    const existing = [{ insert: [{ id: 'xmanrui-dsh-im', name: '@xmanrui/dsh-im' }] }]
+    expect(resolveOptionalBundlePatch(anchor, '@xmanrui/dsh-im', existing)).toBeUndefined()
   })
 
   it('injects when existing layers only configure unrelated ids', () => {
     const anchor = installAnchorWith({ manifest: DECLARED, patch: PATCH })
-    expect(resolveOptionalBundlePatch(anchor, '@xmanrui/dsh-business-entry', [{ id: 'session-telemetry-otel', disabled: true }]))
-      .toEqual([{ insert: [{ id: 'xmanrui-dsh-business-entry', name: '@xmanrui/dsh-business-entry' }] }])
+    expect(resolveOptionalBundlePatch(anchor, '@xmanrui/dsh-im', [{ id: 'session-telemetry-otel', disabled: true }]))
+      .toEqual([{ insert: [{ id: 'xmanrui-dsh-im', name: '@xmanrui/dsh-im' }] }])
   })
 })
 

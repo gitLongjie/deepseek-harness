@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for 2026-11-19-desktop-auto-inject-im-plugin.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-11-19-desktop-auto-inject-im-plugin.md
+/agent-note-desktop-mounts-the-shipped-im-plugin:
+  en: 34eb07219b34ddf8
+  zh: 8892db5d484d264e
+/agent-note-desktop-mounts-the-shipped-im-plugin/problem:
+  en: 279acbabde832372
+  zh: 75d397bb33047e68
+/agent-note-desktop-mounts-the-shipped-im-plugin/decision:
+  en: 922f6e4cf64c0b09
+  zh: 586afe9ab41fe90d
+/agent-note-desktop-mounts-the-shipped-im-plugin/alternatives-considered:
+  en: 79337dd7291c6bdd
+  zh: 7fe743dd4e655350
+/agent-note-desktop-mounts-the-shipped-im-plugin/consequences:
+  en: 9637bf2d8493a59e
+  zh: 610f330fd5bb49b5

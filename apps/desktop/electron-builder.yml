@@ -41,21 +41,15 @@ files:
   - package.json
   # The IM plugin is a local file dependency; electron-builder does not follow
   # pnpm's junction when collecting production dependencies. Include its
-  # published runtime files explicitly so the loader can resolve the package.
+  # published runtime files and the production node_modules npm ci wrote into
+  # the stage so Host entry externals (`qrcode`, channel SDKs, …) resolve.
   - from: dist/dsh-im-package
     to: node_modules/@xmanrui/dsh-im
     filter:
       - lib/**
       - cordis.patch.yml
       - package.json
-  # The business-entry sidebar plugin is a standalone local plugin; stage it
-  # the same way as dsh-im so the loader can resolve it from app.asar.
-  - from: dist/business-entry-package
-    to: node_modules/@xmanrui/dsh-business-entry
-    filter:
-      - lib/**
-      - cordis.patch.yml
-      - package.json
+      - node_modules/**
   # The skin plugin's Host reads themes beside src/index.js and the client
   # bundle from lib/client.js. Stage that runtime tree; electron-builder does
   # not follow the workspace junction.

@@ -6,9 +6,9 @@
  * uploads to the configured GitHub provider.
  */
 import { spawnSync } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { dirname, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import yaml from 'js-yaml'
 import {
   createElectronBuilderOemConfig,
@@ -19,7 +19,6 @@ import {
 const root = fileURLToPath(new URL('../', import.meta.url))
 const repoRoot = resolve(root, '../..')
 const dshImRoot = resolve(repoRoot, 'dsh-im', 'dsh-im-main')
-const businessEntryRoot = resolve(repoRoot, 'business-entry')
 const skinRoot = resolve(repoRoot, 'dsh-skin')
 const { productName, updateUrl, knowledgeBase, gatewayProviderName, helpDocsUrl, contactUrl } = readDesktopOemConfig(repoRoot)
 // pnpm 11's deps-status check aborts in a non-interactive shell unless CI is
@@ -89,11 +88,10 @@ run('pnpm', ['--filter', '@deepseek-ai/dsh-web-frontend', 'exec', 'vite', 'build
 })
 syncDesktopOemIcons(repoRoot, root)
 // 2. Build the main process and the render transport.
-// dsh-im and business-entry are workspace plugin packages whose runtime lib/ is
-// generated and absent from a clean GitHub checkout, so build them explicitly
-// through their workspace installs before staging them for electron-builder.
+// dsh-im is a workspace plugin package whose runtime lib/ is generated and
+// absent from a clean GitHub checkout, so build it explicitly before staging
+// for electron-builder.
 run('pnpm', ['--dir', dshImRoot, 'run', 'build'])
-run('pnpm', ['--dir', businessEntryRoot, 'run', 'build'])
 run('pnpm', ['--dir', skinRoot, 'run', 'build'])
 run('pnpm', ['build:main'], { cwd: root })
 run('node', ['scripts/build-render-transport.mjs'], { cwd: root })
@@ -113,21 +111,19 @@ const comfyDistDir = resolve(root, 'resources', 'comfyui-dist')
 const extraResources = existsSync(comfyDistDir)
   ? [{ from: comfyDistDir, to: 'comfyui-dist' }]
   : undefined
-// Stage the local file dependency after the TypeScript build (which clears
-// dist/) so electron-builder can include it in app.asar.
+// Stage the IM plugin after the TypeScript build (which clears dist/) so
+// electron-builder can include it in app.asar. Host entry `lib/index.js` keeps
+// production deps external (`qrcode`, channel SDKs, …); materialize them with
+// npm ci beside the staged package — copying the checkout's pnpm symlinks would
+// leave broken links inside the asar.
 const dshImStage = resolve(root, 'dist', 'dsh-im-package')
-cpSync(dshImRoot, dshImStage, {
-  recursive: true,
-  filter: (source) => source === dshImRoot
-    || /(?:[\\/](?:lib|package\.json|cordis\.patch\.yml))(?:$|[\\/])/.test(source),
-})
-// Stage the business-entry plugin for electron-builder.
-const businessEntryStage = resolve(root, 'dist', 'business-entry-package')
-cpSync(businessEntryRoot, businessEntryStage, {
-  recursive: true,
-  filter: (source) => source === businessEntryRoot
-    || /(?:[\\/](?:lib|package\.json|cordis\.patch\.yml))(?:$|[\\/])/.test(source),
-})
+rmSync(dshImStage, { recursive: true, force: true })
+mkdirSync(join(dshImStage, 'lib'), { recursive: true })
+copyFileSync(join(dshImRoot, 'package.json'), join(dshImStage, 'package.json'))
+copyFileSync(join(dshImRoot, 'package-lock.json'), join(dshImStage, 'package-lock.json'))
+copyFileSync(join(dshImRoot, 'cordis.patch.yml'), join(dshImStage, 'cordis.patch.yml'))
+cpSync(join(dshImRoot, 'lib'), join(dshImStage, 'lib'), { recursive: true })
+run('npm', ['ci', '--omit=dev'], { cwd: dshImStage })
 // Stage the skin plugin. The Host entry is src/index.js and it reads themes
 // and gallery images from the package root; the client bundle is lib/client.js.
 const skinStage = resolve(root, 'dist', 'dsh-skin-package')

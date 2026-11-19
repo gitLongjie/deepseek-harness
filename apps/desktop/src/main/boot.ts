@@ -453,19 +453,25 @@ export async function runDesktopBoot(options: DesktopBootOptions): Promise<Deskt
   const telemetryPatch = resolveTelemetryPatch(process.env.DSH_TELEMETRY_DISABLED, rows.has(TELEMETRY_ROW_ID))
   if (telemetryPatch !== undefined) overlays.push(telemetryPatch)
 
-  // The business-entry sidebar plugin ships inside app.asar but is not part of
-  // the web profile template's bundles list. If its package is resolvable from
-  // the installation anchor, inject its cordis patch so the Loader mounts it
-  // without requiring the user to edit the profile manifest — unless a patch
-  // layer composed above already configures the same plugin id (a machine that
-  // deployed the plugin before this injection shipped, or disabled it in the
-  // home patch); then the existing configuration wins.
-  const businessEntryPatch = resolveOptionalBundlePatch(
+  // The IM plugin (WeChat / Feishu / …) ships inside the desktop installation
+  // and the web profile template never lists it in `dsh.profile.bundles`. Inject
+  // its cordis patch when the package resolves so Settings → IM机器人 mounts
+  // without a per-profile `dsh plugin add` — unless a composed layer already
+  // configures the same plugin id (including a prior install or a home-patch
+  // disable); then that configuration wins. Per-checkout product homes otherwise
+  // boot a fresh web profile and the IM surface disappears.
+  const imPatch = resolveOptionalBundlePatch(
     INSTALL_ANCHOR,
-    '@xmanrui/dsh-business-entry',
+    '@xmanrui/dsh-im',
     [...bundlePatches, ...profile.patches, ...homePatches],
   )
-  if (businessEntryPatch !== undefined) overlays.push(...businessEntryPatch)
+  if (imPatch !== undefined) overlays.push(...imPatch)
+
+  // Retire the business-entry sidebar plugin for now: earlier desktop releases
+  // may still compose `xmanrui-dsh-business-entry` via a leftover profile/home
+  // patch or farm copy. Disable that row after every other overlay so the
+  // sidebar group stays empty until the plugin is explicitly re-enabled.
+  overlays.push({ id: 'xmanrui-dsh-business-entry', disabled: true })
 
   // The skin plugin ships inside the desktop installation and is not part of
   // the web profile template. Its Host registers the stylesheet tap and the
