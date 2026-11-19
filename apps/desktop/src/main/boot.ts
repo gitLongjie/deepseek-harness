@@ -453,6 +453,20 @@ export async function runDesktopBoot(options: DesktopBootOptions): Promise<Deskt
   const telemetryPatch = resolveTelemetryPatch(process.env.DSH_TELEMETRY_DISABLED, rows.has(TELEMETRY_ROW_ID))
   if (telemetryPatch !== undefined) overlays.push(telemetryPatch)
 
+  // The IM plugin (WeChat / Feishu / …) ships inside the desktop installation
+  // and the web profile template never lists it in `dsh.profile.bundles`. Inject
+  // its cordis patch when the package resolves so Settings → IM机器人 mounts
+  // without a per-profile `dsh plugin add` — unless a composed layer already
+  // configures the same plugin id (including a prior install or a home-patch
+  // disable); then that configuration wins. Per-checkout product homes otherwise
+  // boot a fresh web profile and the IM surface disappears.
+  const imPatch = resolveOptionalBundlePatch(
+    INSTALL_ANCHOR,
+    '@xmanrui/dsh-im',
+    [...bundlePatches, ...profile.patches, ...homePatches],
+  )
+  if (imPatch !== undefined) overlays.push(...imPatch)
+
   // The business-entry sidebar plugin ships inside app.asar but is not part of
   // the web profile template's bundles list. If its package is resolvable from
   // the installation anchor, inject its cordis patch so the Loader mounts it
@@ -463,7 +477,7 @@ export async function runDesktopBoot(options: DesktopBootOptions): Promise<Deskt
   const businessEntryPatch = resolveOptionalBundlePatch(
     INSTALL_ANCHOR,
     '@xmanrui/dsh-business-entry',
-    [...bundlePatches, ...profile.patches, ...homePatches],
+    [...bundlePatches, ...profile.patches, ...homePatches, ...overlays],
   )
   if (businessEntryPatch !== undefined) overlays.push(...businessEntryPatch)
 
