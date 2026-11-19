@@ -453,13 +453,25 @@ export async function runDesktopBoot(options: DesktopBootOptions): Promise<Deskt
   const telemetryPatch = resolveTelemetryPatch(process.env.DSH_TELEMETRY_DISABLED, rows.has(TELEMETRY_ROW_ID))
   if (telemetryPatch !== undefined) overlays.push(telemetryPatch)
 
+  // The IM plugin ships inside app.asar but is not part of the web profile
+  // template's bundles list. Inject its cordis patch so Settings gains the
+  // IM bots section, unless a patch layer composed above already configures
+  // the same plugin id.
+  const imPatch = resolveOptionalBundlePatch(
+    INSTALL_ANCHOR,
+    '@xmanrui/dsh-im',
+    [...bundlePatches, ...profile.patches, ...homePatches, ...overlays],
+  )
+  if (imPatch !== undefined) overlays.push(...imPatch)
+
   // The business-entry sidebar plugin ships inside app.asar but is not part of
   // the web profile template's bundles list. If its package is resolvable from
   // the installation anchor, inject its cordis patch so the Loader mounts it
   // without requiring the user to edit the profile manifest — unless a patch
   // layer composed above already configures the same plugin id (a machine that
   // deployed the plugin before this injection shipped, or disabled it in the
-  // home patch); then the existing configuration wins.
+  // home patch); then the existing configuration wins. The sidebar group stays
+  // hidden until Settings turns it on.
   const businessEntryPatch = resolveOptionalBundlePatch(
     INSTALL_ANCHOR,
     '@xmanrui/dsh-business-entry',

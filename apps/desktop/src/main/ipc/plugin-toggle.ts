@@ -16,6 +16,13 @@ import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 
 const STATE_FILENAME = 'plugin-settings.json'
 
+/**
+ * Plugins whose product surface stays hidden until Settings records an
+ * explicit enable. An absent row is hidden for these ids and enabled for
+ * every other id.
+ */
+const HIDDEN_UNTIL_ENABLED = new Set(['xmanrui-dsh-business-entry'])
+
 /** Persisted per-plugin UI state. */
 interface PluginState {
   plugins?: Record<string, { disabled?: boolean }>
@@ -50,16 +57,21 @@ function writeState(plugins: Record<string, { disabled?: boolean }>): void {
  */
 export function registerPluginToggleIpc(): () => void {
   /**
-   * Read whether a plugin is currently disabled. Returns `true` unless the
-   * state file marks the plugin `disabled: true`.
+   * Read whether a plugin's product surface is enabled. A `disabled: true`
+   * row is off and a `disabled: false` row is on. An absent row is off for
+   * {@link HIDDEN_UNTIL_ENABLED} and on for every other id.
    */
   ipcMain.handle('dsh:plugin:isEnabled', (_event, pluginId: string): boolean => {
-    return readState()[pluginId]?.disabled !== true
+    const record = readState()[pluginId]
+    if (record?.disabled === true) return false
+    if (record?.disabled === false) return true
+    return !HIDDEN_UNTIL_ENABLED.has(pluginId)
   })
 
   /**
-   * Toggle a plugin's enabled state: enabling drops the entry, disabling
-   * writes `disabled: true`.
+   * Toggle a plugin's enabled state. Disabling writes `disabled: true`.
+   * Enabling a plugin that is hidden until opted in writes `disabled: false`
+   * so the next boot keeps the surface; every other enable drops the row.
    */
   ipcMain.handle('dsh:plugin:setEnabled', (_event, pluginId: string, enabled: boolean): void => {
     const plugins = readState()
@@ -68,6 +80,7 @@ export function registerPluginToggleIpc(): () => void {
       if (id !== pluginId) next[id] = state
     }
     if (!enabled) next[pluginId] = { disabled: true }
+    else if (HIDDEN_UNTIL_ENABLED.has(pluginId)) next[pluginId] = { disabled: false }
     writeState(next)
   })
 

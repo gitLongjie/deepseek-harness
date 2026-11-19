@@ -80,6 +80,66 @@ test('workspace asks collect result files without an explicit Gate', async () =>
   assert.equal(typeof observed[0].onArtifact, 'function');
 });
 
+test('a bound session that disappears before submission is replaced and the message is submitted', async () => {
+  let bound = 'session-gone';
+  const asked = [];
+  const harness = {
+    async sessionExists() { return true; },
+    async createSession() { return 'session-new'; },
+    async ask(sessionId) {
+      asked.push(sessionId);
+      if (sessionId === 'session-gone') {
+        const error = new Error('missing');
+        error.code = 'session-not-found';
+        error.beforePrompt = true;
+        throw error;
+      }
+      return 'handled';
+    },
+  };
+  const state = {
+    sessionFor() { return bound; },
+    async setSession(_key, sessionId) { bound = sessionId; },
+    async clearSession() { bound = null; },
+  };
+
+  assert.deepEqual(await askInWorkspaceSession({
+    harness,
+    state,
+    key: 'chat',
+    text: 'hello',
+  }), { sessionId: 'session-new', answer: 'handled' });
+  assert.deepEqual(asked, ['session-gone', 'session-new']);
+  assert.equal(bound, 'session-new');
+});
+
+test('a session that disappears after submission is not replaced', async () => {
+  const harness = {
+    async sessionExists() { return true; },
+    async createSession() { throw new Error('should not create'); },
+    async ask() {
+      const error = new Error('missing');
+      error.code = 'session-not-found';
+      throw error;
+    },
+  };
+  const state = {
+    sessionFor() { return 'session-active'; },
+    async setSession() {},
+    async clearSession() { throw new Error('should not clear'); },
+  };
+
+  await assert.rejects(
+    () => askInWorkspaceSession({
+      harness,
+      state,
+      key: 'chat',
+      text: 'hello',
+    }),
+    { code: 'session-not-found' },
+  );
+});
+
 test('BotWorkspaceStore persists the creation default and keeps bots isolated', async (t) => {
   const { path, defaultWorkspace, alternateWorkspace } = await fixture(t);
   const store = await new BotWorkspaceStore(path, { defaultWorkspace }).load();

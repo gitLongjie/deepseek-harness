@@ -33,8 +33,11 @@ async function createSession(harness, options) {
 
 /**
  * Resolve, persist, and ask through a session that belongs to the bot's
- * current workspace. A concurrent workspace switch invalidates the scoped
- * session and retries before any prompt is sent to the stale session.
+ * current workspace. The conversation's bound session is used when it still
+ * exists; otherwise a session is created and bound, and the message is
+ * submitted there. A bound session that disappears before submission is
+ * cleared and replaced once. A concurrent workspace switch invalidates the
+ * scoped session and retries before any prompt is sent to the stale session.
  */
 export async function askInWorkspaceSession({
   harness,
@@ -46,6 +49,7 @@ export async function askInWorkspaceSession({
   existsOptions,
   askOptions,
 }) {
+  let replacedMissingSession = false;
   while (true) {
     try {
       const binding = await withSessionBindingLock(state, key, async () => {
@@ -78,7 +82,15 @@ export async function askInWorkspaceSession({
         ...(artifacts.length > 0 ? { artifacts } : {}),
       };
     } catch (error) {
-      if (error?.code !== WORKSPACE_SESSION_STALE) throw error;
+      if (error?.code === WORKSPACE_SESSION_STALE) continue;
+      if (!replacedMissingSession
+        && error?.code === 'session-not-found'
+        && error.beforePrompt === true) {
+        replacedMissingSession = true;
+        if (typeof state.clearSession === 'function') await state.clearSession(key);
+        continue;
+      }
+      throw error;
     }
   }
 }

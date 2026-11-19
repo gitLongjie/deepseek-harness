@@ -37,7 +37,7 @@ describe('BusinessSection', () => {
   it('reflects the persisted enabled state from the home patch', async () => {
     stubIpc(true)
     mount()
-    const sw = await screen.findByRole('switch', { name: 'Show business entries' })
+    const sw = await screen.findByRole('switch', { name: 'Show business entries', checked: true })
     expect(sw.getAttribute('aria-checked')).toBe('true')
   })
 
@@ -48,7 +48,7 @@ describe('BusinessSection', () => {
     const listener = (event: Event): void => { events.push(event as CustomEvent) }
     window.addEventListener('dsh-business-entry:toggle', listener)
 
-    fireEvent.click(await screen.findByRole('switch', { name: 'Show business entries' }))
+    fireEvent.click(await screen.findByRole('switch', { name: 'Show business entries', checked: true }))
     await Promise.resolve()
     expect(invoke).toHaveBeenCalledWith('dsh:plugin:setEnabled', PLUGIN_ID, false)
     expect(events).toHaveLength(1)
@@ -60,7 +60,7 @@ describe('BusinessSection', () => {
   it('persists a re-enable toggle for a disabled plugin', async () => {
     const invoke = stubIpc(false)
     mount()
-    const sw = await screen.findByRole('switch', { name: 'Show business entries' })
+    const sw = await screen.findByRole('switch', { name: 'Show business entries', checked: false })
     expect(sw.getAttribute('aria-checked')).toBe('false')
     fireEvent.click(sw)
     await Promise.resolve()

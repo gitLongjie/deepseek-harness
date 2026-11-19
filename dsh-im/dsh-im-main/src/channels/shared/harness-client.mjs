@@ -525,6 +525,16 @@ export class HarnessReplyTracker {
   }
 }
 
+function historyBaselineSeq(page) {
+  const events = Array.isArray(page?.events) ? page.events : [];
+  let baseline = -1;
+  for (const entry of events) {
+    const seq = (entry?.event ?? entry)?.seq;
+    if (typeof seq === 'number' && Number.isFinite(seq) && seq > baseline) baseline = seq;
+  }
+  return baseline;
+}
+
 export class HarnessRpcError extends Error {
   constructor(method, error) {
     super(`${method}: ${error?.message ?? 'unknown Harness RPC error'}`);
@@ -1234,13 +1244,27 @@ export class HarnessClient {
     const control = normalizeControl(options.control);
     const inboundFiles = Array.isArray(options.files) ? options.files.filter(Boolean) : [];
     await this.ensureRunning({ signal });
-    const before = await this.rpc(
-      'session.history',
-      { sessionId, maxMessages: 1 },
-      30_000,
-      { signal },
-    );
-    const baselineSeq = Math.max(-1, ...(before.events ?? []).map(({ event }) => event.seq ?? -1));
+    // The baseline only limits which history events belong to this prompt.
+    // In-process history returns bare Session events; HTTP returns `{ event }`
+    // envelopes. A failed or unreadable page has not submitted the message,
+    // so the prompt still proceeds. A missing Session stays visible so the
+    // caller can create a replacement and submit there.
+    let baselineSeq = -1;
+    try {
+      const before = await this.rpc(
+        'session.history',
+        { sessionId, maxMessages: 1 },
+        30_000,
+        { signal },
+      );
+      baselineSeq = historyBaselineSeq(before);
+    } catch (error) {
+      if (error instanceof HarnessRpcError && error.code === 'session-not-found') {
+        error.beforePrompt = true;
+        throw error;
+      }
+      baselineSeq = -1;
+    }
     const promptRpcId = `${this.#rpcIdPrefix}-${randomUUID()}`;
     const tracker = new HarnessReplyTracker({ promptRpcId, afterSeq: baselineSeq });
     const interactionController = onInteraction || onInteractionResolved
@@ -1354,12 +1378,19 @@ export class HarnessClient {
       if (!Array.isArray(content) || content.length === 0) {
         throw new TypeError('Harness prompt content is required');
       }
-      await this.rpc('session.prompt', {
-        sessionId,
-        mode: 'queue',
-        content,
-        clientTimeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      }, 30_000, { rpcId: promptRpcId, signal });
+      try {
+        await this.rpc('session.prompt', {
+          sessionId,
+          mode: 'queue',
+          content,
+          clientTimeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        }, 30_000, { rpcId: promptRpcId, signal });
+      } catch (error) {
+        if (error instanceof HarnessRpcError && error.code === 'session-not-found') {
+          error.beforePrompt = true;
+        }
+        throw error;
+      }
       promptAccepted = true;
 
       try {

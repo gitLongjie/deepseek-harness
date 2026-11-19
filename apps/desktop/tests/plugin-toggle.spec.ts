@@ -60,8 +60,9 @@ afterEach(() => {
 })
 
 describe('plugin toggle state store', () => {
-  it('reports plugins enabled when no state file exists', () => {
-    expect(callHandler('dsh:plugin:isEnabled', PLUGIN_ID)).toBe(true)
+  it('hides the business-entry sidebar until Settings enables it', () => {
+    expect(callHandler('dsh:plugin:isEnabled', PLUGIN_ID)).toBe(false)
+    expect(callHandler('dsh:plugin:isEnabled', 'other-plugin')).toBe(true)
   })
 
   it('persists a disable toggle and reads it back', () => {
@@ -71,12 +72,20 @@ describe('plugin toggle state store', () => {
     expect(callHandler('dsh:plugin:isEnabled', PLUGIN_ID)).toBe(false)
   })
 
-  it('drops the entry on re-enable so the plugin mounts enabled next boot', () => {
+  it('records an explicit enable so the sidebar stays visible next boot', () => {
     callHandler('dsh:plugin:setEnabled', PLUGIN_ID, false)
     callHandler('dsh:plugin:setEnabled', PLUGIN_ID, true)
 
-    expect(readStateFile()).toEqual({ plugins: {} })
+    expect(readStateFile()).toEqual({ plugins: { [PLUGIN_ID]: { disabled: false } } })
     expect(callHandler('dsh:plugin:isEnabled', PLUGIN_ID)).toBe(true)
+  })
+
+  it('drops a non-default plugin entry on re-enable', () => {
+    callHandler('dsh:plugin:setEnabled', 'other-plugin', false)
+    callHandler('dsh:plugin:setEnabled', 'other-plugin', true)
+
+    expect(readStateFile()).toEqual({ plugins: {} })
+    expect(callHandler('dsh:plugin:isEnabled', 'other-plugin')).toBe(true)
   })
 
   it('keeps sibling entries when toggling one plugin', () => {
@@ -84,7 +93,9 @@ describe('plugin toggle state store', () => {
     callHandler('dsh:plugin:setEnabled', PLUGIN_ID, false)
     callHandler('dsh:plugin:setEnabled', PLUGIN_ID, true)
 
-    expect(readStateFile()).toEqual({ plugins: { 'other-plugin': { disabled: true } } })
+    expect(readStateFile()).toEqual({
+      plugins: { 'other-plugin': { disabled: true }, [PLUGIN_ID]: { disabled: false } },
+    })
     expect(callHandler('dsh:plugin:isEnabled', 'other-plugin')).toBe(false)
     expect(callHandler('dsh:plugin:isEnabled', PLUGIN_ID)).toBe(true)
   })
@@ -92,7 +103,8 @@ describe('plugin toggle state store', () => {
   it('treats a mangled state file as empty instead of failing the toggle', () => {
     writeFileSync(join(home, STATE_FILENAME), '{ not json', 'utf8')
 
-    expect(callHandler('dsh:plugin:isEnabled', PLUGIN_ID)).toBe(true)
+    expect(callHandler('dsh:plugin:isEnabled', PLUGIN_ID)).toBe(false)
+    expect(callHandler('dsh:plugin:isEnabled', 'other-plugin')).toBe(true)
 
     callHandler('dsh:plugin:setEnabled', PLUGIN_ID, false)
     expect(readStateFile()).toEqual({ plugins: { [PLUGIN_ID]: { disabled: true } } })

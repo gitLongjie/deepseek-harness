@@ -500,6 +500,97 @@ test('HarnessClient safely rejects invalid, unregistered, ambiguous, and subagen
   assert.equal(createCalls, 1);
 });
 
+test('ask submits when the current Session history is bare in-process events', async () => {
+  const client = new HarnessClient({
+    baseUrl: 'http://127.0.0.1:3080',
+    workspace: '/tmp/weixin-workspace',
+  });
+  client.ensureRunning = async () => undefined;
+  let prompted = false;
+  let promptRpcId;
+  client.rpc = async (method, _payload, _timeout, options) => {
+    if (method === 'session.history' && !prompted) {
+      return {
+        events: [
+          { type: 'permission/preset', seq: 0, data: { preset: 'workspace-write' } },
+          { type: 'approval/policy', seq: 2, data: { policy: 'ask' } },
+        ],
+      };
+    }
+    if (method === 'session.prompt') {
+      prompted = true;
+      promptRpcId = options.rpcId;
+      return {};
+    }
+    return {
+      events: [
+        { event: { type: 'turn/start', seq: 3, data: { turn: 1 } } },
+        {
+          event: {
+            type: 'user/message',
+            seq: 4,
+            data: { turn: 1, source: { rpcId: promptRpcId } },
+          },
+        },
+        {
+          event: {
+            type: 'assistant/message',
+            seq: 5,
+            data: { turn: 1, step: 1, message: { content: [{ type: 'text', text: 'ok' }] } },
+          },
+        },
+        { event: { type: 'turn/end', seq: 6, data: { turn: 1, reason: { kind: 'completed' } } } },
+      ],
+    };
+  };
+
+  assert.equal(await client.ask('session-a1e45092-1200-448f-b95f-ff7c580128f1', 'hello'), 'ok');
+  assert.equal(prompted, true);
+});
+
+test('ask still submits when the baseline history read fails', async () => {
+  const client = new HarnessClient({
+    baseUrl: 'http://127.0.0.1:3080',
+    workspace: '/tmp/weixin-workspace',
+  });
+  client.ensureRunning = async () => undefined;
+  let prompted = false;
+  let promptRpcId;
+  client.rpc = async (method, _payload, _timeout, options) => {
+    if (method === 'session.history' && !prompted) {
+      throw new TypeError("Cannot read properties of undefined (reading 'seq')");
+    }
+    if (method === 'session.prompt') {
+      prompted = true;
+      promptRpcId = options.rpcId;
+      return {};
+    }
+    return {
+      events: [
+        { event: { type: 'turn/start', seq: 1, data: { turn: 1 } } },
+        {
+          event: {
+            type: 'user/message',
+            seq: 2,
+            data: { turn: 1, source: { rpcId: promptRpcId } },
+          },
+        },
+        {
+          event: {
+            type: 'assistant/message',
+            seq: 3,
+            data: { turn: 1, step: 1, message: { content: [{ type: 'text', text: 'ok' }] } },
+          },
+        },
+        { event: { type: 'turn/end', seq: 4, data: { turn: 1, reason: { kind: 'completed' } } } },
+      ],
+    };
+  };
+
+  assert.equal(await client.ask('session-active', 'hello'), 'ok');
+  assert.equal(prompted, true);
+});
+
 test('reply tracker associates only the Harness turn created by the Weixin prompt RPC', () => {
   const tracker = new HarnessReplyTracker({ promptRpcId: 'weixin-prompt', afterSeq: 2 });
   const first = tracker.consume([

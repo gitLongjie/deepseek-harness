@@ -13,6 +13,9 @@ This file records the notable changes in each dsh-im release. Its format follows
 
 ### Fixed / 修复
 
+- 微信等渠道收到普通消息时，继续当前绑定会话；会话不存在或在提交前消失时新建会话并提交这条消息。已有会话事件的 Session 不再因进程内历史记录没有 `event` 外壳而在提交前失败，并回成「暂时无法确定原因」。
+  An ordinary message on WeChat and the other channels continues the conversation's bound Session, or creates one when that Session is missing or disappears before submission. The first prompt on a Session that already has events no longer fails before submission when in-process history returns bare events, which had surfaced as an undetermined-cause reply.
+
 - 消息处理失败报告不再把 Harness 已经给出的失败码吞成「暂时无法确定原因」：`ACCOUNT_QUOTA`、`IMAGE_OFFLOAD_REQUIRED`、`TOOL_ACTIVATION_FAILED` 分别归类为额度不足、模型配置不支持和工具不可用；仍未纳入分类的失败码会保留为该次失败的 reason，凭参考号排查时不再只剩 `INTERNAL_UNKNOWN`。
   Message-failure reports no longer collapse a Harness failure code into "the cause could not be determined": `ACCOUNT_QUOTA`, `IMAGE_OFFLOAD_REQUIRED`, and `TOOL_ACTIVATION_FAILED` now classify as quota, model-configuration, and tool-unavailable failures, and a failure code dsh-im still cannot classify is kept as the recorded reason instead of leaving only `INTERNAL_UNKNOWN`.
 

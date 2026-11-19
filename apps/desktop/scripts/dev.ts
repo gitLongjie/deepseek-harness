@@ -5,7 +5,7 @@
  * imports against the built workspace libs.
  */
 import { spawn, spawnSync } from 'node:child_process'
-import { cpSync, copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, copyFileSync, existsSync, mkdirSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve, basename } from 'node:path'
@@ -69,6 +69,22 @@ function refreshLocalImPlugin(): void {
   // manifest, so Node looks for index.js at the package root and the entry fails.
   copyFileSync(resolve(source, 'cordis.patch.yml'), resolve(packageDir, 'cordis.patch.yml'))
   copyFileSync(resolve(source, 'package.json'), resolve(packageDir, 'package.json'))
+  // The host bundle imports channel SDKs from the package directory. A copy of
+  // lib/ alone cannot resolve them; point node_modules at the checkout.
+  const modulesLink = resolve(packageDir, 'node_modules')
+  const modulesTarget = resolve(source, 'node_modules')
+  if (existsSync(modulesTarget)) {
+    let current: string | undefined
+    try {
+      current = readlinkSync(modulesLink)
+    } catch {
+      // A missing link is created below. A real directory is replaced.
+    }
+    if (current !== modulesTarget) {
+      rmSync(modulesLink, { recursive: true, force: true })
+      symlinkSync(modulesTarget, modulesLink, 'junction')
+    }
+  }
 }
 
 /** Top-level runtime entries the skin package needs beside its manifest. */

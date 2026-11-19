@@ -24,11 +24,11 @@ export type BusinessSectionProps = PropsLocale<'conversation'>
  * only (`__DSH_IPC__` bridge) and mounted regardless of the plugin's enabled
  * state, so a disabled plugin can always be re-enabled from Settings.
  * @param props - composed Settings slot props.
- * @returns the section element tree, or null off the desktop shell.
+ * @returns the section element tree, or null off the desktop shell and until the enabled state is read.
  */
 export function BusinessSection({ t }: BusinessSectionProps) {
   const ipc = (window as { __DSH_IPC__?: DesktopIpcBridge }).__DSH_IPC__
-  const [enabled, setEnabled] = useState(true)
+  const [enabled, setEnabled] = useState(false)
   const [settled, setSettled] = useState(ipc === undefined)
 
   useEffect(() => {
@@ -45,7 +45,7 @@ export function BusinessSection({ t }: BusinessSectionProps) {
     return () => { cancelled = true }
   }, [ipc])
 
-  if (ipc === undefined) return null
+  if (ipc === undefined || !settled) return null
 
   const toggle = () => {
     if (!settled) return

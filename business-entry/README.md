@@ -44,7 +44,7 @@ node build.mjs && node --test tests/launch.test.mjs
 
 The settings panel carries a resident 业务入口 section in its nav (desktop only): it writes `~/.dsh/plugin-settings.json` and hot-reloads the sidebar group without a restart. The section is shell-owned, so it stays visible even while the plugin is hidden.
 
-The state file only gates the sidebar registration — the plugin itself always mounts, which is what keeps the toggle working live. Hand-editing that JSON has the same effect as using the switch.
+The state file only gates the sidebar registration — the plugin itself always mounts, which is what keeps the toggle working live. With no row for this plugin the sidebar group stays hidden; `disabled: false` shows it. Hand-editing that JSON has the same effect as using the switch.
 
 ## File layout
 
