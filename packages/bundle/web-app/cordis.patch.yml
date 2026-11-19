@@ -684,3 +684,7 @@
       name: '@deepseek-ai/dsh-agent-preset-registry'
       config:
         default: standard
+    # Share messages publish a hireable expert into the live roster. The card
+    # is registered in this process; the expert page reads it on its next open.
+    - id: expert-publish
+      name: '@deepseek-ai/dsh-expert-publish'

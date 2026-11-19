@@ -1,0 +1,64 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/preset/expert-publish/README.md
+/:
+  en: dbd859573982b081
+  zh: 4714120c29e76bea
+/deepseek-ai-dsh-expert-publish:
+  en: a5b6b379bd711beb
+  zh: 8012f36e4cc273c5
+/deepseek-ai-dsh-expert-publish/summary:
+  en: 014b06b4afd3dc85
+  zh: 18c82311480871bc
+/deepseek-ai-dsh-expert-publish/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 83b6385f4e2d5573
+/deepseek-ai-dsh-expert-publish/use-this-package:
+  en: 3419712079a4e3a1
+  zh: 8cdad62f3ca88d71
+/deepseek-ai-dsh-expert-publish/understand-the-implementation:
+  en: f56e595a52bf08d3
+  zh: 193e6e7958bcbb53
+/deepseek-ai-dsh-expert-publish/further-exploration:
+  en: 5b054d59c887ba3a
+  zh: 782f50f3e015d852
+/deepseek-ai-dsh-expert-publish/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-expert-publish/model-experience/publish-expert:
+  en: a8f8c4ff068b8c6f
+  zh: a8f8c4ff068b8c6f
+/deepseek-ai-dsh-expert-publish/model-experience/publish-expert/what-the-model-sees:
+  en: 29f867b52facf906
+  zh: b90526d0e6caaf32
+/deepseek-ai-dsh-expert-publish/model-experience/publish-expert/what-the-model-sees/tool-description:
+  en: 163f477a7dd52e3f
+  zh: 489ef7ec88dee135
+/deepseek-ai-dsh-expert-publish/model-experience/publish-expert/token-effect:
+  en: c766e93ce73dc6fa
+  zh: ecc377576e902264
+/deepseek-ai-dsh-expert-publish/model-experience/publish-expert/kv-cache-effect:
+  en: 8cf1323cf82543fa
+  zh: 5f66fd02c20a846d
+/deepseek-ai-dsh-expert-publish/model-experience/share-notice:
+  en: dc9f1f31625a88d7
+  zh: d8666954558b4617
+/deepseek-ai-dsh-expert-publish/model-experience/share-notice/what-the-model-sees:
+  en: 7ae5e8e8f0dab8dc
+  zh: 9f25cfb1da044276
+/deepseek-ai-dsh-expert-publish/model-experience/share-notice/what-the-model-sees/notice:
+  en: eb4f44021bd275c4
+  zh: 35b5a8f988522dff
+/deepseek-ai-dsh-expert-publish/model-experience/share-notice/token-effect:
+  en: 6ca8e7d63cbfe3af
+  zh: 3778b91065c15664
+/deepseek-ai-dsh-expert-publish/model-experience/share-notice/kv-cache-effect:
+  en: 3204c55319040af0
+  zh: 9a2f1d4aca4a7d51
+/deepseek-ai-dsh-expert-publish/known-limitations-and-deferred-work:
+  en: 397c85b0b2d1e5f5
+  zh: 9d2551ea62e2f670
+/deepseek-ai-dsh-expert-publish/known-limitations-and-deferred-work/dev-note:
+  en: c0ea4a973f664642
+  zh: 671de4038e80ed81

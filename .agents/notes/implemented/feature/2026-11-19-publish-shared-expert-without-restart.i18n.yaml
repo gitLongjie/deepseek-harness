@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for 2026-11-19-publish-shared-expert-without-restart.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-11-19-publish-shared-expert-without-restart.md
+/agent-note-a-shared-expert-joins-the-running-roster:
+  en: 58849379a9373bd1
+  zh: dfcbd591d22cdafa
+/agent-note-a-shared-expert-joins-the-running-roster/problem:
+  en: 117e4931811134d2
+  zh: a0fb0c00e65b7c1f
+/agent-note-a-shared-expert-joins-the-running-roster/decision:
+  en: 4fc7fe50e91a56e6
+  zh: 5125d64e30907012
+/agent-note-a-shared-expert-joins-the-running-roster/alternatives-considered:
+  en: 07c3c37934d75fa3
+  zh: 003f8ae039eb14bf
+/agent-note-a-shared-expert-joins-the-running-roster/consequences:
+  en: df2d9c77ecde039b
+  zh: 7444ac3ddb68bcf7
