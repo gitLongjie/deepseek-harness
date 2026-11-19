@@ -94,13 +94,26 @@ describe('desktop builder identity', () => {
     expect(launcher).not.toContain('spawn(\'cmd.exe\', [\'/c\', \'pnpm\', \'exec\', \'electron\'')
   })
 
+  it('points the web profile farm at the full IM package and stages its production deps', () => {
+    const launcher = readFileSync(DEV_LAUNCHER, 'utf8')
+    expect(launcher).toContain("symlinkSync(source, packageDir, 'junction')")
+    expect(launcher).not.toContain('refreshLocalBusinessEntryPlugin')
+    expect(launcher).not.toContain('dsh-business-entry')
+    expect(config).toContain('node_modules/**')
+    expect(config).toContain('dist/dsh-im-package')
+    expect(config).not.toContain('business-entry-package')
+    expect(config).not.toContain('dsh-business-entry')
+  })
+
   it('projects the OEM product name into electron-builder', () => {
     const launcher = readFileSync(DEPLOY_LAUNCHER, 'utf8')
     expect(launcher).toContain('readDesktopOemConfig(repoRoot)')
     expect(launcher).toContain('syncDesktopOemIcons(repoRoot, root)')
     expect(launcher).toContain("run('pnpm', ['--dir', dshImRoot, 'run', 'build'])")
     expect(launcher.indexOf("run('pnpm', ['--dir', dshImRoot, 'run', 'build'])"))
-      .toBeLessThan(launcher.indexOf('cpSync(dshImRoot, dshImStage'))
+      .toBeLessThan(launcher.indexOf("run('npm', ['ci', '--omit=dev'], { cwd: dshImStage })"))
+    expect(launcher).not.toContain('businessEntryRoot')
+    expect(launcher).not.toContain('business-entry-package')
     expect(launcher.indexOf('syncDesktopOemIcons(repoRoot, root)'))
       .toBeGreaterThan(launcher.lastIndexOf("'vite', 'build'"))
     expect(launcher).toContain('createElectronBuilderOemConfig(productName, updateUrl, {')

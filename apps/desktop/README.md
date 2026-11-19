@@ -201,8 +201,8 @@ macOS and Linux GUI launches inherit only the session manager's environment, wit
   knowledge-base connection facts resolve from a deployable OEM config file
   and the trusted environment layer, so one code line ships many brands.
 - **Packaged plugin closure** — the installer ships the market, knowledge,
-  and business-entry plugin packages beside the app, and the bare-module
-  resolution base points at the installed host.
+  IM (`@xmanrui/dsh-im`), and skin plugin packages beside the app, and the
+  bare-module resolution base points at the installed host.
 
 <a id="develop"></a>
 

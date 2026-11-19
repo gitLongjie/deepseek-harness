@@ -8,10 +8,11 @@
  * missing feature or an `agent-preset/invalid` refusal when that preset mounts.
  *
  * Exemptions: rows disabled in a patch (the shipped disabled `ui-schedule`
- * pair) and the two staged non-workspace plugins (`@xmanrui/dsh-im`,
- * `business-entry`) that `apps/desktop/scripts/deploy-app.mjs` copies beside
- * the bundle instead of through node_modules. Preset rows with `disabled: !!js`
- * stay required: the expression can enable them at runtime.
+ * pair) and the staged IM plugin (`@xmanrui/dsh-im`) that
+ * `apps/desktop/scripts/deploy-app.mjs` copies beside the bundle with its
+ * production `node_modules` instead of relying on electron-builder's pnpm
+ * junction walk. Preset rows with `disabled: !!js` stay required: the
+ * expression can enable them at runtime.
  * @module scripts/verify-desktop-dependencies
  */
 
@@ -33,9 +34,9 @@ const AGENT_PRESETS_ROOT = 'apps/desktop/config/agent-presets'
 
 /**
  * Packages staged by deploy-app.mjs beside the bundle instead of shipping
- * through node_modules, so the dependency closure does not carry them.
+ * solely through electron-builder's dependency walk.
  */
-const STAGED_EXEMPTIONS = new Set<string>(['@xmanrui/dsh-im', 'business-entry'])
+const STAGED_EXEMPTIONS = new Set<string>(['@xmanrui/dsh-im'])
 
 /** Rows listing `disabled: true` within this many lines after `- name:` never load. */
 const DISABLED_SCAN_LINES = 4

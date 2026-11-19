@@ -5,7 +5,7 @@
  * imports against the built workspace libs.
  */
 import { spawn, spawnSync } from 'node:child_process'
-import { cpSync, copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve, basename } from 'node:path'
@@ -57,18 +57,19 @@ function run(cmd: string, cmdArgs: readonly string[], opts: { cwd?: string; env?
   if (r.status !== 0) process.exit(r.status ?? 1)
 }
 
-/** Build the checked-out dsh-im plugin and refresh the active Web profile copy. */
+/**
+ * Build the checked-out dsh-im plugin and point the active Web profile farm at
+ * the full package. The Loader resolves bare `@xmanrui/dsh-im` from the profile
+ * baseUrl; a lib-only file copy leaves production deps (`qrcode`, …) unresolved
+ * and the Host entry fails before Settings → IM机器人 can register.
+ */
 function refreshLocalImPlugin(): void {
   const source = resolve(root, '..', '..', 'dsh-im', 'dsh-im-main')
   run('npm', ['run', 'build'], { cwd: source })
   const packageDir = resolve(productHome(), 'profiles', 'web', 'node_modules', '@xmanrui', 'dsh-im')
-  const target = resolve(packageDir, 'lib')
-  mkdirSync(target, { recursive: true })
-  for (const file of ['client.js', 'index.js']) copyFileSync(resolve(source, 'lib', file), resolve(target, file))
-  // The Loader resolves the package from this directory. lib/ alone has no
-  // manifest, so Node looks for index.js at the package root and the entry fails.
-  copyFileSync(resolve(source, 'cordis.patch.yml'), resolve(packageDir, 'cordis.patch.yml'))
-  copyFileSync(resolve(source, 'package.json'), resolve(packageDir, 'package.json'))
+  rmSync(packageDir, { recursive: true, force: true })
+  mkdirSync(dirname(packageDir), { recursive: true })
+  symlinkSync(source, packageDir, 'junction')
 }
 
 /** Top-level runtime entries the skin package needs beside its manifest. */
@@ -89,27 +90,12 @@ function refreshLocalSkinPlugin(): void {
   })
 }
 
-/** Build the checked-out business-entry plugin and refresh the active Web profile copy. */
-function refreshLocalBusinessEntryPlugin(): void {
-  const source = resolve(root, '..', '..', 'business-entry')
-  run('node', ['build.mjs'], { cwd: source })
-  const target = resolve(productHome(), 'profiles', 'web', 'node_modules', '@xmanrui', 'dsh-business-entry', 'lib')
-  mkdirSync(target, { recursive: true })
-  for (const file of ['client.js', 'index.js']) copyFileSync(resolve(source, 'lib', file), resolve(target, file))
-  // Also copy cordis.patch.yml so the profile can discover the plugin's patch layer.
-  const patchTarget = resolve(productHome(), 'profiles', 'web', 'node_modules', '@xmanrui', 'dsh-business-entry')
-  copyFileSync(resolve(source, 'cordis.patch.yml'), resolve(patchTarget, 'cordis.patch.yml'))
-  // Copy package.json so the Loader can read dsh.bundle.patch and dsh.client metadata.
-  copyFileSync(resolve(source, 'package.json'), resolve(patchTarget, 'package.json'))
-}
-
 // The web dist must use a relative asset base so the app scheme can serve it;
 // build directly into apps/desktop/web to keep apps/web/dist (the served build)
 // untouched.
 // --emptyOutDir: the outDir is outside the web app's root, so vite would keep
 // old hashed chunks otherwise; stale assets linger and confuse diagnosis.
 refreshLocalImPlugin()
-refreshLocalBusinessEntryPlugin()
 refreshLocalSkinPlugin()
 // The Client-face tsdown bundles every plugin from its tsc emit under
 // lib/types, not its sources, so the emit must be refreshed for all client

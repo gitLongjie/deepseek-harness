@@ -30,7 +30,7 @@ vi.mock('electron', () => ({
 import { registerPluginToggleIpc } from '../src/main/ipc/plugin-toggle.ts'
 
 const STATE_FILENAME = 'plugin-settings.json'
-const PLUGIN_ID = 'xmanrui-dsh-business-entry'
+const PLUGIN_ID = 'xmanrui-dsh-im'
 
 let home: string
 let dispose: (() => void) | undefined

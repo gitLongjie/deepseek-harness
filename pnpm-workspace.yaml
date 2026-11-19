@@ -9,8 +9,8 @@ packages:
   - apps/*
   # Bundled OEM plugin built as part of the desktop release.
   - dsh-im/dsh-im-main
-  # Bundled business-entry sidebar plugin, staged into the desktop release the
-  # same way; the workspace install supplies the esbuild its build script needs.
+  # Optional sidebar plugin kept in the workspace for local builds; desktop no
+  # longer stages or auto-injects it.
   - business-entry
   # Bundled skin plugin. Desktop stages its host, client, and theme files
   # into the app and proxies /_skin to the in-process Host.

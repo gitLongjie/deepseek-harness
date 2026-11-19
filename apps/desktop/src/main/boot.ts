@@ -467,20 +467,6 @@ export async function runDesktopBoot(options: DesktopBootOptions): Promise<Deskt
   )
   if (imPatch !== undefined) overlays.push(...imPatch)
 
-  // The business-entry sidebar plugin ships inside app.asar but is not part of
-  // the web profile template's bundles list. If its package is resolvable from
-  // the installation anchor, inject its cordis patch so the Loader mounts it
-  // without requiring the user to edit the profile manifest — unless a patch
-  // layer composed above already configures the same plugin id (a machine that
-  // deployed the plugin before this injection shipped, or disabled it in the
-  // home patch); then the existing configuration wins.
-  const businessEntryPatch = resolveOptionalBundlePatch(
-    INSTALL_ANCHOR,
-    '@xmanrui/dsh-business-entry',
-    [...bundlePatches, ...profile.patches, ...homePatches, ...overlays],
-  )
-  if (businessEntryPatch !== undefined) overlays.push(...businessEntryPatch)
-
   // The skin plugin ships inside the desktop installation and is not part of
   // the web profile template. Its Host registers the stylesheet tap and the
   // /_skin routes; the shell proxies those routes onto this web server.
