@@ -60,6 +60,7 @@ export class AgentPresetRegistry extends TypertRemoteService {
   private agentPresetProjectionHandle!: ProjectionHandle<string | null>
   private readonly owner: Context
   private readonly definitions = new Map<string, Definition>()
+  private readonly directories = new Map<string, string>()
   private readonly generations = new Map<ScopeKey, Generation>()
   private readonly bindings = new WeakMap<ScopeKey, Binding>()
   private readonly switches = new Map<string, Promise<unknown>>()
@@ -82,6 +83,15 @@ export class AgentPresetRegistry extends TypertRemoteService {
   get defaultId(): string { return this.config.selectedDefault.get() ?? this.config.default }
 
   /**
+   * Directory recorded when the preset was loaded from a file.
+   * @param id - preset id.
+   * @returns that directory, or undefined for an in-memory registration.
+   */
+  directoryOf(id: string): string | undefined {
+    return this.directories.get(id)
+  }
+
+  /**
    * Read the preset recorded for a Session, including selections no longer in the roster.
    * @param session - Session whose committed preset selection is read.
    * @returns the recorded preset, or null when none was selected.
@@ -92,19 +102,22 @@ export class AgentPresetRegistry extends TypertRemoteService {
 
   /** Register and eagerly load a definition; activation failure remains visible in the roster.
    * @param definition Parsed configuration supplied by the declaring plugin.
+   * @param directory Directory the preset file was loaded from. Omitted for an in-memory registration.
    * @returns Definition disposer after activation or its diagnostic settles; the declaring plugin owns it.
    */
-  async register(definition: PresetDefinition): Promise<() => Promise<void>> {
+  async register(definition: PresetDefinition, directory?: string): Promise<() => Promise<void>> {
     const context = this.ctx
     if (!definition.id.trim()) throw new Error('Preset id must not be empty')
     if (this.definitions.has(definition.id)) throw new Error(`Duplicate agent preset: ${definition.id}`)
     const record: Definition = { config: definition, context, ready: Promise.resolve() }
     this.definitions.set(definition.id, record)
+    if (directory !== undefined && directory !== '') this.directories.set(definition.id, directory)
     let disposed = false
     const unregister = async (): Promise<void> => {
       if (disposed) return
       disposed = true
       this.definitions.delete(definition.id)
+      this.directories.delete(definition.id)
       await record.ready
       if (record.generation !== undefined) {
         record.generation.retired = true

@@ -176,6 +176,43 @@ export function resolveExpertRoot(configured: string | undefined, fallback: stri
   return root
 }
 
+/**
+ * Why a draft cannot be stored, or undefined when it meets the field limits.
+ * @param draft - the expert to check.
+ * @returns the first limit it breaks.
+ */
+export function expertDraftProblem(draft: ExpertDraft): string | undefined {
+  return problemWith(draft)
+}
+
+/**
+ * Trim card fields to the store limits. An invalid category becomes `general`.
+ * @param draft - the expert to fit.
+ * @returns a draft whose text fields are within the limits.
+ */
+export function fitExpertDraft(draft: ExpertDraft): ExpertDraft & { readonly category: string } {
+  const category = draft.category !== undefined && CATEGORY_PATTERN.test(draft.category) ? draft.category : 'general'
+  return {
+    ...draft,
+    name: draft.name.slice(0, LIMITS.name),
+    description: draft.description.slice(0, LIMITS.description),
+    persona: draft.persona.slice(0, LIMITS.persona),
+    category,
+    ...(draft.subtitle === undefined ? {} : { subtitle: draft.subtitle.slice(0, LIMITS.subtitle) }),
+    ...(draft.icon === undefined ? {} : { icon: draft.icon.slice(0, LIMITS.icon) }),
+    ...(draft.skillMarkdown === undefined ? {} : { skillMarkdown: draft.skillMarkdown.slice(0, LIMITS.skill) }),
+    ...(draft.tags === undefined ? {} : {
+      tags: draft.tags.slice(0, LIMITS.tags).map(tag => tag.slice(0, LIMITS.tag)).filter(tag => tag.trim() !== ''),
+    }),
+    ...(draft.quickPrompts === undefined ? {} : {
+      quickPrompts: draft.quickPrompts
+        .slice(0, LIMITS.prompts)
+        .map(prompt => prompt.slice(0, LIMITS.prompt))
+        .filter(prompt => prompt.trim() !== ''),
+    }),
+  }
+}
+
 function problemWith(draft: ExpertDraft): string | undefined {
   if (!ID_PATTERN.test(draft.id)) return 'id must be a lowercase slug (letters, digits, hyphens)'
   if (draft.name.trim() === '' || draft.name.length > LIMITS.name) return `name must be 1–${String(LIMITS.name)} characters`

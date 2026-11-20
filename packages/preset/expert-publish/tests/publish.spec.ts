@@ -8,7 +8,7 @@ import { createUserMessage, ToolCallId } from '@deepseek-ai/dsh-llm'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import { executeModelToolFixture } from '@deepseek-ai/dsh-tool-testkit'
 import * as ExpertPublish from '../src/index.ts'
-import { loadPublishedExperts, publishExpert, resolveExpertRoot, type ExpertPublisher } from '../src/publish.ts'
+import { fitExpertDraft, listPublishedExperts, loadPublishedExperts, publishExpert, readPublishedExpert, resolveExpertRoot, type ExpertPublisher } from '../src/publish.ts'
 import { expertIdForName, fallbackShare, parseExpertShare, PUBLISH_TOOL } from '../src/share.ts'
 import { agentOn, declare, harness } from '../../agent-preset-registry/tests/harness.ts'
 
@@ -124,6 +124,31 @@ describe('publishExpert', () => {
     expect(publisher.ids()).toEqual([])
   })
 
+  it('trims a draft to the store limits', () => {
+    const fitted = fitExpertDraft({
+      id: 'geo',
+      name: 'n'.repeat(100),
+      description: 'd'.repeat(600),
+      persona: 'p',
+      category: 'NOT VALID',
+      subtitle: 's'.repeat(50),
+      icon: 'icon-too-long',
+      tags: ['', 't'.repeat(30), 'ok'],
+      quickPrompts: ['', 'q'.repeat(250)],
+      skillMarkdown: 'k',
+    })
+    expect(fitted.category).toBe('general')
+    expect(fitted.name).toHaveLength(80)
+    expect(fitted.description).toHaveLength(500)
+    expect(fitted.subtitle).toHaveLength(40)
+    expect(fitted.icon).toHaveLength(8)
+    expect(fitted.tags).toEqual(['t'.repeat(24), 'ok'])
+    expect(fitted.quickPrompts).toEqual(['q'.repeat(200)])
+    expect(fitExpertDraft({
+      id: 'geo', name: '名称', description: '描述', persona: '人设', category: 'marketing',
+    })).toMatchObject({ category: 'marketing', name: '名称' })
+  })
+
   it('writes the expert, replaces the same id, and refuses an id the deployment owns', async () => {
     const root = await directory()
     const publisher = memoryPublisher(root, new Set(['shipped']))
@@ -179,6 +204,18 @@ describe('publishExpert', () => {
     const file = join(root, 'not-a-directory')
     await writeFile(file, 'x')
     await expect(loadPublishedExperts(memoryPublisher(file))).rejects.toThrow()
+    await expect(listPublishedExperts(join(root, 'missing'))).resolves.toEqual([])
+    await expect(listPublishedExperts(file)).rejects.toThrow()
+  })
+
+  it('skips a bad id and a file that is not an expert', async () => {
+    const root = await directory()
+    await expect(readPublishedExpert(root, 'Bad')).resolves.toBeUndefined()
+    await publishExpert(memoryPublisher(root), draft())
+    await mkdir(join(root, 'broken'), { recursive: true })
+    await writeFile(join(root, 'broken', 'expert.json'), '{')
+    const listed = await listPublishedExperts(root)
+    expect(listed.map(expert => expert.id)).toEqual(['geo-prelaunch'])
     await mkdir(join(root, 'bad-file', 'expert.json'), { recursive: true })
     await expect(loadPublishedExperts(memoryPublisher(root))).rejects.toThrow()
   })

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-expert-hub` puts the market's `expert` category behind the host's authenticated web gateway: the expert page reads installable expert cards and starts installs through this projection instead of reaching the market service directly. The same gateway lists, uploads, and installs online expert modules on the token-api expert hub. Every call arrives from a signed-in client, so the gateway forwards opaque source, entry, and bundle ids verbatim and lets `dsh-market-local` keep resolving names, versions, and commands on the host. Upload uses the signed-in `DEEPAGENS_API_KEY`.
+`dsh-expert-hub` puts the market's `expert` category behind the host's authenticated web gateway: the expert page reads installable expert cards and starts installs through this projection instead of reaching the market service directly. The same gateway lists, uploads, and installs online expert modules on the token-api expert hub, and reads one card's persona for its detail dialog. Every call arrives from a signed-in client, so the gateway forwards opaque source, entry, and bundle ids verbatim and lets `dsh-market-local` keep resolving names, versions, and commands on the host. Upload uses the signed-in `DEEPAGENS_API_KEY`. A saved card (`origin` absent or `mine`) and a shipped preset whose directory is outside `.agent-presets` can be uploaded. A plaza install cannot.
 
 ## Table of Contents
 
@@ -48,12 +48,13 @@ The gateway is a pure projection: a call whose underlying service rejects propag
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The plugin extends `TypertRemoteService` with the wire namespace `expertHub` and the same service key. It projects `catalog` (the market `expert` category), `installEntry`, `uninstall`, `plaza`, `uploadable`, `publishModule`, and `installModule`. The wire names are not `install` or `remove`, because those names collide with the Remote client's namespace service. `plaza` and `uploadable` are reader reads; `publishModule` and `installModule` are owner actions. A downloaded module is registered through `ctx.expertPublisher`, so it is hireable without a restart.
+The plugin extends `TypertRemoteService` with the wire namespace `expertHub` and the same service key. It projects `catalog` (the market `expert` category), `installEntry`, `uninstall`, `plaza`, `uploadable`, `detail`, `publishModule`, and `installModule`. The wire names are not `install` or `remove`, because those names collide with the Remote client's namespace service. `plaza`, `uploadable`, and `detail` are reader reads; `publishModule` and `installModule` are owner actions. A downloaded module is registered through `ctx.expertPublisher`, so it is hireable without a restart. `publishModule` reads a saved expert file first and otherwise the shipped preset directory.
 
 | File | Owns |
 |---|---|
 | `src/index.ts` | The `ExpertHubGateway` Typert remote projection of `ctx.market` and the online module methods |
 | `src/online.ts` | token-api plaza, upload, and install |
+| `src/shipped.ts` | persona and skills read from a shipped preset directory |
 | `src/types.ts` | The wire request/response types; `package.json` `exports["./types"].types` points here so Client typecheck resolves before `lib/types` exists |
 
 </details>

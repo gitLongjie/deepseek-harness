@@ -105,7 +105,7 @@ export async function installExpertModule(
     remoteSlug: slug,
     origin: 'plaza',
   })
-  if (!outcome.ok) return { ok: false, message: outcome.reason ?? '没有装到本机名单' }
+  if (!outcome.ok) return { ok: false, message: outcome.reason }
   return { ok: true, slug, version: document.version }
 }
 
@@ -146,14 +146,67 @@ async function finishPublish(
     remoteSlug: result.slug,
     origin: 'mine',
   })
-  if (!outcome.ok) return { ok: false, message: outcome.reason ?? '上传成功，但本机名单没有更新' }
+  if (!outcome.ok) return { ok: false, message: outcome.reason }
   return result
+}
+
+/** Fields posted as one expert module. */
+export interface ExpertUploadDocument {
+  readonly id: string
+  readonly name: string
+  readonly description: string
+  readonly persona: string
+  readonly skillMarkdown: string
+  readonly category: string
+  readonly subtitle: string
+  readonly icon: string
+  readonly tags: readonly string[]
+  readonly quickPrompts: readonly string[]
+  readonly remoteSlug?: string
+  readonly version: string
+}
+
+/**
+ * Upload one expert document. A rejection that names the sent version is retried once at the next patch.
+ * @param origin - token-api origin.
+ * @param token - the signed-in gateway key.
+ * @param document - card fields, persona, and skill text.
+ * @param fetchImpl - HTTP implementation.
+ * @returns the public slug and version, or why the upload stopped.
+ */
+export async function publishExpertDocument(
+  origin: string,
+  token: string,
+  document: ExpertUploadDocument,
+  fetchImpl: typeof fetch = fetch,
+): Promise<ExpertModuleResult> {
+  const first = await postModule(origin, token, document, document.version, fetchImpl)
+  if (first.ok || !first.message.includes(document.version)) return first
+  return postModule(origin, token, document, bumpVersion(document.version), fetchImpl)
+}
+
+/**
+ * Read one published module without installing it.
+ * @param origin - token-api origin.
+ * @param slug - public slug.
+ * @param fetchImpl - HTTP implementation.
+ * @returns the module, or undefined when the id cannot be read.
+ */
+export async function readRemoteExpert(
+  origin: string,
+  slug: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ slug: string; name: string; description: string; persona: string; skillMarkdown: string } | undefined> {
+  if (!ID_PATTERN.test(slug)) return undefined
+  const response = await callJson(origin, `/api/expert-hub/items/${encodeURIComponent(slug)}/module`, undefined, fetchImpl)
+  if (!response.ok || response.data === undefined) return undefined
+  return moduleOf(response.data, slug)
 }
 
 async function postModule(
   origin: string,
   token: string,
-  stored: NonNullable<Awaited<ReturnType<typeof readPublishedExpert>>>,
+  stored: ExpertUploadDocument | NonNullable<Awaited<ReturnType<typeof readPublishedExpert>>>,
   version: string,
   fetchImpl: typeof fetch,
 ): Promise<ExpertModuleResult> {
@@ -184,10 +237,10 @@ async function postModule(
 }
 
 function bumpVersion(version: string): string {
-  const parts = version.split('.')
-  const patch = Number(parts[2] ?? '0')
+  const [major, minor = '0', patchText = '0'] = version.split('.')
+  const patch = Number(patchText)
   const next = Number.isFinite(patch) ? patch + 1 : 1
-  return `${parts[0] ?? '1'}.${parts[1] ?? '0'}.${String(next)}`
+  return `${major}.${minor}.${String(next)}`
 }
 
 async function readCards(

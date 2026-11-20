@@ -352,6 +352,28 @@
   background: var(--dsw-alias-interactive-bg-hover);
 }
 
+.detailBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.detailLabel {
+  margin: 0;
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 500;
+  color: var(--dsw-alias-label-primary);
+}
+
+.detailText {
+  margin: 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-secondary);
+  white-space: pre-wrap;
+}
+
 .broken {
   margin: 0;
   font-size: 12px;

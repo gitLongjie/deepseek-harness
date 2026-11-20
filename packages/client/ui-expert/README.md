@@ -34,7 +34,7 @@ The web bundle mounts the plugin by default; remove the row to turn the surface 
 
 ### Minimal configuration
 
-No config of its own: the page renders the roster the deployment ships — presets that publish card metadata present as hireable experts, and the rest of the roster stays out. The page has two modules. My experts is that roster: a card this account saved locally can be uploaded, and a healthy card can be hired into a new chat or saved as the new-task default. Expert plaza lists modules published on the gateway: a missing one is downloaded, a different version is updated, and hire appears after it is installed. The new-session chip opens this page. The default card shows that badge.
+No config of its own: the page renders the roster the deployment ships — presets that publish card metadata present as hireable experts, and the rest of the roster stays out. The page has two modules. My experts is that roster: each card opens a detail dialog with its description, persona, and skill titles. A card this account saved locally, and a shipped expert loaded from outside `.agent-presets`, can be uploaded. A healthy card can be hired into a new chat or saved as the new-task default. Expert plaza lists modules published on the gateway: a missing one is downloaded, a different version is updated, and hire appears after it is installed. The new-session chip opens this page. The default card shows that badge.
 
 ### What can go wrong
 
@@ -87,7 +87,7 @@ None; this package neither assembles nor sends a provider request.
 <a id="known-limitations-and-deferred-work"></a>
 
 - **Roster-driven market** — the market reads the deployment's agent-preset roster; the attribution subtitle, curator badge, and avatar image a card design reserves await the roster carrying them with the marketplace install channel, so cards fall back to a gradient tile and the published glyph.
-- **Upload is the signed-in account's own card** — plaza installs cannot be uploaded again, and favorites and per-card reviews stay deferred.
+- **Upload skips plaza installs and package copies** — a card saved by the signed-in account and a shipped expert can be uploaded. A plaza install and a preset under `.agent-presets` cannot. Favorites and per-card reviews stay deferred.
 
 <a id="dev-note"></a>
 ### Dev Note

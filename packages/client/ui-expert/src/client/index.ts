@@ -40,7 +40,7 @@ import { ExpertNav } from './ExpertNav.tsx'
 import { de, en, es, fr, ja, pt, ru, zh, type ExpertKey } from './locales.ts'
 
 export type { ExpertKey } from './locales.ts'
-export type { ExpertBrowserProps, ExpertNavProps, ExpertRecord } from './contract/slots.ts'
+export type { ExpertBrowserProps, ExpertDetailView, ExpertNavProps, ExpertRecord } from './contract/slots.ts'
 export type { UiExpert } from './navigation.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
@@ -182,6 +182,14 @@ export function apply(ctx: Context): void {
       const result = await ctx.remote.expertHub.publishModule({ id })
       if (!result.ok) return result.error.message
       return result.value.ok ? undefined : result.value.message
+    },
+    detail: async (id: string) => {
+      const result = await ctx.remote.expertHub.detail({ id })
+      if (!result.ok) return { message: result.error.message }
+      return {
+        ...(result.value.persona === undefined ? {} : { persona: result.value.persona }),
+        ...(result.value.skills === undefined ? {} : { skills: result.value.skills }),
+      }
     },
     install: async (slug: string) => {
       const result = await ctx.remote.expertHub.installModule({ slug })

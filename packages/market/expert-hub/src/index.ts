@@ -16,10 +16,12 @@ import type { Market as MarketService, MarketBundleId, MarketEntryRef } from '@d
 import { TypertRemoteService, Remote } from '@deepseek-ai/dsh-typert-protocol'
 // Typert-generated ./typert and ./remote artifacts import Zod at runtime.
 import type {} from 'zod'
+import { readPublishedExpert } from '@deepseek-ai/dsh-expert-publish/src/publish.ts'
 import {
-  DEFAULT_EXPERT_HUB_ORIGIN, fetchExpertPlaza, installExpertModule, publishLocalExpert, uploadableExpertIds,
-  installedExpertVersions,
+  DEFAULT_EXPERT_HUB_ORIGIN, fetchExpertPlaza, installExpertModule, publishExpertDocument, publishLocalExpert,
+  readRemoteExpert, uploadableExpertIds, installedExpertVersions,
 } from './online.ts'
+import { collectShippedExperts, type ShippedExpert } from './shipped.ts'
 import type {
   ExpertHubBundleId,
   ExpertHubCatalog,
@@ -28,6 +30,7 @@ import type {
   ExpertHubInstallOutcome,
   ExpertHubRemoveOutcome,
   ExpertHubSourceId,
+  ExpertDetail,
   ExpertModuleResult,
   ExpertPlazaPage,
   ExpertUploadable,
@@ -61,6 +64,7 @@ export class ExpertHubGateway extends TypertRemoteService {
   static Config = Config
 
   private readonly origin: string
+  private readonly shippedVersions = new Map<string, string>()
 
   constructor(ctx: Context, config: Config = {}) {
     super(ctx, 'expertHub', { namespace: 'expertHub' })
@@ -142,18 +146,52 @@ export class ExpertHubGateway extends TypertRemoteService {
   }
 
   /**
-   * Roster ids whose local file this account may upload.
-   * @returns those ids. An absent publisher is an empty list.
+   * Roster ids this account may upload: saved cards, and shipped presets outside `.agent-presets`.
+   * @returns those ids. An absent publisher omits the saved cards.
    */
   @Remote('uploadable')
   async uploadable(): Promise<ExpertUploadable> {
     const publisher = this.publisher()
-    if (publisher === undefined) return { ids: [] }
-    return { ids: await uploadableExpertIds(publisher.root) }
+    const stored = publisher === undefined ? [] : await uploadableExpertIds(publisher.root)
+    const shippedPromise = this.shippedExperts()
+    const shipped = await shippedPromise
+    return { ids: [...new Set([...stored, ...shipped.map(expert => expert.id)])] }
+  }
+
+  private async shippedById(id: string): Promise<ShippedExpert | undefined> {
+    const experts = await this.shippedExperts()
+    return experts.find(expert => expert.id === id)
+  }
+
+  /**
+   * Persona and skill titles for one card.
+   * @param request - roster id or plaza slug.
+   * @returns the detail. A missing expert returns the id as the name.
+   */
+  @Remote('detail')
+  async detail(request: { id: string }): Promise<ExpertDetail> {
+    const publisher = this.publisher()
+    if (publisher !== undefined) {
+      const stored = await readPublishedExpert(publisher.root, request.id)
+      if (stored !== undefined) {
+        return detailOf(stored.id, stored.name, stored.description, stored.persona, skillTitles(stored.skillMarkdown))
+      }
+    }
+    const shipped = await this.shippedById(request.id)
+    if (shipped !== undefined) {
+      return detailOf(shipped.id, shipped.name, shipped.description, shipped.persona, shipped.skillNames)
+    }
+    const remote = await readRemoteExpert(this.origin, request.id)
+    if (remote !== undefined) {
+      return detailOf(remote.slug, remote.name, remote.description, remote.persona, skillTitles(remote.skillMarkdown))
+    }
+    return { id: request.id, name: request.id }
   }
 
   /**
    * Upload one local expert as the signed-in user.
+   * A card saved by this account uploads from its file. A shipped preset uploads from its directory.
+   * Plaza installs and package copies under `.agent-presets` do not upload.
    * @param request - the roster id.
    * @returns the public slug and version, or why it stopped.
    */
@@ -162,8 +200,30 @@ export class ExpertHubGateway extends TypertRemoteService {
     const token = await this.gatewayToken()
     if (token === undefined) return { ok: false, message: '登录后才能上传专家' }
     const publisher = this.publisher()
-    if (publisher === undefined) return { ok: false, message: '本机专家目录还没有准备好' }
-    return publishLocalExpert(this.origin, token, publisher, request.id)
+    if (publisher !== undefined) {
+      const stored = await readPublishedExpert(publisher.root, request.id)
+      if (stored !== undefined) return publishLocalExpert(this.origin, token, publisher, request.id)
+    }
+    const shipped = await this.shippedById(request.id)
+    if (shipped === undefined) {
+      return { ok: false, message: publisher === undefined ? '本机专家目录还没有准备好' : '这个专家还没有保存在本机，不能上传' }
+    }
+    const version = this.shippedVersions.get(request.id) ?? '1.0.0'
+    const result = await publishExpertDocument(this.origin, token, {
+      id: shipped.id,
+      name: shipped.name,
+      description: shipped.description,
+      persona: shipped.persona,
+      skillMarkdown: shipped.skillMarkdown,
+      category: shipped.category,
+      subtitle: shipped.subtitle,
+      icon: shipped.icon,
+      tags: shipped.tags,
+      quickPrompts: shipped.quickPrompts,
+      version,
+    })
+    if (result.ok) this.shippedVersions.set(request.id, result.version)
+    return result
   }
 
   /**
@@ -178,11 +238,27 @@ export class ExpertHubGateway extends TypertRemoteService {
     return installExpertModule(this.origin, publisher, request.slug)
   }
 
+  /**
+   * Shipped experts whose directories this process recorded.
+   * @returns experts that can be uploaded. An absent roster is an empty list.
+   */
+  protected shippedExperts(): Promise<readonly ShippedExpert[]> {
+    return collectShippedExperts(this.ctx.get('agentPresets'))
+  }
+
   private publisher(): ExpertPublisher | undefined {
     return this.ctx.get('expertPublisher')
   }
 
-  private async gatewayToken(): Promise<string | undefined> {
+  /**
+   * Signed-in gateway key, when credentials hold one.
+   * @returns the key, or undefined when nobody is signed in.
+   */
+  protected gatewayToken(): Promise<string | undefined> {
+    return this.readGatewayToken()
+  }
+
+  private async readGatewayToken(): Promise<string | undefined> {
     const credentials = this.ctx.get('credentials')
     if (credentials === undefined) return undefined
     const resolved = await credentials.resolve(GATEWAY_KEY)
@@ -197,3 +273,35 @@ export class ExpertHubGateway extends TypertRemoteService {
 }
 
 export default ExpertHubGateway
+
+function detailOf(
+  id: string,
+  name: string,
+  description: string,
+  persona: string,
+  skills: readonly string[],
+): ExpertDetail {
+  return {
+    id,
+    name,
+    ...(description === '' ? {} : { description }),
+    ...(persona.trim() === '' ? {} : { persona }),
+    ...(skills.length === 0 ? {} : { skills }),
+  }
+}
+
+function skillTitles(markdown: string): string[] {
+  const named = titlesOn(markdown, 'name:')
+  if (named.length > 0) return named
+  return titlesOn(markdown, '# ')
+}
+
+function titlesOn(markdown: string, prefix: 'name:' | '# '): string[] {
+  const titles: string[] = []
+  for (const line of markdown.split(/\r?\n/)) {
+    if (!line.startsWith(prefix)) continue
+    const title = line.slice(prefix.length).trim()
+    if (title !== '' && !titles.includes(title)) titles.push(title)
+  }
+  return titles
+}

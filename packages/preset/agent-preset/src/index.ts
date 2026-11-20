@@ -1,4 +1,5 @@
 /** A declarative preset row in an ordinary Cordis composition. */
+import { fileURLToPath } from 'node:url'
 import { Context, Service } from '@deepseek-ai/cordis'
 import { EntryGroup } from '@deepseek-ai/cordis-plugin-loader'
 import z from '@deepseek-ai/schemastery'
@@ -32,6 +33,16 @@ export default class AgentPreset {
   constructor(private readonly ctx: Context, private readonly config: Config) {}
 
   async* [Service.init]() {
-    yield await this.ctx.agentPresets.register(this.config)
+    yield await this.ctx.agentPresets.register(this.config, presetDirectory(this.ctx.baseUrl))
   }
+}
+
+/**
+ * Directory of a preset loaded from a file URL.
+ * @param baseUrl - the declaring composition's base, when Cordis set one.
+ * @returns the directory, or undefined when the preset was not loaded from a file.
+ */
+function presetDirectory(baseUrl: string | undefined): string | undefined {
+  if (baseUrl === undefined || !baseUrl.startsWith('file:')) return undefined
+  return fileURLToPath(new URL('.', baseUrl))
 }

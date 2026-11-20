@@ -234,6 +234,7 @@ export const SERVICE_WALK_EXEMPTIONS: Record<string, string> = {
   sidebarRightTabs: 'client-side right-Sidebar tab-type registry — packages/client/ui-sidebar-right/README.md owns the API',
   documentPreviews: 'client-side document renderer registry — docs/subsystems/sidebar-right.md owns the API',
   videoWorkbenchStudio: 'Host-owned studio store provided by packages/video/video-workbench; not a Cordis Service class the catalog projector renders',
+  expertPublisher: 'Host-owned publisher object provided by packages/preset/expert-publish; not a Cordis Service class the catalog projector renders — packages/preset/expert-publish/README.md owns the API',
 }
 
 /**

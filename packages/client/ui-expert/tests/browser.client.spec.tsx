@@ -49,6 +49,7 @@ function mount(overrides: Partial<ExpertBrowserProps> = {}) {
     makeDefault: vi.fn(async () => undefined),
     publish: vi.fn(async () => undefined),
     install: vi.fn(async () => undefined),
+    detail: vi.fn(async () => ({})),
     t,
     ...overrides,
   } as unknown as ExpertBrowserProps
@@ -308,6 +309,23 @@ describe('ExpertBrowser', () => {
     await waitFor(() => {
       expect(install).toHaveBeenCalledWith('u7-geo')
     })
+  })
+
+  it('opens a detail dialog with the persona and skills', async () => {
+    const detail = vi.fn(async () => ({ persona: '你是可见度顾问。', skills: ['报价模型'] }))
+    mount({ detail })
+    await waitFor(() => {
+      expect(screen.getByText('GEO 优化专家')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getAllByRole('button', { name: '详情' })[1]!)
+    expect(detail).toHaveBeenCalledWith('geo-optimizer')
+    expect(await screen.findByText('你是可见度顾问。')).toBeTruthy()
+    expect(screen.getByText('报价模型')).toBeTruthy()
+    expect(screen.getByText('分类 营销')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '关闭' }))
+    expect(screen.queryByText('你是可见度顾问。')).toBeNull()
   })
 
   it('renders the no-match state when the filter admits nothing', async () => {

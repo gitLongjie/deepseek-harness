@@ -94,14 +94,16 @@ async function bench(remote: RemoteStub) {
   }
   new RemoteService(ctx)
   ctx.provide('remote.agentPresets', remote)
+  const detail = vi.fn(async () => ({ ok: true, value: { id: 'geo', name: 'GEO' } }))
   ctx.provide('remote.expertHub', {
     uploadable: vi.fn(async () => ({ ok: true, value: { ids: [] } })),
     catalog: vi.fn(async () => ({ ok: true, value: [] })),
     plaza: vi.fn(async () => ({ ok: true, value: { cards: [] } })),
     publishModule: vi.fn(async () => ({ ok: false, error: { message: 'absent' } })),
     installModule: vi.fn(async () => ({ ok: false, error: { message: 'absent' } })),
+    detail,
   })
-  return { ctx, slots: ctx.get('slots') as SlotRegistry, locale, uiAgentPreset, uiWorkspace, calls, panelListeners }
+  return { ctx, slots: ctx.get('slots') as SlotRegistry, locale, uiAgentPreset, uiWorkspace, calls, panelListeners, detail }
 }
 
 function declare(slots: SlotRegistry): () => void {
@@ -237,6 +239,25 @@ describe('ui-expert browser plugin', () => {
     expect(refused).toBeTruthy()
     expect(b.calls).toEqual(['stage:geo-optimizer'])
     expect(b.uiWorkspace.startSession).not.toHaveBeenCalled()
+  })
+
+  it('maps a detail read and a refused detail read', async () => {
+    const b = await bench(stub())
+    declare(b.slots)
+    await b.ctx.plugin({ inject: [...inject], apply }).await()
+    const page = b.slots.entries('conversation.expert.browser')[0]
+    const injected = (page?.inject as unknown as () => {
+      detail: (id: string) => Promise<{ persona?: string; skills?: readonly string[]; message?: string }>
+    })()
+
+    b.detail.mockResolvedValueOnce({ ok: true, value: { id: 'geo', name: 'GEO', persona: '你是顾问。', skills: ['报价'] } })
+    await expect(injected.detail('geo')).resolves.toEqual({ persona: '你是顾问。', skills: ['报价'] })
+
+    b.detail.mockResolvedValueOnce({ ok: true, value: { id: 'geo', name: 'GEO' } })
+    await expect(injected.detail('geo')).resolves.toEqual({})
+
+    b.detail.mockResolvedValueOnce({ ok: false, error: { message: 'offline' } })
+    await expect(injected.detail('geo')).resolves.toEqual({ message: 'offline' })
   })
 
   it('degrades to an empty market when the roster read refuses', async () => {

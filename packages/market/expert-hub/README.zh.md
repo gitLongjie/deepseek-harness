@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-expert-hub` 把市场的 `expert` 分类放进宿主经身份验证的 Web 网关：专家页通过该投影读取可安装专家卡片并发起安装，而不是直接触达市场服务。同一网关在 token-api 专家中心上列出、上传并安装在线专家模块。每次调用都来自已登录客户端，因此网关原样转发不透明的来源、条目与 bundle id，由 `dsh-market-local` 在宿主侧继续解析包名、版本与命令。上传使用已登录的 `DEEPAGENS_API_KEY`。
+`dsh-expert-hub` 把市场的 `expert` 分类放进宿主经身份验证的 Web 网关：专家页通过该投影读取可安装专家卡片并发起安装，而不是直接触达市场服务。同一网关在 token-api 专家中心上列出、上传并安装在线专家模块，并为详情对话框读取一张卡片的人设。每次调用都来自已登录客户端，因此网关原样转发不透明的来源、条目与 bundle id，由 `dsh-market-local` 在宿主侧继续解析包名、版本与命令。上传使用已登录的 `DEEPAGENS_API_KEY`。本账号保存的卡片（`origin` 缺省或为 `mine`）以及目录不在 `.agent-presets` 下的系统自带预设可以上传。从广场安装的专家不能上传。
 
 ## 目录
 
@@ -48,12 +48,13 @@ kind: "package-reference"
 <details>
 <summary>实现内部 — 点击展开</summary>
 
-插件以 wire 命名空间 `expertHub` 与同名服务键扩展 `TypertRemoteService`。它投影 `catalog`（市场 `expert` 分类）、`installEntry`、`uninstall`、`plaza`、`uploadable`、`publishModule` 与 `installModule`。线名不用 `install` 或 `remove`，因为这两个名字会与 Remote 客户端的命名空间服务冲突。`plaza` 与 `uploadable` 是读者读取；`publishModule` 与 `installModule` 是所有者动作。下载的模块经 `ctx.expertPublisher` 注册，因此不必重启即可聘用。
+插件以 wire 命名空间 `expertHub` 与同名服务键扩展 `TypertRemoteService`。它投影 `catalog`（市场 `expert` 分类）、`installEntry`、`uninstall`、`plaza`、`uploadable`、`detail`、`publishModule` 与 `installModule`。线名不用 `install` 或 `remove`，因为这两个名字会与 Remote 客户端的命名空间服务冲突。`plaza`、`uploadable` 与 `detail` 是读者读取；`publishModule` 与 `installModule` 是所有者动作。下载的模块经 `ctx.expertPublisher` 注册，因此不必重启即可聘用。`publishModule` 先读已保存的专家文件，否则读系统自带预设目录。
 
 | 文件 | 职责 |
 |---|---|
 | `src/index.ts` | `ExpertHubGateway`，对 `ctx.market` 的 Typert remote 投影，以及在线模块方法 |
 | `src/online.ts` | token-api 广场、上传与安装 |
+| `src/shipped.ts` | 从系统自带预设目录读取人设与技能 |
 | `src/types.ts` | wire 请求/响应类型；`package.json` 的 `exports["./types"].types` 指向此处，使 Client 类型检查在 `lib/types` 写出前即可解析 |
 
 </details>

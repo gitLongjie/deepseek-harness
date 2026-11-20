@@ -1,9 +1,15 @@
-import { describe, expect, it, vi } from 'vitest'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
+import { CredentialProvider } from '@deepseek-ai/dsh-credentials'
 import type {
   Market, MarketBundleId, MarketCatalogEntry, MarketCatalogPage, MarketEntryId, MarketSourceId,
 } from '@deepseek-ai/dsh-market'
+import { publishExpert, type ExpertPublisher } from '@deepseek-ai/dsh-expert-publish/src/publish.ts'
 import ExpertHubGateway from '../src/index.ts'
+import type { ShippedExpert } from '../src/shipped.ts'
 import type { ExpertHubBundleId, ExpertHubEntryId, ExpertHubSourceId } from '../src/types.ts'
 
 const SOURCE_ID = 'src-1' as MarketSourceId
@@ -123,5 +129,207 @@ describe('expert hub gateway projection', () => {
       restartRequired: true,
     })
     expect(market.uninstall).toHaveBeenCalledWith(BUNDLE_ID)
+  })
+
+  it('reads a configured origin and the signed-in gateway key', async () => {
+    const seen: string[] = []
+    vi.stubGlobal('fetch', async (input: string | URL) => {
+      seen.push(String(input))
+      return new Response('nope', { status: 500 })
+    })
+    const blank = new ExpertHubGateway(new Context(), { origin: '   ' })
+    await blank.plaza()
+    const custom = new ExpertHubGateway(new Context(), { origin: 'https://example.test/' })
+    await custom.plaza()
+    vi.stubGlobal('fetch', async () => new Response(JSON.stringify({ success: true, data: { items: [] } }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    }))
+    await expect(blank.plaza()).resolves.toEqual({ cards: [] })
+    expect(seen).toEqual([
+      'https://claw.deepagens.com/api/expert-hub/items?kind=expert&pageSize=100',
+      'https://example.test/api/expert-hub/items?kind=expert&pageSize=100',
+    ])
+    vi.unstubAllGlobals()
+
+    const ctx = new Context()
+    ctx.provide('credentials', tokenCredentials(undefined))
+    const unsigned = new ExpertHubGateway(ctx)
+    await expect(unsigned.publishModule({ id: 'geo-optimizer' })).resolves.toEqual({
+      ok: false,
+      message: '登录后才能上传专家',
+    })
+    const signedIn = new Context()
+    signedIn.provide('credentials', tokenCredentials('token'))
+    const gateway = new ExpertHubGateway(signedIn)
+    await expect(gateway.publishModule({ id: 'geo-optimizer' })).resolves.toEqual({
+      ok: false,
+      message: '本机专家目录还没有准备好',
+    })
+  })
+})
+
+function tokenCredentials(value: string | undefined): CredentialProvider {
+  const resolved = value === undefined ? undefined : { value, source: 'memory' as const }
+  return {
+    resolve: () => Promise.resolve(resolved),
+  } as CredentialProvider
+}
+
+const SHIPPED: ShippedExpert = {
+  id: 'geo-optimizer',
+  name: 'GEO 优化专家',
+  description: '诊断可见度。',
+  persona: '你是顾问。',
+  category: 'marketing',
+  subtitle: '官方',
+  icon: '🔍',
+  tags: ['GEO'],
+  quickPrompts: ['先诊断'],
+  skillMarkdown: '---\nname: 报价\n---\n',
+  skillNames: ['报价'],
+}
+
+class SignedGateway extends ExpertHubGateway {
+  token: string | undefined = 'token'
+  shipped: readonly ShippedExpert[] = []
+
+  protected override gatewayToken(): Promise<string | undefined> {
+    return Promise.resolve(this.token)
+  }
+
+  protected override shippedExperts(): Promise<readonly ShippedExpert[]> {
+    return Promise.resolve(this.shipped)
+  }
+}
+
+describe('shipped and saved expert uploads', () => {
+  const directories: string[] = []
+  afterEach(async () => {
+    vi.unstubAllGlobals()
+    for (const directory of directories.splice(0)) await rm(directory, { recursive: true, force: true })
+  })
+
+  function signed(): SignedGateway {
+    return new SignedGateway(new Context())
+  }
+
+  it('lists a shipped expert and uploads it', async () => {
+    const gateway = signed()
+    gateway.shipped = [SHIPPED, {
+      ...SHIPPED,
+      id: 'blank',
+      description: '',
+      persona: '  ',
+      skillNames: [],
+      skillMarkdown: '',
+    }]
+    await expect(gateway.uploadable()).resolves.toEqual({ ids: ['geo-optimizer', 'blank'] })
+    await expect(gateway.detail({ id: 'geo-optimizer' })).resolves.toMatchObject({ persona: '你是顾问。', skills: ['报价'] })
+    await expect(gateway.detail({ id: 'blank' })).resolves.toEqual({ id: 'blank', name: 'GEO 优化专家' })
+
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
+      success: true,
+      data: { slug: 'u7-geo-optimizer', version: '1.0.0' },
+    }), { status: 200, headers: { 'content-type': 'application/json' } }))
+    vi.stubGlobal('fetch', fetchImpl)
+    await expect(gateway.publishModule({ id: 'geo-optimizer' })).resolves.toEqual({
+      ok: true, slug: 'u7-geo-optimizer', version: '1.0.0',
+    })
+    await expect(gateway.publishModule({ id: 'geo-optimizer' })).resolves.toEqual({
+      ok: true, slug: 'u7-geo-optimizer', version: '1.0.0',
+    })
+    expect(fetchImpl).toHaveBeenCalledTimes(2)
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+      success: false,
+      message: '拒绝',
+    }), { status: 200, headers: { 'content-type': 'application/json' } })))
+    await expect(gateway.publishModule({ id: 'geo-optimizer' })).resolves.toEqual({ ok: false, message: '拒绝' })
+  })
+
+  it('refuses a signed-in upload when the id is neither saved nor shipped', async () => {
+    const gateway = signed()
+    await expect(gateway.publishModule({ id: 'missing' })).resolves.toEqual({
+      ok: false,
+      message: '本机专家目录还没有准备好',
+    })
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('nope', { status: 500 })))
+    await expect(gateway.detail({ id: 'missing' })).resolves.toEqual({ id: 'missing', name: 'missing' })
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+      success: true,
+      data: {
+        name: '广场专家',
+        description: '',
+        persona: '人设',
+        version: '1.0.0',
+        skill_markdown: 'name: 报价\nname: 报价\nname:\n# 标题\n',
+      },
+    }), { status: 200, headers: { 'content-type': 'application/json' } })))
+    await expect(gateway.detail({ id: 'u7-geo' })).resolves.toMatchObject({ persona: '人设', skills: ['报价'] })
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+      success: true,
+      data: { name: '广场专家', description: '', persona: '人设', version: '1.0.0', skill_markdown: '#   \n# 标题\n' },
+    }), { status: 200, headers: { 'content-type': 'application/json' } })))
+    await expect(gateway.detail({ id: 'u7-heading' })).resolves.toMatchObject({ skills: ['标题'] })
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+      success: true,
+      data: { name: '广场专家', description: '说明', persona: '人设', version: '1.0.0', skill_markdown: '正文' },
+    }), { status: 200, headers: { 'content-type': 'application/json' } })))
+    await expect(gateway.detail({ id: 'u7-plain' })).resolves.toEqual({
+      id: 'u7-plain', name: '广场专家', description: '说明', persona: '人设',
+    })
+  })
+
+  it('reads a saved expert and uploads that file', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'expert-hub-gateway-'))
+    directories.push(directory)
+    const publisher: ExpertPublisher = {
+      root: directory,
+      owned: new Map(),
+      async register() { return async () => {} },
+      async hasId() { return false },
+    }
+    await publishExpert(publisher, {
+      id: 'mine', name: '我的专家', description: '描述', persona: '人设正文',
+      version: '1.0.0', remoteSlug: 'mine',
+    })
+    const gateway = signed()
+    gateway.ctx.provide('expertPublisher', publisher)
+    await expect(gateway.detail({ id: 'mine' })).resolves.toMatchObject({ persona: '人设正文' })
+    await expect(gateway.uploadable()).resolves.toEqual({ ids: ['mine'] })
+    vi.stubGlobal('fetch', async () => new Response('nope', { status: 500 }))
+    await expect(gateway.detail({ id: 'missing' })).resolves.toEqual({ id: 'missing', name: 'missing' })
+
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+      success: true,
+      data: { slug: 'u1-mine', version: '1.0.0' },
+    }), { status: 200, headers: { 'content-type': 'application/json' } })))
+    await expect(gateway.publishModule({ id: 'mine' })).resolves.toEqual({ ok: true, slug: 'u1-mine', version: '1.0.0' })
+    await expect(gateway.publishModule({ id: 'missing' })).resolves.toEqual({
+      ok: false,
+      message: '这个专家还没有保存在本机，不能上传',
+    })
+    vi.stubGlobal('fetch', async () => new Response(JSON.stringify({
+      success: true,
+      data: {
+        items: [
+          { id: 'u1-mine', name: '我的专家', version: '2.0.0' },
+          { id: 'other', name: '其他', version: '1.0.0' },
+        ],
+      },
+    }), { status: 200, headers: { 'content-type': 'application/json' } }))
+    await expect(gateway.plaza()).resolves.toEqual({
+      cards: [
+        { slug: 'u1-mine', name: '我的专家', version: '2.0.0', installedVersion: '1.0.0' },
+        { slug: 'other', name: '其他', version: '1.0.0' },
+      ],
+    })
+    vi.stubGlobal('fetch', async () => new Response(JSON.stringify({
+      success: true,
+      data: { name: '下载', description: '说明', persona: '人设', version: '1.0.0' },
+    }), { status: 200, headers: { 'content-type': 'application/json' } }))
+    await expect(gateway.installModule({ slug: 'u7-download' })).resolves.toEqual({
+      ok: true, slug: 'u7-download', version: '1.0.0',
+    })
   })
 })

@@ -65,6 +65,16 @@ export interface ExpertRecord {
   readonly installedVersion?: string
 }
 
+/** Persona and skill titles loaded for one card's detail view. */
+export interface ExpertDetailView {
+  /** System prompt, when the host or the plaza module has one. */
+  readonly persona?: string
+  /** Skill titles packaged with the expert. */
+  readonly skills?: readonly string[]
+  /** Why the detail read failed, when it did. */
+  readonly message?: string
+}
+
 /**
  * The page-state reactive source the nav row binds: the open flag only. The
  * page itself renders while open and holds no page-level reactive state.
@@ -115,6 +125,12 @@ export type ExpertBrowserInjected = {
    * @returns the refusal message, or undefined once it was published.
    */
   publish: (id: string) => Promise<string | undefined>
+  /**
+   * Read the persona and skill titles for one card.
+   * @param id - roster id or plaza slug.
+   * @returns the detail. `message` is set when the read failed.
+   */
+  detail: (id: string) => Promise<ExpertDetailView>
   /**
    * Download or update one plaza expert onto this machine.
    * @param slug - public slug.

@@ -579,6 +579,13 @@ Registry of YAML-declared presets and the revisions live Agents retain.
 
 ```ts cordis-catalog
 /**
+ * Directory recorded when the preset was loaded from a file.
+ * @param id - preset id.
+ * @returns that directory, or undefined for an in-memory registration.
+ */
+directoryOf(id: string): string | undefined
+
+/**
  * Read the preset recorded for a Session, including selections no longer in the roster.
  * @param session - Session whose committed preset selection is read.
  * @returns the recorded preset, or null when none was selected.
@@ -587,9 +594,10 @@ presetForSession(session: Session): string | null
 
 /** Register and eagerly load a definition; activation failure remains visible in the roster.
  * @param definition Parsed configuration supplied by the declaring plugin.
+ * @param directory Directory the preset file was loaded from. Omitted for an in-memory registration.
  * @returns Definition disposer after activation or its diagnostic settles; the declaring plugin owns it.
  */
-async register(definition: PresetDefinition): Promise<() => Promise<void>>
+async register(definition: PresetDefinition, directory?: string): Promise<() => Promise<void>>
 
 /** Inspect retained revisions, or the exact revision an Agent joined.
  * @param ctx - optional Agent context; omission includes all retained revisions.

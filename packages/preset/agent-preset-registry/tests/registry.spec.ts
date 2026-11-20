@@ -1,4 +1,6 @@
+import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
+import { Service } from '@deepseek-ai/cordis'
 import { createScope } from '@deepseek-ai/dsh-scope'
 import AgentRegistry, { assembleContextFor } from '@deepseek-ai/dsh-agent'
 import { entryListProblem } from '../src/index.ts'
@@ -29,6 +31,35 @@ describe('declarative preset revisions', () => {
     const { presets } = await ctx.agentPresets.remoteExportList()
     expect(presets.find(row => row.id === 'expert')).toEqual({ id: 'expert', isDefault: false, ...metadata })
     expect(presets.filter(isExpertPreset).map(row => row.id)).toEqual(['expert'])
+  })
+
+  it('records a preset directory and drops it when the registration goes away', async () => {
+    const ctx = await setup()
+    const dispose = await ctx.agentPresets.register({ id: 'kept', plugins: [] }, 'C:\\presets\\kept')
+    expect(ctx.agentPresets.directoryOf('kept')).toBe('C:\\presets\\kept')
+    expect(ctx.agentPresets.directoryOf('missing')).toBeUndefined()
+    await dispose()
+    expect(ctx.agentPresets.directoryOf('kept')).toBeUndefined()
+  })
+
+  it('records a file base and skips a preset that was not loaded from a file', async () => {
+    const ctx = await setup()
+    ctx.loader.builtins.preset = Preset
+    const expected = fileURLToPath(new URL('.', ctx.baseUrl))
+    await ctx.loader.create({ name: 'cordis:preset', config: { id: 'from-file', plugins: [] } })
+    expect(ctx.agentPresets.directoryOf('from-file')).toBe(expected)
+
+    ctx.baseUrl = 'https://example.test/presets/'
+    const web = new Preset(ctx, { id: 'from-web', plugins: [] })
+    const webStep = await web[Service.init]().next()
+    expect(ctx.agentPresets.directoryOf('from-web')).toBeUndefined()
+    await webStep.value()
+
+    ctx.baseUrl = undefined
+    const memory = new Preset(ctx, { id: 'from-memory', plugins: [] })
+    const memoryStep = await memory[Service.init]().next()
+    expect(ctx.agentPresets.directoryOf('from-memory')).toBeUndefined()
+    await memoryStep.value()
   })
 
   it('eagerly scopes tool and prompt registrations and shares one revision across Agents', async () => {

@@ -6,9 +6,10 @@
  * watches the Session list); hiring stages the card's preset id for the next
  * session and starts it.
  */
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
-import type { ExpertBrowserProps, ExpertRecord } from './contract/slots.ts'
+import { Modal } from '@deepseek-ai/dsh-client-ui-primitives'
+import type { ExpertBrowserProps, ExpertDetailView, ExpertRecord } from './contract/slots.ts'
 import css from './ExpertBrowser.module.css'
 
 /** Human text for a rejected wire call, read by the page's error state. */
@@ -93,6 +94,7 @@ export function ExpertBrowser({
   makeDefault,
   publish,
   install,
+  detail,
   t,
 }: ExpertBrowserProps) {
   // undefined = the market read is in flight; error switches the grid for a
@@ -110,6 +112,10 @@ export function ExpertBrowser({
   const [armedRemove, setArmedRemove] = useState<string | null>(null)
   const [savingDefault, setSavingDefault] = useState<string | null>(null)
   const [section, setSection] = useState<'mine' | 'plaza'>('mine')
+  const [detailId, setDetailId] = useState<string | null>(null)
+  const [detailView, setDetailView] = useState<ExpertDetailView | undefined>(undefined)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const detailToken = useRef(0)
 
   useEffect(() => {
     const reader = new AbortController()
@@ -141,6 +147,34 @@ export function ExpertBrowser({
   useEffect(() => {
     if (category !== null && !categories.includes(category)) setCategory(null)
   }, [category, categories])
+
+  /** Open one card's detail and load its persona. */
+  const openDetail = (id: string): void => {
+    const token = detailToken.current + 1
+    detailToken.current = token
+    setDetailId(id)
+    setDetailView(undefined)
+    setDetailLoading(true)
+    void detail(id).then(
+      (view) => {
+        if (detailToken.current !== token) return
+        setDetailView(view)
+        setDetailLoading(false)
+      },
+      (error: unknown) => {
+        if (detailToken.current !== token) return
+        setDetailView({ message: messageOf(error) })
+        setDetailLoading(false)
+      },
+    )
+  }
+
+  /** Close the detail dialog and drop a read that is still in flight. */
+  const closeDetail = (): void => {
+    detailToken.current += 1
+    setDetailId(null)
+    setDetailLoading(false)
+  }
 
   /** Upload, download, or update one module, then re-read the open section. */
   const runModule = (action: () => Promise<string | undefined>): void => {
@@ -203,14 +237,14 @@ export function ExpertBrowser({
           <button
             type="button"
             className={section === 'mine' ? clsx(css.chip, css.chipActive) : css.chip}
-            onClick={() => { setSection('mine') }}
+            onClick={() => { closeDetail(); setSection('mine') }}
           >
             {t('module.mine')}
           </button>
           <button
             type="button"
             className={section === 'plaza' ? clsx(css.chip, css.chipActive) : css.chip}
-            onClick={() => { setSection('plaza') }}
+            onClick={() => { closeDetail(); setSection('plaza') }}
           >
             {t('module.plaza')}
           </button>
@@ -307,6 +341,13 @@ export function ExpertBrowser({
                       <p className={css.broken} role="note">{t('card.broken', { reason: record.broken })}</p>
                     )}
                     <div className={css.cardActions}>
+                      <button
+                        type="button"
+                        className={css.remove}
+                        onClick={() => { openDetail(record.id) }}
+                      >
+                        {t('card.details')}
+                      </button>
                       {section === 'mine' && record.canUpload === true && (
                         <button
                           type="button"
@@ -404,6 +445,80 @@ export function ExpertBrowser({
           </>
         )}
       </div>
+      <ExpertDetail
+        record={(experts ?? []).find(expert => expert.id === detailId)}
+        view={detailView}
+        loading={detailLoading}
+        t={t}
+        onClose={closeDetail}
+      />
     </div>
+  )
+}
+
+/**
+ * Detail dialog for one expert card.
+ * @param record - the card, absent when the dialog is closed.
+ * @param view - persona and skills once the read settles.
+ * @param loading - whether that read is still in flight.
+ * @param t - expert-dictionary lookup.
+ * @param onClose - close command.
+ * @returns the dialog, or nothing while no card is selected.
+ */
+function ExpertDetail({
+  record,
+  view,
+  loading,
+  t,
+  onClose,
+}: {
+  record: ExpertRecord | undefined
+  view: ExpertDetailView | undefined
+  loading: boolean
+  t: ExpertBrowserProps['t']
+  onClose: () => void
+}) {
+  const open = record !== undefined
+  return (
+    <Modal open={open} onClose={onClose} title={record?.name ?? ''} closeLabel={t('detail.close')}>
+      {record !== undefined && (
+        <div className={css.detailBody}>
+          {record.subtitle !== undefined && <p className={css.cardSubtitle}>{record.subtitle}</p>}
+          {record.description !== undefined && <p className={css.detailText}>{record.description}</p>}
+          {record.category !== undefined && (
+            <p className={css.detailText}>{t('detail.category')} {categoryLabel(record.category, t)}</p>
+          )}
+          {(record.remoteVersion !== undefined) && (
+            <p className={css.detailText}>{t('detail.version')} {record.remoteVersion}</p>
+          )}
+          {(record.tags?.length ?? 0) > 0 && (
+            <ul className={css.tags}>
+              {record.tags?.map(tag => <li key={tag} className={css.tag}>{tag}</li>)}
+            </ul>
+          )}
+          {(record.quickPrompts?.length ?? 0) > 0 && (
+            <ul className={css.prompts} aria-label={t('quickPrompts.label')}>
+              {record.quickPrompts?.map(prompt => <li key={prompt} className={css.detailText}>{prompt}</li>)}
+            </ul>
+          )}
+          {loading && <p className={css.detailText}>{t('detail.loading')}</p>}
+          {view?.message !== undefined && <p className={css.detailText} role="alert">{view.message}</p>}
+          {view?.persona !== undefined && (
+            <>
+              <p className={css.detailLabel}>{t('detail.persona')}</p>
+              <p className={css.detailText}>{view.persona}</p>
+            </>
+          )}
+          {(view?.skills?.length ?? 0) > 0 && (
+            <>
+              <p className={css.detailLabel}>{t('detail.skills')}</p>
+              <ul className={css.tags}>
+                {view?.skills?.map(skill => <li key={skill} className={css.tag}>{skill}</li>)}
+              </ul>
+            </>
+          )}
+        </div>
+      )}
+    </Modal>
   )
 }

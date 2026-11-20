@@ -100,6 +100,20 @@ export interface ExpertUploadable {
   readonly ids: readonly string[]
 }
 
+/** Persona and skill names for one expert card's detail view. */
+export interface ExpertDetail {
+  /** Roster id or plaza slug. */
+  readonly id: string
+  /** Display name. */
+  readonly name: string
+  /** Card description, when the host or the module has one. */
+  readonly description?: string
+  /** System prompt. */
+  readonly persona?: string
+  /** Skill titles packaged with the expert. */
+  readonly skills?: readonly string[]
+}
+
 /** Plaza read: cards, plus a message when the catalog could not be reached. */
 export interface ExpertPlazaPage {
   readonly cards: readonly ExpertModuleCard[]
