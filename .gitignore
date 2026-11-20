@@ -5,6 +5,11 @@ apps/desktop/.env.macos
 apps/desktop/*.p12
 node_modules/
 lib/
+# dsh-skin keeps authored runtime sources under src/lib; the blanket lib/ rule
+# above must not hide them from the checkout the CI packager consumes. The
+# build output at dsh-skin/lib stays ignored.
+!dsh-skin/src/lib/
+!dsh-skin/src/lib/**
 *.tsbuildinfo
 pnpm-debug.log
 .pnpm-store/

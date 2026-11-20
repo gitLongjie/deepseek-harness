@@ -123,6 +123,36 @@ export async function runPackagedSmoke(options: PackagedSmokeOptions): Promise<P
       : `no application client entries composed (${String(graph?.entries.length ?? 0)} total)`,
   })
 
+  // dsh-skin is an unscoped bundled package the blanket `lib/` ignore once hid
+  // from CI checkouts: its authored src/lib sources were missing there, the
+  // Host import failed, and every later probe silently skipped it — shipping a
+  // skinless installer that passed every other check. Gate the smoke on both
+  // halves: the Loader fiber (Host routes and theme serving) and the client
+  // graph row (the Settings surface).
+  const skinEntry = loaderEntries !== undefined
+    ? [...loaderEntries.entries()].find(entry => entry.options.id === 'dsh-skin' || entry.options.name === 'dsh-skin')
+    : undefined
+  const skinState = skinEntry?.fiber?.state
+  const skinMounted = skinEntry !== undefined && !skinEntry.disabled && skinState === 2
+  checks.push({
+    name: 'skin-host',
+    ok: skinMounted,
+    detail: skinEntry === undefined
+      ? 'dsh-skin loader entry missing'
+      : skinMounted
+        ? 'dsh-skin loader fiber active'
+        : `dsh-skin ${skinEntry.disabled ? 'disabled' : `fiber-${String(skinState ?? 'none')}`}`,
+  })
+  const skinClientRow = (graph?.entries as ReadonlyArray<{ id?: string }> | undefined)
+    ?.some(entry => entry.id === 'dsh-skin') ?? false
+  checks.push({
+    name: 'skin-client',
+    ok: skinClientRow,
+    detail: skinClientRow
+      ? 'dsh-skin client row composed'
+      : 'dsh-skin client row missing from the boot graph',
+  })
+
   try {
     // The preset roster answers from the same on-disk closure a session's
     // standing mount imports from: a packaged layout whose preset rows cannot
