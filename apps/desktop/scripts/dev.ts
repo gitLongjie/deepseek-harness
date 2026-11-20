@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url'
 import { dirname, resolve, basename } from 'node:path'
 import { Data, NtExecutable, NtExecutableResource, Resource } from 'resedit'
 import { readDesktopOemConfig, syncDesktopOemIcons } from './desktop-oem-config.mjs'
-import { desktopAppDataDir, pinDesktopProductDataRoots } from '../src/main/product-data-home.ts'
+import { adoptDesktopProductData, desktopAppDataDir, pinDesktopProductDataRoots } from '../src/main/product-data-home.ts'
 import { discoverLibraryDirs, discoverPluginDirs } from '../../../scripts/dev-web.ts'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
@@ -31,7 +31,9 @@ const electronEnvironment: NodeJS.ProcessEnv = {
   // root so another clone cannot use the same id.
   DSH_DESKTOP_DEV_ROOT: repoRoot,
 }
-pinDesktopProductDataRoots(desktopAppDataDir(process.platform, electronEnvironment), electronEnvironment)
+const desktopAppData = desktopAppDataDir(process.platform, electronEnvironment)
+adoptDesktopProductData(desktopAppData, electronEnvironment, undefined, [DESKTOP_PRODUCT_NAME])
+pinDesktopProductDataRoots(desktopAppData, electronEnvironment)
 
 /** Product home this launch publishes to Electron and to local plugin copies. */
 function productHome(): string {

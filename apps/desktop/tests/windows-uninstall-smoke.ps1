@@ -81,13 +81,13 @@ try {
         }
         Wait-Exit
         $retained = $mode -in @('upgrade', 'replaced')
-        # A DSH_HOME inside the Electron directory protects that directory (and its scope) but not the other roots.
-        $userDataRetained = $retained -or $mode -eq 'home-inside'
+        # Sessions and settings live in the product directory, so every uninstall keeps it.
+        # --updated and /KEEP_APP_DATA also keep the updater cache.
         if ([IO.File]::ReadAllText((Join-Path $externalPath 'keep.txt')) -ne 'outside data root') { throw 'Cleanup followed a junction into a project' }
         if (-not (Test-Path (Join-Path $homePath 'session.txt'))) { throw "Harness home retention failed: $mode" }
-        if ((Test-Path (Join-Path $productDataPath 'state.txt')) -ne $retained) { throw "Product data retention failed: $mode" }
-        if ((Test-Path (Join-Path $userDataPath 'Local State')) -ne $userDataRetained) { throw "Electron user data retention failed: $mode" }
-        if ((Test-Path -LiteralPath $scopePath) -ne $userDataRetained) { throw "Package scope directory retention failed: $mode" }
+        if (-not (Test-Path (Join-Path $productDataPath 'state.txt'))) { throw "Product data retention failed: $mode" }
+        if (-not (Test-Path (Join-Path $userDataPath 'Local State'))) { throw "Electron user data retention failed: $mode" }
+        if (-not (Test-Path -LiteralPath $scopePath)) { throw "Package scope directory retention failed: $mode" }
         if ((Test-Path (Join-Path $cachePath 'download.txt')) -ne $retained) { throw "Update cache retention failed: $mode" }
         Write-Output "passed: $mode"
     }

@@ -7,9 +7,10 @@
 ; (uninstallOldVersion, in the install section) only removes versions sharing
 ; this app's uninstall-registry key, so separately-keyed legacy installs would
 ; otherwise survive an upgrade as a second copy. The running legacy app is
-; force-closed first; its uninstaller runs with /S so user data survives, the
-; same policy the same-key upgrade path applies. Canceling the wizard after
-; this point leaves the legacy app uninstalled — accepted, because those
+; force-closed first. Its uninstaller runs with /S /KEEP_APP_DATA --updated,
+; the same flags electron-builder passes for a same-key upgrade, so sessions
+; and settings stay. Canceling the wizard after this point leaves the legacy
+; app uninstalled — accepted, because those
 ; brands are superseded by this build.
 ;
 ; This file must stay pure ASCII: makensis reads it with the build machine's
@@ -74,7 +75,7 @@
         ; in place: the _?= form makes an NSIS uninstaller wait instead of
         ; relaunching from %TEMP% and exiting before files are removed.
         CopyFiles /SILENT $R2 "$PLUGINSDIR\dw-legacy-uninstall.exe"
-        ExecWait `"$PLUGINSDIR\dw-legacy-uninstall.exe" /S _?=$R3` $R4
+        ExecWait `"$PLUGINSDIR\dw-legacy-uninstall.exe" /S /KEEP_APP_DATA --updated _?=$R3` $R4
         DeleteRegKey ${_root} "Software\Microsoft\Windows\CurrentVersion\Uninstall\$R0"
         Pop $R4
         Pop $R3

@@ -73,7 +73,7 @@ macOS 安装会创建 `/usr/local/bin/dsh`；目录权限需要时，系统会�
 
 关闭主窗口（macOS 的关闭按钮和 ⌘W；Windows 的 ×、Alt+F4 和任务栏"关闭窗口"）会隐藏窗口；Windows 首次隐藏前需要确认。页面和 Host 继续运行，任务不受影响，下次显示时仍是原来的文档，会话、草稿和滚动位置都保留；macOS 全屏窗口先退出全屏再隐藏。macOS 通过 Dock 图标、再次启动或 `dsh://open` 找回窗口，Windows 通过托盘找回。最小化行为不变。进入工作区前关闭欢迎窗口，Windows 上走退出流程，macOS 上应用留在 Dock 中且没有窗口。
 
-Windows 在整个运行期间常驻托盘图标。悬停提示为产品名，单击显示并聚焦窗口，右键菜单提供壳语言下的"打开 DeepSeek Harness"和"退出 DeepSeek Harness"。首次隐藏前复用更新弹窗，显示“正在运行的任务不会中断，可在系统托盘中重新打开窗口”和“确认”按钮。确认后隐藏窗口，并在 Electron userData 下写入 `background-close-confirmed`；Esc、关闭弹窗或加载失败均保持主窗口可见，不记录确认。重复关闭请求会聚焦已有壳弹窗。覆盖更新保留标记，卸载删除标记。旧的 `background-notice-shown` 标记不会跳过此确认。关闭窗口不发送系统通知。托盘位图是 `resources/tray-windows.ico`，由 `pnpm run render:tray-icon` 从 `resources/icon-windows.svg` 按 16、20、24、32、40、48、64 像素分别渲染，打包为 `resources/tray.ico`。macOS 不提供菜单栏图标。
+Windows 在整个运行期间常驻托盘图标。悬停提示为产品名，单击显示并聚焦窗口，右键菜单提供壳语言下的"打开 DeepSeek Harness"和"退出 DeepSeek Harness"。首次隐藏前复用更新弹窗，显示“正在运行的任务不会中断，可在系统托盘中重新打开窗口”和“确认”按钮。确认后隐藏窗口，并在 Electron userData 下写入 `background-close-confirmed`；Esc、关闭弹窗或加载失败均保持主窗口可见，不记录确认。重复关闭请求会聚焦已有壳弹窗。覆盖更新和卸载都保留该标记，它留在产品数据目录中。旧的 `background-notice-shown` 标记不会跳过此确认。关闭窗口不发送系统通知。托盘位图是 `resources/tray-windows.ico`，由 `pnpm run render:tray-icon` 从 `resources/icon-windows.svg` 按 16、20、24、32、40、48、64 像素分别渲染，打包为 `resources/tray.ico`。macOS 不提供菜单栏图标。
 
 所有普通退出入口——⌘Q、应用菜单、Dock 菜单、Windows 托盘和标题栏"应用程序"菜单，以及关闭欢迎窗口引起的退出——都先向 Host 查询退出会中断什么。Host 通过私有 IPC 通道回答两项事实：与更新重启检查同一口径的运行中任务（运行中的 agent，包括子代理和等待审批的回合、排队消息、运行中或停止中的后台任务），以及本次运行中已加载会话里由 `workspace/session-activity` 的 `schedule` family 报告的已挂定时器的提醒。两项都没有时直接退出，不弹框。否则弹出一个没有父窗口的原生消息框——隐藏的窗口保持隐藏——标题为**退出 DeepSeek Harness？**，正文为三种本地化说明之一：正在运行的任务将会中断、应用关闭期间定时任务不会运行，或两者兼有。"退出"是默认按钮，Esc 等同"取消"；macOS 上"取消"在"退出"左侧，Windows 上"退出"在"取消"左侧，Windows 任务对话框显示应用图标且不跟随应用主题、始终为浅色。Host 尚未就绪或已失败时不可能有任务在跑，直接退出。查询失败或 Host 超过两秒截止时间未答复，按运行中任务处理。弹框打开期间，再次请求退出只会并入同一弹框而不叠加新弹框（macOS 上还会把它提到前面；Electron 不暴露 Windows 任务对话框的句柄）；任务开始或结束不会改变文案；点"退出"不再重新查询即停止应用；点"取消"不发生任何变化。取消由关闭欢迎窗口引起的退出时，欢迎窗口会重新显示。
 
@@ -120,7 +120,7 @@ Desktop/SDK 共享运行时构建器在复制或签名产物前，裁剪 NumPy �
 | 发布身份 | 桌面壳 API、Web 客户端、后端与插件依赖图作为一个组合完成验证；独立版本会产生未经验证的组合，并让更新可用性含糊不清。 | Electron 与 `@deepseek-ai/dsh` 始终使用同一精确版本。即使桌面壳代码不变，升级 dsh 也必须发布新 Desktop 版本。 |
 | 运行时 | 应用必须能够在没有系统 Node.js 或 pnpm 的机器上运行。 | dsh 通过设置 `ELECTRON_RUN_AS_NODE=1` 和 `--expose-internals` 的 Electron 运行，所有包操作都使用内置 pnpm。包管理器配置和 Host 环境遵循用户设置。包脚本通过 `node` shell 启动器转发给 Electron。 |
 | 包来源 | 即使离线，启动时安装核心依赖也会增加开销。 | `app.asar/dsh` 携带完整生产依赖树；profile 只安装外部插件。 |
-| 状态归属 | 共享可执行依赖图会让 CLI（命令行界面）与 Desktop 相互改变 dsh、Cordis、插件或原生模块版本，而两个桌面进程还可能争用同一个 profile。 | Electron 在访问任何 profile 前获取进程生命周期单实例锁，并独占 `$DSH_HOME/profiles/desktop` 及其包管理器状态。Desktop 默认把 `$DSH_HOME` 放在 Electron appData 下的 `DeepWorker/home`（Windows 为 `%APPDATA%\DeepWorker\home`），agents 配置放在同级 `DeepWorker/agents`。这两个目录与 `~/.dsh`、`~/.agents` 和 CLI dsh 分开。指向其他位置的 `DSH_HOME` 或 `DSH_AGENTS_HOME` 仍作为该次启动的数据根。可执行包、插件激活、锁文件和 `node_modules` 留在 Desktop profile 内。 |
+| 状态归属 | 共享可执行依赖图会让 CLI（命令行界面）与 Desktop 相互改变 dsh、Cordis、插件或原生模块版本，而两个桌面进程还可能争用同一个 profile。 | Electron 在访问任何 profile 前获取进程生命周期单实例锁，并独占 `$DSH_HOME/profiles/desktop` 及其包管理器状态。Desktop 默认把 `$DSH_HOME` 放在 Electron appData 下的 `DeepWorker/home`（Windows 为 `%APPDATA%\DeepWorker\home`），agents 配置放在同级 `DeepWorker/agents`。这两个目录与 `~/.dsh`、`~/.agents` 和 CLI dsh 分开。产品目录缺少共享目录中已有的顶层条目，或该条目是空目录时，启动会复制它并保留共享目录原样。已有内容的文件或目录保持不动。复制失败会停止启动。指向其他位置的 `DSH_HOME` 或 `DSH_AGENTS_HOME` 仍作为该次启动的数据根。可执行包、插件激活、锁文件和 `node_modules` 留在 Desktop profile 内。 |
 | 传输 | Web 服务与认证共享一套实现。 | Electron 加载打包的 Web 资源；Host 提供启动注入和经过认证的 API。 |
 | 插件变更 | Desktop 与 Web 需要一致的安装和激活行为。 | 主应用使用共享 Web 插件管理器和内置 pnpm。 |
 | 更新 | 桌面壳与 dsh 独立更新会重新产生版本分裂，而桌面壳未变化的数据块不应强制完整传输。 | Electron 壳、匹配的 dsh 运行时与 pnpm 组成一个已签名更新单元。平台更新产物可以复用未变化的数据块，但运行时版本选择绝不脱离 Desktop 发布。 |
@@ -204,7 +204,7 @@ macOS 和 Linux 从图形界面启动的程序只继承会话管理器提供的�
 pnpm run dev:desktop
 ```
 
-`dev:desktop` 与打包启动把会话、设置、凭据、插件和包链接写入 Electron appData 下的 `DeepWorker/home`（Windows 为 `%APPDATA%\DeepWorker\home`），并把 agents 配置写入同级 `DeepWorker/agents`。浏览器数据就是这个 `DeepWorker` 目录。已经指向 `~/.dsh` 或 `~/.agents` 以外位置的 `DSH_HOME` 或 `DSH_AGENTS_HOME` 仍作为该次启动的数据根。一次性 npm 项目位于 `apps/desktop/.desktop-build/development/project`。Renderer DevTools 默认自动打开，Main、Renderer 和 dsh Host 调试端口依次为 9229、9222 和 9230。`DSH_DESKTOP_MAIN_INSPECT_PORT`、`DSH_DESKTOP_RENDERER_DEBUG_PORT` 与 `DSH_DESKTOP_HOST_INSPECT_PORT` 可以替换这些端口，`DSH_DESKTOP_OPEN_DEVTOOLS=0` 则保持 Renderer 调试窗口关闭。品牌化 dev 启动器会设置 `DSH_DESKTOP_DEV=1`，桌面 boot 用它静默产品分析行，因此开发会话不发出产品遥测。
+`dev:desktop` 与打包启动把会话、设置、凭据、插件和包链接写入 Electron appData 下的 `DeepWorker/home`（Windows 为 `%APPDATA%\DeepWorker\home`），并把 agents 配置写入同级 `DeepWorker/agents`。浏览器数据就是这个 `DeepWorker` 目录。已经指向 `~/.dsh` 或 `~/.agents` 以外位置的 `DSH_HOME` 或 `DSH_AGENTS_HOME` 仍作为该次启动的数据根。选定的产品目录会补上这些共享目录，以及同一 appData 下更早的桌面数据目录（`miaoWorker`、`MindaWork`、`MeowWork`、`DeepWork`、`Deepagens-Worker` 和以前的显示名目录）里缺少或为空的顶层条目。已有内容的条目保持不动，更早的目录保持原样，复制失败会停止启动。一次性 npm 项目位于 `apps/desktop/.desktop-build/development/project`。Renderer DevTools 默认自动打开，Main、Renderer 和 dsh Host 调试端口依次为 9229、9222 和 9230。`DSH_DESKTOP_MAIN_INSPECT_PORT`、`DSH_DESKTOP_RENDERER_DEBUG_PORT` 与 `DSH_DESKTOP_HOST_INSPECT_PORT` 可以替换这些端口，`DSH_DESKTOP_OPEN_DEVTOOLS=0` 则保持 Renderer 调试窗口关闭。品牌化 dev 启动器会设置 `DSH_DESKTOP_DEV=1`，桌面 boot 用它静默产品分析行，因此开发会话不发出产品遥测。
 
 显式构建完成后，`start:desktop` 会重新生成一次性项目，并跳过构建直接启动已有产物：
 
@@ -269,7 +269,7 @@ Windows 打包使用 Visual C++ Build Tools 和 Windows SDK 编译 x86 Win32/GDI
 
 在有交互式桌面的 Windows x64 上，从仓库根目录运行 `pnpm --dir apps/desktop run test:installer`，可将小型原生测试载荷接入正式安装配置并执行验证。每次运行使用独立产品身份，依次验证仅英文和仅中文的安装器变体，并根据实际显示的欢迎页按钮选择测试文案。两个变体均安装到私有目录并在测试后卸载；截图和结果保留在 `.desktop-build/installer-tests/` 下。检查包含末尾带分隔符的已登记路径升级，以及磁盘根目录拒绝。绘制器接收 NSIS 主题传入的标题栏颜色；像素检查绘制到离屏位图，并在隐藏进度子窗口时验证。原生绘制检查覆盖 100% 和 200% 缩放下的浅色/深色配色、绘制到 100% 的完成状态、标题栏按钮的悬停／按下颜色和松开触发与取消、最小化恢复后的窗口位置和尺寸，以及 GDI 资源释放；`render-results.log` 中的重绘耗时仅供诊断，不作为 CI 性能阈值。运行生成的 `ui/render-test.exe <brand.bmp> <dpi> <light|dark> <hover-argb> <pressed-argb> [interactive-title]` 并指定标题，可在不安装载荷的情况下查看真实进度页。可选的 `--signed` 标志使用[Windows EV 配置](windows-signing/README.zh.md#signing-configuration)，在嵌入前对测试程序和辅助库签名；它不会启用更新源。
 
-Windows 卸载程序会随应用一起删除 Electron 用户数据目录（`%APPDATA%` 下按包作用域嵌套的浏览器存储与缓存）、`%APPDATA%` 下的产品目录，以及 `%LOCALAPPDATA%` 下的更新下载缓存，随后移除 `%APPDATA%` 之下普通且已空的作用域目录。DeepWorker 的会话、设置、凭据和插件位于 `%APPDATA%\DeepWorker\home`，随该产品目录一起删除。其他软件的 `~/.dsh` 保留在原地；以 Windows 环境变量发布的 `DSH_HOME` 还会保护所有与其重叠的目标。静默卸载删除相同的数据；以 `--updated` 或 `/KEEP_APP_DATA` 启动的卸载程序保留数据，electron-builder 在原地更新和从其他目录替换旧安装时正是这样启动它。删除通过原生辅助程序执行：它拒绝受保护的 Windows 目录以及与安装目录或主目录重叠的路径，要求固定的本地驱动器，链接的根目录或祖先目录原样保留，遇到重解析点只解除链接而不进入目标，清除只读属性，并在遇到被占用文件后继续删除其余兄弟项；残余不会中止卸载，也不会提示。安装时在 Windows 卸载注册项上记录 `InstallLocation` 作为标准的清单元数据；在 Windows 11 上，开始菜单右键菜单中的“卸载”对所有 Win32 应用都会打开已安装应用列表，只有 MSIX 包能从那里直接卸载。卸载程序声明 DPI 感知，中文使用微软雅黑 UI。此行为仅适用于 Windows。
+Windows 卸载程序会随应用一起删除 `%LOCALAPPDATA%` 下的更新下载缓存。它保留 `%APPDATA%\DeepWorker`，包括 `home`（会话、设置、凭据和插件）、`agents` 和壳层偏好，因此之后再次安装会打开同一份数据。其他软件的 `~/.dsh` 保留在原地；以 Windows 环境变量发布的 `DSH_HOME` 还会保护所有与其重叠的目标。静默卸载删除更新缓存并保留产品目录；以 `--updated` 或 `/KEEP_APP_DATA` 启动的卸载程序同时保留更新缓存，electron-builder 在原地更新和从其他目录替换旧安装时正是这样启动它。替换旧品牌安装时也会传入同样的参数。删除通过原生辅助程序执行：它拒绝受保护的 Windows 目录以及与安装目录或主目录重叠的路径，要求固定的本地驱动器，链接的根目录或祖先目录原样保留，遇到重解析点只解除链接而不进入目标，清除只读属性，并在遇到被占用文件后继续删除其余兄弟项；残余不会中止卸载，也不会提示。安装时在 Windows 卸载注册项上记录 `InstallLocation` 作为标准的清单元数据；在 Windows 11 上，开始菜单右键菜单中的“卸载”对所有 Win32 应用都会打开已安装应用列表，只有 MSIX 包能从那里直接卸载。卸载程序声明 DPI 感知，中文使用微软雅黑 UI。此行为仅适用于 Windows。
 
 使用 `node apps/desktop/scripts/test-windows-installer.mjs --uninstall-only --compile-only` 以每次运行唯一的带作用域包名编译独立的中英文夹具。省略 `--compile-only` 可对预置数据运行原生删除器回归，以及交互、静默、`--updated`、`/KEEP_APP_DATA` 和 `DSH_HOME` 位于 Electron 数据内的检查。编译本身不能证明已安装卸载行为。
 
@@ -313,7 +313,7 @@ Electron 主进程在启动时读取一次 `app.getPath('userData')/desktop/sett
 }
 ```
 
-已有文件不会被覆盖；缺少 `updates` 对象或该字段时均按 `false` 处理。将字段设为 `true` 后完全退出并重启应用，即可允许测试鉴权弹窗。改回 `false` 并重启即可再次禁止。创建、读取或校验失败时使用默认值 `false`，不阻止启动。Desktop 尝试在 Electron 控制台记录包含文件路径的警告；日志不可用也不阻止启动。修正文件并重启后才会应用显式设置。未知字段会保留。安装更新保留此用户数据文件；Windows 卸载按[卸载规则](#windows-uninstall-rules)删除它。
+已有文件不会被覆盖；缺少 `updates` 对象或该字段时均按 `false` 处理。将字段设为 `true` 后完全退出并重启应用，即可允许测试鉴权弹窗。改回 `false` 并重启即可再次禁止。创建、读取或校验失败时使用默认值 `false`，不阻止启动。Desktop 尝试在 Electron 控制台记录包含文件路径的警告；日志不可用也不阻止启动。修正文件并重启后才会应用显式设置。未知字段会保留。安装更新和 Windows 卸载都按[卸载规则](#windows-uninstall-rules)保留此用户数据文件。
 
 <a id="mandatory-update-policy"></a>
 
@@ -380,7 +380,7 @@ node apps/desktop/node_modules/pnpm/bin/pnpm.mjs --dir apps/desktop run test:upd
 
 - 发布签名、公证、更新托管和跨上一版本的已安装产物验证需要生产发布环境。
 - 依赖的生命周期脚本遵循 pnpm 的构建权限；Desktop 不提供单独的审批对话框。
-- Desktop 把会话、设置、凭据、工作区和存储放在自己的产品主目录（Windows 为 `%APPDATA%\DeepWorker\home`），agents 配置放在同级 `DeepWorker/agents`。CLI dsh 仍使用 `~/.dsh`。
+- Desktop 把会话、设置、凭据、工作区和存储放在自己的产品主目录（Windows 为 `%APPDATA%\DeepWorker\home`），agents 配置放在同级 `DeepWorker/agents`。CLI dsh 仍使用 `~/.dsh`。缺少或为空的顶层条目会在启动时从这些共享目录复制过来。已有内容的条目保留，共享目录不会被删除。
 - 在 Electron win32-arm64 宿主上，未打包启动现在可以成功，但载荷仍为 x64：`packages/skill/tool-workspace-dependencies/src/index.ts` 的架构校验会把载荷记录的架构与宿主 `process.arch` 比较，因此 `load_workspace_dependencies` 工具仍可能拒绝 primary runtime。
 
 仅向应用提供的 `dshOnboarding.hasApiKey()` preload 方法返回欢迎后端当前的 API Key 存在状态布尔值；原生登录与引导共用凭证发现逻辑，且只有受管理的应用主 frame 可以调用。

@@ -55,7 +55,7 @@ import {
 } from './desktop/packaged-resources.ts'
 import { runPackagedSmoke } from './desktop/packaged-smoke.ts'
 import { desktopWebDistDir, resolveDesktopPreloadPath } from './desktop-paths.ts'
-import { DESKTOP_PRODUCT_DATA_DIR, pinDesktopProductDataRoots } from './product-data-home.ts'
+import { adoptDesktopProductData, DESKTOP_PRODUCT_DATA_DIR, pinDesktopProductDataRoots } from './product-data-home.ts'
 
 /** Absolute path of this desktop app's package.json (the OEM resolution anchor). */
 const INSTALL_ANCHOR = fileURLToPath(new URL('../../package.json', import.meta.url))
@@ -260,8 +260,9 @@ async function main(): Promise<void> {
     // platform-view headers, product analytics `serviceVersion`) the way the
     // official build's inlined value would; an explicit build value wins.
     process.env.DSH_CLIENT_VERSION ??= app.getVersion()
-    // Publish product data roots before bundled-skill install and the layered
-    // environment snapshot read DSH_HOME.
+    // Copy a previous shared home before publishing the product roots. Host boot
+    // and the layered environment snapshot then read DSH_HOME.
+    adoptDesktopProductData(app.getPath('appData'), process.env, undefined, [DESKTOP_PRODUCT_NAME])
     pinDesktopProductDataRoots(app.getPath('appData'), process.env)
     const bundledSkills = resolveBundledSkillDir({
       packaged: app.isPackaged,

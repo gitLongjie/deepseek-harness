@@ -77,6 +77,7 @@ describe('desktop builder identity', () => {
     expect(config).toMatch(/^  include: build\/installer\.nsh\s*$/m)
     const installer = readFileSync(fileURLToPath(new URL('../build/installer.nsh', import.meta.url)), 'utf8')
     expect(installer).toContain('StrCpy $INSTDIR "$PROGRAMFILES64\\DeepWorker"')
+    expect(installer).toContain('/S /KEEP_APP_DATA --updated _?=$R3')
   })
 
   it('brands the Windows development executable used by Task Manager', () => {
