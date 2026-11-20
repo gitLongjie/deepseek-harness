@@ -8,10 +8,18 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
+import z from '@deepseek-ai/schemastery'
+import { credentialRef } from '@deepseek-ai/dsh-credentials'
+import type {} from '@deepseek-ai/dsh-expert-publish'
+import type { ExpertPublisher } from '@deepseek-ai/dsh-expert-publish/src/publish.ts'
 import type { Market as MarketService, MarketBundleId, MarketEntryRef } from '@deepseek-ai/dsh-market'
 import { TypertRemoteService, Remote } from '@deepseek-ai/dsh-typert-protocol'
 // Typert-generated ./typert and ./remote artifacts import Zod at runtime.
 import type {} from 'zod'
+import {
+  DEFAULT_EXPERT_HUB_ORIGIN, fetchExpertPlaza, installExpertModule, publishLocalExpert, uploadableExpertIds,
+  installedExpertVersions,
+} from './online.ts'
 import type {
   ExpertHubBundleId,
   ExpertHubCatalog,
@@ -20,7 +28,24 @@ import type {
   ExpertHubInstallOutcome,
   ExpertHubRemoveOutcome,
   ExpertHubSourceId,
+  ExpertModuleResult,
+  ExpertPlazaPage,
+  ExpertUploadable,
 } from './types.ts'
+
+/** Gateway key the sign-in writes. Upload calls token-api as that user. */
+const GATEWAY_KEY = credentialRef('DEEPAGENS_API_KEY')
+
+/** Optional origin override. Omitted, the public gateway is used. */
+export interface Config {
+  /** token-api origin, without a path. */
+  origin?: string
+}
+
+/** Schemastery configuration. */
+export const Config: z<Config> = z.object({
+  origin: z.string(),
+})
 
 export type * from './types.ts'
 
@@ -33,9 +58,14 @@ const EXPERT_CATEGORY = 'expert'
  */
 export class ExpertHubGateway extends TypertRemoteService {
   static inject = ['market']
+  static Config = Config
 
-  constructor(ctx: Context) {
+  private readonly origin: string
+
+  constructor(ctx: Context, config: Config = {}) {
     super(ctx, 'expertHub', { namespace: 'expertHub' })
+    const origin = config.origin?.trim()
+    this.origin = (origin === undefined || origin === '' ? DEFAULT_EXPERT_HUB_ORIGIN : origin).replace(/\/+$/, '')
   }
 
   /** The mounted market Service Provider instance, guaranteed by `static inject`. */
@@ -92,6 +122,77 @@ export class ExpertHubGateway extends TypertRemoteService {
   @Remote('uninstall')
   async remove(request: { bundleId: ExpertHubBundleId }): Promise<ExpertHubRemoveOutcome> {
     return this.market.uninstall(request.bundleId as MarketBundleId)
+  }
+
+  /**
+   * List published online experts and mark the versions already saved here.
+   * @returns the plaza page. A transport failure keeps the cards empty and names the reason.
+   */
+  @Remote('plaza')
+  async plaza(): Promise<ExpertPlazaPage> {
+    const listed = await fetchExpertPlaza(this.origin)
+    if (!listed.ok) return { cards: [], message: listed.message }
+    const versions = await this.savedVersions()
+    return {
+      cards: listed.cards.map((card) => {
+        const installed = versions.get(card.slug)
+        return installed === undefined ? card : { ...card, installedVersion: installed }
+      }),
+    }
+  }
+
+  /**
+   * Roster ids whose local file this account may upload.
+   * @returns those ids. An absent publisher is an empty list.
+   */
+  @Remote('uploadable')
+  async uploadable(): Promise<ExpertUploadable> {
+    const publisher = this.publisher()
+    if (publisher === undefined) return { ids: [] }
+    return { ids: await uploadableExpertIds(publisher.root) }
+  }
+
+  /**
+   * Upload one local expert as the signed-in user.
+   * @param request - the roster id.
+   * @returns the public slug and version, or why it stopped.
+   */
+  @Remote('publishModule')
+  async publishModule(request: { id: string }): Promise<ExpertModuleResult> {
+    const token = await this.gatewayToken()
+    if (token === undefined) return { ok: false, message: '登录后才能上传专家' }
+    const publisher = this.publisher()
+    if (publisher === undefined) return { ok: false, message: '本机专家目录还没有准备好' }
+    return publishLocalExpert(this.origin, token, publisher, request.id)
+  }
+
+  /**
+   * Download one plaza expert and register it for hire.
+   * @param request - the public slug.
+   * @returns the installed slug and version, or why it stopped.
+   */
+  @Remote('installModule')
+  async installModule(request: { slug: string }): Promise<ExpertModuleResult> {
+    const publisher = this.publisher()
+    if (publisher === undefined) return { ok: false, message: '本机专家目录还没有准备好' }
+    return installExpertModule(this.origin, publisher, request.slug)
+  }
+
+  private publisher(): ExpertPublisher | undefined {
+    return this.ctx.get('expertPublisher')
+  }
+
+  private async gatewayToken(): Promise<string | undefined> {
+    const credentials = this.ctx.get('credentials')
+    if (credentials === undefined) return undefined
+    const resolved = await credentials.resolve(GATEWAY_KEY)
+    return resolved?.value
+  }
+
+  private async savedVersions(): Promise<ReadonlyMap<string, string>> {
+    const publisher = this.publisher()
+    if (publisher === undefined) return new Map()
+    return installedExpertVersions(publisher.root)
   }
 }
 

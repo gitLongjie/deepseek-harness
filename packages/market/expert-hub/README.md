@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-expert-hub` puts the market's `expert` category behind the host's authenticated web gateway: the expert page reads installable expert cards and starts installs through this projection instead of reaching the market service directly. Every call arrives from a signed-in client, so the gateway forwards opaque source, entry, and bundle ids verbatim and lets `dsh-market-local` keep resolving names, versions, and commands on the host.
+`dsh-expert-hub` puts the market's `expert` category behind the host's authenticated web gateway: the expert page reads installable expert cards and starts installs through this projection instead of reaching the market service directly. The same gateway lists, uploads, and installs online expert modules on the token-api expert hub. Every call arrives from a signed-in client, so the gateway forwards opaque source, entry, and bundle ids verbatim and lets `dsh-market-local` keep resolving names, versions, and commands on the host. Upload uses the signed-in `DEEPAGENS_API_KEY`.
 
 ## Table of Contents
 
@@ -34,7 +34,7 @@ Mount the plugin on a host that also provides a `ctx.market` implementation; it 
 
 ### Minimal configuration
 
-No config: the gateway adds no fields. The expert page and the host Remote assembly are the only consumers.
+`origin` is optional and defaults to `https://claw.deepagens.com`. The expert page and the host Remote assembly are the consumers. Upload and plaza download also need `dsh-credentials` and `dsh-expert-publish` on the host; without them those methods return a refusal and the npm catalog still works.
 
 ### What can go wrong
 
@@ -48,11 +48,12 @@ The gateway is a pure projection: a call whose underlying service rejects propag
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The plugin extends `TypertRemoteService` with the wire namespace `expertHub` and the same service key. It projects three methods: `catalog` browses the market with `category: 'expert'`, `installEntry` forwards a source-local entry ref, and `uninstall` removes a bundle by id. The wire names are not `install` or `remove`, because those names collide with the Remote client's namespace service.
+The plugin extends `TypertRemoteService` with the wire namespace `expertHub` and the same service key. It projects `catalog` (the market `expert` category), `installEntry`, `uninstall`, `plaza`, `uploadable`, `publishModule`, and `installModule`. The wire names are not `install` or `remove`, because those names collide with the Remote client's namespace service. `plaza` and `uploadable` are reader reads; `publishModule` and `installModule` are owner actions. A downloaded module is registered through `ctx.expertPublisher`, so it is hireable without a restart.
 
 | File | Owns |
 |---|---|
-| `src/index.ts` | The `ExpertHubGateway` Typert remote projection of `ctx.market` |
+| `src/index.ts` | The `ExpertHubGateway` Typert remote projection of `ctx.market` and the online module methods |
+| `src/online.ts` | token-api plaza, upload, and install |
 | `src/types.ts` | The wire request/response types; `package.json` `exports["./types"].types` points here so Client typecheck resolves before `lib/types` exists |
 
 </details>
@@ -83,7 +84,7 @@ No direct invalidation; the forwarded responses own any client-side context effe
 <a id="known-limitations-and-deferred-work"></a>
 
 - **Trusted clients only** — the projection adds no authorization of its own; it relies on the host gateway's authenticated session and the provider's host-side validation.
-- **Market-backed only** — the hub admits store entries in the `expert` category; shipped roster experts continue to arrive through `agentPresets.list`, not this wire.
+- **Two catalogs** — npm store entries stay on `catalog`; online modules stay on `plaza`. Shipped roster experts continue to arrive through `agentPresets.list`. The host does not run scripts from an uploaded module.
 
 <a id="dev-note"></a>
 ### Dev Note

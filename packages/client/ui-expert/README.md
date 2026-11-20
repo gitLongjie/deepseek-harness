@@ -34,7 +34,7 @@ The web bundle mounts the plugin by default; remove the row to turn the surface 
 
 ### Minimal configuration
 
-No config of its own: the page renders the roster the deployment ships — presets that publish card metadata present as hireable experts, and the rest of the roster stays out. The new-session chip opens this page. A healthy card can be hired into a new chat or saved as the new-task default; the default card shows that badge.
+No config of its own: the page renders the roster the deployment ships — presets that publish card metadata present as hireable experts, and the rest of the roster stays out. The page has two modules. My experts is that roster: a card this account saved locally can be uploaded, and a healthy card can be hired into a new chat or saved as the new-task default. Expert plaza lists modules published on the gateway: a missing one is downloaded, a different version is updated, and hire appears after it is installed. The new-session chip opens this page. The default card shows that badge.
 
 ### What can go wrong
 
@@ -56,7 +56,7 @@ Two slot registrations plus one navigation service: `ExpertNav` fills `sidebar.e
 |---|---|
 | `src/client/index.ts` | The two slot registrations, dictionaries, and inject factories |
 | `src/client/ExpertNav.tsx` | The entry row: wide variant and rail icon, active while the page stands |
-| `src/client/ExpertBrowser.tsx` | The page: search, category filter, card grid, hire, states |
+| `src/client/ExpertBrowser.tsx` | The page: my experts and the plaza, search, category filter, card grid, hire, states |
 | `src/client/navigation.ts` | The page store and its close-on-session watcher |
 | `src/client/contract/slots.ts` | The injected shares and props composition |
 
@@ -87,7 +87,7 @@ None; this package neither assembles nor sends a provider request.
 <a id="known-limitations-and-deferred-work"></a>
 
 - **Roster-driven market** — the market reads the deployment's agent-preset roster; the attribution subtitle, curator badge, and avatar image a card design reserves await the roster carrying them with the marketplace install channel, so cards fall back to a gradient tile and the published glyph.
-- **Browse-and-hire only** — expert authoring, favorites, and per-card reviews are deferred until the registry exists to publish them.
+- **Upload is the signed-in account's own card** — plaza installs cannot be uploaded again, and favorites and per-card reviews stay deferred.
 
 <a id="dev-note"></a>
 ### Dev Note

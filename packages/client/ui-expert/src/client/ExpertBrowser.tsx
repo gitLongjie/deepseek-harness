@@ -87,9 +87,12 @@ function avatarTone(id: string): string {
  */
 export function ExpertBrowser({
   load,
+  loadPlaza,
   hire,
   remove,
   makeDefault,
+  publish,
+  install,
   t,
 }: ExpertBrowserProps) {
   // undefined = the market read is in flight; error switches the grid for a
@@ -106,21 +109,24 @@ export function ExpertBrowser({
   // it takes a second click; arming is per card and any other action clears it.
   const [armedRemove, setArmedRemove] = useState<string | null>(null)
   const [savingDefault, setSavingDefault] = useState<string | null>(null)
+  const [section, setSection] = useState<'mine' | 'plaza'>('mine')
 
   useEffect(() => {
     const reader = new AbortController()
-    load()
+    const request = section === 'mine' ? load() : loadPlaza()
+    request
       .then((result) => {
         if (reader.signal.aborted) return
         setExperts(result.experts)
-        setLoadError(null)
+        const message = 'message' in result && typeof result.message === 'string' ? result.message : undefined
+        setLoadError(result.experts.length === 0 && message !== undefined ? message : null)
       })
       .catch((error: unknown) => {
         if (reader.signal.aborted) return
         setLoadError(messageOf(error))
       })
     return () => { reader.abort() }
-  }, [load, reloadToken])
+  }, [load, loadPlaza, reloadToken, section])
 
   const categories = useMemo(() => categoriesOf(experts ?? []), [experts])
   const visible = useMemo(
@@ -135,6 +141,22 @@ export function ExpertBrowser({
   useEffect(() => {
     if (category !== null && !categories.includes(category)) setCategory(null)
   }, [category, categories])
+
+  /** Upload, download, or update one module, then re-read the open section. */
+  const runModule = (action: () => Promise<string | undefined>): void => {
+    setArmedRemove(null)
+    setActionError(null)
+    void action().then(
+      (refused) => {
+        if (refused === undefined) {
+          setReloadToken(token => token + 1)
+          return
+        }
+        setActionError(refused)
+      },
+      (error: unknown) => { setActionError(messageOf(error)) },
+    )
+  }
 
   /** Save one expert as the new-task default, then re-read so the badge moves. */
   const confirmDefault = (id: string): void => {
@@ -177,6 +199,22 @@ export function ExpertBrowser({
     <div className={css.root}>
       <header className={css.head}>
         <h2 className={css.title}>{t('page.title')}</h2>
+        <nav className={css.filters} aria-label={t('page.title')}>
+          <button
+            type="button"
+            className={section === 'mine' ? clsx(css.chip, css.chipActive) : css.chip}
+            onClick={() => { setSection('mine') }}
+          >
+            {t('module.mine')}
+          </button>
+          <button
+            type="button"
+            className={section === 'plaza' ? clsx(css.chip, css.chipActive) : css.chip}
+            onClick={() => { setSection('plaza') }}
+          >
+            {t('module.plaza')}
+          </button>
+        </nav>
         <input
           type="search"
           className={css.search}
@@ -198,7 +236,7 @@ export function ExpertBrowser({
         ) : experts === undefined ? (
           <div className={css.state}><p className={css.stateText}>{t('loading')}</p></div>
         ) : experts.length === 0 ? (
-          <div className={css.state}><p className={css.stateText}>{t('empty.none')}</p></div>
+          <div className={css.state}><p className={css.stateText}>{section === 'plaza' ? t('empty.plaza') : t('empty.none')}</p></div>
         ) : (
           <>
             {actionError !== null && (
@@ -269,7 +307,37 @@ export function ExpertBrowser({
                       <p className={css.broken} role="note">{t('card.broken', { reason: record.broken })}</p>
                     )}
                     <div className={css.cardActions}>
-                      {record.isDefault !== true && record.broken === undefined && (
+                      {section === 'mine' && record.canUpload === true && (
+                        <button
+                          type="button"
+                          className={css.remove}
+                          onClick={() => { runModule(() => publish(record.id)) }}
+                        >
+                          {t('card.upload')}
+                        </button>
+                      )}
+                      {section === 'plaza' && record.installedVersion === undefined && (
+                        <button
+                          type="button"
+                          className={css.hire}
+                          onClick={() => { runModule(() => install(record.id)) }}
+                        >
+                          {t('card.download')}
+                        </button>
+                      )}
+                      {section === 'plaza' && record.installedVersion !== undefined && record.installedVersion !== record.remoteVersion && (
+                        <button
+                          type="button"
+                          className={css.hire}
+                          onClick={() => { runModule(() => install(record.id)) }}
+                        >
+                          {t('card.update')}
+                        </button>
+                      )}
+                      {section === 'plaza' && record.installedVersion !== undefined && record.installedVersion === record.remoteVersion && (
+                        <span className={css.defaultMark}>{t('card.latest')}</span>
+                      )}
+                      {section === 'mine' && record.isDefault !== true && record.broken === undefined && (
                         <button
                           type="button"
                           className={css.makeDefault}
@@ -280,7 +348,7 @@ export function ExpertBrowser({
                           {t('card.setDefault')}
                         </button>
                       )}
-                      <button
+                      {(section === 'mine' || record.installedVersion !== undefined) && <button
                         type="button"
                         className={css.hire}
                         disabled={record.broken !== undefined}
@@ -294,12 +362,12 @@ export function ExpertBrowser({
                         }}
                       >
                         {t('card.hire')}
-                      </button>
+                      </button>}
                       {/* Only the person's own expert is theirs to remove: a
                           shipped one belongs to the deployment, and the
                           settings section cannot offer the rest because it
                           excludes expert-marked rows. */}
-                      {record.trust === 'user' && (armedRemove === record.id ? (
+                      {section === 'mine' && record.trust === 'user' && (armedRemove === record.id ? (
                         <>
                           <button
                             type="button"

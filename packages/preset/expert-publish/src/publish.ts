@@ -30,6 +30,12 @@ export interface ExpertDraft {
   readonly icon?: string
   /** Skill body. A missing body gets a short default. */
   readonly skillMarkdown?: string
+  /** Published semver. Omitted on a card that has not been uploaded. */
+  readonly version?: string
+  /** Plaza slug, when this card was uploaded or installed from the plaza. */
+  readonly remoteSlug?: string
+  /** `mine` for a card this account uploaded; `plaza` for one it installed. */
+  readonly origin?: 'mine' | 'plaza'
 }
 
 /** Live registration the publisher keeps so a later publish of the same id can replace it. */
@@ -108,6 +114,38 @@ export async function publishExpert(publisher: ExpertPublisher, draft: ExpertDra
  * One unreadable expert is skipped.
  * @param publisher - roster registration and the directory that persists experts.
  */
+/**
+ * Read one saved expert. A missing or unreadable file is an empty result.
+ * @param root - directory that holds one subdirectory per expert.
+ * @param id - roster id.
+ * @returns the saved expert, or undefined when the id has no readable file.
+ */
+export async function readPublishedExpert(root: string, id: string): Promise<StoredExpert | undefined> {
+  if (!ID_PATTERN.test(id)) return undefined
+  return readStored(join(root, id, 'expert.json'))
+}
+
+/**
+ * Read every saved expert. A missing directory is an empty list.
+ * @param root - directory that holds one subdirectory per expert.
+ * @returns the experts whose files parsed.
+ */
+export async function listPublishedExperts(root: string): Promise<StoredExpert[]> {
+  let names: string[]
+  try {
+    names = await readdir(root)
+  } catch (error) {
+    if (errorCode(error) === 'ENOENT') return []
+    throw error
+  }
+  const stored: StoredExpert[] = []
+  for (const name of names) {
+    const expert = await readStored(join(root, name, 'expert.json'))
+    if (expert !== undefined) stored.push(expert)
+  }
+  return stored
+}
+
 export async function loadPublishedExperts(publisher: ExpertPublisher): Promise<void> {
   let names: string[]
   try {
@@ -173,6 +211,9 @@ interface StoredExpert {
   quickPrompts: string[]
   icon: string
   skillMarkdown: string
+  version?: string
+  remoteSlug?: string
+  origin?: 'mine' | 'plaza'
 }
 
 function storedOf(draft: ExpertDraft): StoredExpert {
@@ -188,6 +229,9 @@ function storedOf(draft: ExpertDraft): StoredExpert {
     quickPrompts: [...draft.quickPrompts ?? []],
     icon: draft.icon ?? '🎯',
     skillMarkdown: draft.skillMarkdown ?? fallbackPersona(share),
+    ...(draft.version === undefined ? {} : { version: draft.version }),
+    ...(draft.remoteSlug === undefined ? {} : { remoteSlug: draft.remoteSlug }),
+    ...(draft.origin === undefined ? {} : { origin: draft.origin }),
   }
 }
 
@@ -248,7 +292,13 @@ async function readStored(path: string): Promise<StoredExpert | undefined> {
     return undefined
   }
   if (!isStored(value)) return undefined
-  return value
+  const row = value as StoredExpert & Record<string, unknown>
+  return {
+    ...value,
+    ...(typeof row.version === 'string' && row.version !== '' ? { version: row.version } : {}),
+    ...(typeof row.remoteSlug === 'string' && row.remoteSlug !== '' ? { remoteSlug: row.remoteSlug } : {}),
+    ...(row.origin === 'mine' || row.origin === 'plaza' ? { origin: row.origin } : {}),
+  }
 }
 
 function isStored(value: unknown): value is StoredExpert {

@@ -18,6 +18,13 @@ import { boundContextSummary, createUserMessage, type ContextFormed } from '@dee
 import type {} from '@deepseek-ai/dsh-session'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import { loadPublishedExperts, publishExpert, resolveExpertRoot, type ExpertDraft, type ExpertPublisher } from './publish.ts'
+
+declare module '@deepseek-ai/cordis' {
+  interface Context {
+    /** Live publisher for experts saved under the harness home. */
+    expertPublisher: ExpertPublisher
+  }
+}
 import { expertIdForName, fallbackPersona, fallbackShare, parseExpertShare, PUBLISH_TOOL, publishNotice, textOf } from './share.ts'
 
 declare module '@deepseek-ai/dsh-llm' {
@@ -60,6 +67,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     register: definition => ctx.agentPresets.register(definition),
     hasId: async id => (await ctx.agentPresets.list()).some(row => row.id === id),
   }
+  ctx.provide('expertPublisher', publisher)
   ctx.effect(() => async () => {
     const disposers = [...owned.values()]
     owned.clear()

@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-expert-hub` 把市场的 `expert` 分类放进宿主经身份验证的 Web 网关：专家页通过该投影读取可安装专家卡片并发起安装，而不是直接触达市场服务。每次调用都来自已登录客户端，因此网关原样转发不透明的来源、条目与 bundle id，由 `dsh-market-local` 在宿主侧继续解析包名、版本与命令。
+`dsh-expert-hub` 把市场的 `expert` 分类放进宿主经身份验证的 Web 网关：专家页通过该投影读取可安装专家卡片并发起安装，而不是直接触达市场服务。同一网关在 token-api 专家中心上列出、上传并安装在线专家模块。每次调用都来自已登录客户端，因此网关原样转发不透明的来源、条目与 bundle id，由 `dsh-market-local` 在宿主侧继续解析包名、版本与命令。上传使用已登录的 `DEEPAGENS_API_KEY`。
 
 ## 目录
 
@@ -34,7 +34,7 @@ kind: "package-reference"
 
 ### 最小配置
 
-无配置：网关不新增字段。专家页与宿主 Remote 装配是仅有的消费方。
+`origin` 可选，默认是 `https://claw.deepagens.com`。专家页与宿主 Remote 装配是消费方。上传和广场下载还需要宿主上的 `dsh-credentials` 与 `dsh-expert-publish`；没有它们时这两个方法返回拒绝，npm 目录仍然可用。
 
 ### 什么会出错
 
@@ -48,11 +48,12 @@ kind: "package-reference"
 <details>
 <summary>实现内部 — 点击展开</summary>
 
-插件以 wire 命名空间 `expertHub` 与同名服务键扩展 `TypertRemoteService`。它投影三个方法：`catalog` 以 `category: 'expert'` 浏览市场，`installEntry` 转发来源本地条目引用，`uninstall` 按 bundle id 卸载。线名不用 `install` 或 `remove`，因为这两个名字会与 Remote 客户端的命名空间服务冲突。
+插件以 wire 命名空间 `expertHub` 与同名服务键扩展 `TypertRemoteService`。它投影 `catalog`（市场 `expert` 分类）、`installEntry`、`uninstall`、`plaza`、`uploadable`、`publishModule` 与 `installModule`。线名不用 `install` 或 `remove`，因为这两个名字会与 Remote 客户端的命名空间服务冲突。`plaza` 与 `uploadable` 是读者读取；`publishModule` 与 `installModule` 是所有者动作。下载的模块经 `ctx.expertPublisher` 注册，因此不必重启即可聘用。
 
 | 文件 | 职责 |
 |---|---|
-| `src/index.ts` | `ExpertHubGateway`，对 `ctx.market` 的 Typert remote 投影 |
+| `src/index.ts` | `ExpertHubGateway`，对 `ctx.market` 的 Typert remote 投影，以及在线模块方法 |
+| `src/online.ts` | token-api 广场、上传与安装 |
 | `src/types.ts` | wire 请求/响应类型；`package.json` 的 `exports["./types"].types` 指向此处，使 Client 类型检查在 `lib/types` 写出前即可解析 |
 
 </details>
@@ -83,7 +84,7 @@ kind: "package-reference"
 <a id="known-limitations-and-deferred-work"></a>
 
 - **仅受信任客户端** — 投影自身不加授权；依赖宿主网关的已认证会话与提供方的宿主侧校验。
-- **仅市场支撑** — 中心只接纳 `expert` 分类的商店条目；已上架 roster 专家仍通过 `agentPresets.list` 到达，不经此 wire。
+- **两份目录** — npm 商店条目留在 `catalog`；在线模块留在 `plaza`。已上架 roster 专家仍通过 `agentPresets.list` 到达。宿主不执行上传模块里的脚本。
 
 <a id="dev-note"></a>
 ### Dev Note

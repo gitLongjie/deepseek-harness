@@ -69,3 +69,39 @@ export interface ExpertHubOperationFailure {
 export type ExpertHubInstallOutcome = ExpertHubInstallSuccess | ExpertHubOperationFailure
 
 export type ExpertHubRemoveOutcome = ExpertHubOperationSuccess | ExpertHubOperationFailure
+
+/** One online expert module listed by the plaza or by the signed-in account. */
+export interface ExpertModuleCard {
+  /** Public slug other clients download. */
+  readonly slug: string
+  /** Display name. */
+  readonly name: string
+  /** One-line description. */
+  readonly description?: string
+  /** Category id. */
+  readonly category?: string
+  /** Retrieval tags. */
+  readonly tags?: readonly string[]
+  /** Published semver. */
+  readonly version: string
+  /** Account name stamped by the server. */
+  readonly author?: string
+  /** Version saved on this machine, when the slug is already installed. */
+  readonly installedVersion?: string
+}
+
+/** Result of uploading or installing one module. */
+export type ExpertModuleResult =
+  | { readonly ok: true; readonly slug: string; readonly version: string }
+  | { readonly ok: false; readonly message: string }
+
+/** Roster ids that have a local expert file this account may upload. */
+export interface ExpertUploadable {
+  readonly ids: readonly string[]
+}
+
+/** Plaza read: cards, plus a message when the catalog could not be reached. */
+export interface ExpertPlazaPage {
+  readonly cards: readonly ExpertModuleCard[]
+  readonly message?: string
+}

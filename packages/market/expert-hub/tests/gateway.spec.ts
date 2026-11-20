@@ -61,6 +61,19 @@ function harness(): { gateway: ExpertHubGateway; market: Market } {
 }
 
 describe('expert hub gateway projection', () => {
+  it('refuses an upload when nobody is signed in and the publisher is absent', async () => {
+    const { gateway } = harness()
+    await expect(gateway.publishModule({ id: 'geo-prelaunch' })).resolves.toEqual({
+      ok: false,
+      message: '登录后才能上传专家',
+    })
+    await expect(gateway.installModule({ slug: 'u7-geo-prelaunch' })).resolves.toEqual({
+      ok: false,
+      message: '本机专家目录还没有准备好',
+    })
+    await expect(gateway.uploadable()).resolves.toEqual({ ids: [] })
+  })
+
   it('binds the expertHub wire namespace under its own service key', () => {
     const { gateway } = harness()
     expect(gateway.typertRemote.serviceKey).toBe('expertHub')

@@ -43,9 +43,12 @@ function mount(overrides: Partial<ExpertBrowserProps> = {}) {
   // cast mirrors the sibling component specs' seat stubs.
   const props = {
     load: vi.fn(async () => ({ experts: ROWS })),
+    loadPlaza: vi.fn(async () => ({ experts: [] })),
     hire: vi.fn(),
     remove: vi.fn(async () => undefined),
     makeDefault: vi.fn(async () => undefined),
+    publish: vi.fn(async () => undefined),
+    install: vi.fn(async () => undefined),
     t,
     ...overrides,
   } as unknown as ExpertBrowserProps
@@ -160,7 +163,7 @@ describe('ExpertBrowser', () => {
   it('offers removal only for a user-root expert, and only after confirming', async () => {
     const b = mount({ load: vi.fn(async () => ({ experts: OWN_ROW })) })
     await waitFor(() => {
-      expect(screen.getByText('我的专家')).toBeTruthy()
+      expect(screen.getAllByText('我的专家').length).toBeGreaterThan(0)
     })
 
     // Removal deletes a preset directory, so the first click only arms it.
@@ -199,7 +202,7 @@ describe('ExpertBrowser', () => {
       remove: vi.fn(async () => 'agent-presets: preset "mine" cannot be written: it ships with the deployment'),
     })
     await waitFor(() => {
-      expect(screen.getByText('我的专家')).toBeTruthy()
+      expect(screen.getAllByText('我的专家').length).toBeGreaterThan(0)
     })
 
     fireEvent.click(screen.getByRole('button', { name: '移除' }))
@@ -273,6 +276,38 @@ describe('ExpertBrowser', () => {
       expect(screen.getByText('失效专家')).toBeTruthy()
     })
     expect(screen.queryByRole('button', { name: /设为新任务默认/ })).toBeNull()
+  })
+
+  it('uploads a local expert and downloads one from the plaza', async () => {
+    const publish = vi.fn(async () => undefined)
+    const install = vi.fn(async () => undefined)
+    const loadPlaza = vi.fn(async () => ({
+      experts: [{ id: 'u7-geo', name: '广场专家', trust: 'user' as const, remoteVersion: '1.0.0' }],
+    }))
+    mount({
+      load: vi.fn(async () => ({
+        experts: [{ id: 'mine', name: '本地专家', trust: 'user' as const, canUpload: true }],
+      })),
+      publish,
+      install,
+      loadPlaza,
+    })
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: '上传' })).toBeTruthy()
+    })
+    fireEvent.click(screen.getByRole('button', { name: '上传' }))
+    await waitFor(() => {
+      expect(publish).toHaveBeenCalledWith('mine')
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: '专家广场' }))
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: '下载' })).toBeTruthy()
+    })
+    fireEvent.click(screen.getByRole('button', { name: '下载' }))
+    await waitFor(() => {
+      expect(install).toHaveBeenCalledWith('u7-geo')
+    })
   })
 
   it('renders the no-match state when the filter admits nothing', async () => {

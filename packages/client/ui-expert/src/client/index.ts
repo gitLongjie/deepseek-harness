@@ -129,9 +129,16 @@ export function apply(ctx: Context): void {
       // on the roster appear beside them as installable cards. A refused or
       // absent read degrades to an empty half; the page never fails on either.
       const label = ctx.locale.bind('settings.agentPreset')
+      const uploadable = await ctx.remote.expertHub.uploadable().then(
+        (result): ReadonlySet<string> => (result.ok ? new Set(result.value.ids) : new Set()),
+        (): ReadonlySet<string> => new Set(),
+      )
       const shipped = await ctx.remote.agentPresets.list().then(
         (result): readonly ExpertRecord[] => (result.ok
-          ? result.value.presets.filter(isExpertPreset).map(preset => recordOf(preset, label))
+          ? result.value.presets.filter(isExpertPreset).map(preset => ({
+            ...recordOf(preset, label),
+            ...(uploadable.has(preset.id) ? { canUpload: true } : {}),
+          }))
           : []),
         (): readonly ExpertRecord[] => [],
       )
@@ -152,6 +159,34 @@ export function apply(ctx: Context): void {
           ...(item.tags !== undefined ? { tags: item.tags } : {}),
         }))
       return { experts: [...shipped, ...fromHub] }
+    },
+    loadPlaza: async () => {
+      const result = await ctx.remote.expertHub.plaza()
+      if (!result.ok) return { experts: [], message: result.error.message }
+      return {
+        experts: result.value.cards.map((card): ExpertRecord => ({
+          id: card.slug,
+          name: card.name,
+          trust: 'user',
+          ...(card.description !== undefined ? { description: card.description } : {}),
+          ...(card.author !== undefined ? { subtitle: card.author } : {}),
+          ...(card.category !== undefined ? { category: card.category } : {}),
+          ...(card.tags !== undefined ? { tags: [...card.tags] } : {}),
+          remoteVersion: card.version,
+          ...(card.installedVersion !== undefined ? { installedVersion: card.installedVersion } : {}),
+        })),
+        ...(result.value.message === undefined ? {} : { message: result.value.message }),
+      }
+    },
+    publish: async (id: string) => {
+      const result = await ctx.remote.expertHub.publishModule({ id })
+      if (!result.ok) return result.error.message
+      return result.value.ok ? undefined : result.value.message
+    },
+    install: async (slug: string) => {
+      const result = await ctx.remote.expertHub.installModule({ slug })
+      if (!result.ok) return result.error.message
+      return result.value.ok ? undefined : result.value.message
     },
     hire: (id: string) => {
       // Stage BEFORE closing the page. A refused stage means nothing will

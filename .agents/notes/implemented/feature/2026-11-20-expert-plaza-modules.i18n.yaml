@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for 2026-11-20-expert-plaza-modules.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-11-20-expert-plaza-modules.md
+/agent-note-expert-plaza-modules:
+  en: 698c23e7a12ac92e
+  zh: 230b584c2b924746
+/agent-note-expert-plaza-modules/problem:
+  en: 92f6d5cac591bd3f
+  zh: 81ad19a284651440
+/agent-note-expert-plaza-modules/decision:
+  en: b6b6dbb17adea69f
+  zh: 9e2117a5d6c27131
+/agent-note-expert-plaza-modules/alternatives-considered:
+  en: af4d4dcb5f48915a
+  zh: 9118a8545abcd06f
+/agent-note-expert-plaza-modules/consequences:
+  en: 1e799e73f871e5ea
+  zh: bd809a3e982c4f9c

@@ -26,4 +26,4 @@ Ship `@deepseek-ai/dsh-expert-hub` as a Typert Remote projection of the market's
 
 ## Consequences
 
-The expert page can merge installable hub rows with the roster without importing market wire types. Install and remove stay owned by `ctx.market`; the hub only filters the `expert` category and renames the wire for that UI.
+The expert page can merge installable hub rows with the roster without importing market wire types. Install and remove stay owned by `ctx.market`; the hub only filters the `expert` category and renames the wire for that UI. Online persona modules are a separate decision: [Expert plaza modules](2026-11-20-expert-plaza-modules.md).

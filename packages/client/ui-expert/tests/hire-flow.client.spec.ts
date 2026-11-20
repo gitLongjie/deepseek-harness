@@ -52,7 +52,17 @@ async function bench() {
   const settings = {
     update: () => Promise.resolve({ ok: true as const, value: {} }),
   }
-  const remote = new TestRemote(ctx, { settings, agentPresets })
+  const remote = new TestRemote(ctx, {
+    settings,
+    agentPresets,
+    expertHub: {
+      uploadable: () => Promise.resolve({ ok: true as const, value: { ids: [] as string[] } }),
+      catalog: () => Promise.resolve({ ok: true as const, value: [] }),
+      plaza: () => Promise.resolve({ ok: true as const, value: { cards: [] } }),
+      publishModule: () => Promise.resolve({ ok: false as const, error: { message: 'absent' } }),
+      installModule: () => Promise.resolve({ ok: false as const, error: { message: 'absent' } }),
+    },
+  })
 
   const sessionState: {
     current?: string

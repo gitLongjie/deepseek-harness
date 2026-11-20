@@ -16,6 +16,12 @@
       "path": "../../market/market"
     },
     {
+      "path": "../../credentials/credentials"
+    },
+    {
+      "path": "../../preset/expert-publish"
+    },
+    {
       "path": "../../util/brand"
     },
     {

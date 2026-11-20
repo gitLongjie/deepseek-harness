@@ -49,6 +49,8 @@ export const VIEWER_ENDPOINT_CLASSES = {
   'market/listSources': 'reader-global-read', // the OEM market panel lists configured sources
   'market/selectedSource': 'reader-global-read', // the OEM market panel reads the selected source
   'expertHub/catalog': 'reader-global-read', // the expert page reads installable expert cards
+  'expertHub/plaza': 'reader-global-read', // the expert page reads the public expert plaza
+  'expertHub/uploadable': 'reader-global-read', // the expert page learns which local cards can be uploaded
   'llm/listConfigurableProviders': 'reader-global-read', // the page reads the configurable provider catalog
   'llm/listProviders': 'reader-global-read', // the page lists providers
   'session/canOpenWorkspacePath': 'reader-global-read', // the page asks whether a path can be opened
@@ -250,6 +252,8 @@ export const VIEWER_ENDPOINT_CLASSES = {
   'market/selectSource': 'owner-only', // the OEM market panel manages installs and sources
   'market/removeSource': 'owner-only', // the OEM market panel manages installs and sources
   'expertHub/installEntry': 'owner-only', // the expert page installs an expert package
+  'expertHub/installModule': 'owner-only', // the expert page downloads or updates one plaza expert
+  'expertHub/publishModule': 'owner-only', // the expert page uploads one of the signed-in user's experts
   'expertHub/uninstall': 'owner-only', // the expert page removes an installed expert package
   'liveshareShares/audit': 'owner-only',
   'liveshareShares/capabilities': 'owner-only',

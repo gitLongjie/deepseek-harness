@@ -26,4 +26,4 @@ Status: implemented
 
 ## 后果
 
-专家页可以在不导入市场 wire 类型的情况下，把可安装 hub 行与 roster 合并。install 与 remove 仍由 `ctx.market` 拥有；中心只过滤 `expert` 分类，并为该 UI 重命名 wire。
+专家页可以在不导入市场 wire 类型的情况下，把可安装 hub 行与 roster 合并。install 与 remove 仍由 `ctx.market` 拥有；中心只过滤 `expert` 分类，并为该 UI 重命名 wire。在线人设模块是另一项决定：[Expert plaza modules](2026-11-20-expert-plaza-modules.zh.md)。

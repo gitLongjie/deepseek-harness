@@ -57,6 +57,12 @@ export interface ExpertRecord {
    * to nobody.
    */
   readonly broken?: string
+  /** This card has a local file the signed-in account may upload. */
+  readonly canUpload?: boolean
+  /** Published version on the plaza. Present on plaza cards. */
+  readonly remoteVersion?: string
+  /** Version already saved on this machine. */
+  readonly installedVersion?: string
 }
 
 /**
@@ -98,6 +104,23 @@ export type ExpertBrowserInjected = {
    *   empty state.
    */
   load: () => Promise<{ experts: readonly ExpertRecord[] }>
+  /**
+   * Read the public plaza.
+   * @returns plaza cards. `message` is set when the catalog could not be reached.
+   */
+  loadPlaza: () => Promise<{ experts: readonly ExpertRecord[]; message?: string }>
+  /**
+   * Upload one local expert.
+   * @param id - roster id.
+   * @returns the refusal message, or undefined once it was published.
+   */
+  publish: (id: string) => Promise<string | undefined>
+  /**
+   * Download or update one plaza expert onto this machine.
+   * @param slug - public slug.
+   * @returns the refusal message, or undefined once it was installed.
+   */
+  install: (slug: string) => Promise<string | undefined>
   /**
    * Hire one expert: stage its preset for the NEXT session and start that
    * session. Closes the page on success; the session surface takes the

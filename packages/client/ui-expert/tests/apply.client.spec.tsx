@@ -94,6 +94,13 @@ async function bench(remote: RemoteStub) {
   }
   new RemoteService(ctx)
   ctx.provide('remote.agentPresets', remote)
+  ctx.provide('remote.expertHub', {
+    uploadable: vi.fn(async () => ({ ok: true, value: { ids: [] } })),
+    catalog: vi.fn(async () => ({ ok: true, value: [] })),
+    plaza: vi.fn(async () => ({ ok: true, value: { cards: [] } })),
+    publishModule: vi.fn(async () => ({ ok: false, error: { message: 'absent' } })),
+    installModule: vi.fn(async () => ({ ok: false, error: { message: 'absent' } })),
+  })
   return { ctx, slots: ctx.get('slots') as SlotRegistry, locale, uiAgentPreset, uiWorkspace, calls, panelListeners }
 }
 
@@ -114,7 +121,7 @@ describe('ui-expert browser plugin', () => {
   it('declares only the services used by the expert contributions', () => {
     expect(NS).toBe('expert')
     expect(inject).toEqual([
-      'slots', 'locale', 'remote', 'remote.agentPresets', 'sessions', 'layout', 'uiWorkspace', 'uiAgentPreset',
+      'slots', 'locale', 'remote', 'remote.agentPresets', 'remote.expertHub', 'sessions', 'layout', 'uiWorkspace', 'uiAgentPreset',
     ])
   })
 
