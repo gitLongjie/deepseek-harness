@@ -144,7 +144,7 @@ run('pnpm', ['exec', 'tsdown', '--env.DSH_BUILD_FACE', 'client'], { cwd: repoRoo
 run('pnpm', ['--filter', '@deepseek-ai/dsh-web-frontend', 'exec', 'vite', 'build', '--outDir', resolve(root, 'web'), '--emptyOutDir'], {
   env: { ...process.env, DSH_DESKTOP_BUILD: '1' },
 })
-syncDesktopOemIcons(repoRoot, root)
+await syncDesktopOemIcons(repoRoot, root)
 run('pnpm', ['build:main'], { cwd: root })
 run('node', ['scripts/build-render-transport.mjs'], { cwd: root })
 

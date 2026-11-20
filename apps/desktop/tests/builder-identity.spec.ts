@@ -4,11 +4,13 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import sharp from 'sharp'
 import {
   createElectronBuilderOemConfig,
   readDesktopOemConfig,
   syncDesktopOemIcons,
 } from '../scripts/desktop-oem-config.mjs'
+import { packIco } from '../scripts/render-tray-icon.ts'
 import { DESKTOP_APP_USER_MODEL_ID, resolveAppUserModelId } from '../src/main/desktop/app-user-model-id.ts'
 
 const BUILDER_CONFIG = fileURLToPath(new URL('../electron-builder.yml', import.meta.url))
@@ -50,6 +52,8 @@ describe('desktop builder identity', () => {
     expect(resolveAppUserModelId({ DSH_DESKTOP_DEV: '1' }, 'E:\\deepseek-harness')).toBe(harnessDev)
     expect(readFileSync(MAIN_ENTRY, 'utf8')).toContain('app.setAppUserModelId(resolveAppUserModelId(process.env, app.getAppPath()))')
     expect(readFileSync(MAIN_ENTRY, 'utf8')).toContain('syncWindowsDevTaskbarShortcut()')
+    expect(readFileSync(MAIN_ENTRY, 'utf8')).toContain('icon: DESKTOP_TASKBAR_ICON')
+    expect(readFileSync(MAIN_ENTRY, 'utf8')).not.toContain('icon: process.execPath')
     expect(readFileSync(DEV_LAUNCHER, 'utf8')).toContain('DSH_DESKTOP_DEV_ROOT: repoRoot')
   })
 
@@ -226,7 +230,7 @@ describe('desktop builder identity', () => {
     expect(() => readDesktopOemConfig(repoRoot, {})).toThrow(/contactUrl/)
   })
 
-  it('projects one configured Web icon into both native desktop icon files', () => {
+  it('projects one configured Web icon into both native desktop icon files', async () => {
     const repoRoot = mkdtempSync(join(tmpdir(), 'dsh-oem-repo-'))
     const desktopRoot = join(repoRoot, 'apps', 'desktop')
     roots.push(repoRoot)
@@ -236,7 +240,7 @@ describe('desktop builder identity', () => {
       brandIcon: '/brand/acme.ico',
       updateUrl: 'https://updates.acme.test/desktop',
     }))
-    const icon = Buffer.from([0, 0, 1, 0, 1, 0, 42])
+    const icon = await solidIco(16, 200)
     writeFileSync(join(repoRoot, 'apps', 'web', 'public', 'brand', 'acme.ico'), icon)
 
     expect(readDesktopOemConfig(repoRoot, {})).toEqual({
@@ -244,18 +248,45 @@ describe('desktop builder identity', () => {
       brandIcon: '/brand/acme.ico',
       updateUrl: 'https://updates.acme.test/desktop',
     })
-    syncDesktopOemIcons(repoRoot, desktopRoot)
-    expect(readFileSync(join(desktopRoot, 'build', 'icon.ico'))).toEqual(icon)
-    expect(readFileSync(join(desktopRoot, 'build', 'tray.ico'))).toEqual(icon)
+    await syncDesktopOemIcons(repoRoot, desktopRoot)
+    const written = readFileSync(join(desktopRoot, 'build', 'icon.ico'))
+    expect(readFileSync(join(desktopRoot, 'build', 'tray.ico'))).toEqual(written)
+    expect(icoImage(written, 0).subarray(0, 4).readUInt32LE(0)).toBe(40)
+    expect(dibPixel(written, 0)).toEqual([20, 10, 200, 255])
 
-    const override = Buffer.from([0, 0, 1, 0, 2, 0, 84])
+    const override = await solidIco(16, 40)
     writeFileSync(join(repoRoot, 'apps', 'web', 'public', 'brand', 'override.ico'), override)
-    syncDesktopOemIcons(repoRoot, desktopRoot, { DSH_CLIENT_BRAND_ICON: '/brand/override.ico' })
-    expect(readFileSync(join(desktopRoot, 'build', 'icon.ico'))).toEqual(override)
-    expect(readFileSync(join(desktopRoot, 'build', 'tray.ico'))).toEqual(override)
+    await syncDesktopOemIcons(repoRoot, desktopRoot, { DSH_CLIENT_BRAND_ICON: '/brand/override.ico' })
+    const replaced = readFileSync(join(desktopRoot, 'build', 'icon.ico'))
+    expect(readFileSync(join(desktopRoot, 'build', 'tray.ico'))).toEqual(replaced)
+    expect(replaced).not.toEqual(written)
+    expect(dibPixel(replaced, 0)).toEqual([20, 10, 40, 255])
   })
 
-  it('rejects native icon overrides that are remote or not ICO data', () => {
+  it('keeps a 256 px PNG and stores smaller taskbar images as BMP', async () => {
+    const repoRoot = mkdtempSync(join(tmpdir(), 'dsh-oem-shell-'))
+    const desktopRoot = join(repoRoot, 'apps', 'desktop')
+    roots.push(repoRoot)
+    mkdirSync(join(repoRoot, 'apps', 'web', 'public'), { recursive: true })
+    writeFileSync(join(repoRoot, 'oem.config.json'), JSON.stringify({
+      productName: 'Acme Agent',
+      brandIcon: '/favicon.ico',
+    }))
+    const icon = packIco([
+      { size: 16, png: await solidPng(16, 200) },
+      { size: 256, png: await solidPng(256, 8) },
+    ])
+    writeFileSync(join(repoRoot, 'apps', 'web', 'public', 'favicon.ico'), icon)
+    await syncDesktopOemIcons(repoRoot, desktopRoot)
+    const written = readFileSync(join(desktopRoot, 'build', 'icon.ico'))
+    expect(written.readUInt16LE(4)).toBe(2)
+    expect(icoImage(written, 0).readUInt32LE(0)).toBe(40)
+    expect(icoImage(written, 0).readInt32LE(4)).toBe(16)
+    expect(icoImage(written, 0).readInt32LE(8)).toBe(32)
+    expect(icoImage(written, 1).subarray(0, 8)).toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+  })
+
+  it('rejects native icon overrides that are remote or not ICO data', async () => {
     const repoRoot = mkdtempSync(join(tmpdir(), 'dsh-oem-invalid-'))
     const desktopRoot = join(repoRoot, 'apps', 'desktop')
     roots.push(repoRoot)
@@ -270,7 +301,7 @@ describe('desktop builder identity', () => {
     expect(() => readDesktopOemConfig(repoRoot, {
       DSH_CLIENT_BRAND_ICON: 'https://cdn.acme.test/icon.ico',
     })).toThrow(/local/)
-    expect(() => syncDesktopOemIcons(repoRoot, desktopRoot, {})).toThrow(/valid ICO/)
+    await expect(syncDesktopOemIcons(repoRoot, desktopRoot, {})).rejects.toThrow(/valid ICO/)
   })
 
   it('configures electron-updater from the OEM update URL before checking', () => {
@@ -301,3 +332,28 @@ describe('desktop builder identity', () => {
     })
   })
 })
+
+/** A one-color PNG of `size` px. Red varies; green and blue stay fixed so the DIB can be checked. */
+async function solidPng(size: number, red: number): Promise<Buffer> {
+  return sharp({
+    create: { width: size, height: size, channels: 4, background: { r: red, g: 10, b: 20, alpha: 255 } },
+  }).png().toBuffer()
+}
+
+/** @param size - Square edge in pixels. @param red - Red channel of the solid image. */
+async function solidIco(size: number, red: number): Promise<Buffer> {
+  return packIco([{ size, png: await solidPng(size, red) }])
+}
+
+/** Image payload of one ICO directory entry. */
+function icoImage(ico: Buffer, index: number): Buffer {
+  const at = 6 + 16 * index
+  const length = ico.readUInt32LE(at + 8)
+  const offset = ico.readUInt32LE(at + 12)
+  return ico.subarray(offset, offset + length)
+}
+
+/** First BGRA pixel of a bottom-up 32-bit DIB stored in an ICO image. */
+function dibPixel(ico: Buffer, index: number): number[] {
+  return [...icoImage(ico, index).subarray(40, 44)]
+}

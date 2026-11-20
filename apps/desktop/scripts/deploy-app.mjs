@@ -87,7 +87,7 @@ run('pnpm', ['--filter', '@deepseek-ai/dsh-web-frontend', 'exec', 'vite', 'build
 run('pnpm', ['--filter', '@deepseek-ai/dsh-web-frontend', 'exec', 'vite', 'build'], {
   env: { ...process.env, DSH_DESKTOP_BUILD: '1' },
 })
-syncDesktopOemIcons(repoRoot, root)
+await syncDesktopOemIcons(repoRoot, root)
 // 2. Build the main process and the render transport.
 // dsh-im and business-entry are workspace plugin packages whose runtime lib/ is
 // generated and absent from a clean GitHub checkout, so build them explicitly

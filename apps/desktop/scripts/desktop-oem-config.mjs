@@ -1,6 +1,7 @@
 /** Desktop packaging projection for the repository OEM configuration. */
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
+import sharp from 'sharp'
 
 /** Read the OEM identity used by Electron's native surfaces. */
 export function readDesktopOemConfig(repoRoot, environment = process.env) {
@@ -106,19 +107,159 @@ function assertHttpUrl(value, subject) {
   throw new Error(`${subject} must be an HTTP or HTTPS URL`)
 }
 
-/** Copy the configured Web icon into every native desktop icon slot. */
-export function syncDesktopOemIcons(repoRoot, desktopRoot, environment = process.env) {
+/**
+ * Copy the configured Web icon into every native desktop icon slot.
+ * Images below 256 px are stored as BMP so the Windows taskbar can draw them
+ * from the executable. A 256 px image may stay PNG.
+ * @param repoRoot - Repository root that contains `oem.config.json`.
+ * @param desktopRoot - Desktop package root whose `build` directory receives the icons.
+ * @param environment - Overrides for the OEM icon path. Defaults to `process.env`.
+ * @returns Resolves after both icon files are written.
+ */
+export async function syncDesktopOemIcons(repoRoot, desktopRoot, environment = process.env) {
   const { brandIcon } = readDesktopOemConfig(repoRoot, environment)
   const source = resolve(repoRoot, 'apps', 'web', 'public', brandIcon.slice(1))
   const icon = readFileSync(source)
-  if (icon.length < 4 || !icon.subarray(0, 4).equals(Buffer.from([0, 0, 1, 0]))) {
-    throw new Error(`oem.config.json.brandIcon is not a valid ICO file: ${source}`)
-  }
+  const shellIcon = await windowsShellIco(icon, source)
   for (const name of ['icon.ico', 'tray.ico']) {
     const target = resolve(desktopRoot, 'build', name)
     mkdirSync(dirname(target), { recursive: true })
-    writeFileSync(target, icon)
+    writeFileSync(target, shellIcon)
   }
+}
+
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+
+/**
+ * Return ICO bytes the Windows shell can embed in an executable.
+ * @param ico - ICO bytes. PNG and BMP images are both accepted.
+ * @param source - Path named when `ico` is not an ICO file.
+ * @returns ICO bytes with the same images in the same order.
+ */
+async function windowsShellIco(ico, source) {
+  const entries = readIcoEntries(ico, source)
+  const images = []
+  for (const entry of entries) {
+    if (isPng(entry.data) && (entry.width !== 256 || entry.height !== 256)) {
+      const pngSize = readPngSize(entry.data, source)
+      if (pngSize.width !== entry.width || pngSize.height !== entry.height) {
+        throw new Error(
+          `oem.config.json.brandIcon image is ${String(pngSize.width)}x${String(pngSize.height)}, `
+          + `expected ${String(entry.width)}x${String(entry.height)}: ${source}`,
+        )
+      }
+      images.push({
+        width: entry.width,
+        height: entry.height,
+        colors: 0,
+        planes: 1,
+        bitCount: 32,
+        data: await pngToBmpDib(entry.data),
+      })
+    } else {
+      images.push(entry)
+    }
+  }
+  return writeIco(images)
+}
+
+/** @param {Buffer} ico @param {string} source */
+function readIcoEntries(ico, source) {
+  if (ico.length < 6 || ico.readUInt16LE(0) !== 0 || ico.readUInt16LE(2) !== 1) invalidIco(source)
+  const count = ico.readUInt16LE(4)
+  if (count < 1) invalidIco(source)
+  return Array.from({ length: count }, (_, index) => {
+    const at = 6 + 16 * index
+    if (at + 16 > ico.length) invalidIco(source)
+    const width = ico.readUInt8(at) || 256
+    const height = ico.readUInt8(at + 1) || 256
+    const bytes = ico.readUInt32LE(at + 8)
+    const offset = ico.readUInt32LE(at + 12)
+    if (bytes < 1 || offset + bytes > ico.length) invalidIco(source)
+    const data = Buffer.from(ico.subarray(offset, offset + bytes))
+    if (!isPng(data) && (data.length < 40 || data.readUInt32LE(0) !== 40)) invalidIco(source)
+    return {
+      width,
+      height,
+      colors: ico.readUInt8(at + 2),
+      planes: ico.readUInt16LE(at + 4),
+      bitCount: ico.readUInt16LE(at + 6),
+      data,
+    }
+  })
+}
+
+/** @param {string} source */
+function invalidIco(source) {
+  throw new Error(`oem.config.json.brandIcon is not a valid ICO file: ${source}`)
+}
+
+/** @param {Buffer} data */
+function isPng(data) {
+  return data.length >= PNG_SIGNATURE.length && data.subarray(0, PNG_SIGNATURE.length).equals(PNG_SIGNATURE)
+}
+
+/** @param {Buffer} png @param {string} source */
+function readPngSize(png, source) {
+  if (png.length < 24) invalidIco(source)
+  return { width: png.readUInt32BE(16), height: png.readUInt32BE(20) }
+}
+
+/** @param {Buffer} png */
+async function pngToBmpDib(png) {
+  const { data, info } = await sharp(png).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+  const { width, height } = info
+  const xor = Buffer.alloc(width * height * 4)
+  for (let y = 0; y < height; y += 1) {
+    const srcRow = (height - 1 - y) * width * 4
+    const dstRow = y * width * 4
+    for (let x = 0; x < width; x += 1) {
+      const src = srcRow + x * 4
+      const dst = dstRow + x * 4
+      xor[dst] = data[src + 2]
+      xor[dst + 1] = data[src + 1]
+      xor[dst + 2] = data[src]
+      xor[dst + 3] = data[src + 3]
+    }
+  }
+  const maskStride = Math.ceil(width / 32) * 4
+  const mask = Buffer.alloc(maskStride * height)
+  for (let y = 0; y < height; y += 1) {
+    const srcRow = (height - 1 - y) * width * 4
+    for (let x = 0; x < width; x += 1) {
+      if (data[srcRow + x * 4 + 3] === 0) mask[y * maskStride + (x >> 3)] |= 0x80 >> (x & 7)
+    }
+  }
+  const header = Buffer.alloc(40)
+  header.writeUInt32LE(40, 0)
+  header.writeInt32LE(width, 4)
+  header.writeInt32LE(height * 2, 8)
+  header.writeUInt16LE(1, 12)
+  header.writeUInt16LE(32, 14)
+  header.writeUInt32LE(xor.length + mask.length, 20)
+  return Buffer.concat([header, xor, mask])
+}
+
+/** @param {readonly { width: number, height: number, colors: number, planes: number, bitCount: number, data: Buffer }[]} images */
+function writeIco(images) {
+  const header = Buffer.alloc(6 + 16 * images.length)
+  header.writeUInt16LE(0, 0)
+  header.writeUInt16LE(1, 2)
+  header.writeUInt16LE(images.length, 4)
+  let offset = header.length
+  images.forEach((image, index) => {
+    const at = 6 + 16 * index
+    header.writeUInt8(image.width % 256, at)
+    header.writeUInt8(image.height % 256, at + 1)
+    header.writeUInt8(image.colors, at + 2)
+    header.writeUInt8(0, at + 3)
+    header.writeUInt16LE(image.planes, at + 4)
+    header.writeUInt16LE(image.bitCount, at + 6)
+    header.writeUInt32LE(image.data.length, at + 8)
+    header.writeUInt32LE(offset, at + 12)
+    offset += image.data.length
+  })
+  return Buffer.concat([header, ...images.map(image => image.data)])
 }
 
 /** Create the electron-builder overlay that carries the OEM product identity. */

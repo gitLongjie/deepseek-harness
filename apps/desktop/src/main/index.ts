@@ -88,6 +88,14 @@ const smokeUserData = process.env.DSH_PACKAGED_SMOKE_USER_DATA
 if (smokeUserData !== undefined && smokeUserData !== '') app.setPath('userData', smokeUserData)
 
 /**
+ * Brand icon for the window and the dev taskbar shortcut.
+ * Windows draws the taskbar button from the shortcut, and it caches an
+ * executable's icon by path. The dev executable is a copy of Electron, so the
+ * shortcut must name this ICO file rather than the executable.
+ */
+const DESKTOP_TASKBAR_ICON = fileURLToPath(new URL('../../build/icon.ico', import.meta.url))
+
+/**
  * Point this checkout's Start Menu shortcut at its own AppUserModelId.
  * Electron leaves an existing shortcut in place, so a second checkout would
  * keep publishing the shared id. The update preserves the toast activator.
@@ -101,7 +109,7 @@ function syncWindowsDevTaskbarShortcut(): void {
     target: process.execPath,
     appUserModelId: resolveAppUserModelId(process.env, app.getAppPath()),
     description: DESKTOP_PRODUCT_NAME,
-    icon: process.execPath,
+    icon: DESKTOP_TASKBAR_ICON,
     iconIndex: 0,
   })
   if (!wrote) console.warn('desktop: failed to refresh the dev taskbar shortcut')
@@ -549,7 +557,7 @@ function createWindow(): BrowserWindow {
     height: 800,
     show: false,
     // Taskbar/alt-tab art on Windows and Linux (macOS uses the app bundle icon).
-    icon: fileURLToPath(new URL('../../build/icon.ico', import.meta.url)),
+    icon: DESKTOP_TASKBAR_ICON,
     // The native title stays the OEM product name for life: Windows surfaces it as the
     // taskbar hover tooltip and alt-tab label; page-title-updated must not
     // leak session projections there (pinWindowTitle blocks adoption).
