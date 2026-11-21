@@ -3,7 +3,11 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import { CredentialProvider } from '@deepseek-ai/dsh-credentials'
+import {
+  CredentialProvider,
+  type CredentialInfo, type CredentialKey, type CredentialRecord, type CredentialRecordEntry,
+  type CredentialRecordInfo, type CredentialRef, type ResolvedCredential,
+} from '@deepseek-ai/dsh-credentials'
 import type {
   Market, MarketBundleId, MarketCatalogEntry, MarketCatalogPage, MarketEntryId, MarketSourceId,
 } from '@deepseek-ai/dsh-market'
@@ -153,14 +157,14 @@ describe('expert hub gateway projection', () => {
     vi.unstubAllGlobals()
 
     const ctx = new Context()
-    ctx.provide('credentials', tokenCredentials(undefined))
+    new TokenCredentials(ctx, undefined)
     const unsigned = new ExpertHubGateway(ctx)
     await expect(unsigned.publishModule({ id: 'geo-optimizer' })).resolves.toEqual({
       ok: false,
       message: '登录后才能上传专家',
     })
     const signedIn = new Context()
-    signedIn.provide('credentials', tokenCredentials('token'))
+    new TokenCredentials(signedIn, 'token')
     const gateway = new ExpertHubGateway(signedIn)
     await expect(gateway.publishModule({ id: 'geo-optimizer' })).resolves.toEqual({
       ok: false,
@@ -169,11 +173,36 @@ describe('expert hub gateway projection', () => {
   })
 })
 
-function tokenCredentials(value: string | undefined): CredentialProvider {
-  const resolved = value === undefined ? undefined : { value, source: 'memory' as const }
-  return {
-    resolve: () => Promise.resolve(resolved),
-  } as CredentialProvider
+/**
+ * Credential stub over the abstract provider: only `resolve` carries the test
+ * token; every other member stays an inert typed empty. Constructing it
+ * registers the row as the context's `credentials` service.
+ */
+class TokenCredentials extends CredentialProvider {
+  constructor(ctx: Context, private readonly token: string | undefined) {
+    super(ctx)
+  }
+
+  override resolve(_ref: CredentialRef): Promise<ResolvedCredential | undefined> {
+    return Promise.resolve(this.token === undefined ? undefined : { value: this.token, source: 'test' })
+  }
+
+  override describe(_ref: CredentialRef): Promise<CredentialInfo> {
+    return Promise.resolve({ configured: this.token !== undefined, writable: false })
+  }
+
+  override set(): Promise<void> { return Promise.resolve() }
+  override unset(): Promise<void> { return Promise.resolve() }
+  override readRecord(): Promise<CredentialRecord | undefined> { return Promise.resolve(undefined) }
+  override describeRecord(): Promise<CredentialRecordInfo> {
+    return Promise.resolve({ configured: false, writable: false })
+  }
+  override listRecords(): Promise<readonly CredentialRecordEntry[]> { return Promise.resolve([]) }
+  override modifyRecord(
+    _key: CredentialKey,
+    mutate: (current: CredentialRecord | undefined) => Promise<CredentialRecord | undefined>,
+  ): Promise<CredentialRecord | undefined> { return mutate(undefined) }
+  override deleteRecord(): Promise<void> { return Promise.resolve() }
 }
 
 const SHIPPED: ShippedExpert = {
@@ -293,8 +322,11 @@ describe('shipped and saved expert uploads', () => {
       id: 'mine', name: '我的专家', description: '描述', persona: '人设正文',
       version: '1.0.0', remoteSlug: 'mine',
     })
-    const gateway = signed()
-    gateway.ctx.provide('expertPublisher', publisher)
+    // The publisher rides the context the gateway is constructed over:
+    // Service protects `ctx`, so the provide happens before construction.
+    const gatewayCtx = new Context()
+    gatewayCtx.provide('expertPublisher', publisher)
+    const gateway = new SignedGateway(gatewayCtx)
     await expect(gateway.detail({ id: 'mine' })).resolves.toMatchObject({ persona: '人设正文' })
     await expect(gateway.uploadable()).resolves.toEqual({ ids: ['mine'] })
     vi.stubGlobal('fetch', async () => new Response('nope', { status: 500 }))

@@ -53,12 +53,14 @@ describe('declarative preset revisions', () => {
     const web = new Preset(ctx, { id: 'from-web', plugins: [] })
     const webStep = await web[Service.init]().next()
     expect(ctx.agentPresets.directoryOf('from-web')).toBeUndefined()
+    if (webStep.done) throw new Error('the preset init completed without yielding its disposer')
     await webStep.value()
 
     ctx.baseUrl = undefined
     const memory = new Preset(ctx, { id: 'from-memory', plugins: [] })
     const memoryStep = await memory[Service.init]().next()
     expect(ctx.agentPresets.directoryOf('from-memory')).toBeUndefined()
+    if (memoryStep.done) throw new Error('the preset init completed without yielding its disposer')
     await memoryStep.value()
   })
 

@@ -94,7 +94,12 @@ async function bench(remote: RemoteStub) {
   }
   new RemoteService(ctx)
   ctx.provide('remote.agentPresets', remote)
-  const detail = vi.fn(async () => ({ ok: true, value: { id: 'geo', name: 'GEO' } }))
+  // Typed as the real remote.detail contract so `mockResolvedValueOnce` can
+  // return a failed read or a detail carrying persona and skills.
+  const detail = vi.fn(async (): Promise<
+    | { ok: true; value: { id: string; name: string; description?: string; persona?: string; skills?: readonly string[] } }
+    | { ok: false; error: { message: string } }
+  > => ({ ok: true, value: { id: 'geo', name: 'GEO' } }))
   ctx.provide('remote.expertHub', {
     uploadable: vi.fn(async () => ({ ok: true, value: { ids: [] } })),
     catalog: vi.fn(async () => ({ ok: true, value: [] })),

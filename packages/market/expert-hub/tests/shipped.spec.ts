@@ -138,7 +138,11 @@ describe('shipped experts', () => {
     await writeFile(join(directory, 'skills', 'blank-name', 'SKILL.md'), '---\nname:   \n---\n# 回退标题\n', 'utf8')
     await mkdir(join(directory, 'skills', 'hash'), { recursive: true })
     await writeFile(join(directory, 'skills', 'hash', 'SKILL.md'), '#   \n', 'utf8')
-    const expert = await readShippedExpert(directory, { ...ROW, tags: ['GEO'], category: undefined })
+    // An uncurated row publishes no `category` property at all — an explicit
+    // `category: undefined` would fail exactOptionalPropertyTypes and a
+    // spread of ROW would keep the marker.
+    const { category: _droppedCategory, ...uncurated } = ROW
+    const expert = await readShippedExpert(directory, { ...uncurated, tags: ['GEO'] })
     expect(expert?.skillNames).toEqual(expect.arrayContaining(['untitled', '回退标题', 'hash']))
   })
 
