@@ -100,6 +100,24 @@ export interface ExpertUploadable {
   readonly ids: readonly string[]
 }
 
+/** One saved expert version, with the plaza version when that copy can be updated. */
+export interface ExpertVersionRow {
+  /** Roster id. */
+  readonly id: string
+  /** Version saved on this machine. */
+  readonly version: string
+  /**
+   * Published plaza version. Present for a plaza install whose slug is listed.
+   * A higher value is the update the card offers.
+   */
+  readonly remoteVersion?: string
+}
+
+/** Saved versions for the expert page. */
+export interface ExpertVersionPage {
+  readonly entries: readonly ExpertVersionRow[]
+}
+
 /** Persona and skill names for one expert card's detail view. */
 export interface ExpertDetail {
   /** Roster id or plaza slug. */

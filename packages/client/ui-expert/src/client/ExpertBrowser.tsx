@@ -17,6 +17,32 @@ function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
+/** The version a card shows: the saved one, the plaza one, or both when they differ. */
+function versionText(record: ExpertRecord): string | undefined {
+  const installed = record.installedVersion
+  const remote = record.remoteVersion
+  if (installed !== undefined && remote !== undefined && installed !== remote) return `${installed} → ${remote}`
+  return installed ?? remote
+}
+
+/**
+ * Whether the published `x.y.z` is higher than the copy saved on this machine.
+ * A non-numeric version is not offered as an update.
+ */
+function versionIsNewer(remote: string | undefined, installed: string | undefined): boolean {
+  if (remote === undefined || installed === undefined || remote === installed) return false
+  const published = remote.split('.')
+  const saved = installed.split('.')
+  if (published.length !== 3 || saved.length !== 3) return false
+  for (let index = 0; index < 3; index += 1) {
+    const left = Number(published[index])
+    const right = Number(saved[index])
+    if (!Number.isInteger(left) || !Number.isInteger(right)) return false
+    if (left !== right) return left > right
+  }
+  return false
+}
+
 /** Shipped category ids whose chip text comes from the expert dictionary. */
 const CATEGORY_LABELS: Readonly<Record<string, 'category.general' | 'category.marketing' | 'category.content'>> = {
   general: 'category.general',
@@ -361,6 +387,9 @@ export function ExpertBrowser({
                         )}
                       </div>
                     </header>
+                    {versionText(record) !== undefined && (
+                      <p className={css.cardVersion}>{t('detail.version')} {versionText(record)}</p>
+                    )}
                     {record.description !== undefined && (
                       <p className={css.cardDescription}>{record.description}</p>
                     )}
@@ -409,7 +438,7 @@ export function ExpertBrowser({
                           {t('card.download')}
                         </button>
                       )}
-                      {section === 'plaza' && record.installedVersion !== undefined && record.installedVersion !== record.remoteVersion && (
+                      {section === 'plaza' && record.installedVersion !== undefined && versionIsNewer(record.remoteVersion, record.installedVersion) && (
                         <button
                           type="button"
                           className={css.hire}
@@ -420,6 +449,15 @@ export function ExpertBrowser({
                       )}
                       {section === 'plaza' && record.installedVersion !== undefined && record.installedVersion === record.remoteVersion && (
                         <span className={css.defaultMark}>{t('card.latest')}</span>
+                      )}
+                      {section === 'mine' && versionIsNewer(record.remoteVersion, record.installedVersion) && (
+                        <button
+                          type="button"
+                          className={css.hire}
+                          onClick={() => { runModule(() => install(record.id)) }}
+                        >
+                          {t('card.update')}
+                        </button>
                       )}
                       {section === 'mine' && record.isDefault !== true && record.broken === undefined && (
                         <button
@@ -548,8 +586,8 @@ function ExpertDetail({
           {record.category !== undefined && (
             <p className={css.detailText}>{t('detail.category')} {categoryLabel(record.category, t)}</p>
           )}
-          {(record.remoteVersion !== undefined) && (
-            <p className={css.detailText}>{t('detail.version')} {record.remoteVersion}</p>
+          {(record.installedVersion !== undefined || record.remoteVersion !== undefined) && (
+            <p className={css.detailText}>{t('detail.version')} {versionText(record)}</p>
           )}
           {(record.tags?.length ?? 0) > 0 && (
             <ul className={css.tags}>

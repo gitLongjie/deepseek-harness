@@ -48,7 +48,7 @@ kind: "package-reference"
 <details>
 <summary>实现内部 — 点击展开</summary>
 
-插件以 wire 命名空间 `expertHub` 与同名服务键扩展 `TypertRemoteService`。它投影 `catalog`（市场 `expert` 分类）、`installEntry`、`uninstall`、`plaza`、`uploadable`、`detail`、`publishModule` 与 `installModule`。线名不用 `install` 或 `remove`，因为这两个名字会与 Remote 客户端的命名空间服务冲突。`plaza`、`uploadable` 与 `detail` 是读者读取；`publishModule` 与 `installModule` 是所有者动作。下载的模块经 `ctx.expertPublisher` 注册，因此不必重启即可聘用。`publishModule` 先读已保存的专家文件，否则读系统自带预设目录。
+插件以 wire 命名空间 `expertHub` 与同名服务键扩展 `TypertRemoteService`。它投影 `catalog`（市场 `expert` 分类）、`installEntry`、`uninstall`、`plaza`、`uploadable`、`versions`、`detail`、`publishModule` 与 `installModule`。线名不用 `install` 或 `remove`，因为这两个名字会与 Remote 客户端的命名空间服务冲突。`plaza`、`uploadable`、`versions` 与 `detail` 是读者读取；`publishModule` 与 `installModule` 是所有者动作。下载的模块经 `ctx.expertPublisher` 注册，因此不必重启即可聘用。`publishModule` 先读已保存的专家文件，否则读系统自带预设目录。`versions` 返回每份本机专家已保存的版本；从广场安装的专家还会带上已发布版本，供卡片判断能否更新。
 
 | 文件 | 职责 |
 |---|---|

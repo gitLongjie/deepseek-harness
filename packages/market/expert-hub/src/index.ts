@@ -16,10 +16,10 @@ import type { Market as MarketService, MarketBundleId, MarketEntryRef } from '@d
 import { TypertRemoteService, Remote } from '@deepseek-ai/dsh-typert-protocol'
 // Typert-generated ./typert and ./remote artifacts import Zod at runtime.
 import type {} from 'zod'
-import { readPublishedExpert } from '@deepseek-ai/dsh-expert-publish/src/publish.ts'
+import { listPublishedExperts, readPublishedExpert } from '@deepseek-ai/dsh-expert-publish/src/publish.ts'
 import {
   DEFAULT_EXPERT_HUB_ORIGIN, fetchExpertPlaza, installExpertModule, publishExpertDocument, publishLocalExpert,
-  readRemoteExpert, uploadableExpertIds, installedExpertVersions,
+  readRemoteExpert, uploadableExpertIds, installedExpertVersions, versionRows,
 } from './online.ts'
 import { collectShippedExperts, type ShippedExpert } from './shipped.ts'
 import type {
@@ -34,6 +34,7 @@ import type {
   ExpertModuleResult,
   ExpertPlazaPage,
   ExpertUploadable,
+  ExpertVersionPage,
 } from './types.ts'
 
 /** Gateway key the sign-in writes. Upload calls token-api as that user. */
@@ -143,6 +144,23 @@ export class ExpertHubGateway extends TypertRemoteService {
         return installed === undefined ? card : { ...card, installedVersion: installed }
       }),
     }
+  }
+
+  /**
+   * Versions saved on this machine. A plaza install also carries the published
+   * version, so the card can offer an update when that version is higher.
+   * @returns those rows. A plaza read that fails still returns the saved versions.
+   */
+  @Remote('versions')
+  async versions(): Promise<ExpertVersionPage> {
+    const publisher = this.publisher()
+    const stored = publisher === undefined ? [] : await listPublishedExperts(publisher.root)
+    const listed = await fetchExpertPlaza(this.origin)
+    const remote = new Map<string, string>()
+    if (listed.ok) {
+      for (const card of listed.cards) remote.set(card.slug, card.version)
+    }
+    return { entries: versionRows(stored, remote, this.shippedVersions) }
   }
 
   /**

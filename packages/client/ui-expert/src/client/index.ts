@@ -22,7 +22,7 @@ import type {} from '@deepseek-ai/dsh-api-remotes/client'
 // Type-only: the shipped roster row shape the market admits experts from.
 import type { AgentPresetRow } from '@deepseek-ai/dsh-agent-preset-registry/types'
 // Type-only: installable hub rows merged beside the roster.
-import type { ExpertHubCatalog } from '@deepseek-ai/dsh-expert-hub/types'
+import type { ExpertHubCatalog, ExpertVersionPage } from '@deepseek-ai/dsh-expert-hub/types'
 // The expert marker the market admits by — the same predicate the mode
 // surfaces exclude by, so the two rules cannot drift. The display fold is
 // the shared inline-safe home a client bundle may inline.
@@ -102,6 +102,24 @@ function recordOf(
 }
 
 /**
+ * Saved version fields for one roster id.
+ * @param id - roster id.
+ * @param versions - rows from `expertHub.versions`.
+ * @returns the saved version and, for a plaza install, the published version.
+ */
+function versionFields(
+  id: string,
+  versions: ReadonlyMap<string, ExpertVersionPage['entries'][number]>,
+): Pick<ExpertRecord, 'installedVersion' | 'remoteVersion'> {
+  const saved = versions.get(id)
+  if (saved === undefined) return {}
+  return {
+    installedVersion: saved.version,
+    ...(saved.remoteVersion === undefined ? {} : { remoteVersion: saved.remoteVersion }),
+  }
+}
+
+/**
  * Register the nav row and the page once their slot declarations are on the
  * ledger. The inject factories return plain callbacks; wire failures surface
  * as thrown errors the components render as their retry states.
@@ -133,10 +151,17 @@ export function apply(ctx: Context): void {
         (result): ReadonlySet<string> => (result.ok ? new Set(result.value.ids) : new Set()),
         (): ReadonlySet<string> => new Set(),
       )
+      const versions = await ctx.remote.expertHub.versions().then(
+        (result): ReadonlyMap<string, ExpertVersionPage['entries'][number]> => (
+          result.ok ? new Map(result.value.entries.map(entry => [entry.id, entry])) : new Map()
+        ),
+        (): ReadonlyMap<string, ExpertVersionPage['entries'][number]> => new Map(),
+      )
       const shipped = await ctx.remote.agentPresets.list().then(
         (result): readonly ExpertRecord[] => (result.ok
           ? result.value.presets.filter(isExpertPreset).map(preset => ({
             ...recordOf(preset, label),
+            ...versionFields(preset.id, versions),
             ...(uploadable.has(preset.id) ? { canUpload: true } : {}),
           }))
           : []),
@@ -157,6 +182,7 @@ export function apply(ctx: Context): void {
           ...(item.subtitle !== undefined ? { subtitle: item.subtitle } : {}),
           ...(item.category !== undefined ? { category: item.category } : {}),
           ...(item.tags !== undefined ? { tags: item.tags } : {}),
+          ...versionFields(item.id, versions),
         }))
       return { experts: [...shipped, ...fromHub] }
     },

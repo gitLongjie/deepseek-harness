@@ -102,6 +102,7 @@ async function bench(remote: RemoteStub) {
   > => ({ ok: true, value: { id: 'geo', name: 'GEO' } }))
   ctx.provide('remote.expertHub', {
     uploadable: vi.fn(async () => ({ ok: true, value: { ids: [] } })),
+    versions: vi.fn(async () => ({ ok: true, value: { entries: [] } })),
     catalog: vi.fn(async () => ({ ok: true, value: [] })),
     plaza: vi.fn(async () => ({ ok: true, value: { cards: [] } })),
     publishModule: vi.fn(async () => ({ ok: false, error: { message: 'absent' } })),

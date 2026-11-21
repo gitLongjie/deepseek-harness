@@ -312,6 +312,55 @@ describe('ExpertBrowser', () => {
     })
   })
 
+  it('shows a saved version and updates a plaza install when the published version is higher', async () => {
+    const install = vi.fn(async () => undefined)
+    mount({
+      load: vi.fn(async () => ({
+        experts: [{
+          id: 'u7-geo', name: '已装专家', trust: 'user' as const,
+          installedVersion: '1.0.0', remoteVersion: '1.1.0',
+        }],
+      })),
+      install,
+      loadPlaza: vi.fn(async () => ({
+        experts: [{
+          id: 'u7-geo', name: '广场专家', trust: 'user' as const,
+          installedVersion: '1.0.0', remoteVersion: '1.0.0',
+        }],
+      })),
+    })
+    await waitFor(() => {
+      expect(screen.getByText('版本 1.0.0 → 1.1.0')).toBeTruthy()
+    })
+    fireEvent.click(screen.getByRole('button', { name: '更新' }))
+    await waitFor(() => {
+      expect(install).toHaveBeenCalledWith('u7-geo')
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: '专家广场' }))
+    await waitFor(() => {
+      expect(screen.getByText('已是最新')).toBeTruthy()
+    })
+    expect(screen.getByText('版本 1.0.0')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: '更新' })).toBeNull()
+  })
+
+  it('does not offer a downgrade when the saved copy is newer than the plaza', async () => {
+    const loadPlaza = vi.fn(async () => ({
+      experts: [{
+        id: 'u7-geo', name: '广场专家', trust: 'user' as const,
+        installedVersion: '2.0.0', remoteVersion: '1.0.0',
+      }],
+    }))
+    mount({ load: vi.fn(async () => ({ experts: [] })), loadPlaza })
+    fireEvent.click(screen.getByRole('button', { name: '专家广场' }))
+    await waitFor(() => {
+      expect(screen.getByText('版本 2.0.0 → 1.0.0')).toBeTruthy()
+    })
+    expect(screen.queryByRole('button', { name: '更新' })).toBeNull()
+    expect(screen.queryByText('已是最新')).toBeNull()
+  })
+
   it('shows why an upload stopped', async () => {
     const publish = vi.fn(async () => '登录后才能上传专家')
     mount({

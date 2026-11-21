@@ -12,7 +12,7 @@ Status: implemented
 
 任何已登录的 token-api 用户把模块发布到 `/api/expert-hub`。服务器根据会话盖上作者，并把 zip 存在该条目上。公开 id 是 `u{userId}-{localId}`，只含小写字母、数字和短横线，最长 64 个字符。同一版本而字节不同会被拒绝；更高的 `x.y.z` 替换该条目并立即发布。当前版本的相同字节按已是当前版本成功。owner id 为 0 的条目和别人的 slug 不能被替换。
 
-专家页有两个模块。我的专家上传本账号保存在本机的卡片（`origin` 缺省或为 `mine`），也上传目录不在 `.agent-presets` 下的系统自带预设。卡片的详情对话框读取人设和技能标题。专家广场下载或更新公开模块，安装之后才能聘用。下载经与 `publish_expert` 相同的 `ctx.expertPublisher` 注册，名单 id 等于公开 slug，`origin` 为 `plaza`。从广场安装的专家，以及 `.agent-presets` 下的包副本，不能再上传。宿主保存人设、技能和卡片字段，不执行包里的脚本。工具名仍是本机已经安装的宿主包。
+专家页有两个模块。我的专家上传本账号保存在本机的卡片（`origin` 缺省或为 `mine`），也上传目录不在 `.agent-presets` 下的系统自带预设。卡片的详情对话框读取人设和技能标题。每张卡片显示已保存或已发布的版本。从广场安装的专家，在已发布版本更高时可以更新。专家广场下载或更新公开模块，安装之后才能聘用。下载经与 `publish_expert` 相同的 `ctx.expertPublisher` 注册，名单 id 等于公开 slug，`origin` 为 `plaza`。从广场安装的专家，以及 `.agent-presets` 下的包副本，不能再上传。宿主保存人设、技能和卡片字段，不执行包里的脚本。工具名仍是本机已经安装的宿主包。
 
 上传使用 `DEEPAGENS_API_KEY`。origin 默认是 `https://claw.deepagens.com`，可以用插件的 `origin` 字段改掉。npm 的 `catalog`、`installEntry` 和 `uninstall` 仍是商店路径。
 

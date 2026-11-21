@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { publishExpert, type ExpertPublisher } from '@deepseek-ai/dsh-expert-publish/src/publish.ts'
 import {
   fetchExpertPlaza, installedExpertVersions, installExpertModule, publishExpertDocument, publishLocalExpert,
-  readRemoteExpert, uploadableExpertIds,
+  readRemoteExpert, uploadableExpertIds, versionRows,
 } from '../src/online.ts'
 
 const directories: string[] = []
@@ -296,6 +296,22 @@ describe('online expert modules', () => {
         { slug: 'num-author', name: '数字作者', version: '1.0.0' },
       ],
     })
+  })
+
+  it('pairs a plaza install with a newer published version and keeps an upload local', () => {
+    expect(versionRows(
+      [
+        { id: 'mine', version: '1.0.0', remoteSlug: 'u1-mine', origin: 'mine' },
+        { id: 'u7-geo', version: '1.0.0', remoteSlug: 'u7-geo', origin: 'plaza' },
+        { id: 'plain', origin: 'mine' },
+      ],
+      new Map([['u1-mine', '2.0.0'], ['u7-geo', '1.1.0']]),
+      new Map([['geo-optimizer', '1.0.1'], ['u7-geo', '9.0.0']]),
+    )).toEqual([
+      { id: 'mine', version: '1.0.0' },
+      { id: 'u7-geo', version: '1.0.0', remoteVersion: '1.1.0' },
+      { id: 'geo-optimizer', version: '1.0.1' },
+    ])
   })
 })
 

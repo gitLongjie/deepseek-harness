@@ -6,7 +6,7 @@
  */
 
 import { listPublishedExperts, publishExpert, readPublishedExpert, type ExpertPublisher } from '@deepseek-ai/dsh-expert-publish/src/publish.ts'
-import type { ExpertModuleCard, ExpertModuleResult } from './types.ts'
+import type { ExpertModuleCard, ExpertModuleResult, ExpertVersionRow } from './types.ts'
 
 /** Gateway origin used when the plugin config omits one. */
 export const DEFAULT_EXPERT_HUB_ORIGIN = 'https://claw.deepagens.com'
@@ -117,6 +117,46 @@ export async function installExpertModule(
 export async function uploadableExpertIds(root: string): Promise<readonly string[]> {
   const stored = await listPublishedExperts(root)
   return stored.filter(expert => expert.origin !== 'plaza').map(expert => expert.id)
+}
+
+/**
+ * Pair saved versions with the plaza version a plaza install can update to.
+ * A card this account uploaded keeps its local version only: downloading the
+ * public slug would register a second roster id.
+ * @param stored - experts saved on this machine.
+ * @param remote - plaza slug to published version.
+ * @param shipped - versions recorded for shipped presets that have no saved file.
+ * @returns one row per saved or shipped version.
+ */
+export function versionRows(
+  stored: readonly {
+    id: string
+    version?: string
+    remoteSlug?: string
+    origin?: 'mine' | 'plaza'
+  }[],
+  remote: ReadonlyMap<string, string>,
+  shipped: ReadonlyMap<string, string> = new Map(),
+): ExpertVersionRow[] {
+  const entries: ExpertVersionRow[] = []
+  const seen = new Set<string>()
+  for (const expert of stored) {
+    if (expert.version === undefined) continue
+    seen.add(expert.id)
+    const remoteVersion = expert.origin === 'plaza'
+      ? remote.get(expert.remoteSlug ?? expert.id)
+      : undefined
+    entries.push({
+      id: expert.id,
+      version: expert.version,
+      ...(remoteVersion === undefined ? {} : { remoteVersion }),
+    })
+  }
+  for (const [id, version] of shipped) {
+    if (seen.has(id)) continue
+    entries.push({ id, version })
+  }
+  return entries
 }
 
 /**

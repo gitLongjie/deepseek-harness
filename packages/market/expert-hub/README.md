@@ -48,7 +48,7 @@ The gateway is a pure projection: a call whose underlying service rejects propag
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The plugin extends `TypertRemoteService` with the wire namespace `expertHub` and the same service key. It projects `catalog` (the market `expert` category), `installEntry`, `uninstall`, `plaza`, `uploadable`, `detail`, `publishModule`, and `installModule`. The wire names are not `install` or `remove`, because those names collide with the Remote client's namespace service. `plaza`, `uploadable`, and `detail` are reader reads; `publishModule` and `installModule` are owner actions. A downloaded module is registered through `ctx.expertPublisher`, so it is hireable without a restart. `publishModule` reads a saved expert file first and otherwise the shipped preset directory.
+The plugin extends `TypertRemoteService` with the wire namespace `expertHub` and the same service key. It projects `catalog` (the market `expert` category), `installEntry`, `uninstall`, `plaza`, `uploadable`, `versions`, `detail`, `publishModule`, and `installModule`. The wire names are not `install` or `remove`, because those names collide with the Remote client's namespace service. `plaza`, `uploadable`, `versions`, and `detail` are reader reads; `publishModule` and `installModule` are owner actions. A downloaded module is registered through `ctx.expertPublisher`, so it is hireable without a restart. `publishModule` reads a saved expert file first and otherwise the shipped preset directory. `versions` returns the version saved for each local expert; a plaza install also carries the published version when that copy can be updated.
 
 | File | Owns |
 |---|---|

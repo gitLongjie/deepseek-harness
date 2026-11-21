@@ -57,6 +57,7 @@ async function bench() {
     agentPresets,
     expertHub: {
       uploadable: () => Promise.resolve({ ok: true as const, value: { ids: [] as string[] } }),
+      versions: () => Promise.resolve({ ok: true as const, value: { entries: [] as { id: string; version: string }[] } }),
       catalog: () => Promise.resolve({ ok: true as const, value: [] }),
       plaza: () => Promise.resolve({ ok: true as const, value: { cards: [] } }),
       publishModule: () => Promise.resolve({ ok: false as const, error: { message: 'absent' } }),

@@ -356,6 +356,13 @@ describe('shipped and saved expert uploads', () => {
         { slug: 'other', name: '其他', version: '1.0.0' },
       ],
     })
+    await expect(gateway.versions()).resolves.toEqual({
+      entries: [{ id: 'mine', version: '1.0.0' }],
+    })
+    vi.stubGlobal('fetch', async () => { throw new Error('offline') })
+    await expect(gateway.versions()).resolves.toEqual({
+      entries: [{ id: 'mine', version: '1.0.0' }],
+    })
     vi.stubGlobal('fetch', async () => new Response(JSON.stringify({
       success: true,
       data: { name: '下载', description: '说明', persona: '人设', version: '1.0.0' },

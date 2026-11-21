@@ -51,6 +51,7 @@ export const VIEWER_ENDPOINT_CLASSES = {
   'expertHub/catalog': 'reader-global-read', // the expert page reads installable expert cards
   'expertHub/plaza': 'reader-global-read', // the expert page reads the public expert plaza
   'expertHub/uploadable': 'reader-global-read', // the expert page learns which local cards can be uploaded
+  'expertHub/versions': 'reader-global-read', // the expert page reads saved versions and a newer plaza version
   'expertHub/detail': 'reader-global-read', // the expert page reads one card's persona and skills
   'llm/listConfigurableProviders': 'reader-global-read', // the page reads the configurable provider catalog
   'llm/listProviders': 'reader-global-read', // the page lists providers
