@@ -371,4 +371,28 @@ describe('shipped and saved expert uploads', () => {
       ok: true, slug: 'u7-download', version: '1.0.0',
     })
   })
+
+  it('marks a published shipped expert on the plaza and on my experts', async () => {
+    const gateway = signed()
+    gateway.shipped = [SHIPPED]
+    vi.stubGlobal('fetch', async (input: string | URL) => {
+      const url = String(input)
+      const mine = url.endsWith('/api/expert-hub/mine')
+      return new Response(JSON.stringify({
+        success: true,
+        data: mine
+          ? { items: [{ slug: 'u7-geo-optimizer', version: '1.0.0', owner_id: 7 }, { slug: 'u7-gone', version: '9.0.0', owner_id: 7 }] }
+          : { items: [{ id: 'u7-geo-optimizer', name: 'GEO 优化专家', version: '1.0.0' }, { id: 'u7-gone', name: '已删', version: '9.0.0' }] },
+      }), { status: 200, headers: { 'content-type': 'application/json' } })
+    })
+    await expect(gateway.plaza()).resolves.toEqual({
+      cards: [
+        { slug: 'u7-geo-optimizer', name: 'GEO 优化专家', version: '1.0.0', ownedVersion: '1.0.0' },
+        { slug: 'u7-gone', name: '已删', version: '9.0.0' },
+      ],
+    })
+    await expect(gateway.versions()).resolves.toEqual({
+      entries: [{ id: 'geo-optimizer', version: '1.0.0' }],
+    })
+  })
 })

@@ -361,6 +361,36 @@ describe('ExpertBrowser', () => {
     expect(screen.queryByText('已是最新')).toBeNull()
   })
 
+  it('treats a plaza module this account already published as the local expert', async () => {
+    const install = vi.fn(async () => undefined)
+    const loadPlaza = vi.fn(async () => ({
+      experts: [{
+        id: 'u7-geo-optimizer', name: 'GEO 优化专家', trust: 'user' as const,
+        remoteVersion: '1.0.0', ownedVersion: '1.0.0', subtitle: 'brige',
+      }],
+    }))
+    mount({
+      load: vi.fn(async () => ({
+        experts: [{
+          id: 'geo-optimizer', name: 'GEO 优化专家', trust: 'user' as const,
+          installedVersion: '1.0.0', canUpload: true,
+        }],
+      })),
+      install,
+      loadPlaza,
+    })
+    await waitFor(() => {
+      expect(screen.getByText('版本 1.0.0')).toBeTruthy()
+    })
+    fireEvent.click(screen.getByRole('button', { name: '专家广场' }))
+    await waitFor(() => {
+      expect(screen.getByText('已是最新')).toBeTruthy()
+    })
+    expect(screen.queryByRole('button', { name: '下载' })).toBeNull()
+    expect(screen.queryByRole('button', { name: '聘用到新对话' })).toBeNull()
+    expect(install).not.toHaveBeenCalled()
+  })
+
   it('shows why an upload stopped', async () => {
     const publish = vi.fn(async () => '登录后才能上传专家')
     mount({

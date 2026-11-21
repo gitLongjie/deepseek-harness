@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { publishExpert, type ExpertPublisher } from '@deepseek-ai/dsh-expert-publish/src/publish.ts'
 import {
   fetchExpertPlaza, installedExpertVersions, installExpertModule, publishExpertDocument, publishLocalExpert,
-  readRemoteExpert, uploadableExpertIds, versionRows,
+  readRemoteExpert, uploadableExpertIds, versionRows, localIdFromOwnerSlug, fetchOwnedExpertModules,
 } from '../src/online.ts'
 
 const directories: string[] = []
@@ -312,6 +312,37 @@ describe('online expert modules', () => {
       { id: 'u7-geo', version: '1.0.0', remoteVersion: '1.1.0' },
       { id: 'geo-optimizer', version: '1.0.1' },
     ])
+  })
+
+  it('reads the local id from a module this account published', async () => {
+    expect(localIdFromOwnerSlug('u7-geo-optimizer', 7)).toBe('geo-optimizer')
+    expect(localIdFromOwnerSlug('u7-geo-optimizer', 8)).toBeUndefined()
+    expect(localIdFromOwnerSlug('u7-', 7)).toBeUndefined()
+    expect(localIdFromOwnerSlug('geo-optimizer', 7)).toBeUndefined()
+
+    const listed: typeof fetch = async () => jsonResponse({
+      success: true,
+      data: {
+        items: [
+          { slug: 'u7-geo-optimizer', version: '1.0.0', owner_id: 7 },
+          { slug: 'u8-other', version: '2.0.0', owner_id: 8 },
+          { slug: 'kept', version: '1.0.0', owner_id: 7 },
+          { name: '缺字段' },
+        ],
+      },
+    })
+    await expect(fetchOwnedExpertModules('https://example.test', 'token', listed)).resolves.toEqual({
+      ok: true,
+      modules: [
+        { slug: 'u7-geo-optimizer', version: '1.0.0', localId: 'geo-optimizer' },
+        { slug: 'u8-other', version: '2.0.0', localId: 'other' },
+      ],
+    })
+    const failed: typeof fetch = async () => { throw new Error('offline') }
+    await expect(fetchOwnedExpertModules('https://example.test', 'token', failed)).resolves.toEqual({
+      ok: false,
+      message: 'offline',
+    })
   })
 })
 

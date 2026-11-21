@@ -19,7 +19,7 @@ function messageOf(error: unknown): string {
 
 /** The version a card shows: the saved one, the plaza one, or both when they differ. */
 function versionText(record: ExpertRecord): string | undefined {
-  const installed = record.installedVersion
+  const installed = record.installedVersion ?? record.ownedVersion
   const remote = record.remoteVersion
   if (installed !== undefined && remote !== undefined && installed !== remote) return `${installed} → ${remote}`
   return installed ?? remote
@@ -429,7 +429,7 @@ export function ExpertBrowser({
                             : uploadedIds.has(record.id) ? t('card.uploaded') : t('card.upload')}
                         </button>
                       )}
-                      {section === 'plaza' && record.installedVersion === undefined && (
+                      {section === 'plaza' && record.installedVersion === undefined && record.ownedVersion === undefined && (
                         <button
                           type="button"
                           className={css.hire}
@@ -447,7 +447,7 @@ export function ExpertBrowser({
                           {t('card.update')}
                         </button>
                       )}
-                      {section === 'plaza' && record.installedVersion !== undefined && record.installedVersion === record.remoteVersion && (
+                      {section === 'plaza' && (record.installedVersion ?? record.ownedVersion) !== undefined && (record.installedVersion ?? record.ownedVersion) === record.remoteVersion && (
                         <span className={css.defaultMark}>{t('card.latest')}</span>
                       )}
                       {section === 'mine' && versionIsNewer(record.remoteVersion, record.installedVersion) && (

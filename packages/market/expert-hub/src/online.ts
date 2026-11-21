@@ -164,6 +164,58 @@ export function versionRows(
  * @param root - published-experts directory.
  * @returns slug to version.
  */
+/**
+ * Local roster id encoded in a slug this account published.
+ * The public id is `u{ownerId}-{localId}`.
+ * @param slug - plaza slug.
+ * @param ownerId - account id stamped on that module.
+ * @returns the local id, when the slug uses that prefix and the remainder is a roster id.
+ */
+export function localIdFromOwnerSlug(slug: string, ownerId: number): string | undefined {
+  if (!Number.isInteger(ownerId) || ownerId <= 0) return undefined
+  const prefix = `u${String(ownerId)}-`
+  if (!slug.startsWith(prefix)) return undefined
+  const localId = slug.slice(prefix.length)
+  return /^[a-z][a-z0-9-]{0,63}$/.test(localId) ? localId : undefined
+}
+
+/** One module this account published, tied back to its local roster id. */
+export interface OwnedExpertModule {
+  readonly slug: string
+  readonly version: string
+  readonly localId: string
+}
+
+/**
+ * List modules the signed-in account published.
+ * @param origin - token-api origin.
+ * @param token - the signed-in gateway key.
+ * @param fetchImpl - HTTP implementation.
+ * @returns those modules. A transport failure names the reason.
+ */
+export async function fetchOwnedExpertModules(
+  origin: string,
+  token: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ ok: true; modules: OwnedExpertModule[] } | { ok: false; message: string }> {
+  const response = await callJson(origin, '/api/expert-hub/mine', { token }, fetchImpl)
+  if (!response.ok) return response
+  const items = response.data?.items
+  if (!Array.isArray(items)) return { ok: true, modules: [] }
+  const modules: OwnedExpertModule[] = []
+  for (const item of items) {
+    if (!isRecord(item)) continue
+    const slug = item.slug
+    const version = item.version
+    const ownerId = item.owner_id
+    if (typeof slug !== 'string' || typeof version !== 'string' || typeof ownerId !== 'number') continue
+    const localId = localIdFromOwnerSlug(slug, ownerId)
+    if (localId === undefined) continue
+    modules.push({ slug, version, localId })
+  }
+  return { ok: true, modules }
+}
+
 export async function installedExpertVersions(root: string): Promise<ReadonlyMap<string, string>> {
   const stored = await listPublishedExperts(root)
   const versions = new Map<string, string>()

@@ -88,6 +88,11 @@ export interface ExpertModuleCard {
   readonly author?: string
   /** Version saved on this machine, when the slug is already installed. */
   readonly installedVersion?: string
+  /**
+   * Version this account already published from a local expert that is still
+   * on the roster. The plaza card does not offer a second download.
+   */
+  readonly ownedVersion?: string
 }
 
 /** Result of uploading or installing one module. */

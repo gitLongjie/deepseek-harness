@@ -63,6 +63,11 @@ export interface ExpertRecord {
   readonly remoteVersion?: string
   /** Version already saved on this machine. */
   readonly installedVersion?: string
+  /**
+   * Version this account published from a local expert that is still on the
+   * roster. The plaza card does not offer another download of that module.
+   */
+  readonly ownedVersion?: string
 }
 
 /** Persona and skill titles loaded for one card's detail view. */

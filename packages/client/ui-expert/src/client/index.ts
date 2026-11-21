@@ -200,6 +200,7 @@ export function apply(ctx: Context): void {
           ...(card.tags !== undefined ? { tags: [...card.tags] } : {}),
           remoteVersion: card.version,
           ...(card.installedVersion !== undefined ? { installedVersion: card.installedVersion } : {}),
+          ...(card.ownedVersion !== undefined ? { ownedVersion: card.ownedVersion } : {}),
         })),
         ...(result.value.message === undefined ? {} : { message: result.value.message }),
       }

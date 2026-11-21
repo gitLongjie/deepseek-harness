@@ -20,6 +20,7 @@ import { listPublishedExperts, readPublishedExpert } from '@deepseek-ai/dsh-expe
 import {
   DEFAULT_EXPERT_HUB_ORIGIN, fetchExpertPlaza, installExpertModule, publishExpertDocument, publishLocalExpert,
   readRemoteExpert, uploadableExpertIds, installedExpertVersions, versionRows,
+  fetchOwnedExpertModules, type OwnedExpertModule,
 } from './online.ts'
 import { collectShippedExperts, type ShippedExpert } from './shipped.ts'
 import type {
@@ -138,10 +139,16 @@ export class ExpertHubGateway extends TypertRemoteService {
     const listed = await fetchExpertPlaza(this.origin)
     if (!listed.ok) return { cards: [], message: listed.message }
     const versions = await this.savedVersions()
+    const owned = await this.ownedBySlug()
     return {
       cards: listed.cards.map((card) => {
         const installed = versions.get(card.slug)
-        return installed === undefined ? card : { ...card, installedVersion: installed }
+        const ownedVersion = owned.get(card.slug)
+        return {
+          ...card,
+          ...(installed === undefined ? {} : { installedVersion: installed }),
+          ...(ownedVersion === undefined ? {} : { ownedVersion }),
+        }
       }),
     }
   }
@@ -160,7 +167,53 @@ export class ExpertHubGateway extends TypertRemoteService {
     if (listed.ok) {
       for (const card of listed.cards) remote.set(card.slug, card.version)
     }
-    return { entries: versionRows(stored, remote, this.shippedVersions) }
+    const entries = versionRows(stored, remote, this.shippedVersions)
+    const seen = new Set(entries.map(entry => entry.id))
+    const present = await this.presentLocalIds()
+    for (const module of await this.ownedModules()) {
+      if (seen.has(module.localId) || !present.has(module.localId)) continue
+      entries.push({ id: module.localId, version: module.version })
+      seen.add(module.localId)
+    }
+    return { entries }
+  }
+
+  /**
+   * Plaza slugs this account published from a local expert that is still here.
+   * @returns slug to published version. An unsigned session or a failed read is empty.
+   */
+  private async ownedBySlug(): Promise<ReadonlyMap<string, string>> {
+    const present = await this.presentLocalIds()
+    const versions = new Map<string, string>()
+    for (const module of await this.ownedModules()) {
+      if (present.has(module.localId)) versions.set(module.slug, module.version)
+    }
+    return versions
+  }
+
+  /**
+   * Modules this account published. A missing token or a failed read is empty.
+   * @returns those modules.
+   */
+  private async ownedModules(): Promise<readonly OwnedExpertModule[]> {
+    const token = await this.gatewayToken()
+    if (token === undefined) return []
+    const listed = await fetchOwnedExpertModules(this.origin, token)
+    return listed.ok ? listed.modules : []
+  }
+
+  /**
+   * Roster ids that already have a local expert: a saved file or a shipped preset.
+   * @returns those ids.
+   */
+  private async presentLocalIds(): Promise<ReadonlySet<string>> {
+    const ids = new Set<string>()
+    const publisher = this.publisher()
+    if (publisher !== undefined) {
+      for (const expert of await listPublishedExperts(publisher.root)) ids.add(expert.id)
+    }
+    for (const expert of await this.shippedExperts()) ids.add(expert.id)
+    return ids
   }
 
   /**
