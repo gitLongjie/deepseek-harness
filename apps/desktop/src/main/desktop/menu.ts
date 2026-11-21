@@ -74,10 +74,17 @@ export function installApplicationMenu(
     {
       id: 'window',
       label: t('menu.window'),
+      // Fullscreen rebuilds the menu bar from the menu registered with
+      // NSApp.setWindowsMenu. Electron does that only for role `windowMenu`;
+      // without it the green light leaves every submenu empty.
+      ...(process.platform === 'darwin' ? { role: 'windowMenu' as const } : {}),
       submenu: [
         { role: 'minimize', label: t('menu.minimize') },
         { role: 'zoom', label: t('menu.zoom') },
         { role: 'close', label: t('menu.closeWindow') },
+        ...(process.platform === 'darwin'
+          ? [{ type: 'separator' as const }, { role: 'front' as const, label: t('menu.front') }]
+          : []),
         { type: 'separator' },
         // Closing hides to the tray (desktop/tray.ts), so a restore entry is
         // the keyboard-reachable way back that the tray click cannot serve.

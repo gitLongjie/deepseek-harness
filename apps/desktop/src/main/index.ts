@@ -32,7 +32,7 @@ import { copy, normalizeLocale, type DesktopLocaleId, type DesktopTextKey } from
 import { pinWindowTitle, resolveDesktopWindowTitle } from './desktop/window-title.ts'
 import { resolveAppUserModelId } from './desktop/app-user-model-id.ts'
 import { installApplicationMenu, registerMenuPopupIpc } from './desktop/menu.ts'
-import { resolveWindowChrome, toggleWindowZoom } from './desktop/window-chrome.ts'
+import { resolveWindowChrome, syncDarwinTrafficLights, toggleWindowZoom } from './desktop/window-chrome.ts'
 import { initUpdater, registerUpdateIpc, setUpdaterLocale } from './updater.ts'
 import { installNotificationActivation, notifyTurnCompletion } from './desktop/completion-notification.ts'
 import {
@@ -562,10 +562,11 @@ function createWindow(): BrowserWindow {
     // taskbar hover tooltip and alt-tab label; page-title-updated must not
     // leak session projections there (pinWindowTitle blocks adoption).
     title: DESKTOP_PRODUCT_NAME,
-    // Frameless on every platform (desktop/window-chrome.ts). The renderer
-    // draws the title bar (render/title-bar.ts) and drives it over the
-    // window-control IPC channels below, so popup content can paint over the
-    // bar instead of sitting under a native caption.
+    // Windows and Linux are frameless; macOS keeps a hidden title bar
+    // (desktop/window-chrome.ts). The renderer draws the title bar
+    // (render/title-bar.ts) and drives it over the window-control IPC
+    // channels below, so popup content can paint over the bar instead of
+    // sitting under native traffic lights.
     ...resolveWindowChrome(process.platform),
     backgroundColor: '#ffffff',
     webPreferences: {
@@ -576,14 +577,22 @@ function createWindow(): BrowserWindow {
     },
   })
   pinWindowTitle(win)
+  // Native lights stay hidden while the renderer draws them. Fullscreen shows
+  // them in the system menu bar; a hidden title bar with no lights slides
+  // down empty and the menu contents are gone.
+  if (process.platform === 'darwin') syncDarwinTrafficLights(win, false)
   // Native fullscreen hides the system chrome, so the renderer bar must follow:
   // render/title-bar.ts listens on this channel and hides the bar (with the
   // body's top shift) while the window is fullscreen.
   win.on('enter-full-screen', () => {
-    if (!win.isDestroyed()) win.webContents.send('dsh:window:fullscreen-change', true)
+    if (win.isDestroyed()) return
+    if (process.platform === 'darwin') syncDarwinTrafficLights(win, true)
+    win.webContents.send('dsh:window:fullscreen-change', true)
   })
   win.on('leave-full-screen', () => {
-    if (!win.isDestroyed()) win.webContents.send('dsh:window:fullscreen-change', false)
+    if (win.isDestroyed()) return
+    if (process.platform === 'darwin') syncDarwinTrafficLights(win, false)
+    win.webContents.send('dsh:window:fullscreen-change', false)
   })
   win.once('ready-to-show', () => { win.show() })
   return win

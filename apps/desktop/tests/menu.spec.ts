@@ -114,6 +114,19 @@ beforeEach(() => {
 })
 
 describe('application menu template', () => {
+  it('registers the macOS Window menu so fullscreen keeps submenu contents', () => {
+    const realPlatform = process.platform
+    Object.defineProperty(process, 'platform', { value: 'darwin' })
+    try {
+      installApplicationMenu(key => copy('zh', 'miaoWorker')[key], HELP_DOCS_URL)
+      const windowMenu = findItem(state.template, 'window')
+      expect(windowMenu?.role).toBe('windowMenu')
+      expect(windowMenu?.submenu?.some(item => item.role === 'front' && item.label === '全部置于顶层')).toBe(true)
+    } finally {
+      Object.defineProperty(process, 'platform', { value: realPlatform })
+    }
+  })
+
   it('installs top-level menus addressable by the title bar ids', () => {
     expect(state.menu).toBeDefined()
     for (const id of ['edit', 'view', 'window', 'help']) {

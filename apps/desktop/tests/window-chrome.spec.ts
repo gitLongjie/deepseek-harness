@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { resolveWindowChrome, toggleWindowZoom, type WindowZoomHost } from '../src/main/desktop/window-chrome.ts'
+import { resolveWindowChrome, syncDarwinTrafficLights, toggleWindowZoom, type WindowZoomHost } from '../src/main/desktop/window-chrome.ts'
 
 function zoomHost(state: { full: boolean; max: boolean }): WindowZoomHost & { full: boolean; max: boolean } {
   const host = {
@@ -15,11 +15,19 @@ function zoomHost(state: { full: boolean; max: boolean }): WindowZoomHost & { fu
 }
 
 describe('desktop window chrome', () => {
-  it('draws a frameless window on every platform, including macOS', () => {
-    expect(resolveWindowChrome('darwin')).toEqual({ frame: false })
+  it('keeps a hidden macOS title bar and a frameless window elsewhere', () => {
+    expect(resolveWindowChrome('darwin')).toEqual({ titleBarStyle: 'hidden', trafficLightPosition: { x: 12, y: 12 } })
     expect(resolveWindowChrome('win32')).toEqual({ frame: false })
     expect(resolveWindowChrome('linux')).toEqual({ frame: false })
     expect(resolveWindowChrome('freebsd')).toEqual({ frame: false })
+  })
+
+  it('shows native macOS lights only while fullscreen', () => {
+    const calls: boolean[] = []
+    const win = { setWindowButtonVisibility: (visible: boolean) => { calls.push(visible) } }
+    syncDarwinTrafficLights(win, false)
+    syncDarwinTrafficLights(win, true)
+    expect(calls).toEqual([false, true])
   })
 
   it('toggles fullscreen on macOS and maximized bounds elsewhere', () => {

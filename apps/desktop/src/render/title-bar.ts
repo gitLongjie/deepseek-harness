@@ -1,10 +1,11 @@
 /**
  * Desktop-only custom title bar, installed by the render entry before the web
- * app boots. The window is frameless on every platform, so this module draws
- * the bar inside the page: Windows and Linux lead with the 编辑/视图/窗口/帮助
- * menu buttons (no brand mark — the sidebar owns the product identity), the
- * drag region, and the window controls; macOS draws traffic-light controls on
- * the left (the system menu bar owns the menus) and the same drag region.
+ * app boots. Windows and Linux are frameless and macOS uses a hidden title
+ * bar, so this module draws the bar inside the page: Windows and Linux lead
+ * with the 编辑/视图/窗口/帮助 menu buttons (no brand mark — the sidebar
+ * owns the product identity), the drag region, and the window controls.
+ * macOS draws traffic-light controls on the left (the system menu bar owns
+ * the menus) and the same drag region.
  * The bar sits below portaled menus, toasts, and modal layers, and it publishes
  * the top inset those overlays already clear, so popup content is not trapped
  * under a native caption. Linux keeps the menu buttons and swaps the Windows
