@@ -65,7 +65,7 @@ jobs:
           for i in 1 2 3 4 5; do
             if curl -s -f --retry 3 --retry-delay 2 -H "Authorization: Bearer $GH_TOKEN" \
               "https://api.github.com/repos/$GITHUB_REPOSITORY/releases?per_page=100" \
-              | TAG="$TAG" node -p "const d = JSON.parse(require('fs').readFileSync(0, 'utf8')); JSON.stringify(d.filter(r => r.draft && r.tag_name === process.env.TAG).map(r => r.id))" \
+              | TAG="$TAG" node -p "const d = JSON.parse(require('fs').readFileSync(0, 'utf8')); d.filter(r => r.draft && r.tag_name === process.env.TAG).map(r => r.id).join(' ')" \
               > "$RUNNER_TEMP/stale-draft-ids"; then
               fetched="1"
               break
