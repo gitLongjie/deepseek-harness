@@ -11,7 +11,7 @@ import {
 import type {
   Market, MarketBundleId, MarketCatalogEntry, MarketCatalogPage, MarketEntryId, MarketSourceId,
 } from '@deepseek-ai/dsh-market'
-import { publishExpert, type ExpertPublisher } from '@deepseek-ai/dsh-expert-publish/src/publish.ts'
+import { publishExpert, type ExpertPublisher } from '@deepseek-ai/dsh-expert-publish/publish'
 import ExpertHubGateway from '../src/index.ts'
 import type { ShippedExpert } from '../src/shipped.ts'
 import type { ExpertHubBundleId, ExpertHubEntryId, ExpertHubSourceId } from '../src/types.ts'

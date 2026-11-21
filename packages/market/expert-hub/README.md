@@ -34,7 +34,7 @@ Mount the plugin on a host that also provides a `ctx.market` implementation; it 
 
 ### Minimal configuration
 
-`origin` is optional and defaults to `https://claw.deepagens.com`. The expert page and the host Remote assembly are the consumers. Upload and plaza download also need `dsh-credentials` and `dsh-expert-publish` on the host; without them those methods return a refusal and the npm catalog still works.
+`origin` is optional and defaults to `https://claw.deepagens.com`. The expert page and the host Remote assembly are the consumers. Upload and plaza download also need `dsh-credentials` and `@deepseek-ai/dsh-expert-publish/publish` on the host; without them those methods return a refusal and the npm catalog still works.
 
 ### What can go wrong
 

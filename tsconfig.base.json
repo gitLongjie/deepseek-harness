@@ -480,6 +480,7 @@
       "@deepseek-ai/dsh-deque": ["./packages/util/deque/src"],
       "@deepseek-ai/dsh-expert-hub": ["./packages/market/expert-hub/src"],
       "@deepseek-ai/dsh-expert-publish": ["./packages/preset/expert-publish/src"],
+      "@deepseek-ai/dsh-expert-publish/publish": ["./packages/preset/expert-publish/src/publish.ts"],
       "@deepseek-ai/dsh-file-reference": ["./packages/context/file-reference/src"],
       "@deepseek-ai/dsh-file-reference-local": ["./packages/context/file-reference-local/src"],
       "@deepseek-ai/dsh-fs": ["./packages/fs/fs/src"],

@@ -5,7 +5,7 @@
  * @module @deepseek-ai/dsh-expert-hub/online
  */
 
-import { listPublishedExperts, publishExpert, readPublishedExpert, type ExpertPublisher } from '@deepseek-ai/dsh-expert-publish/src/publish.ts'
+import { listPublishedExperts, publishExpert, readPublishedExpert, type ExpertPublisher } from '@deepseek-ai/dsh-expert-publish/publish'
 import type { ExpertModuleCard, ExpertModuleResult, ExpertVersionRow } from './types.ts'
 
 /** Gateway origin used when the plugin config omits one. */

@@ -11,12 +11,12 @@ import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type {} from '@deepseek-ai/dsh-expert-publish'
-import type { ExpertPublisher } from '@deepseek-ai/dsh-expert-publish/src/publish.ts'
+import type { ExpertPublisher } from '@deepseek-ai/dsh-expert-publish/publish'
 import type { Market as MarketService, MarketBundleId, MarketEntryRef } from '@deepseek-ai/dsh-market'
 import { TypertRemoteService, Remote } from '@deepseek-ai/dsh-typert-protocol'
 // Typert-generated ./typert and ./remote artifacts import Zod at runtime.
 import type {} from 'zod'
-import { listPublishedExperts, readPublishedExpert } from '@deepseek-ai/dsh-expert-publish/src/publish.ts'
+import { listPublishedExperts, readPublishedExpert } from '@deepseek-ai/dsh-expert-publish/publish'
 import {
   DEFAULT_EXPERT_HUB_ORIGIN, fetchExpertPlaza, installExpertModule, publishExpertDocument, publishLocalExpert,
   readRemoteExpert, uploadableExpertIds, installedExpertVersions, versionRows,

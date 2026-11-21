@@ -41,7 +41,7 @@ Web profile 插入这一行。工具登记在宿主的工具服务上，所以�
 
 一轮里用户文本对上之后，第一步会追加一条通知，里面是稳定 id：`expert-` 加上显示名的十二位十六进制。模型用这个 id、人设，以及可选的标签、推荐问题和技能正文调用 `publish_expert`。调用写入 `expert.json` 和 `skills/published-expert/SKILL.md`，然后 `agentPresets.register`。同一个 id 会替换上一次登记。部署里已经有的 id 会被拒绝。
 
-如果这一轮结束时没有调用 `publish_expert`，插件用分享文本发布一张短卡片，并且仅当这个 id 还不是它自己拥有的。专家页打开时读取名单，所以不用重启就能看见卡片。
+如果这一轮结束时没有调用 `publish_expert`，插件用分享文本发布一张短卡片，并且仅当这个 id 还不是它自己拥有的。专家页打开时读取名单，所以不用重启就能看见卡片。其他宿主包从 `@deepseek-ai/dsh-expert-publish/publish` 引入这些名单辅助函数，这是编译后的 JavaScript 模块。
 
 <details>
 <summary>实现内部 — 点击展开</summary>

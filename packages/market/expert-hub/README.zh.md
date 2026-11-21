@@ -34,7 +34,7 @@ kind: "package-reference"
 
 ### 最小配置
 
-`origin` 可选，默认是 `https://claw.deepagens.com`。专家页与宿主 Remote 装配是消费方。上传和广场下载还需要宿主上的 `dsh-credentials` 与 `dsh-expert-publish`；没有它们时这两个方法返回拒绝，npm 目录仍然可用。
+`origin` 可选，默认是 `https://claw.deepagens.com`。专家页与宿主 Remote 装配是消费方。上传和广场下载还需要宿主上的 `dsh-credentials` 与 `@deepseek-ai/dsh-expert-publish/publish`；没有它们时这两个方法返回拒绝，npm 目录仍然可用。
 
 ### 什么会出错
 

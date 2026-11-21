@@ -6,7 +6,7 @@
 
 import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { expertDraftProblem, fitExpertDraft } from '@deepseek-ai/dsh-expert-publish/src/publish.ts'
+import { expertDraftProblem, fitExpertDraft } from '@deepseek-ai/dsh-expert-publish/publish'
 
 /** Roster fields needed to turn a preset directory into an upload document. */
 export interface ShippedPresetRow {

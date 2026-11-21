@@ -2,7 +2,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { publishExpert, type ExpertPublisher } from '@deepseek-ai/dsh-expert-publish/src/publish.ts'
+import { publishExpert, type ExpertPublisher } from '@deepseek-ai/dsh-expert-publish/publish'
 import {
   fetchExpertPlaza, installedExpertVersions, installExpertModule, publishExpertDocument, publishLocalExpert,
   readRemoteExpert, uploadableExpertIds, versionRows, localIdFromOwnerSlug, fetchOwnedExpertModules,

@@ -41,7 +41,7 @@ The web profile inserts this row. Every agent sees `publish_expert` because the 
 
 On the first step of a turn whose user text matches, the plugin appends a notice that names the stable id `expert-` plus twelve hex characters of the display name. The model calls `publish_expert` with that id, the persona, and optional tags, prompts, and skill markdown. The call writes `expert.json` and `skills/published-expert/SKILL.md`, then `agentPresets.register`. The same id replaces the previous registration. An id the deployment already registered is refused.
 
-If that turn ends with no `publish_expert` call, the plugin publishes a short card from the share text, and only when that id is not already one it owns. The expert page reads the roster when it opens, so the card is there without restarting.
+If that turn ends with no `publish_expert` call, the plugin publishes a short card from the share text, and only when that id is not already one it owns. The expert page reads the roster when it opens, so the card is there without restarting. Other host packages import these roster helpers from `@deepseek-ai/dsh-expert-publish/publish`, the built JavaScript module.
 
 <details>
 <summary>Implementation internals — click to expand</summary>
