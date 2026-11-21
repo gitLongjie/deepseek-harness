@@ -391,6 +391,43 @@ describe('ExpertBrowser', () => {
     expect(install).not.toHaveBeenCalled()
   })
 
+  it('keeps an upload off a card whose version already matches the plaza', async () => {
+    const publish = vi.fn(async () => '已是当前版本')
+    mount({
+      load: vi.fn(async () => ({
+        experts: [{
+          id: 'geo-optimizer', name: 'GEO 优化专家', trust: 'user' as const,
+          installedVersion: '1.0.0', remoteVersion: '1.0.0', canUpload: true,
+        }],
+      })),
+      publish,
+    })
+    await waitFor(() => {
+      expect(screen.getByText('已是最新')).toBeTruthy()
+    })
+    expect(screen.queryByRole('button', { name: '上传' })).toBeNull()
+    expect(publish).not.toHaveBeenCalled()
+  })
+
+  it('does not mark an already-current upload as a new upload', async () => {
+    const publish = vi.fn(async () => '已是当前版本')
+    mount({
+      load: vi.fn(async () => ({
+        experts: [{ id: 'mine', name: '本地专家', trust: 'user' as const, canUpload: true }],
+      })),
+      publish,
+    })
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: '上传' })).toBeTruthy()
+    })
+    fireEvent.click(screen.getByRole('button', { name: '上传' }))
+    await waitFor(() => {
+      expect(screen.getByText('已是最新')).toBeTruthy()
+    })
+    expect(screen.queryByRole('button', { name: '已上传' })).toBeNull()
+    expect(publish).toHaveBeenCalledWith('mine')
+  })
+
   it('shows why an upload stopped', async () => {
     const publish = vi.fn(async () => '登录后才能上传专家')
     mount({

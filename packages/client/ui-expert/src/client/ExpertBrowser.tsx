@@ -228,6 +228,11 @@ export function ExpertBrowser({
           setReloadToken(token => token + 1)
           return
         }
+        if (refused === '已是当前版本') {
+          showNotice(t('card.latest'))
+          setReloadToken(token => token + 1)
+          return
+        }
         const message = refused === '' ? t('card.uploadFailed') : refused
         showNotice(message)
         setActionError(message)
@@ -416,7 +421,7 @@ export function ExpertBrowser({
                       >
                         {t('card.details')}
                       </button>
-                      {section === 'mine' && record.canUpload === true && (
+                      {section === 'mine' && record.canUpload === true && !(record.installedVersion !== undefined && record.installedVersion === record.remoteVersion) && (
                         <button
                           type="button"
                           className={css.remove}
@@ -428,6 +433,9 @@ export function ExpertBrowser({
                             ? t('card.uploading')
                             : uploadedIds.has(record.id) ? t('card.uploaded') : t('card.upload')}
                         </button>
+                      )}
+                      {section === 'mine' && record.installedVersion !== undefined && record.installedVersion === record.remoteVersion && (
+                        <span className={css.defaultMark}>{t('card.latest')}</span>
                       )}
                       {section === 'plaza' && record.installedVersion === undefined && record.ownedVersion === undefined && (
                         <button
@@ -450,7 +458,7 @@ export function ExpertBrowser({
                       {section === 'plaza' && (record.installedVersion ?? record.ownedVersion) !== undefined && (record.installedVersion ?? record.ownedVersion) === record.remoteVersion && (
                         <span className={css.defaultMark}>{t('card.latest')}</span>
                       )}
-                      {section === 'mine' && versionIsNewer(record.remoteVersion, record.installedVersion) && (
+                      {section === 'mine' && record.canUpload !== true && versionIsNewer(record.remoteVersion, record.installedVersion) && (
                         <button
                           type="button"
                           className={css.hire}

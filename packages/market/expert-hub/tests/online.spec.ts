@@ -93,6 +93,19 @@ describe('online expert modules', () => {
     expect(versions).toEqual(['1.0.0', '1.0.1'])
   })
 
+  it('does not report a new upload when the published bytes are already current', async () => {
+    const directory = await root()
+    const live = publisher(directory)
+    await publishExpert(live, { ...DRAFT, version: '1.0.0' })
+    const fetchImpl: typeof fetch = async () => jsonResponse({
+      success: true,
+      message: '已是当前版本',
+      data: { slug: 'u7-geo-prelaunch', version: '1.0.0' },
+    })
+    await expect(publishLocalExpert('https://example.test', 'token', live, DRAFT.id, fetchImpl))
+      .resolves.toEqual({ ok: false, message: '已是当前版本' })
+  })
+
   it('refuses to upload a plaza install', async () => {
     const directory = await root()
     const live = publisher(directory)

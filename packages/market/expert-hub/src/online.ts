@@ -320,6 +320,7 @@ async function postModule(
     },
   }, fetchImpl)
   if (!response.ok) return response
+  if (response.message === '已是当前版本') return { ok: false, message: '已是当前版本' }
   const data = response.data
   if (data === undefined) return { ok: false, message: '上传没有返回专家 id' }
   const slug = typeof data.slug === 'string' ? data.slug : undefined
@@ -417,7 +418,7 @@ async function callJson(
   path: string,
   init: { token?: string; body?: unknown } | undefined,
   fetchImpl: typeof fetch,
-): Promise<{ ok: true; data?: Record<string, unknown> } | { ok: false; message: string }> {
+): Promise<{ ok: true; data?: Record<string, unknown>; message?: string } | { ok: false; message: string }> {
   let response: Response
   try {
     response = await fetchImpl(`${origin}${path}`, {
@@ -445,7 +446,7 @@ async function callJson(
       : `专家广场请求失败 (${String(response.status)})`
     return { ok: false, message }
   }
-  return { ok: true, ...(isRecord(parsed.data) ? { data: parsed.data } : {}) }
+  return { ok: true, ...(isRecord(parsed.data) ? { data: parsed.data } : {}), ...(typeof parsed.message === 'string' && parsed.message !== '' ? { message: parsed.message } : {}) }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

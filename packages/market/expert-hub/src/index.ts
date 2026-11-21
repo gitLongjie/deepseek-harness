@@ -168,12 +168,17 @@ export class ExpertHubGateway extends TypertRemoteService {
       for (const card of listed.cards) remote.set(card.slug, card.version)
     }
     const entries = versionRows(stored, remote, this.shippedVersions)
-    const seen = new Set(entries.map(entry => entry.id))
     const present = await this.presentLocalIds()
     for (const module of await this.ownedModules()) {
-      if (seen.has(module.localId) || !present.has(module.localId)) continue
-      entries.push({ id: module.localId, version: module.version })
-      seen.add(module.localId)
+      if (!present.has(module.localId)) continue
+      const index = entries.findIndex(entry => entry.id === module.localId)
+      if (index < 0) {
+        entries.push({ id: module.localId, version: module.version, remoteVersion: module.version })
+        continue
+      }
+      const current = entries[index]
+      if (current === undefined || current.remoteVersion !== undefined) continue
+      entries[index] = { ...current, remoteVersion: module.version }
     }
     return { entries }
   }

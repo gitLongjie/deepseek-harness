@@ -392,7 +392,7 @@ describe('shipped and saved expert uploads', () => {
       ],
     })
     await expect(gateway.versions()).resolves.toEqual({
-      entries: [{ id: 'geo-optimizer', version: '1.0.0' }],
+      entries: [{ id: 'geo-optimizer', version: '1.0.0', remoteVersion: '1.0.0' }],
     })
   })
 })
