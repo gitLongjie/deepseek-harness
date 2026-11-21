@@ -272,6 +272,7 @@ const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
   'packages/market/market': { kind: 'indirect', reason: 'The service contract registers no prompt, tool schema, or event payload; CLI, gateway, and web consumers own every projection.' },
   'packages/market/market-local': { kind: 'indirect', reason: 'The provider delegates catalog and install rendering to the CLI, gateway, and web consumers.' },
   'packages/market/market-gateway': { kind: 'indirect', reason: 'The wire projection forwards calls verbatim; served clients own any model-facing effect.' },
+  'packages/market/expert-hub': { kind: 'indirect', reason: 'The wire projection forwards signed-in calls verbatim; served clients own every model-facing effect.' },
   'packages/kb/kb': { kind: 'indirect', reason: 'The service contract registers no prompt, tool schema, or event payload; gateway and web consumers own every projection.' },
   'packages/kb/kb-weknora': { kind: 'indirect', reason: 'The provider delegates listing rendering to the gateway and the web sidebar section.' },
   'packages/kb/kb-gateway': { kind: 'indirect', reason: 'The wire projection forwards read calls verbatim; served clients own any model-facing effect.' },

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-expert-hub` puts the market's `expert` category behind the host's authenticated web gateway: the expert page reads installable expert cards and starts installs through this projection instead of reaching the market service directly. The same gateway lists, uploads, and installs online expert modules on the token-api expert hub, and reads one card's persona for its detail dialog. Every call arrives from a signed-in client, so the gateway forwards opaque source, entry, and bundle ids verbatim and lets `dsh-market-local` keep resolving names, versions, and commands on the host. Upload uses the signed-in `DEEPAGENS_API_KEY`. A saved card (`origin` absent or `mine`) and a shipped preset whose directory is outside `.agent-presets` can be uploaded. A plaza install cannot.
+`dsh-expert-hub` puts the market's `expert` category behind the host's authenticated web gateway: the expert page reads installable cards and starts installs through this projection rather than the market service directly. The gateway also lists, uploads, and installs online expert modules on the token-api expert hub and reads a card's persona for its detail dialog. All calls arrive signed-in, so it forwards opaque source, entry, and bundle ids verbatim and lets `dsh-market-local` resolve names, versions, and commands on the host. Upload uses the signed-in `DEEPAGENS_API_KEY`; saved cards (`origin` absent or `mine`) and presets outside `.agent-presets` can upload; plaza installs cannot.
 
 ## Table of Contents
 
