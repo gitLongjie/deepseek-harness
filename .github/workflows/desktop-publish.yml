@@ -189,6 +189,39 @@ jobs:
           NARB_ARCH=arm64 pnpm --dir native/system run build:native
           NARB_ARCH=x64 pnpm --dir native/system run build:native
 
+      # electron-builder refuses to upload into a published release older than
+      # two hours and skips its assets with a green job (observed on the
+      # v1.2.15 windows rerun, two minutes past the window). Re-running a
+      # single failed platform job does not re-run create-release, so the
+      # release can be stale; cycle it through draft and back when it is older
+      # than 45 minutes — that resets published_at and reopens the upload
+      # window with headroom for the packaging that follows. A full rerun
+      # re-runs create-release, so this sees a fresh release and does nothing.
+      - name: Refresh release upload freshness
+        shell: bash
+        run: |
+          TAG="v$(node -p "require('./apps/desktop/package.json').version")"
+          RELEASE=$(curl -s -f --retry 3 --retry-delay 2 -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/$TAG")
+          ID=$(echo "$RELEASE" | node -p "const d = JSON.parse(require('fs').readFileSync(0, 'utf8')); d.draft ? '' : String(d.id)")
+          if [ -z "$ID" ]; then
+            echo "release is a draft or absent; uploads are unrestricted"
+            exit 0
+          fi
+          AGE_MIN=$(echo "$RELEASE" | node -p "const d = JSON.parse(require('fs').readFileSync(0, 'utf8')); Math.floor((Date.now() - new Date(d.published_at).getTime()) / 60000)")
+          echo "release $ID published $AGE_MIN minutes ago"
+          if [ "$AGE_MIN" -lt 45 ]; then
+            echo "inside the upload window; nothing to refresh"
+            exit 0
+          fi
+          curl -s -f -o /dev/null -X PATCH -H "Authorization: Bearer $GH_TOKEN" -H "Content-Type: application/json" \
+            -d '{"draft":true}' "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/$ID"
+          curl -s -f -o /dev/null -X PATCH -H "Authorization: Bearer $GH_TOKEN" -H "Content-Type: application/json" \
+            -d '{"draft":false}' "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/$ID"
+          echo "release refreshed past the two-hour upload guard"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
       # Package the --dir artifact and boot it under the smoke harness, and
       # only after the smoke passes run the full release build with
       # --publish always (same rev), which attaches the installers, blockmaps,
@@ -211,6 +244,26 @@ jobs:
           # tsc/vite/rolldown processes exceed it and the runner is killed
           # mid-build (the job reports "cancelled" and uploads no logs).
           NODE_OPTIONS: --max-old-space-size=4096
+
+      # The freshness refresh can race a sibling platform job's cycle when two
+      # failed jobs rerun together and leave the release a draft — the updater
+      # feed must be public. Re-publish whatever state survived.
+      - name: Ensure the release is published
+        shell: bash
+        run: |
+          TAG="v$(node -p "require('./apps/desktop/package.json').version")"
+          ID=$(curl -s -f --retry 3 --retry-delay 2 -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/$TAG" \
+            | node -p "const d = JSON.parse(require('fs').readFileSync(0, 'utf8')); d.draft ? String(d.id) : ''")
+          if [ -z "$ID" ]; then
+            echo "release is published"
+            exit 0
+          fi
+          curl -s -f -o /dev/null -X PATCH -H "Authorization: Bearer $GH_TOKEN" -H "Content-Type: application/json" \
+            -d '{"draft":false}' "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/$ID"
+          echo "draft release re-published"
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - uses: actions/upload-artifact@v7
         with:
