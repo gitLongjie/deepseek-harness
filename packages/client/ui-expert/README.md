@@ -34,7 +34,7 @@ The web bundle mounts the plugin by default; remove the row to turn the surface 
 
 ### Minimal configuration
 
-No config of its own: the page renders the roster the deployment ships — presets that publish card metadata present as hireable experts, and the rest of the roster stays out. The page has two modules. My experts is that roster: each card opens a detail dialog with its description, persona, and skill titles. A card this account saved locally, and a shipped expert loaded from outside `.agent-presets`, can be uploaded. A healthy card can be hired into a new chat or saved as the new-task default. Expert plaza lists modules published on the gateway: a missing one is downloaded, a different version is updated, and hire appears after it is installed. The new-session chip opens this page. The default card shows that badge.
+No config of its own: the page renders the roster the deployment ships — presets that publish card metadata present as hireable experts, and the rest of the roster stays out. The page has two modules. My experts is that roster: each card opens a detail dialog with its description, persona, and skill titles. A card this account saved locally, and a shipped expert loaded from outside `.agent-presets`, can be uploaded. The card shows when that upload finishes, or why it stopped. A healthy card can be hired into a new chat or saved as the new-task default. Expert plaza lists modules published on the gateway: a missing one is downloaded, a different version is updated, and hire appears after it is installed. The new-session chip opens this page. The default card shows that badge.
 
 ### What can go wrong
 

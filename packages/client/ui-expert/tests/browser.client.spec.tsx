@@ -299,6 +299,7 @@ describe('ExpertBrowser', () => {
     fireEvent.click(screen.getByRole('button', { name: '上传' }))
     await waitFor(() => {
       expect(publish).toHaveBeenCalledWith('mine')
+      expect(screen.getByRole('button', { name: '已上传' }).hasAttribute('disabled')).toBe(true)
     })
 
     fireEvent.click(screen.getByRole('button', { name: '专家广场' }))
@@ -309,6 +310,24 @@ describe('ExpertBrowser', () => {
     await waitFor(() => {
       expect(install).toHaveBeenCalledWith('u7-geo')
     })
+  })
+
+  it('shows why an upload stopped', async () => {
+    const publish = vi.fn(async () => '登录后才能上传专家')
+    mount({
+      load: vi.fn(async () => ({
+        experts: [{ id: 'mine', name: '本地专家', trust: 'user' as const, canUpload: true }],
+      })),
+      publish,
+    })
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: '上传' })).toBeTruthy()
+    })
+    fireEvent.click(screen.getByRole('button', { name: '上传' }))
+    await waitFor(() => {
+      expect(screen.getAllByText('登录后才能上传专家').length).toBeGreaterThan(0)
+    })
+    expect(screen.getByRole('button', { name: '上传' }).hasAttribute('disabled')).toBe(false)
   })
 
   it('opens a detail dialog with the persona and skills', async () => {

@@ -8,7 +8,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
-import { Modal } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Modal, Toast } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ExpertBrowserProps, ExpertDetailView, ExpertRecord } from './contract/slots.ts'
 import css from './ExpertBrowser.module.css'
 
@@ -115,6 +115,9 @@ export function ExpertBrowser({
   const [detailId, setDetailId] = useState<string | null>(null)
   const [detailView, setDetailView] = useState<ExpertDetailView | undefined>(undefined)
   const [detailLoading, setDetailLoading] = useState(false)
+  const [uploadingId, setUploadingId] = useState<string | null>(null)
+  const [uploadedIds, setUploadedIds] = useState<ReadonlySet<string>>(() => new Set())
+  const [notice, setNotice] = useState<{ key: number; text: string; tone?: 'success' } | undefined>(undefined)
   const detailToken = useRef(0)
 
   useEffect(() => {
@@ -174,6 +177,42 @@ export function ExpertBrowser({
     detailToken.current += 1
     setDetailId(null)
     setDetailLoading(false)
+  }
+
+  /** Tell the person the upload finished, or why it stopped. */
+  const showNotice = (text: string, tone?: 'success'): void => {
+    setNotice(current => ({ key: (current?.key ?? 0) + 1, text, ...(tone === undefined ? {} : { tone }) }))
+  }
+
+  /**
+   * Upload one card. The button changes immediately; the banner reports the outcome.
+   * A finished upload stays marked on that card so a silent list reload is not the only signal.
+   */
+  const uploadCard = (id: string): void => {
+    if (uploadingId !== null) return
+    setArmedRemove(null)
+    setActionError(null)
+    setUploadingId(id)
+    void publish(id).then(
+      (refused) => {
+        setUploadingId(current => (current === id ? null : current))
+        if (refused === undefined) {
+          setUploadedIds(current => new Set(current).add(id))
+          showNotice(t('card.uploaded'), 'success')
+          setReloadToken(token => token + 1)
+          return
+        }
+        const message = refused === '' ? t('card.uploadFailed') : refused
+        showNotice(message)
+        setActionError(message)
+      },
+      (error: unknown) => {
+        setUploadingId(current => (current === id ? null : current))
+        const message = messageOf(error)
+        showNotice(message === '' ? t('card.uploadFailed') : message)
+        setActionError(message === '' ? t('card.uploadFailed') : message)
+      },
+    )
   }
 
   /** Upload, download, or update one module, then re-read the open section. */
@@ -352,9 +391,13 @@ export function ExpertBrowser({
                         <button
                           type="button"
                           className={css.remove}
-                          onClick={() => { runModule(() => publish(record.id)) }}
+                          disabled={uploadingId !== null || uploadedIds.has(record.id)}
+                          aria-busy={uploadingId === record.id}
+                          onClick={() => { uploadCard(record.id) }}
                         >
-                          {t('card.upload')}
+                          {uploadingId === record.id
+                            ? t('card.uploading')
+                            : uploadedIds.has(record.id) ? t('card.uploaded') : t('card.upload')}
                         </button>
                       )}
                       {section === 'plaza' && record.installedVersion === undefined && (
@@ -452,6 +495,16 @@ export function ExpertBrowser({
         t={t}
         onClose={closeDetail}
       />
+      {notice !== undefined && (
+        <Toast
+          key={notice.key}
+          text={notice.text}
+          {...(notice.tone === undefined ? {} : { tone: notice.tone })}
+          onDone={() => {
+            setNotice(current => (current?.key === notice.key ? undefined : current))
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -480,7 +533,14 @@ function ExpertDetail({
 }) {
   const open = record !== undefined
   return (
-    <Modal open={open} onClose={onClose} title={record?.name ?? ''} closeLabel={t('detail.close')}>
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={record?.name ?? ''}
+      closeLabel={t('detail.close')}
+      className={css.detailDialog ?? ''}
+      contentClassName={css.detailContent ?? ''}
+    >
       {record !== undefined && (
         <div className={css.detailBody}>
           {record.subtitle !== undefined && <p className={css.cardSubtitle}>{record.subtitle}</p>}

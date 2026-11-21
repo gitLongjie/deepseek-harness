@@ -329,6 +329,11 @@
   opacity: 0.8;
 }
 
+.remove:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
 .makeDefault:disabled {
   cursor: default;
   opacity: 0.6;
@@ -350,6 +355,29 @@
   line-height: 20px;
   color: var(--dsw-alias-label-secondary);
   background: var(--dsw-alias-interactive-bg-hover);
+}
+
+/* The card stays inside the modal's padding box. The header sticks; the
+   persona and skills scroll beneath it. */
+.detailDialog {
+  max-height: 100%;
+}
+
+.detailContent {
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+  --dsh-scrollbar-track-margin: 12px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.detailContent > :first-child {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--dsw-alias-bg-layer-2);
 }
 
 .detailBody {
