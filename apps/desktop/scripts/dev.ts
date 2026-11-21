@@ -188,8 +188,24 @@ async function launchBrandedWindowsElectron(): Promise<ReturnType<typeof spawn>>
   }
   resources.outputResource(executable)
   await writeBrandedExecutable(brandedExecutable, Buffer.from(executable.generate()))
+  try {
+    return spawnDevElectron(brandedExecutable)
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    if (code !== 'UNKNOWN') throw error
+    // Application control allows the published Electron hash and blocks the
+    // resource-rewritten file. The name still must not be electron.exe:
+    // Electron reports that name as unpackaged. An unmodified copy keeps the
+    // packaged report and the allowed hash.
+    console.error(`desktop dev: Windows application control blocked ${basename(brandedExecutable)}; launching an unmodified copy under the same name`)
+    await writeBrandedExecutable(brandedExecutable, readFileSync(electronExecutable))
+    return spawnDevElectron(brandedExecutable)
+  }
+}
 
-  return spawn(brandedExecutable, ['--expose-internals', root], { cwd: root, stdio: 'inherit', env: electronEnvironment })
+/** Start one dev Electron executable with the launcher's arguments and environment. */
+function spawnDevElectron(executable: string): ReturnType<typeof spawn> {
+  return spawn(executable, ['--expose-internals', root], { cwd: root, stdio: 'inherit', env: electronEnvironment })
 }
 
 /**

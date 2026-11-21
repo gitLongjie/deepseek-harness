@@ -94,6 +94,7 @@ describe('desktop builder identity', () => {
     expect(launcher).toContain('version.setFileVersion(desktopVersion)')
     expect(launcher).toContain('FileDescription: DESKTOP_PRODUCT_NAME')
     expect(launcher).toContain('writeBrandedExecutable(brandedExecutable, Buffer.from(executable.generate()))')
+    expect(launcher).toContain('writeBrandedExecutable(brandedExecutable, readFileSync(electronExecutable))')
     expect(launcher).toContain('writeFileSync(brandedExecutable, contents)')
     expect(launcher).toContain('DSH_DESKTOP_PRODUCT_NAME: DESKTOP_PRODUCT_NAME')
     expect(launcher).not.toContain('spawn(\'cmd.exe\', [\'/c\', \'pnpm\', \'exec\', \'electron\'')

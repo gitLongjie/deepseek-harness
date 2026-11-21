@@ -204,7 +204,7 @@ macOS 和 Linux 从图形界面启动的程序只继承会话管理器提供的�
 pnpm run dev:desktop
 ```
 
-`dev:desktop` 与打包启动把会话、设置、凭据、插件和包链接写入 Electron appData 下的 `DeepWorker/home`（Windows 为 `%APPDATA%\DeepWorker\home`），并把 agents 配置写入同级 `DeepWorker/agents`。浏览器数据就是这个 `DeepWorker` 目录。已经指向 `~/.dsh` 或 `~/.agents` 以外位置的 `DSH_HOME` 或 `DSH_AGENTS_HOME` 仍作为该次启动的数据根。选定的产品目录会补上这些共享目录，以及同一 appData 下更早的桌面数据目录（`miaoWorker`、`MindaWork`、`MeowWork`、`DeepWork`、`Deepagens-Worker` 和以前的显示名目录）里缺少或为空的顶层条目。已有内容的条目保持不动，更早的目录保持原样，复制失败会停止启动。一次性 npm 项目位于 `apps/desktop/.desktop-build/development/project`。Renderer DevTools 默认自动打开，Main、Renderer 和 dsh Host 调试端口依次为 9229、9222 和 9230。`DSH_DESKTOP_MAIN_INSPECT_PORT`、`DSH_DESKTOP_RENDERER_DEBUG_PORT` 与 `DSH_DESKTOP_HOST_INSPECT_PORT` 可以替换这些端口，`DSH_DESKTOP_OPEN_DEVTOOLS=0` 则保持 Renderer 调试窗口关闭。品牌化 dev 启动器会设置 `DSH_DESKTOP_DEV=1`，桌面 boot 用它静默产品分析行，因此开发会话不发出产品遥测。
+`dev:desktop` 与打包启动把会话、设置、凭据、插件和包链接写入 Electron appData 下的 `DeepWorker/home`（Windows 为 `%APPDATA%\DeepWorker\home`），并把 agents 配置写入同级 `DeepWorker/agents`。浏览器数据就是这个 `DeepWorker` 目录。已经指向 `~/.dsh` 或 `~/.agents` 以外位置的 `DSH_HOME` 或 `DSH_AGENTS_HOME` 仍作为该次启动的数据根。选定的产品目录会补上这些共享目录，以及同一 appData 下更早的桌面数据目录（`miaoWorker`、`MindaWork`、`MeowWork`、`DeepWork`、`Deepagens-Worker` 和以前的显示名目录）里缺少或为空的顶层条目。已有内容的条目保持不动，更早的目录保持原样，复制失败会停止启动。一次性 npm 项目位于 `apps/desktop/.desktop-build/development/project`。Renderer DevTools 默认自动打开，Main、Renderer 和 dsh Host 调试端口依次为 9229、9222 和 9230。`DSH_DESKTOP_MAIN_INSPECT_PORT`、`DSH_DESKTOP_RENDERER_DEBUG_PORT` 与 `DSH_DESKTOP_HOST_INSPECT_PORT` 可以替换这些端口，`DSH_DESKTOP_OPEN_DEVTOOLS=0` 则保持 Renderer 调试窗口关闭。品牌化 dev 启动器会设置 `DSH_DESKTOP_DEV=1`，桌面 boot 用它静默产品分析行，因此开发会话不发出产品遥测。Windows 上该启动器以产品名启动一份 Electron 副本，使进程报告为已打包。应用控制策略拦截改写过资源的文件时，它以同一文件名启动未改动的副本。
 
 显式构建完成后，`start:desktop` 会重新生成一次性项目，并跳过构建直接启动已有产物：
 
