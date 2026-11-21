@@ -57,9 +57,26 @@ jobs:
           # draft carrying THIS tag first; other tags' drafts are somebody
           # else's in-progress state and stay untouched. The delete goes by
           # numeric id and verifies, like the by-tag reset below.
-          curl -s -H "Authorization: Bearer $GH_TOKEN" \
-            "https://api.github.com/repos/$GITHUB_REPOSITORY/releases?per_page=100" \
-            | TAG="$TAG" node -p "const d = JSON.parse(require('fs').readFileSync(0, 'utf8')); JSON.stringify(d.filter(r => r.draft && r.tag_name === process.env.TAG).map(r => r.id))" > "$RUNNER_TEMP/stale-draft-ids"
+          # A silent curl failure leaves node an empty stdin and the reset would
+          # then run blind over a draft it never saw (observed once: a transient
+          # runner-side connect failure at 03:13Z). Retry the fetch and fail
+          # loud when it never succeeds.
+          fetched=""
+          for i in 1 2 3 4 5; do
+            if curl -s -f --retry 3 --retry-delay 2 -H "Authorization: Bearer $GH_TOKEN" \
+              "https://api.github.com/repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+              | TAG="$TAG" node -p "const d = JSON.parse(require('fs').readFileSync(0, 'utf8')); JSON.stringify(d.filter(r => r.draft && r.tag_name === process.env.TAG).map(r => r.id))" \
+              > "$RUNNER_TEMP/stale-draft-ids"; then
+              fetched="1"
+              break
+            fi
+            echo "release list attempt $i failed; retrying in 5s"
+            sleep 5
+          done
+          if [ "$fetched" != "1" ]; then
+            echo "the release list never succeeded; refusing to reset without checking stale drafts"
+            exit 1
+          fi
           for DRAFT_ID in $(cat "$RUNNER_TEMP/stale-draft-ids"); do
             echo "deleting stale draft release: $DRAFT_ID"
             curl -s -o /dev/null -w "delete draft by id: HTTP %{http_code}\n" -X DELETE \
