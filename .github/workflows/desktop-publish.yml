@@ -49,6 +49,33 @@ jobs:
         run: |
           TAG="v$(node -p "require('./apps/desktop/package.json').version")"
           echo "TAG=$TAG"
+          # A tag re-push turns the previous release into a draft (its tag ref
+          # was deleted). The by-tag lookup below cannot see drafts, but
+          # electron-builder still finds them, so the fresh installers landed
+          # on the stale draft while the release recreated further down stayed
+          # empty (observed twice on the v1.2.15 re-publishes). Delete every
+          # draft carrying THIS tag first; other tags' drafts are somebody
+          # else's in-progress state and stay untouched. The delete goes by
+          # numeric id and verifies, like the by-tag reset below.
+          curl -s -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+            | TAG="$TAG" node -p "const d = JSON.parse(require('fs').readFileSync(0, 'utf8')); JSON.stringify(d.filter(r => r.draft && r.tag_name === process.env.TAG).map(r => r.id))" > "$RUNNER_TEMP/stale-draft-ids"
+          for DRAFT_ID in $(cat "$RUNNER_TEMP/stale-draft-ids"); do
+            echo "deleting stale draft release: $DRAFT_ID"
+            curl -s -o /dev/null -w "delete draft by id: HTTP %{http_code}\n" -X DELETE \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/$DRAFT_ID"
+            for i in $(seq 1 24); do
+              code=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $GH_TOKEN" \
+                "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/$DRAFT_ID")
+              [ "$code" = "404" ] && { echo "stale draft deleted"; break; }
+              sleep 5
+            done
+            if [ "$code" != "404" ]; then
+              echo "the stale draft release (id $DRAFT_ID) survived deletion (HTTP $code); refusing to publish over it"
+              exit 1
+            fi
+          done
           # Reset so every platform uploads fresh assets; a missing release is
           # fine. electron-builder skips assets whose name already exists on
           # the release it finds, so a release that survives the delete leaves
