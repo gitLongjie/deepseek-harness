@@ -27,6 +27,8 @@ coverage/
 oxlint-contract-*.ts
 .humanize/
 tmp/
+# Local scratch output: run logs, recorded artifacts, throwaway checks.
+.tmp/
 .claude/commands/
 .claude/launch.json
 .claude/settings.json
@@ -58,6 +60,8 @@ apps/desktop/.release/
 apps/desktop/web/
 .desktop-release/
 apps/desktop/dist-electron/
+# Built installers staged locally for CDN upload.
+apps/desktop/cdn-upload/
 # The optional ComfyUI installer payload: machine-local program trees (GBs)
 # stay out of git; only the directory's README documents the contract.
 apps/desktop/resources/comfyui-dist/*
