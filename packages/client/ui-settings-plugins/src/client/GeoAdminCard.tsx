@@ -1,8 +1,9 @@
 /**
- * The 深度云海 configuration card: the backend address and publishing account
- * the GEO publishing tools sign in as, plus the account password. The password
- * is written through the credentials domain, never into the settings section,
- * so the literal never rides a response.
+ * The 深度云海 configuration card: the publishing account the GEO tools sign
+ * in as, plus the account password. The backend address stays in the settings
+ * section and is not shown here. The password is written through the
+ * credentials domain, never into the settings section, so the literal never
+ * rides a response.
  */
 
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
@@ -18,7 +19,7 @@ export type GeoAdminCardProps =
   & InjectFace<GeoAdminCardFace>
 
 /** Locale keys addressing one field's label and, when present, its hint. */
-type GeoLabelKey = 'geoBaseUrl' | 'geoUsername' | 'geoUsernameHint'
+type GeoLabelKey = 'geoUsername' | 'geoUsernameHint'
 
 /** One rendered section field: its DOM id, copy keys, and form field name. */
 interface FieldSpec {
@@ -28,9 +29,8 @@ interface FieldSpec {
   field: string
 }
 
-/** Every section field in display order. */
+/** Account fields shown on the card, in display order. The backend address is not one of them. */
 const FIELDS: readonly FieldSpec[] = [
-  { id: 'geo-admin-base-url', labelKey: 'geoBaseUrl', field: 'baseUrl' },
   { id: 'geo-admin-username', labelKey: 'geoUsername', hintKey: 'geoUsernameHint', field: 'username' },
 ]
 

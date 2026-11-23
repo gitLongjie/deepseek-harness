@@ -105,6 +105,8 @@ describe('深度云海 tools', () => {
       .toEqual({ missing: ['password'] })
     const saved = await call(ctx, 'geo_configure', { password: 'private-password' })
     expect(saved.value).toEqual({ missing: [] })
+    expect(contentText(saved)).toContain('Backend: http://localhost:8001.')
+    expect(contentText(saved)).toContain('Account: editor.')
     expect(JSON.stringify(saved)).not.toContain('private-password')
     backend({ access_token: 'tok', websites: [] }, { data: [] })
     expect((await call(ctx, 'geo_sites_list', {})).isError).toBeFalsy()

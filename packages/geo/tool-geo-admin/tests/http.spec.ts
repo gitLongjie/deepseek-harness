@@ -214,7 +214,9 @@ describe('geo-admin HTTP client', () => {
   it('reports the backend message on a rejected request', async () => {
     const transport = transportOf(answer({ message: '无效的用户名或密码' }, 401))
 
-    await expect(signIn(TARGET, SIGNAL, transport)).rejects.toThrow(/401: 无效的用户名或密码/)
+    await expect(signIn(TARGET, SIGNAL, transport)).rejects.toThrow(
+      'POST http://localhost:8001/api/v1/auth/login answered 401: 无效的用户名或密码',
+    )
   })
 
   it('falls back to the raw body when a failure carries no message', async () => {
@@ -240,7 +242,9 @@ describe('geo-admin HTTP client', () => {
   it('wraps a transport failure with the endpoint it tried', async () => {
     const transport = transportOf(new Error('fetch failed'))
 
-    await expect(signIn(TARGET, SIGNAL, transport)).rejects.toThrow(/POST \/api\/v1\/auth\/login could not be completed: fetch failed/)
+    await expect(signIn(TARGET, SIGNAL, transport)).rejects.toThrow(
+      'POST http://localhost:8001/api/v1/auth/login could not be completed: fetch failed',
+    )
   })
 })
 

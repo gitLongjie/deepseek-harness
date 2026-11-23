@@ -327,7 +327,9 @@ function asCategory(value: unknown, where: string): GeoCategory {
  * @param transport - the HTTP transport; defaults to the platform fetch.
  * @returns the parsed response body.
  * @throws GeoAdminError with code `http` on transport failure or a non-success status,
- *   and `response` when a successful status carries no JSON body.
+ *   and `response` when a successful status carries no JSON body. The message names
+ *   the absolute URL, so a failure against the configured origin is distinct from
+ *   one against another host.
  */
 async function requestJson(
   target: GeoAdminTarget,
@@ -343,9 +345,10 @@ async function requestJson(
   const headers: Record<string, string> = { accept: 'application/json' }
   if (body !== undefined) headers['content-type'] = 'application/json'
   if (token !== undefined) headers.authorization = `Bearer ${token}`
+  const url = endpoint(target, path)
   let response: Response
   try {
-    response = await transport(endpoint(target, path), {
+    response = await transport(url, {
       method,
       headers,
       // A credential-bearing request must never be forwarded to another origin.
@@ -354,7 +357,7 @@ async function requestJson(
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     })
   } catch (error) {
-    throw new GeoAdminError('http', `${method} ${path} could not be completed: ${transportFailure(error)}`)
+    throw new GeoAdminError('http', `${method} ${url} could not be completed: ${transportFailure(error)}`)
   }
   const text = await response.text()
   let parsed: unknown
@@ -367,9 +370,9 @@ async function requestJson(
     // successful status with one is a `response` failure.
   }
   if (!response.ok) {
-    throw new GeoAdminError('http', `${method} ${path} answered ${response.status}: ${failureMessage(json ? parsed : undefined, text)}`)
+    throw new GeoAdminError('http', `${method} ${url} answered ${response.status}: ${failureMessage(json ? parsed : undefined, text)}`)
   }
-  if (!json) throw new GeoAdminError('response', `${method} ${path} did not answer JSON`)
+  if (!json) throw new GeoAdminError('response', `${method} ${url} did not answer JSON`)
   return parsed
 }
 

@@ -2,7 +2,7 @@
 
 /** Locale keys the section renders. */
 export type PluginsSettingsLocaleKey = 'nav' | 'title' | 'intro' | 'tabs' | 'empty'
-  | 'overridden' | 'reset' | 'readOnly' | 'expand' | 'collapse' | 'save' | 'saving' | 'discard' | 'unsaved' | 'saveFailed' | 'invalidNumber' | 'geoTitle' | 'geoDescription' | 'geoBaseUrl' | 'geoUsername' | 'geoUsernameHint' | 'geoPassword' | 'geoPasswordHint' | 'geoPasswordSet' | 'geoPasswordUnset' | 'showPassword' | 'hidePassword' | 'h3Title' | 'h3Description' | 'h3MinimaxApiKey' | 'h3MinimaxApiKeyHint' | 'h3MinimaxApiKeySet' | 'h3MinimaxApiKeyUnset' | 'h3GpuApiToken' | 'h3GpuApiTokenHint' | 'h3GpuApiTokenSet' | 'h3GpuApiTokenUnset' | 'h3ComfyUrl' | 'h3ComfyUrlHint' | 'h3ComfyWorkflowPath' | 'h3ComfyWorkflowPathHint' | 'h3ComfyInputDir' | 'h3ComfyInputDirHint' | 'h3ComfyResolutions' | 'h3ComfyResolutionsHint' | 'h3ComfyMaxConcurrency' | 'h3ComfyMaxConcurrencyHint' | 'h3ComfyMinDuration' | 'h3ComfyMinDurationHint' | 'h3ComfyMaxDuration' | 'h3ComfyMaxDurationHint' | 'h3ComfyPollInterval' | 'h3ComfyPollIntervalHint' | 'h3ComfyTaskTimeout' | 'h3ComfyTaskTimeoutHint' | 'h3MinimaxApiKeyRef' | 'h3MinimaxApiKeyRefHint' | 'h3GpuApiTokenRef' | 'h3GpuApiTokenRefHint' | 'h3MinimaxBaseUrl' | 'h3MinimaxBaseUrlHint' | 'h3MinimaxModel' | 'h3MinimaxModelHint' | 'h3MinimaxResolutions' | 'h3MinimaxResolutionsHint' | 'h3MinimaxMinDuration' | 'h3MinimaxMinDurationHint' | 'h3MinimaxMaxDuration' | 'h3MinimaxMaxDurationHint' | 'h3MinimaxMaxConcurrency' | 'h3MinimaxMaxConcurrencyHint' | 'h3MinimaxPollInterval' | 'h3MinimaxPollIntervalHint' | 'h3MinimaxTaskTimeout' | 'h3MinimaxTaskTimeoutHint' | 'h3OutputDir' | 'h3OutputDirHint' | 'h3MinFreeSpaceMb' | 'h3MinFreeSpaceMbHint' | 'h3EstimatedBytesPerSecond' | 'h3EstimatedBytesPerSecondHint'
+  | 'overridden' | 'reset' | 'readOnly' | 'expand' | 'collapse' | 'save' | 'saving' | 'discard' | 'unsaved' | 'saveFailed' | 'invalidNumber' | 'geoTitle' | 'geoDescription' | 'geoUsername' | 'geoUsernameHint' | 'geoPassword' | 'geoPasswordHint' | 'geoPasswordSet' | 'geoPasswordUnset' | 'showPassword' | 'hidePassword' | 'h3Title' | 'h3Description' | 'h3MinimaxApiKey' | 'h3MinimaxApiKeyHint' | 'h3MinimaxApiKeySet' | 'h3MinimaxApiKeyUnset' | 'h3GpuApiToken' | 'h3GpuApiTokenHint' | 'h3GpuApiTokenSet' | 'h3GpuApiTokenUnset' | 'h3ComfyUrl' | 'h3ComfyUrlHint' | 'h3ComfyWorkflowPath' | 'h3ComfyWorkflowPathHint' | 'h3ComfyInputDir' | 'h3ComfyInputDirHint' | 'h3ComfyResolutions' | 'h3ComfyResolutionsHint' | 'h3ComfyMaxConcurrency' | 'h3ComfyMaxConcurrencyHint' | 'h3ComfyMinDuration' | 'h3ComfyMinDurationHint' | 'h3ComfyMaxDuration' | 'h3ComfyMaxDurationHint' | 'h3ComfyPollInterval' | 'h3ComfyPollIntervalHint' | 'h3ComfyTaskTimeout' | 'h3ComfyTaskTimeoutHint' | 'h3MinimaxApiKeyRef' | 'h3MinimaxApiKeyRefHint' | 'h3GpuApiTokenRef' | 'h3GpuApiTokenRefHint' | 'h3MinimaxBaseUrl' | 'h3MinimaxBaseUrlHint' | 'h3MinimaxModel' | 'h3MinimaxModelHint' | 'h3MinimaxResolutions' | 'h3MinimaxResolutionsHint' | 'h3MinimaxMinDuration' | 'h3MinimaxMinDurationHint' | 'h3MinimaxMaxDuration' | 'h3MinimaxMaxDurationHint' | 'h3MinimaxMaxConcurrency' | 'h3MinimaxMaxConcurrencyHint' | 'h3MinimaxPollInterval' | 'h3MinimaxPollIntervalHint' | 'h3MinimaxTaskTimeout' | 'h3MinimaxTaskTimeoutHint' | 'h3OutputDir' | 'h3OutputDirHint' | 'h3MinFreeSpaceMb' | 'h3MinFreeSpaceMbHint' | 'h3EstimatedBytesPerSecond' | 'h3EstimatedBytesPerSecondHint'
 
 /** English copy. */
 export const en: Record<PluginsSettingsLocaleKey, string> = {
@@ -24,7 +24,6 @@ export const en: Record<PluginsSettingsLocaleKey, string> = {
   invalidNumber: 'Enter a number, or leave blank to use the default.',
   geoTitle: '深度云海 publishing',
   geoDescription: 'The GEO multi-site backend and the account the publishing tools sign in as. The password is stored outside the settings file.',
-  geoBaseUrl: 'Backend address',
   geoUsername: 'Account',
   geoUsernameHint: 'The account the publishing tools sign in as; it needs the content.news permission on each target site.',
   geoPassword: 'Password',
@@ -109,7 +108,6 @@ export const zh: Record<PluginsSettingsLocaleKey, string> = {
   invalidNumber: '请填数字；留空表示使用默认值。',
   geoTitle: '深度云海发布',
   geoDescription: 'GEO 多站点内容后台与发文工具登录的账号。密码不写入设置文件。',
-  geoBaseUrl: '后台地址',
   geoUsername: '账号',
   geoUsernameHint: '发文工具登录的账号；需要在目标站点上具备 content.news 权限。',
   geoPassword: '密码',
@@ -194,7 +192,6 @@ export const ja = {
   invalidNumber: 'Enter a number, or leave blank to use the default.',
   geoTitle: '深度云海 publishing',
   geoDescription: 'The GEO multi-site backend and the account the publishing tools sign in as. The password is stored outside the settings file.',
-  geoBaseUrl: 'Backend address',
   geoUsername: 'Account',
   geoUsernameHint: 'The account the publishing tools sign in as; it needs the content.news permission on each target site.',
   geoPassword: 'Password',
@@ -279,7 +276,6 @@ export const es = {
   invalidNumber: 'Enter a number, or leave blank to use the default.',
   geoTitle: '深度云海 publishing',
   geoDescription: 'The GEO multi-site backend and the account the publishing tools sign in as. The password is stored outside the settings file.',
-  geoBaseUrl: 'Backend address',
   geoUsername: 'Account',
   geoUsernameHint: 'The account the publishing tools sign in as; it needs the content.news permission on each target site.',
   geoPassword: 'Password',
@@ -364,7 +360,6 @@ export const fr = {
   invalidNumber: 'Enter a number, or leave blank to use the default.',
   geoTitle: '深度云海 publishing',
   geoDescription: 'The GEO multi-site backend and the account the publishing tools sign in as. The password is stored outside the settings file.',
-  geoBaseUrl: 'Backend address',
   geoUsername: 'Account',
   geoUsernameHint: 'The account the publishing tools sign in as; it needs the content.news permission on each target site.',
   geoPassword: 'Password',
@@ -449,7 +444,6 @@ export const de = {
   invalidNumber: 'Enter a number, or leave blank to use the default.',
   geoTitle: '深度云海 publishing',
   geoDescription: 'The GEO multi-site backend and the account the publishing tools sign in as. The password is stored outside the settings file.',
-  geoBaseUrl: 'Backend address',
   geoUsername: 'Account',
   geoUsernameHint: 'The account the publishing tools sign in as; it needs the content.news permission on each target site.',
   geoPassword: 'Password',
@@ -534,7 +528,6 @@ export const ru = {
   invalidNumber: 'Enter a number, or leave blank to use the default.',
   geoTitle: '深度云海 publishing',
   geoDescription: 'The GEO multi-site backend and the account the publishing tools sign in as. The password is stored outside the settings file.',
-  geoBaseUrl: 'Backend address',
   geoUsername: 'Account',
   geoUsernameHint: 'The account the publishing tools sign in as; it needs the content.news permission on each target site.',
   geoPassword: 'Password',
@@ -619,7 +612,6 @@ export const pt = {
   invalidNumber: 'Enter a number, or leave blank to use the default.',
   geoTitle: '深度云海 publishing',
   geoDescription: 'The GEO multi-site backend and the account the publishing tools sign in as. The password is stored outside the settings file.',
-  geoBaseUrl: 'Backend address',
   geoUsername: 'Account',
   geoUsernameHint: 'The account the publishing tools sign in as; it needs the content.news permission on each target site.',
   geoPassword: 'Password',

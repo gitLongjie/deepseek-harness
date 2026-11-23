@@ -273,6 +273,21 @@ const ARTICLE_OUTPUT = {
 } as const
 
 /**
+ * Name the backend and account a completed configuration will call.
+ * The password stays out of this text.
+ * @param ctx - the tool plugin context, whose settings view holds the saved origin.
+ * @returns the model-facing completion line.
+ */
+function configuredTarget(ctx: Context): string {
+  const section = ctx.get('geoAdminSettings')?.get()
+  const baseUrl = text(section?.baseUrl)
+  const username = text(section?.username)
+  const where = baseUrl === undefined ? '' : ` Backend: ${baseUrl}.`
+  const account = username === undefined ? '' : ` Account: ${username}.`
+  return `深度云海 account configuration is complete.${where}${account} Use geo_sites_list to verify login.`
+}
+
+/**
  * Register the three publishing tools. Registration is effect-scoped, so a
  * disposed preset fiber removes every tool.
  * @param ctx - the plugin context whose `tools` registry receives the tools.
@@ -297,7 +312,7 @@ export function apply(ctx: Context, config: Config): void {
         },
       },
       render: (_args, value) => [{ type: 'text', text: value.missing.length === 0
-        ? '深度云海 account configuration is complete. Use geo_sites_list to verify login.'
+        ? configuredTarget(ctx)
         : `Ask the user to supply: ${value.missing.join(', ')}. Save with geo_configure.` }],
     },
     timeoutMs,
