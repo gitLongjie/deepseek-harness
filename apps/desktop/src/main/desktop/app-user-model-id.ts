@@ -34,6 +34,27 @@ export function resolveAppUserModelId(
   return `${DESKTOP_APP_USER_MODEL_ID}.dev.${checkoutToken(root)}`
 }
 
+/**
+ * Start Menu shortcuts, other than this launch's own, that publish the same
+ * AppUserModelId. Windows draws the taskbar button from one shortcut with
+ * that id, so a leftover shortcut with an empty icon shows the executable's
+ * cached Electron icon.
+ * @param shortcuts - Shortcut file names and the id each one publishes. A
+ *   missing id publishes nothing.
+ * @param productShortcut - File name of this launch's shortcut. It is kept.
+ * @param appUserModelId - This launch's id.
+ * @returns File names to remove. Order follows `shortcuts`.
+ */
+export function conflictingDevTaskbarShortcuts(
+  shortcuts: readonly { readonly name: string; readonly appUserModelId?: string | undefined }[],
+  productShortcut: string,
+  appUserModelId: string,
+): readonly string[] {
+  return shortcuts
+    .filter(shortcut => shortcut.name !== productShortcut && shortcut.appUserModelId === appUserModelId)
+    .map(shortcut => shortcut.name)
+}
+
 /** Stable AppUserModelId suffix for one checkout. Paths that differ only by slash or case share a token. */
 function checkoutToken(checkoutPath: string): string {
   const normalized = resolve(checkoutPath).replaceAll('\\', '/').toLowerCase()

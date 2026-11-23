@@ -11,7 +11,7 @@ import {
   syncDesktopOemIcons,
 } from '../scripts/desktop-oem-config.mjs'
 import { packIco } from '../scripts/render-tray-icon.ts'
-import { DESKTOP_APP_USER_MODEL_ID, resolveAppUserModelId } from '../src/main/desktop/app-user-model-id.ts'
+import { conflictingDevTaskbarShortcuts, DESKTOP_APP_USER_MODEL_ID, resolveAppUserModelId } from '../src/main/desktop/app-user-model-id.ts'
 
 const BUILDER_CONFIG = fileURLToPath(new URL('../electron-builder.yml', import.meta.url))
 const DEV_LAUNCHER = fileURLToPath(new URL('../scripts/dev.ts', import.meta.url))
@@ -52,6 +52,15 @@ describe('desktop builder identity', () => {
     expect(resolveAppUserModelId({ DSH_DESKTOP_DEV: '1' }, 'E:\\deepseek-harness')).toBe(harnessDev)
     expect(readFileSync(MAIN_ENTRY, 'utf8')).toContain('app.setAppUserModelId(resolveAppUserModelId(process.env, app.getAppPath()))')
     expect(readFileSync(MAIN_ENTRY, 'utf8')).toContain('syncWindowsDevTaskbarShortcut()')
+    expect(readFileSync(MAIN_ENTRY, 'utf8')).toContain('conflictingDevTaskbarShortcuts(')
+    expect(readFileSync(MAIN_ENTRY, 'utf8')).toContain('shell.readShortcutLink(')
+    expect(readFileSync(MAIN_ENTRY, 'utf8')).toContain("existsSync(shortcut) ? 'update' : 'create'")
+    expect(conflictingDevTaskbarShortcuts([
+      { name: '深度Work.lnk', appUserModelId: 'com.deepagens.app.dev.abc' },
+      { name: 'Electron.lnk', appUserModelId: 'com.deepagens.app.dev.abc' },
+      { name: 'Other.lnk', appUserModelId: 'com.deepagens.app' },
+      { name: 'Unread.lnk' },
+    ], '深度Work.lnk', 'com.deepagens.app.dev.abc')).toEqual(['Electron.lnk'])
     expect(readFileSync(MAIN_ENTRY, 'utf8')).toContain('icon: DESKTOP_TASKBAR_ICON')
     expect(readFileSync(MAIN_ENTRY, 'utf8')).not.toContain('icon: process.execPath')
     expect(readFileSync(DEV_LAUNCHER, 'utf8')).toContain('DSH_DESKTOP_DEV_ROOT: repoRoot')

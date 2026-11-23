@@ -7,7 +7,7 @@
  * @module @deepseek-ai/dsh-desktop/main
  */
 
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { dirname, join, resolve } from 'node:path'
@@ -30,7 +30,7 @@ import { installSingleInstanceLock } from './desktop/single-instance.ts'
 import { installTray, type TrayHandle } from './desktop/tray.ts'
 import { copy, normalizeLocale, type DesktopLocaleId, type DesktopTextKey } from './desktop/locales.ts'
 import { pinWindowTitle, resolveDesktopWindowTitle } from './desktop/window-title.ts'
-import { resolveAppUserModelId } from './desktop/app-user-model-id.ts'
+import { conflictingDevTaskbarShortcuts, resolveAppUserModelId } from './desktop/app-user-model-id.ts'
 import { installApplicationMenu, registerMenuPopupIpc } from './desktop/menu.ts'
 import { resolveWindowChrome, syncDarwinTrafficLights, toggleWindowZoom } from './desktop/window-chrome.ts'
 import { initUpdater, registerUpdateIpc, setUpdaterLocale } from './updater.ts'
@@ -96,23 +96,55 @@ if (smokeUserData !== undefined && smokeUserData !== '') app.setPath('userData',
 const DESKTOP_TASKBAR_ICON = fileURLToPath(new URL('../../build/icon.ico', import.meta.url))
 
 /**
- * Point this checkout's Start Menu shortcut at its own AppUserModelId.
- * Electron leaves an existing shortcut in place, so a second checkout would
- * keep publishing the shared id. The update preserves the toast activator.
- * A missing shortcut is left for Electron to create with the id set above.
+ * Publish this checkout's Start Menu shortcut, then remove every other
+ * shortcut that carries the same AppUserModelId.
+ * Windows draws the taskbar button from one shortcut with that id. A leftover
+ * shortcut whose icon is empty uses the executable, and Windows keeps the
+ * original Electron icon cached for that path. The update preserves the toast
+ * activator. A missing shortcut is created here, before the window, so the
+ * taskbar does not bind a shortcut that has no brand icon.
  */
 function syncWindowsDevTaskbarShortcut(): void {
   if (process.platform !== 'win32' || process.env.DSH_DESKTOP_DEV !== '1') return
-  const shortcut = join(app.getPath('appData'), 'Microsoft', 'Windows', 'Start Menu', 'Programs', `${DESKTOP_PRODUCT_NAME}.lnk`)
-  if (!existsSync(shortcut)) return
-  const wrote = shell.writeShortcutLink(shortcut, 'update', {
+  const programs = join(app.getPath('appData'), 'Microsoft', 'Windows', 'Start Menu', 'Programs')
+  const shortcutName = `${DESKTOP_PRODUCT_NAME}.lnk`
+  const shortcut = join(programs, shortcutName)
+  const appUserModelId = resolveAppUserModelId(process.env, app.getAppPath())
+  const wrote = shell.writeShortcutLink(shortcut, existsSync(shortcut) ? 'update' : 'create', {
     target: process.execPath,
-    appUserModelId: resolveAppUserModelId(process.env, app.getAppPath()),
+    appUserModelId,
     description: DESKTOP_PRODUCT_NAME,
     icon: DESKTOP_TASKBAR_ICON,
     iconIndex: 0,
   })
   if (!wrote) console.warn('desktop: failed to refresh the dev taskbar shortcut')
+  let names: string[]
+  try {
+    names = readdirSync(programs)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    console.warn(`desktop: failed to read Start Menu shortcuts: ${message}`)
+    return
+  }
+  const published: { name: string; appUserModelId?: string | undefined }[] = []
+  for (const name of names) {
+    if (!name.endsWith('.lnk') || name === shortcutName) continue
+    const path = join(programs, name)
+    try {
+      published.push({ name, appUserModelId: shell.readShortcutLink(path).appUserModelId })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      console.warn(`desktop: skipped unreadable Start Menu shortcut ${name}: ${message}`)
+    }
+  }
+  for (const name of conflictingDevTaskbarShortcuts(published, shortcutName, appUserModelId)) {
+    try {
+      rmSync(join(programs, name))
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      console.warn(`desktop: failed to remove the conflicting taskbar shortcut ${name}: ${message}`)
+    }
+  }
 }
 
 /** Directory of the built frontend dist under the desktop package root. */
