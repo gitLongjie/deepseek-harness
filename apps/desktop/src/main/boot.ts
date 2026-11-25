@@ -383,6 +383,17 @@ export function createDesktopProfileContext(
   }
 }
 
+/** Stages of a desktop boot, reported to the launcher as each one begins. */
+export type DesktopBootStage =
+  /** Reading the web profile and its bundle layers. */
+  | 'profile'
+  /** Computing the runtime package resolution. */
+  | 'resolution'
+  /** Composing the bundle, profile, home, and overlay patches. */
+  | 'patches'
+  /** Importing and starting the plugin tree, then auditing it. */
+  | 'tree'
+
 /** Options for {@link runDesktopBoot}. */
 export interface DesktopBootOptions {
   /** This run's frozen environment snapshot, provided before any entry mounts. */
@@ -395,6 +406,13 @@ export interface DesktopBootOptions {
   forceExit?: (code: number) => void
   /** Completion wiring replaceable by Electron (app.exit) or tests. */
   complete?: (code: number) => void
+  /**
+   * Receives each stage as it begins. The `tree` stage is reported once before
+   * the Loader installs and again with the root context once it exists.
+   * @param stage - The stage that began.
+   * @param ctx - The root context, from the second `tree` report on.
+   */
+  onStage?: (stage: DesktopBootStage, ctx?: Context) => void
 }
 
 /** Result of a settled desktop boot. */
@@ -409,12 +427,15 @@ export interface DesktopBootResult {
  * Boot the web profile under the desktop overlay and leave process lifetime
  * to Electron. Fails loud through installFailLoud; a boot rejection propagates
  * to the caller after the partial tree is disposed.
- * @param options - environment, inner args, and optional exit/bare-resolution wiring.
+ * @param options - environment, inner args, and optional exit, bare-resolution, and stage-reporting wiring.
  * @returns the settled root context and the shutdown controller.
  */
 export async function runDesktopBoot(options: DesktopBootOptions): Promise<DesktopBootResult> {
+  const report = options.onStage
+  report?.('profile')
   if (healsSharedModuleFallback(options.bareModuleBaseUrl)) ensureRootPluginLinks()
   const profile = loadProfile(NAME, 'web', INSTALL_ANCHOR)
+  report?.('resolution')
   // Preset subtrees and nested Includes resolve bare plugin names from the
   // profile directory, where only the (unmaintained) shared farm walk stands
   // between a composition and an unresolvable package. The runtime resolution
@@ -427,6 +448,7 @@ export async function runDesktopBoot(options: DesktopBootOptions): Promise<Deskt
 
   const homePatches = loadOptionalPatches(NAME, homePatchPath()) ?? []
   const bundlePatches = profile.layers.flatMap(layer => layer.patches)
+  report?.('patches')
   const rows = new Map<string, EntryOptions>()
   for (const row of composeEntries([bundlePatches, profile.patches, homePatches])) {
     if (typeof row.id === 'string') rows.set(row.id, row)
@@ -501,7 +523,9 @@ export async function runDesktopBoot(options: DesktopBootOptions): Promise<Deskt
   const allPatches = [...bundlePatches, ...profile.patches, ...homePatches, ...overlays]
   const profileContext = createDesktopProfileContext(profile, overlays)
   const appReady = createAppReady()
+  report?.('tree')
   const ctx = await boot(NAME, rootConfig, structuredClone(allPatches), async (hostCtx) => {
+    report?.('tree', hostCtx)
     app.current = hostCtx
     hostCtx.provide('profileContext', profileContext)
     hostCtx.provide(DSH_LAUNCH_ENVIRONMENT_KEY, options.environment)

@@ -15,20 +15,20 @@
   en: 127ea90553cb6af7
   zh: 7b1c5aec8558c684
 /meowwork-desktop-shell/application-overview:
-  en: eef7e5d0be866013
-  zh: 7a02dca46e7400f6
+  en: 5cc341af3c8c16c4
+  zh: 7c4f4594e9f4d51f
 /meowwork-desktop-shell/terminal-command:
   en: 5f2d25a1d8472647
   zh: 2acb5c5d7d1917e2
 /meowwork-desktop-shell/closing-the-window-and-quitting:
-  en: bb35a022c37955c9
-  zh: ab2ef22d398d83a0
+  en: 437f0945bf40991f
+  zh: 8309a6095afacc9a
 /meowwork-desktop-shell/key-technical-decisions:
   en: 3724c53da4f7647b
   zh: 76ae549d43c99bb4
 /meowwork-desktop-shell/key-technical-decisions/bundled-workspace-dependencies:
-  en: 3368ff9b955ada69
-  zh: e9209ef6ad4fd305
+  en: 7d9f6741d43c46e2
+  zh: c1b38e44d03ef250
 /meowwork-desktop-shell/bundled-command-runtime:
   en: 372297005b57a08b
   zh: 074a635ac17e4362
@@ -42,11 +42,11 @@
   en: f9aa363b607ec516
   zh: 75d427dd2b538bd9
 /meowwork-desktop-shell/what-the-shell-provides:
-  en: 9d11a65a03ed8041
-  zh: 74d0167f38205ff9
+  en: 4cefab7f71b0e7bf
+  zh: d949b674ecc62420
 /meowwork-desktop-shell/develop:
-  en: c44a67bfff12b676
-  zh: df66756b5a247b55
+  en: 65a843fa27d9ea48
+  zh: feef3ea72497f317
 /meowwork-desktop-shell/develop/startup-onboarding:
   en: 67dc7ef3e293236a
   zh: 1b224db684a2d1d7
@@ -57,14 +57,14 @@
   en: ac31ebdd9de54f34
   zh: 921e534d5c4b3a16
 /meowwork-desktop-shell/windows-installer-interface:
-  en: 9b90a2651a6d2b52
-  zh: 86d4d9c4358aad80
+  en: da0c87b83b487afe
+  zh: 51685ed07d5a5ad0
 /meowwork-desktop-shell/updates:
   en: 67bf0a18faa7aa76
   zh: 782e14ce62bb939f
 /meowwork-desktop-shell/updates/local-desktop-settings:
-  en: 2e57457c44c85b5f
-  zh: 5b8510a3dc4c6c9d
+  en: 8973fdc3e80e1803
+  zh: f39385a685d3234a
 /meowwork-desktop-shell/updates/mandatory-update-policy:
   en: 182a9c6705213e13
   zh: 681762f83490f4c6
@@ -75,8 +75,8 @@
   en: 8264b135871e8978
   zh: 0939aafb1b2961fc
 /meowwork-desktop-shell/known-limitations:
-  en: b1eeadfefb338056
-  zh: 28683fbdf1e98685
+  en: 73620268d0b14a2c
+  zh: edfc8d9fcdfa8403
 /meowwork-desktop-shell/dev-note:
   en: 8e26b460ba31f21b
   zh: fbcd0307b3867125

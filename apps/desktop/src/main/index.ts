@@ -17,6 +17,24 @@ import type { Context } from '@deepseek-ai/cordis'
 import { loadLayeredEnv } from '@deepseek-ai/dsh-app-boot'
 import type { TypertGateway } from '@deepseek-ai/dsh-api-gateway/types'
 import { runDesktopBoot } from './boot.ts'
+import {
+  BOOT_RELAUNCH_ARG,
+  BOOT_STATE_FILENAME,
+  HOST_BOOT_AUTO_RELAUNCHES,
+  classifyInstallLocation,
+  clearBootState,
+  createHostBootWatchdog,
+  hostBootWatchdogEnabled,
+  inheritedStuckBoots,
+  inspectBootEntries,
+  readBootState,
+  stuckBootAction,
+  writeBootState,
+  type BootEntrySource,
+  type BootStage,
+  type HostBootWatchdogOptions,
+  type StuckBootReport,
+} from './desktop/boot-watchdog.ts'
 import { mountDesktopOffice, resolveBundledSkillDir } from './desktop/office.ts'
 import { installOfficeEngineResolution } from './desktop/office-engine.ts'
 import { comfyuiLocalDir, deployBundledComfyUI } from './desktop/comfyui-bootstrap.ts'
@@ -222,6 +240,11 @@ function rebuildShell(win?: BrowserWindow): void {
   }
 }
 
+/** The desktop log file: `DSH_DESKTOP_LOG` overrides the default userData log for headless diagnosis. */
+function desktopLogPath(): string {
+  return process.env.DSH_DESKTOP_LOG ?? join(app.getPath('userData'), 'desktop.log')
+}
+
 /**
  * Append a startup line to the desktop log under userData; GUI apps do not
  * surface process stderr, so failures need a durable sink for diagnosis.
@@ -230,8 +253,7 @@ function log(line: string): void {
   const text = `${new Date().toISOString()} ${line}\n`
   console.error(text.trimEnd())
   try {
-    // DSH_DESKTOP_LOG overrides the default userData log for headless diagnosis.
-    const logPath = process.env.DSH_DESKTOP_LOG ?? join(app.getPath('userData'), 'desktop.log')
+    const logPath = desktopLogPath()
     mkdirSync(dirname(logPath), { recursive: true })
     appendFileSync(logPath, text)
   } catch {
@@ -257,8 +279,7 @@ function mirrorConsoleToLog(): void {
       original(...args)
       try {
         const text = args.map(render).join(' ')
-        const logPath = process.env.DSH_DESKTOP_LOG ?? join(app.getPath('userData'), 'desktop.log')
-        appendFileSync(logPath, `${new Date().toISOString()} host ${method}: ${text}\n`)
+        appendFileSync(desktopLogPath(), `${new Date().toISOString()} host ${method}: ${text}\n`)
       } catch {
         // Logging must never crash the host.
       }
@@ -335,6 +356,37 @@ async function main(): Promise<void> {
     if (app.isPackaged && installOfficeEngineResolution(app.getAppPath()) !== undefined) {
       log('desktop: office preview engine resolver installed')
     }
+    log(`desktop: install location ${classifyInstallLocation(process.execPath)} (${process.execPath})`)
+    const bootStatePath = join(app.getPath('userData'), BOOT_STATE_FILENAME)
+    const previousBoot = readBootState(bootStatePath)
+    const stuckBoots = inheritedStuckBoots(process.argv, previousBoot)
+    if (previousBoot !== undefined) {
+      log(`desktop: previous launch (started ${previousBoot.startedAt}) did not reach its window; stuck launches before this one: ${String(stuckBoots)}`)
+    }
+    const bootStartedAt = Date.now()
+    let bootTree: BootEntrySource | undefined
+    let bootStage: BootStage | undefined
+    // The window waits for the whole host tree, so an entry that never settles
+    // leaves a menu bar and no window. The watchdog logs the stage and the
+    // entries still unsettled, relaunches the first stuck launches, and asks
+    // once its budget is spent (desktop/boot-watchdog.ts).
+    const watchdogOptions: HostBootWatchdogOptions = {
+      log,
+      inspect: () => inspectBootEntries(bootTree),
+      onStuck: (report) => { void recoverFromStuckBoot(report, bootStatePath, stuckBoots) },
+    }
+    const watchdog = hostBootWatchdogEnabled(process.env, app.isPackaged)
+      ? createHostBootWatchdog(watchdogOptions)
+      : undefined
+    if (watchdog !== undefined) writeBootState(bootStatePath, { startedAt: new Date().toISOString(), stuckBoots })
+    const enterStage = (stage: BootStage, tree?: BootEntrySource): void => {
+      if (tree !== undefined) bootTree = tree
+      // The tree stage is reported again once the root context exists; it logs once.
+      if (stage === bootStage) return
+      bootStage = stage
+      log(`desktop: startup stage ${stage} (+${String(Date.now() - bootStartedAt)}ms)`)
+      watchdog?.stage(stage)
+    }
     const result = await runDesktopBoot({
       environment,
       args: ['--no-open', '--port', '0'],
@@ -343,10 +395,12 @@ async function main(): Promise<void> {
       ...(app.isPackaged ? { bareModuleBaseUrl: pathToFileURL(app.getAppPath()).href + '/' } : {}),
       forceExit: (code) => { app.exit(code) },
       complete: (code) => { app.exit(code) },
+      onStage: (stage, ctx) => { enterStage(stage, ctx?.loader) },
     })
     host.ctx = result.ctx
     host.shutdown = result.shutdown
     log('desktop: host booted')
+    enterStage('office')
     // Office create tools and skills live on the in-process host (not only the
     // legacy child dsh-desktop-host). Without this mount, chat never sees
     // create_pptx / create_docx / create_xlsx and falls back to text scripts.
@@ -404,6 +458,7 @@ async function main(): Promise<void> {
     registerUpdateIpc()
     registerWindowControlsIpc()
 
+    enterStage('window')
     const win = createWindow()
     // macOS Dock click after the window was hidden to the tray (tray.ts hides
     // instead of destroying on close): without this handler the app is
@@ -465,6 +520,8 @@ async function main(): Promise<void> {
     // fence, so loopback-only surfaces (settings, credentials) stay available.
     await win.loadURL(`${WEB_SCHEME}://localhost/index.html`)
     log('desktop: window loaded')
+    // A launch declared stuck leaves its record to the recovery dialog.
+    if (watchdog?.settle() === true) clearBootState(bootStatePath)
     // Seed the title bar with the current shell locale.
     win.webContents.send('dsh:locale:change', currentLocale)
 
@@ -513,6 +570,52 @@ function startupDiagnostic(error: unknown): string {
     }
   }
   return lines.length === 0 ? '' : '\n' + lines.join('\n')
+}
+
+/**
+ * Answer a startup the watchdog declared stuck. The first ones relaunch the
+ * app, because the stall does not repeat on every launch; once the automatic
+ * budget is spent, a native dialog offers one more attempt, since no window
+ * exists to report through. Every path ends this process.
+ * @param report - The declaring observation.
+ * @param bootStatePath - Launch record that carries the budget to the next launch.
+ * @param stuckBoots - Consecutive stuck launches before this one.
+ */
+async function recoverFromStuckBoot(report: StuckBootReport, bootStatePath: string, stuckBoots: number): Promise<void> {
+  const attempts = stuckBoots + 1
+  try {
+    writeBootState(bootStatePath, { startedAt: new Date().toISOString(), stuckBoots: attempts })
+    if (stuckBootAction(attempts) === 'relaunch') {
+      log(`desktop: relaunching after the stuck startup (automatic relaunch ${String(attempts)} of ${String(HOST_BOOT_AUTO_RELAUNCHES + 1)})`)
+      app.relaunch({ args: [BOOT_RELAUNCH_ARG] })
+      app.exit(0)
+      return
+    }
+    // The dialog is the only surface of a launch that has no window; bring the app forward so it is not hidden behind others.
+    app.focus({ steal: true })
+    const t = shellT(currentLocale)
+    const { response } = await dialog.showMessageBox({
+      type: 'warning',
+      title: t('boot.stuckTitle'),
+      message: t('boot.stuckMessage'),
+      detail: t('boot.stuckDetail')
+        .replace('{count}', String(attempts))
+        .replace('{logPath}', desktopLogPath()),
+      buttons: [t('boot.stuckRetry'), t('boot.stuckQuit')],
+      defaultId: 0,
+      cancelId: 1,
+      noLink: true,
+    })
+    log(`desktop: stuck startup dialog answered ${String(response)}; last stage ${report.stage}`)
+    if (response === 0) {
+      clearBootState(bootStatePath)
+      app.relaunch({ args: [BOOT_RELAUNCH_ARG] })
+    }
+    app.exit(response === 0 ? 0 : 1)
+  } catch (error) {
+    log(`desktop: stuck startup recovery failed:\n${flattenError(error)}`)
+    app.exit(1)
+  }
 }
 
 /** Read packaged metadata and resolve the desktop update feed (undefined disables updates). */
@@ -599,6 +702,9 @@ function flattenError(error: unknown, depth = 0): string {
   return String(error)
 }
 
+/** Delay after the page load at which a window still hidden is shown without `ready-to-show`. */
+const WINDOW_SHOW_FALLBACK_MS = 3_000
+
 /** Compose a window loading the injected index over the app scheme. */
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
@@ -644,6 +750,17 @@ function createWindow(): BrowserWindow {
     win.webContents.send('dsh:window:fullscreen-change', false)
   })
   win.once('ready-to-show', () => { win.show() })
+  // `ready-to-show` needs a first renderer frame. A renderer that presents none
+  // would keep the window hidden for good, so the first page load also shows a
+  // window that is still hidden shortly after.
+  win.webContents.once('did-finish-load', () => {
+    const fallback = setTimeout(() => {
+      if (win.isDestroyed() || win.isVisible()) return
+      log(`desktop: window shown ${String(WINDOW_SHOW_FALLBACK_MS)}ms after load without ready-to-show`)
+      win.show()
+    }, WINDOW_SHOW_FALLBACK_MS)
+    fallback.unref()
+  })
   return win
 }
 

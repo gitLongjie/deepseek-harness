@@ -69,6 +69,11 @@ export const zh = {
   'resources.missing.desktop-patch': '插件组合配置 (cordis.patch.yml)',
   'resources.missing.windows-acl-runner': '沙箱 runner (dsh-sandbox-windows-acl)',
   'resources.missing.koffi-binding': '原生 FFI 绑定 (koffi)',
+  'boot.stuckTitle': '启动未完成',
+  'boot.stuckMessage': '{productName} 启动时卡住了，主窗口没有显示出来。',
+  'boot.stuckDetail': '已自动重启 {count} 次仍未成功。\n\n可以再重试一次，或退出应用。如果仍然失败，请把下面的日志文件一并发给我们：\n{logPath}',
+  'boot.stuckRetry': '重试启动',
+  'boot.stuckQuit': '退出',
 } satisfies Record<string, string>
 
 /** Desktop-shell string key. */
@@ -136,6 +141,11 @@ export const en = {
   'resources.missing.desktop-patch': 'Plugin composition (cordis.patch.yml)',
   'resources.missing.windows-acl-runner': 'Sandbox runner (dsh-sandbox-windows-acl)',
   'resources.missing.koffi-binding': 'Native FFI binding (koffi)',
+  'boot.stuckTitle': 'Startup did not finish',
+  'boot.stuckMessage': '{productName} got stuck while starting, so the main window did not appear.',
+  'boot.stuckDetail': 'It was restarted {count} times without success.\n\nRetry once more, or quit. If it keeps failing, send this log file with your feedback:\n{logPath}',
+  'boot.stuckRetry': 'Retry startup',
+  'boot.stuckQuit': 'Quit',
 } satisfies Record<DesktopTextKey, string>
 
 /** Locale identifiers understood by the desktop shell. */

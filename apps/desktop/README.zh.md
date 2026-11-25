@@ -35,6 +35,8 @@ Desktop 在原生应用中运行 Harness 工作区。本参考文档说明应用
 
 Electron 在 `userData/desktop/locale-cache` 缓存最近确认的界面语言，使启动恢复弹窗在 Host 设置尚不可用时也能使用该语言。缓存缺失、无效或不可读时回退到系统语言；缓存写入失败不阻断启动。Host 成功启动或界面语言变更时会刷新缓存；在此之前，变更后的系统语言可能与缓存语言不同。
 
+桌面端只在 host 插件树全部就绪后才创建主窗口。启动看门狗会记录每个启动阶段及其耗时和可执行文件的启动位置；启动仍在进行时，每十秒记录一次尚未完成导入或激活的插件条目。启动运行满三十秒后，若条目列表与上一次检查相同，即判定启动卡住：日志写明所处阶段和条目，桌面端随后自动重启，连续最多两次。连续第三次卡住时弹出原生对话框，提供再试一次的机会并给出日志文件路径。启动记录 `userData/boot-state.json` 只累计同一次自动重启序列内的卡住次数；用户手动启动会重新获得完整的重试次数，窗口加载完成后记录被删除。看门狗仅用于打包后的启动，在 `DSH_PACKAGED_SMOKE=1` 下不运行。页面加载完成三秒后仍隐藏的窗口会在没有 `ready-to-show` 的情况下显示。
+
 桌面埋点遵循[产品采集策略](../../packages/client/product-analytics/README.zh.md)及其动态应用配置，不包含 Web 使用情况。安装更新会等待该操作的本地埋点接收请求结束，再锁定 API 准入并停止 Host。接收请求的时限为一秒，失败不会阻止安装，也不等待收集端完成发送。
 
 桌面应用是完整 dsh Web 应用外的一层 Electron 壳。Electron RunAsNode 子进程启动共享 profile runner，Electron 立即从 `dsh-app://app/` 加载打包内的 Web 入口。共享加载页等待 Host 启动注入，然后在同一文档中启动客户端。Electron 将应用 HTTP 请求转发给已认证的 Web Host，请求体按原始字节转发（图片与文件上传是二进制内容，该路径不得出现文本解码），转发时丢弃描述 Node fetch 连接而非资源本身的响应头（`transfer-encoding`、`connection`、`keep-alive`），并把插件 bundle 响应标记为 `no-store`，因为其每次启动都变化的 revision 只会在 Chromium 磁盘缓存中累积；WebSocket 流连接到该 Host，仅为归属的应用窗口附加凭据。Node IPC 承载启动注入、就绪与关闭。Desktop 默认监听系统分配的端口，因此不会与 Web 的 `3080` 或系统保留端口冲突；可通过 `webserver.config.port` patch 覆盖。
