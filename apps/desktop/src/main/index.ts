@@ -10,6 +10,7 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { cpus } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { app, BrowserWindow, dialog, ipcMain, protocol, shell } from 'electron'
 import type { Context } from '@deepseek-ai/cordis'
@@ -32,6 +33,7 @@ import { copy, normalizeLocale, type DesktopLocaleId, type DesktopTextKey } from
 import { pinWindowTitle, resolveDesktopWindowTitle } from './desktop/window-title.ts'
 import { conflictingDevTaskbarShortcuts, resolveAppUserModelId } from './desktop/app-user-model-id.ts'
 import { installApplicationMenu, registerMenuPopupIpc } from './desktop/menu.ts'
+import { darwinRendererSwitches } from './desktop/darwin-renderer.ts'
 import { resolveWindowChrome, syncDarwinTrafficLights, toggleWindowZoom } from './desktop/window-chrome.ts'
 import { initUpdater, registerUpdateIpc, setUpdaterLocale } from './updater.ts'
 import { installNotificationActivation, notifyTurnCompletion } from './desktop/completion-notification.ts'
@@ -67,6 +69,13 @@ const WEB_SCHEME = 'dshapp'
 protocol.registerSchemesAsPrivileged([
   { scheme: WEB_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true } },
 ])
+
+// Chromium starts the GPU process on the ready event and ignores switches
+// appended later. Host boot awaits before the window is created, so ready can
+// fire before main() reaches that point. M1 and M2 otherwise present no frame
+// and the hidden window never appears (desktop/darwin-renderer.ts).
+const DARWIN_RENDERER_SWITCHES = darwinRendererSwitches(process.platform, cpus()[0]?.model ?? '')
+for (const flag of DARWIN_RENDERER_SWITCHES) app.commandLine.appendSwitch(flag)
 
 // Windows keys the taskbar entry, Alt+Tab label, and Task Manager's Apps row off
 // the app name and AppUserModelId (desktop/app-user-model-id.ts owns the id).
@@ -313,6 +322,14 @@ async function main(): Promise<void> {
     const environment = loadLayeredEnv('desktop')
     log(`desktop: product home ${process.env.DSH_HOME ?? ''} agents ${process.env.DSH_AGENTS_HOME ?? ''}`)
     log(`desktop: booting (packaged=${String(app.isPackaged)}) execArgv=${JSON.stringify(process.execArgv)} node=${process.versions.node}`)
+    if (process.platform === 'darwin') {
+      const applied = DARWIN_RENDERER_SWITCHES.join(' ')
+      log(`desktop: macOS cpu ${cpus()[0]?.model ?? ''} renderer switches: ${applied === '' ? '(none)' : applied}`)
+    }
+    app.on('child-process-gone', (_event, details) => {
+      if (details.type !== 'GPU') return
+      log(`desktop: gpu process gone reason=${details.reason} exitCode=${details.exitCode}`)
+    })
     // Office preview spawns the native helper. electron-builder leaves that helper
     // in app.asar.unpacked, and the kit resolves it while the host profile loads.
     if (app.isPackaged && installOfficeEngineResolution(app.getAppPath()) !== undefined) {
