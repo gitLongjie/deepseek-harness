@@ -11,7 +11,7 @@
  * full parse self-heals it.
  */
 
-import { memo, useMemo, useRef } from 'react'
+import { memo, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import clsx from 'clsx'
 import { IncrementalMarkdownParser } from './incremental.ts'
@@ -26,17 +26,26 @@ import css from './MarkdownText.module.css'
 
 export type { MarkdownCodeLabels, MarkdownFileMentions, MarkdownLabels, MarkdownPathImages } from './render.tsx'
 
+/**
+ * Top-level blocks mounted for one settled window.
+ * A reply whose blank lines split it into tens of thousands of paragraphs
+ * otherwise builds that many elements on the renderer thread before the page
+ * can accept input again. The tail is the part a reader already scrolled to.
+ */
+const SETTLED_BLOCK_WINDOW = 160
+
 /** One settled full render: parse with math, resolve references, append the footnote section. */
 function renderSettled(
-  text: string,
+  root: ReturnType<typeof parseGfmWithMath>,
+  startBlock: number,
   labels: MarkdownLabels,
   fileMentions: MarkdownFileMentions | undefined,
   pathImages: MarkdownPathImages | undefined,
   omitHtml: boolean,
 ): ReactNode[] {
-  const root = parseGfmWithMath(text)
+  const source = startBlock > 0 ? root.children.slice(startBlock) : root.children
   const targets = createReferenceTargets()
-  collectReferenceTargets(root.children, targets)
+  collectReferenceTargets(source, targets)
   const context: MarkdownRenderContext = {
     streaming: false,
     labels,
@@ -48,7 +57,7 @@ function renderSettled(
     footnoteCounts: new Map(),
   }
   const blocks = wrapBlockChildren(
-    renderBlocks(root.children.map((node, index) => ({
+    renderBlocks(source.map((node, index) => ({
       node,
       /* v8 ignore next -- parseFull uses parseGfm, which stamps every top-level node. */
       key: node.position?.start.offset ?? -(index + 1),
@@ -175,6 +184,8 @@ class StreamingRenderer {
  * HTML as nothing instead of literal text, for documents written for HTML
  * renderers, such as package READMEs. `textInteractionSource` marks the
  * existing root as a source for text selection interactions.
+ * When `labels.showEarlier` is set, a settled document longer than one window
+ * mounts only its trailing blocks and reveals earlier blocks one window at a time.
  * The provider's `openFile` enables local Markdown links in settled messages,
  * including `#L24` / `#L24-L30` fragments and `:24` / `:24-30` / `:24:5` suffixes
  * (ranges open at their first line, columns are ignored, and invalid locations
@@ -197,18 +208,36 @@ export const MarkdownText = memo(function MarkdownText({
 }) {
   const streamRef = useRef<StreamingRenderer | null>(null)
   const streamLabelsRef = useRef<MarkdownLabels>(labels)
+  const settledRoot = useMemo(
+    () => streaming ? undefined : parseGfmWithMath(text),
+    [streaming, text],
+  )
+  const [reveal, setReveal] = useState({ text, extra: 0 })
+  if (!streaming && reveal.text !== text) setReveal({ text, extra: 0 })
+  const extra = !streaming && reveal.text === text ? reveal.extra : 0
+  const earlierLabel = labels.showEarlier
+  const startBlock = settledRoot === undefined || earlierLabel === undefined
+    ? 0
+    : Math.max(0, settledRoot.children.length - (SETTLED_BLOCK_WINDOW + extra))
   const children = useMemo(() => {
-    if (!streaming) {
-      streamRef.current = null
-      return renderSettled(text, labels, fileMentions, pathImages, omitHtml)
+    if (settledRoot === undefined) {
+      if (streamRef.current === null || streamLabelsRef.current !== labels || streamRef.current.omitHtml !== omitHtml) {
+        streamRef.current = new StreamingRenderer(labels, omitHtml)
+        streamLabelsRef.current = labels
+      }
+      return streamRef.current.render(text)
     }
-    if (streamRef.current === null || streamLabelsRef.current !== labels || streamRef.current.omitHtml !== omitHtml) {
-      streamRef.current = new StreamingRenderer(labels, omitHtml)
-      streamLabelsRef.current = labels
-    }
-    return streamRef.current.render(text)
-  }, [text, streaming, labels, fileMentions, pathImages, omitHtml])
+    streamRef.current = null
+    return renderSettled(settledRoot, startBlock, labels, fileMentions, pathImages, omitHtml)
+  }, [text, labels, fileMentions, pathImages, omitHtml, settledRoot, startBlock])
   return <div className={clsx(css.markdown, variant === 'compact' && css.compact)}
     data-text-interaction-source={textInteractionSource ? '' : undefined}
-    data-markdown-variant={variant === 'compact' ? variant : undefined}>{children}</div>
+    data-markdown-variant={variant === 'compact' ? variant : undefined}>
+    {startBlock > 0 && (
+      <button type="button" className={css.earlier} onClick={() => {
+        setReveal({ text, extra: extra + SETTLED_BLOCK_WINDOW })
+      }}>{earlierLabel}</button>
+    )}
+    {children}
+  </div>
 })

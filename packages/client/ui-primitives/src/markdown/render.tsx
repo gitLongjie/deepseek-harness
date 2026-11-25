@@ -50,6 +50,13 @@ export interface MarkdownCodeLabels {
 export interface MarkdownLabels {
   code: MarkdownCodeLabels
   footnotes: string
+  /**
+   * Control that reveals earlier blocks of a settled document.
+   * When set, a document longer than one render window keeps only its tail
+   * mounted and offers this control; each activation reveals one more window.
+   * Omission renders every block.
+   */
+  showEarlier?: string
 }
 
 function sanitizeUrl(url: string): string {
